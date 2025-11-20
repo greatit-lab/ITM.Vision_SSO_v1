@@ -1,0 +1,86 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- C# 코드 기반 테이블 매핑 ---
+
+model RefEquipment {
+  eqpid String @id
+  sdwt  String
+  
+  // Relations
+  agentInfo AgentInfo?
+  agentStatus AgentStatus?
+  
+  @@map("ref_equipment")
+}
+
+model RefSdwt {
+  sdwt   String @id
+  site   String
+  isUse  String @map("is_use") // 'Y' or 'N'
+
+  @@map("ref_sdwt")
+}
+
+model AgentInfo {
+  eqpid       String  @id
+  pcName      String? @map("pc_name")
+  appVer      String? @map("app_ver")
+  type        String?
+  ipAddress   String? @map("ip_address")
+  os          String?
+  systemType  String? @map("system_type")
+  locale      String?
+  timezone    String?
+  macAddress  String? @map("mac_address")
+  
+  // Relations
+  equipment RefEquipment @relation(fields: [eqpid], references: [eqpid])
+
+  @@map("agent_info")
+}
+
+model AgentStatus {
+  eqpid          String    @id
+  status         String?   // 'ONLINE' | 'OFFLINE'
+  lastPerfUpdate DateTime? @map("last_perf_update")
+  
+  equipment RefEquipment @relation(fields: [eqpid], references: [eqpid])
+
+  @@map("agent_status")
+}
+
+model PlgError {
+  eqpid     String
+  timeStamp DateTime @map("time_stamp")
+  
+  @@id([eqpid, timeStamp])
+  @@map("plg_error")
+}
+
+model PlgWfFlat {
+  eqpid  String
+  servTs DateTime @map("serv_ts")
+  
+  @@id([eqpid, servTs])
+  @@map("plg_wf_flat")
+}
+
+model EqpPerf {
+  eqpid    String
+  servTs   DateTime @map("serv_ts")
+  ts       DateTime? // Agent 시간
+  cpuUsage Float?   @map("cpu_usage")
+  memUsage Float?   @map("mem_usage")
+
+  @@id([eqpid, servTs])
+  @@map("eqp_perf")
+}
