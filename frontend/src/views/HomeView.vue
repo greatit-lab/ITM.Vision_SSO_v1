@@ -1,103 +1,39 @@
 <template>
   <div
-    class="p-8 min-h-screen transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
+    class="p-6 min-h-full transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
   >
     <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6"
+      class="flex flex-col md:flex-row justify-between items-center mb-5 gap-4"
     >
-      <div class="flex items-center gap-5">
+      <div class="flex items-center gap-4">
         <div
-          class="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+          class="w-12 h-12 rounded-xl bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-center border border-slate-100 dark:border-zinc-800"
         >
-          <i class="pi pi-objects-column text-5xl text-indigo-500"></i>
+          <i class="pi pi-objects-column text-2xl text-indigo-500"></i>
         </div>
         <div>
           <h1
-            class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3"
+            class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2"
           >
             Overview
             <span
               v-if="hasSearched"
-              class="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold tracking-wide uppercase border border-indigo-200 dark:border-indigo-500/20 fade-in"
+              class="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold tracking-wide uppercase border border-indigo-200 dark:border-indigo-500/20 fade-in"
               >Live</span
             >
           </h1>
-          <p
-            class="text-slate-500 dark:text-slate-400 font-medium text-sm mt-1"
-          >
-            Overview of system performance.
+          <p class="text-slate-500 dark:text-slate-400 font-medium text-xs">
+            System performance summary.
           </p>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-4">
-        <button
-          @click="toggleDarkMode"
-          class="relative inline-flex h-9 w-16 items-center rounded-full transition-colors duration-300 focus:outline-none border-2 border-slate-200 dark:border-zinc-700"
-          :class="isDark ? 'bg-zinc-800' : 'bg-slate-100'"
-        >
-          <div class="w-full flex justify-between px-2.5 z-0">
-            <i
-              class="pi pi-sun text-[10px] text-slate-400 dark:text-zinc-500"
-            ></i>
-            <i
-              class="pi pi-moon text-[10px] text-slate-400 dark:text-zinc-500"
-            ></i>
-          </div>
-          <div
-            class="absolute top-0.5 w-7 h-7 bg-white dark:bg-zinc-600 rounded-full shadow-sm transform transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex items-center justify-center z-10 border border-slate-100 dark:border-zinc-500"
-            :class="isDark ? 'translate-x-[30px]' : 'translate-x-0.5'"
-          >
-            <i
-              class="pi text-[10px]"
-              :class="isDark ? 'pi-moon text-white' : 'pi-sun text-amber-500'"
-            ></i>
-          </div>
-        </button>
-
-        <div class="h-8 w-px bg-slate-200 dark:bg-zinc-700 mx-2"></div>
-
-        <button
-          class="p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors relative"
-        >
-          <i class="pi pi-bell text-xl"></i>
-          <span
-            class="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#09090B]"
-          ></span>
-        </button>
-
-        <button
-          class="p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-        >
-          <i class="pi pi-cog text-xl"></i>
-        </button>
-
-        <div
-          class="flex items-center gap-3 pl-2 cursor-pointer hover:opacity-80 transition-opacity"
-        >
-          <div class="text-right hidden sm:block">
-            <p
-              class="text-sm font-bold text-slate-700 dark:text-slate-200 leading-tight"
-            >
-              Admin
-            </p>
-            <p class="text-[10px] text-slate-400 font-medium">Manager</p>
-          </div>
-          <div
-            class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-white dark:ring-zinc-800"
-          >
-            A
-          </div>
-          <i class="pi pi-chevron-down text-xs text-slate-400"></i>
         </div>
       </div>
     </div>
 
     <div
-      class="mb-8 bg-white dark:bg-[#111111] p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-3 items-center justify-between shadow-sm"
+      class="mb-6 bg-white dark:bg-[#111111] p-2 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm"
     >
-      <div class="flex gap-3 flex-1 overflow-x-auto px-1">
-        <div class="min-w-[220px]">
+      <div class="flex gap-2 flex-1 overflow-x-auto px-1">
+        <div class="min-w-[200px]">
           <Select
             v-model="selectedSite"
             :options="sites"
@@ -108,7 +44,7 @@
             @change="onSiteChanged"
           />
         </div>
-        <div class="min-w-[220px]">
+        <div class="min-w-[200px]">
           <Select
             v-model="selectedSdwt"
             :options="sdwts"
@@ -122,7 +58,7 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1 pr-2">
         <div v-if="hasSearched" class="flex items-center justify-center w-8">
           <span
             class="text-xs font-bold font-mono text-slate-400 dark:text-slate-500"
@@ -137,41 +73,41 @@
           @click="manualRefresh"
           :disabled="!hasSearched"
           v-tooltip.left="'Refresh Now'"
-          class="!w-9 !h-9 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
+          class="!w-8 !h-8 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
         />
       </div>
     </div>
 
     <div
       v-if="!hasSearched"
-      class="flex flex-col justify-center items-center h-96 fade-in border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-3xl"
+      class="flex flex-col justify-center items-center h-80 fade-in border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-3xl"
     >
       <div
-        class="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4 text-slate-400 dark:text-zinc-500"
+        class="w-14 h-14 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-3 text-slate-400 dark:text-zinc-500"
       >
-        <i class="pi pi-search text-2xl"></i>
+        <i class="pi pi-search text-xl"></i>
       </div>
-      <h3 class="text-lg font-bold text-slate-700 dark:text-slate-200">
+      <h3 class="text-base font-bold text-slate-700 dark:text-slate-200">
         Ready to Analyze
       </h3>
-      <p class="text-slate-500 dark:text-slate-500 text-sm mt-1">
-        Please select a <b>Site</b> and <b>SDWT</b> to view the dashboard.
+      <p class="text-slate-500 dark:text-slate-500 text-xs mt-1">
+        Please select a <b>Site</b> and <b>SDWT</b>.
       </p>
     </div>
 
-    <div v-else class="space-y-8 fade-in">
+    <div v-else class="space-y-6 fade-in">
       <div
         v-if="isSummaryLoading"
-        class="flex flex-col justify-center items-center h-28"
+        class="flex flex-col justify-center items-center h-24"
       >
-        <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
+        <ProgressSpinner style="width: 25px; height: 25px" strokeWidth="4" />
         <p class="text-xs text-slate-400 mt-2">Loading Summary...</p>
       </div>
 
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div
           @click="setActiveFilter('All')"
-          class="relative h-28 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
+          class="relative h-24 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
           :class="[
             activeFilter === 'All'
               ? 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20 ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-black border-transparent'
@@ -181,7 +117,7 @@
           <div class="flex justify-between items-center h-full relative z-10">
             <div>
               <p
-                class="text-[10px] font-bold uppercase tracking-widest mb-1"
+                class="text-[10px] font-bold uppercase tracking-widest mb-0.5"
                 :class="
                   activeFilter === 'All'
                     ? 'text-indigo-100'
@@ -191,7 +127,7 @@
                 Total Agents
               </p>
               <p
-                class="text-4xl font-black tracking-tight"
+                class="text-3xl font-black tracking-tight"
                 :class="
                   activeFilter === 'All'
                     ? 'text-white'
@@ -202,21 +138,21 @@
               </p>
             </div>
             <div
-              class="w-14 h-14 rounded-2xl flex items-center justify-center"
+              class="w-12 h-12 rounded-xl flex items-center justify-center"
               :class="
                 activeFilter === 'All'
                   ? 'bg-white/20 text-white'
                   : 'bg-slate-50 dark:bg-zinc-800 text-indigo-500'
               "
             >
-              <i class="pi pi-server text-3xl"></i>
+              <i class="pi pi-server text-2xl"></i>
             </div>
           </div>
         </div>
 
         <div
           @click="setActiveFilter('Online')"
-          class="relative h-28 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
+          class="relative h-24 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
           :class="[
             activeFilter === 'Online'
               ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-2 ring-offset-2 ring-emerald-500 dark:ring-offset-black border-transparent'
@@ -226,7 +162,7 @@
           <div class="flex justify-between items-center h-full relative z-10">
             <div>
               <p
-                class="text-[10px] font-bold uppercase tracking-widest mb-1"
+                class="text-[10px] font-bold uppercase tracking-widest mb-0.5"
                 :class="
                   activeFilter === 'Online'
                     ? 'text-emerald-100'
@@ -236,7 +172,7 @@
                 Online
               </p>
               <p
-                class="text-4xl font-black tracking-tight"
+                class="text-3xl font-black tracking-tight"
                 :class="
                   activeFilter === 'Online'
                     ? 'text-white'
@@ -247,21 +183,21 @@
               </p>
             </div>
             <div
-              class="w-14 h-14 rounded-2xl flex items-center justify-center"
+              class="w-12 h-12 rounded-xl flex items-center justify-center"
               :class="
                 activeFilter === 'Online'
                   ? 'bg-white/20 text-white'
                   : 'bg-slate-50 dark:bg-zinc-800 text-emerald-500'
               "
             >
-              <i class="pi pi-wifi text-3xl"></i>
+              <i class="pi pi-wifi text-2xl"></i>
             </div>
           </div>
         </div>
 
         <div
           @click="setActiveFilter('Offline')"
-          class="relative h-28 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
+          class="relative h-24 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
           :class="[
             activeFilter === 'Offline'
               ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/20 ring-2 ring-offset-2 ring-rose-500 dark:ring-offset-black border-transparent'
@@ -271,7 +207,7 @@
           <div class="flex justify-between items-center h-full relative z-10">
             <div>
               <p
-                class="text-[10px] font-bold uppercase tracking-widest mb-1"
+                class="text-[10px] font-bold uppercase tracking-widest mb-0.5"
                 :class="
                   activeFilter === 'Offline'
                     ? 'text-rose-100'
@@ -281,7 +217,7 @@
                 Offline
               </p>
               <p
-                class="text-4xl font-black tracking-tight"
+                class="text-3xl font-black tracking-tight"
                 :class="[
                   activeFilter === 'Offline'
                     ? 'text-white'
@@ -296,21 +232,21 @@
               </p>
             </div>
             <div
-              class="w-14 h-14 rounded-2xl flex items-center justify-center"
+              class="w-12 h-12 rounded-xl flex items-center justify-center"
               :class="
                 activeFilter === 'Offline'
                   ? 'bg-white/20 text-white'
                   : 'bg-slate-50 dark:bg-zinc-800 text-rose-500'
               "
             >
-              <i class="pi pi-ban text-3xl"></i>
+              <i class="pi pi-ban text-2xl"></i>
             </div>
           </div>
         </div>
 
         <div
           @click="setActiveFilter('Alarm')"
-          class="relative h-28 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
+          class="relative h-24 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
           :class="[
             activeFilter === 'Alarm'
               ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-2 ring-offset-2 ring-amber-500 dark:ring-offset-black border-transparent'
@@ -320,7 +256,7 @@
           <div class="flex justify-between items-center h-full relative z-10">
             <div>
               <p
-                class="text-[10px] font-bold uppercase tracking-widest mb-1"
+                class="text-[10px] font-bold uppercase tracking-widest mb-0.5"
                 :class="
                   activeFilter === 'Alarm'
                     ? 'text-amber-100'
@@ -331,7 +267,7 @@
               </p>
               <div class="flex items-baseline gap-2">
                 <p
-                  class="text-4xl font-black tracking-tight"
+                  class="text-3xl font-black tracking-tight"
                   :class="
                     activeFilter === 'Alarm'
                       ? 'text-white'
@@ -342,7 +278,7 @@
                 </p>
                 <span
                   v-if="summary.newAlarmCount > 0"
-                  class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                  class="text-[9px] font-bold px-1.5 py-0.5 rounded"
                   :class="
                     activeFilter === 'Alarm'
                       ? 'bg-white/30 text-white'
@@ -353,21 +289,21 @@
               </div>
             </div>
             <div
-              class="w-14 h-14 rounded-2xl flex items-center justify-center"
+              class="w-12 h-12 rounded-xl flex items-center justify-center"
               :class="
                 activeFilter === 'Alarm'
                   ? 'bg-white/20 text-white'
                   : 'bg-slate-50 dark:bg-zinc-800 text-amber-500'
               "
             >
-              <i class="pi pi-bell text-3xl"></i>
+              <i class="pi pi-bell text-2xl"></i>
             </div>
           </div>
         </div>
 
         <div
           @click="setActiveFilter('TimeSync')"
-          class="relative h-28 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
+          class="relative h-24 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:-translate-y-1 border overflow-hidden"
           :class="[
             activeFilter === 'TimeSync'
               ? 'bg-pink-600 text-white shadow-lg shadow-pink-500/20 ring-2 ring-offset-2 ring-pink-500 dark:ring-offset-black border-transparent'
@@ -377,7 +313,7 @@
           <div class="flex justify-between items-center h-full relative z-10">
             <div>
               <p
-                class="text-[10px] font-bold uppercase tracking-widest mb-1"
+                class="text-[10px] font-bold uppercase tracking-widest mb-0.5"
                 :class="
                   activeFilter === 'TimeSync'
                     ? 'text-pink-100'
@@ -387,7 +323,7 @@
                 Time Sync Err
               </p>
               <p
-                class="text-4xl font-black tracking-tight"
+                class="text-3xl font-black tracking-tight"
                 :class="[
                   activeFilter === 'TimeSync'
                     ? 'text-white'
@@ -401,14 +337,14 @@
               </p>
             </div>
             <div
-              class="w-14 h-14 rounded-2xl flex items-center justify-center"
+              class="w-12 h-12 rounded-xl flex items-center justify-center"
               :class="
                 activeFilter === 'TimeSync'
                   ? 'bg-white/20 text-white'
                   : 'bg-slate-50 dark:bg-zinc-800 text-pink-500'
               "
             >
-              <i class="pi pi-clock text-3xl"></i>
+              <i class="pi pi-clock text-2xl"></i>
             </div>
           </div>
         </div>
@@ -685,7 +621,7 @@
           :data="chartData"
           :config="chartConfig"
           height="100%"
-          :isDarkMode="isDark"
+          :isDarkMode="false"
         />
       </div>
     </Dialog>
@@ -706,25 +642,6 @@ import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Dialog from "primevue/dialog";
 import ProgressSpinner from "primevue/progressspinner";
-
-const isDark = ref(
-  localStorage.theme === "dark" ||
-    (!("theme" in localStorage) &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches)
-);
-if (isDark.value) document.documentElement.classList.add("dark");
-else document.documentElement.classList.remove("dark");
-
-const toggleDarkMode = () => {
-  isDark.value = !isDark.value;
-  if (isDark.value) {
-    document.documentElement.classList.add("dark");
-    localStorage.theme = "dark";
-  } else {
-    document.documentElement.classList.remove("dark");
-    localStorage.theme = "light";
-  }
-};
 
 const isSummaryLoading = ref(false);
 const isTableLoading = ref(false);
