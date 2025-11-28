@@ -13,14 +13,23 @@
         </div>
         <div>
           <h1
-            class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2"
+            class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3"
           >
             Overview
             <span
               v-if="hasSearched"
-              class="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold tracking-wide uppercase border border-indigo-200 dark:border-indigo-500/20 fade-in"
-              >Live</span
+              class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider fade-in shadow-sm select-none"
             >
+              <span class="relative flex h-2 w-2">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
+                ></span>
+              </span>
+              Live
+            </span>
           </h1>
           <p class="text-slate-500 dark:text-slate-400 font-medium text-xs">
             System performance summary.
@@ -35,23 +44,23 @@
       <div class="flex gap-2 flex-1 overflow-x-auto px-1">
         <div class="min-w-[200px]">
           <Select
-            v-model="selectedSite"
+            v-model="filterStore.selectedSite"
             :options="sites"
             placeholder="Select Site"
             class="w-full custom-dropdown"
-            :class="{ '!text-slate-400': !selectedSite }"
+            :class="{ '!text-slate-400': !filterStore.selectedSite }"
             showClear
             @change="onSiteChanged"
           />
         </div>
         <div class="min-w-[200px]">
           <Select
-            v-model="selectedSdwt"
+            v-model="filterStore.selectedSdwt"
             :options="sdwts"
             placeholder="Select SDWT"
             class="w-full custom-dropdown"
-            :class="{ '!text-slate-400': !selectedSdwt }"
-            :disabled="!selectedSite"
+            :class="{ '!text-slate-400': !filterStore.selectedSdwt }"
+            :disabled="!filterStore.selectedSite"
             showClear
             @change="onSdwtChange"
           />
@@ -613,16 +622,45 @@
       :dismissableMask="true"
     >
       <div
-        class="h-[500px] w-full bg-white dark:bg-zinc-950 rounded-xl p-4 border border-slate-100 dark:border-zinc-800"
+        class="h-[500px] w-full bg-white dark:bg-zinc-950 rounded-xl p-4 border border-slate-100 dark:border-zinc-800 relative"
       >
+        <div
+          v-if="isChartLoading"
+          class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 z-10 rounded-xl"
+        >
+          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
+          <p class="text-sm text-slate-500 mt-4 font-medium animate-pulse">
+            데이터를 불러오는 중입니다...
+          </p>
+        </div>
+
         <AmChart
-          v-if="chartData.length > 0"
+          v-if="!isChartLoading && chartData.length > 0"
           chartType="PerformanceLineChart"
           :data="chartData"
           :config="chartConfig"
           height="100%"
           :isDarkMode="false"
         />
+
+        <div
+          v-else-if="!isChartLoading && chartData.length === 0"
+          class="h-full flex flex-col items-center justify-center text-slate-400 select-none"
+        >
+          <div
+            class="w-24 h-24 bg-slate-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-4 shadow-inner"
+          >
+            <i
+              class="pi pi-chart-bar text-4xl text-slate-300 dark:text-zinc-700"
+            ></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-600 dark:text-slate-300 mb-1">
+            데이터가 없습니다
+          </h3>
+          <p class="text-sm text-slate-500 dark:text-slate-500">
+            선택된 장비의 최근 24시간 성능 로그가 존재하지 않습니다.
+          </p>
+        </div>
       </div>
     </Dialog>
   </div>
@@ -630,11 +668,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useFilterStore } from "@/stores/filter"; // Pinia Store 사용
 import {
   dashboardApi,
   type DashboardSummaryDto,
   type AgentStatusDto,
 } from "@/api/dashboard";
+import { performanceApi } from "@/api/performance"; // API 추가
 import AmChart from "@/components/common/AmChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
@@ -643,22 +683,28 @@ import Column from "primevue/column";
 import Dialog from "primevue/dialog";
 import ProgressSpinner from "primevue/progressspinner";
 
+// Store 사용
+const filterStore = useFilterStore();
+
 const isSummaryLoading = ref(false);
 const isTableLoading = ref(false);
+const isChartLoading = ref(false); // 차트 로딩 상태
 const hasSearched = ref(false);
 
 const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">(
   "All"
 );
-const selectedSite = ref("");
-const selectedSdwt = ref("");
+
+// 로컬 상태 대신 Store 상태를 사용하므로 selectedSite, selectedSdwt ref 제거
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
+// [수정] summary 초기값에 latestAgentVersion 추가
 const summary = ref<DashboardSummaryDto>({
   totalEqpCount: 0,
   onlineAgentCount: 0,
   todayErrorCount: 0,
   newAlarmCount: 0,
+  latestAgentVersion: "",
 });
 const agentList = ref<AgentStatusDto[]>([]);
 const showChart = ref(false);
@@ -667,6 +713,97 @@ const chartData = ref<any[]>([]);
 
 const refreshCount = ref(30);
 let refreshTimer: number | null = null;
+
+// [수정] onMounted에서 LocalStorage 확인 및 자동 조회
+onMounted(async () => {
+  try {
+    // 1. Site 목록 로드
+    sites.value = await dashboardApi.getSites();
+
+    // 2. LocalStorage에서 저장된 값 복원
+    const savedSite = localStorage.getItem("dashboard_site");
+    const savedSdwt = localStorage.getItem("dashboard_sdwt");
+
+    if (savedSite && sites.value.includes(savedSite)) {
+      filterStore.selectedSite = savedSite;
+      // 해당 Site의 SDWT 목록 로드
+      sdwts.value = await dashboardApi.getSdwts(savedSite);
+
+      if (savedSdwt) {
+        // SDWT가 있으면 Store 설정 후 데이터 로드
+        filterStore.selectedSdwt = savedSdwt;
+        await loadData(true);
+      }
+    }
+  } catch (e) {
+    console.error(e);
+  }
+});
+
+onUnmounted(() => {
+  stopAutoRefresh();
+});
+
+// [수정] Site 변경 시 LocalStorage 업데이트
+const onSiteChanged = async () => {
+  if (filterStore.selectedSite) {
+    localStorage.setItem("dashboard_site", filterStore.selectedSite);
+    sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
+  } else {
+    localStorage.removeItem("dashboard_site");
+    sdwts.value = [];
+  }
+  // Site가 바뀌면 SDWT는 무조건 초기화
+  filterStore.selectedSdwt = "";
+  localStorage.removeItem("dashboard_sdwt");
+
+  hasSearched.value = false;
+  stopAutoRefresh();
+};
+
+// [수정] SDWT 변경 시 LocalStorage 업데이트
+const onSdwtChange = async () => {
+  if (filterStore.selectedSdwt) {
+    localStorage.setItem("dashboard_sdwt", filterStore.selectedSdwt);
+    await loadData(true);
+  } else {
+    localStorage.removeItem("dashboard_sdwt");
+    stopAutoRefresh();
+  }
+};
+
+// 데이터 로드 함수 (Store 상태 사용)
+const loadData = async (showLoading = true) => {
+  if (!filterStore.selectedSite || !filterStore.selectedSdwt) return;
+
+  if (showLoading) {
+    isSummaryLoading.value = true;
+    isTableLoading.value = true;
+  }
+  hasSearched.value = true;
+
+  try {
+    const [summaryData, agentData] = await Promise.all([
+      dashboardApi.getSummary(
+        filterStore.selectedSite,
+        filterStore.selectedSdwt
+      ),
+      dashboardApi.getAgentStatus(
+        filterStore.selectedSite,
+        filterStore.selectedSdwt
+      ),
+    ]);
+
+    summary.value = summaryData;
+    agentList.value = agentData;
+    startAutoRefresh();
+  } catch (e) {
+    console.error(e);
+  } finally {
+    isSummaryLoading.value = false;
+    isTableLoading.value = false;
+  }
+};
 
 const startAutoRefresh = () => {
   if (refreshTimer) clearInterval(refreshTimer);
@@ -692,9 +829,37 @@ const manualRefresh = () => {
   refreshCount.value = 30;
 };
 
-onUnmounted(() => {
-  stopAutoRefresh();
-});
+// 차트 오픈 함수 (API 연동 및 로딩/데이터 없음 처리)
+const openChart = async (agent: AgentStatusDto) => {
+  selectedAgentId.value = agent.eqpId;
+  showChart.value = true;
+  chartData.value = []; // 데이터 초기화
+  isChartLoading.value = true; // 로딩 시작
+
+  // 1. 조회 기간 설정 (최근 24시간)
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
+
+  try {
+    // 2. 실제 API 호출 (10분 단위 집계)
+    const data = await performanceApi.getHistory(
+      startDate.toISOString(),
+      endDate.toISOString(),
+      agent.eqpId,
+      600
+    );
+
+    // 3. 데이터 할당
+    chartData.value = data;
+  } catch (e) {
+    console.error("Failed to load chart data", e);
+    chartData.value = [];
+  } finally {
+    isChartLoading.value = false; // 로딩 종료
+  }
+};
+
+// --- Helper Functions & Computed Properties ---
 
 const chartConfig = {
   xField: "timestamp",
@@ -742,37 +907,12 @@ const timeSyncErrorCount = computed(() => {
 
 const totalRecords = computed(() => filteredAgents.value.length);
 
-const compareVersions = (v1: string, v2: string) => {
-  const p1 = v1
-    .replace(/[^0-9.]/g, "")
-    .split(".")
-    .map(Number);
-  const p2 = v2
-    .replace(/[^0-9.]/g, "")
-    .split(".")
-    .map(Number);
-  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
-    const n1 = p1[i] || 0;
-    const n2 = p2[i] || 0;
-    if (n1 > n2) return 1;
-    if (n1 < n2) return -1;
-  }
-  return 0;
-};
-
-const highestVersion = computed(() => {
-  if (!agentList.value || agentList.value.length === 0) return "";
-  return agentList.value.reduce((max, curr) => {
-    if (!curr.appVersion) return max;
-    if (!max) return curr.appVersion;
-    return compareVersions(curr.appVersion, max) > 0 ? curr.appVersion : max;
-  }, "");
-});
-
+// [수정] getAgentVerStyle을 summary.value.latestAgentVersion과 비교하도록 변경
 const getAgentVerStyle = (ver: string | null) => {
   if (!ver)
     return "bg-transparent border-slate-200 text-slate-400 dark:border-slate-700 dark:text-slate-600";
-  if (ver === highestVersion.value) {
+  // 서버에서 받아온 전체 최신 버전과 비교
+  if (ver === summary.value.latestAgentVersion) {
     return "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/50 dark:text-indigo-300 shadow-sm";
   }
   return "bg-transparent border-slate-300 text-slate-500 dark:border-zinc-600 dark:text-zinc-400";
@@ -796,74 +936,6 @@ const setActiveFilter = (
 ) => {
   activeFilter.value = filter;
   first.value = 0;
-};
-
-onMounted(async () => {
-  try {
-    sites.value = await dashboardApi.getSites();
-    const savedSite = localStorage.getItem("dashboard_site");
-    const savedSdwt = localStorage.getItem("dashboard_sdwt");
-    if (savedSite && sites.value.includes(savedSite)) {
-      selectedSite.value = savedSite;
-      sdwts.value = await dashboardApi.getSdwts(savedSite);
-      if (savedSdwt && sdwts.value.includes(savedSdwt)) {
-        selectedSdwt.value = savedSdwt;
-        await loadData(true);
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-});
-
-const loadData = async (showLoading = true) => {
-  if (!selectedSite.value || !selectedSdwt.value) return;
-
-  if (showLoading) {
-    isSummaryLoading.value = true;
-    isTableLoading.value = true;
-  }
-  hasSearched.value = true;
-
-  try {
-    const [summaryData, agentData] = await Promise.all([
-      dashboardApi.getSummary(selectedSite.value, selectedSdwt.value),
-      dashboardApi.getAgentStatus(selectedSite.value, selectedSdwt.value),
-    ]);
-
-    summary.value = summaryData;
-    agentList.value = agentData;
-    startAutoRefresh();
-  } catch (e) {
-    console.error(e);
-  } finally {
-    isSummaryLoading.value = false;
-    isTableLoading.value = false;
-  }
-};
-
-const onSiteChanged = async () => {
-  if (selectedSite.value) {
-    localStorage.setItem("dashboard_site", selectedSite.value);
-    sdwts.value = await dashboardApi.getSdwts(selectedSite.value);
-  } else {
-    localStorage.removeItem("dashboard_site");
-    sdwts.value = [];
-  }
-  selectedSdwt.value = "";
-  localStorage.removeItem("dashboard_sdwt");
-  hasSearched.value = false;
-  stopAutoRefresh();
-};
-
-const onSdwtChange = async () => {
-  if (selectedSdwt.value) {
-    localStorage.setItem("dashboard_sdwt", selectedSdwt.value);
-    await loadData(true);
-  } else {
-    localStorage.removeItem("dashboard_sdwt");
-    stopAutoRefresh();
-  }
 };
 
 const getOsStyle = (os: string | null) => {
@@ -943,18 +1015,6 @@ const getClockDriftColor = (s: number | null | undefined) => {
   if (absDrift > 600) return "text-orange-500 dark:text-orange-400 font-bold";
   return "text-slate-600 dark:text-slate-300";
 };
-const openChart = async (agent: AgentStatusDto) => {
-  selectedAgentId.value = agent.eqpId;
-  showChart.value = true;
-  chartData.value = [];
-  setTimeout(() => {
-    chartData.value = Array.from({ length: 20 }, (_, i) => ({
-      timestamp: new Date(Date.now() - (20 - i) * 60000).toISOString(),
-      cpuUsage: Math.random() * 100,
-      memoryUsage: Math.random() * 100,
-    }));
-  }, 500);
-};
 const formatDate = (d: string | null) => {
   if (!d) return "-";
   const date = new Date(d);
@@ -1007,9 +1067,12 @@ const formatDate = (d: string | null) => {
 :deep(.p-datatable-tbody > tr:hover) {
   background-color: #f8fafc !important;
 }
+/* ▼▼▼ [수정] 다크모드에서 마우스 오버 시 어두운 회색(#27272a)으로 표시 ▼▼▼ */
 :deep(.dark .p-datatable-tbody > tr:hover) {
-  background-color: #09090b !important;
+  background-color: #27272a !important;
+  color: #e4e4e7 !important;
 }
+/* ▲▲▲ [수정] 여기까지 ▲▲▲ */
 :deep(.p-datatable-tbody > tr > td) {
   padding: 1rem;
   font-size: 0.85rem;
