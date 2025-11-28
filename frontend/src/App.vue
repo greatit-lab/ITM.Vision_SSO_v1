@@ -6,11 +6,11 @@
 
     <main
       class="flex-1 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)]"
-      :class="isSidebarOpen ? 'ml-60' : 'ml-20'"
+      :class="isSidebarOpen ? 'ml-64' : 'ml-20'"
     >
       <Header />
 
-      <div class="flex-1 relative">
+      <div class="flex-1 relative px-5 pb-8 pt-3">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
-import Header from "@/components/layout/Header.vue"; // 헤더 임포트
+import Header from "@/components/layout/Header.vue";
 
 const isSidebarOpen = ref(true);
 
@@ -43,7 +43,6 @@ onUnmounted(() => {
 </script>
 
 <style>
-/* 스크롤바 스타일 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
