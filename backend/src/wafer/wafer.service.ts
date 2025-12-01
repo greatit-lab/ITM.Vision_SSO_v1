@@ -124,7 +124,7 @@ export class WaferService {
           MAX(srvisz) as s_max, MIN(srvisz) as s_min, AVG(srvisz) as s_mean, STDDEV_SAMP(srvisz) as s_std
         FROM public.plg_wf_flat
         ${whereSql}
-        LIMIT 1  -- [추가] 혹시 모를 중복 방지
+        LIMIT 1
       `);
 
       const row = result[0] || ({} as StatsRawResult);
@@ -170,10 +170,7 @@ export class WaferService {
       const rawData = await this.prisma.$queryRawUnsafe<
         Record<string, unknown>[]
       >(`
-        SELECT * FROM public.plg_wf_flat ${whereSql} 
-        ORDER BY point 
-        -- LIMIT 절은 넣지 않음 (포인트 데이터는 여러 행일 수 있으므로)
-        -- 대신 whereSql이 충분히 유니크하다고 가정
+        SELECT * FROM public.plg_wf_flat ${whereSql} ORDER BY point
       `);
 
       if (!rawData || rawData.length === 0) return { headers: [], data: [] };
@@ -223,12 +220,12 @@ export class WaferService {
     try {
       const ts = typeof servTs === 'string' ? servTs : servTs.toISOString();
 
-      // [수정] PDF 조회 시에도 오차 범위를 고려하여 1초 이내 데이터 검색
+      // [수정] 타임존 문제를 피하기 위해 24시간 범위로 검색 (식별자가 확실하다면 안전)
       const result = await this.prisma.$queryRawUnsafe<PdfResult[]>(
         `SELECT file_uri FROM public.plg_wf_map 
          WHERE eqpid = $1 
-           AND datetime >= $2::timestamp - interval '1 second'
-           AND datetime <= $2::timestamp + interval '1 second'
+           AND datetime >= $2::timestamp - interval '24 hours'
+           AND datetime <= $2::timestamp + interval '24 hours'
          LIMIT 1`,
         eqpId,
         ts,
@@ -244,30 +241,25 @@ export class WaferService {
     return { exists: false, url: null };
   }
 
-  // [수정] 날짜 비교 로직을 대폭 완화하여 데이터 조회 성공률을 높임
+  // [핵심 수정] WHERE 절 생성 - 타임존 이슈 해결을 위해 시간 범위 대폭 확대
   private buildUniqueWhere(p: WaferQueryParams): string | null {
     if (!p.eqpId) return null;
 
-    // 기본 조건: 장비 ID (필수)
     let sql = `WHERE eqpid = '${p.eqpId}'`;
 
-    // 1. [핵심] servTs가 있다면, 앞뒤 1분 범위로 넓게 검색 (타임존/오차 무시)
+    // [중요] ±24시간 범위 검색으로 변경하여 타임존(UTC vs Local) 불일치 문제 해결
     if (p.servTs) {
       const ts =
         typeof p.servTs === 'string' ? p.servTs : p.servTs.toISOString();
-      sql += ` AND serv_ts >= '${ts}'::timestamp - interval '1 minute'`;
-      sql += ` AND serv_ts <= '${ts}'::timestamp + interval '1 minute'`;
+      sql += ` AND serv_ts >= '${ts}'::timestamp - interval '24 hours'`;
+      sql += ` AND serv_ts <= '${ts}'::timestamp + interval '24 hours'`;
     }
 
-    // 2. [핵심] 나머지 식별자들을 모두 조건에 포함하여 유니크성 확보
+    // [중요] 다른 식별자들을 모두 조건에 포함하여 정확한 행 식별
     if (p.lotId) sql += ` AND lotid = '${p.lotId}'`;
     if (p.waferId) sql += ` AND waferid = ${p.waferId}`;
-
-    // 추가 식별자가 있다면 더 넣어도 됩니다. (예: cassetteRcp 등)
-    // 하지만 위 3가지(eqpId, lotId, waferId)와 시간 범위면 충분히 유니크합니다.
-
-    // 3. [안전장치] 만약 servTs가 없거나 파싱 실패 시, 가장 최근 데이터 1개를 가져오도록 정렬 추가 (LIMIT 1은 호출부 쿼리에 있음)
-    // 이 메서드는 WHERE 절만 리턴하므로 정렬은 호출하는 SQL에서 처리해야 함.
+    if (p.cassetteRcp) sql += ` AND cassettercp = '${p.cassetteRcp}'`;
+    if (p.stageRcp) sql += ` AND stagercp = '${p.stageRcp}'`;
 
     return sql;
   }
