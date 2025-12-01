@@ -51,7 +51,7 @@ const createLineChart = (
       layout: root.verticalLayout,
     })
   );
-  
+
   // 전역 변수 업데이트
   chart = chartInstance;
 
@@ -127,7 +127,9 @@ const createLineChart = (
     const renderer = am5xy.AxisRendererY.new(root, {});
     renderer.labels.template.set("fill", textColor);
     // [수정] chartInstance 사용
-    yAxes.push(chartInstance.yAxes.push(am5xy.ValueAxis.new(root, { renderer })));
+    yAxes.push(
+      chartInstance.yAxes.push(am5xy.ValueAxis.new(root, { renderer }))
+    );
   }
 
   // 3. 시리즈 생성
@@ -231,3 +233,4 @@ watch(
   { deep: true }
 );
 </script>
+
