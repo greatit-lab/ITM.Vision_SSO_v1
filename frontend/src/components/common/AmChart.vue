@@ -20,6 +20,7 @@ const props = defineProps<{
 
 const chartRef = ref<HTMLElement | null>(null);
 let root: am5.Root | null = null;
+let chart: am5xy.XYChart | null = null;
 
 const createChart = () => {
   if (!chartRef.value) return;
@@ -40,7 +41,8 @@ const createLineChart = (
   config: any,
   isDark: boolean
 ) => {
-  const chart = root.container.children.push(
+  // [수정] 로컬 변수를 사용하여 null 가능성 제거
+  const chartInstance = root.container.children.push(
     am5xy.XYChart.new(root, {
       panX: true,
       panY: true,
@@ -49,8 +51,12 @@ const createLineChart = (
       layout: root.verticalLayout,
     })
   );
+  
+  // 전역 변수 업데이트
+  chart = chartInstance;
 
-  const cursor = chart.set(
+  // 이후 로직에서는 chartInstance 사용
+  const cursor = chartInstance.set(
     "cursor",
     am5xy.XYCursor.new(root, { behavior: "zoomXY" })
   );
@@ -59,7 +65,7 @@ const createLineChart = (
   const textColor = isDark ? am5.color(0xffffff) : am5.color(0x000000);
 
   // 1. X축 설정
-  const xAxis = chart.xAxes.push(
+  const xAxis = chartInstance.xAxes.push(
     am5xy.DateAxis.new(root, {
       baseInterval: { timeUnit: config.xTimeUnit || "minute", count: 1 },
       renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 80 }),
@@ -67,12 +73,10 @@ const createLineChart = (
     })
   );
 
-  // [수정] X축 라벨 포맷 일괄 적용 (기본 포맷 + 기간 변경 포맷)
   if (config.xAxisDateFormat) {
     const dateFormats = xAxis.get("dateFormats");
-    const periodChangeDateFormats = xAxis.get("periodChangeDateFormats"); // [추가]
+    const periodChangeDateFormats = xAxis.get("periodChangeDateFormats");
 
-    // 기본 단위별 포맷 설정
     if (dateFormats) {
       dateFormats["minute"] = config.xAxisDateFormat;
       dateFormats["hour"] = config.xAxisDateFormat;
@@ -80,8 +84,6 @@ const createLineChart = (
       dateFormats["week"] = config.xAxisDateFormat;
       dateFormats["month"] = config.xAxisDateFormat;
     }
-
-    // [핵심] 기간 변경 시(예: 08:00 정각, 날짜 변경선 등)에도 동일한 포맷 강제 적용
     if (periodChangeDateFormats) {
       periodChangeDateFormats["minute"] = config.xAxisDateFormat;
       periodChangeDateFormats["hour"] = config.xAxisDateFormat;
@@ -111,7 +113,8 @@ const createLineChart = (
         opposite: yCfg.opposite || false,
       });
       renderer.labels.template.set("fill", textColor);
-      const axis = chart.yAxes.push(
+      // [수정] chartInstance 사용
+      const axis = chartInstance.yAxes.push(
         am5xy.ValueAxis.new(root, {
           renderer,
           min: yCfg.min,
@@ -123,7 +126,8 @@ const createLineChart = (
   } else {
     const renderer = am5xy.AxisRendererY.new(root, {});
     renderer.labels.template.set("fill", textColor);
-    yAxes.push(chart.yAxes.push(am5xy.ValueAxis.new(root, { renderer })));
+    // [수정] chartInstance 사용
+    yAxes.push(chartInstance.yAxes.push(am5xy.ValueAxis.new(root, { renderer })));
   }
 
   // 3. 시리즈 생성
@@ -151,7 +155,8 @@ const createLineChart = (
         fill: am5.color(0xffffff),
       });
 
-      const series = chart.series.push(
+      // [수정] chartInstance 사용
+      const series = chartInstance.series.push(
         am5xy.LineSeries.new(root, {
           name: s.name,
           xAxis: xAxis,
@@ -168,7 +173,6 @@ const createLineChart = (
         strokeWidth: s.strokeWidth || 2,
       });
 
-      // [기존 로직 유지] config에 bulletRadius가 있으면 원형 표식 추가
       if (s.bulletRadius) {
         series.bullets.push(() =>
           am5.Bullet.new(root, {
@@ -189,23 +193,41 @@ const createLineChart = (
     });
   }
 
-  const legend = chart.children.push(
+  // [수정] chartInstance 사용
+  const legend = chartInstance.children.push(
     am5.Legend.new(root, { centerX: am5.p50, x: am5.p50 })
   );
   legend.labels.template.set("fill", textColor);
-  legend.data.setAll(chart.series.values);
+  // [수정] chartInstance 사용
+  legend.data.setAll(chartInstance.series.values);
 };
 
 onMounted(() => createChart());
+
 onUnmounted(() => {
   if (root) root.dispose();
 });
+
 watch(
-  [() => props.data, () => props.config],
+  () => props.data,
+  (newData) => {
+    // [수정] chart가 null이 아님을 확인
+    if (chart && root) {
+      chart.series.each((series) => {
+        series.data.setAll(newData);
+      });
+    } else {
+      createChart();
+    }
+  },
+  { deep: true }
+);
+
+watch(
+  [() => props.config, () => props.chartType, () => props.isDarkMode],
   () => {
-    if (root) nextTick(() => createChart());
+    nextTick(() => createChart());
   },
   { deep: true }
 );
 </script>
-
