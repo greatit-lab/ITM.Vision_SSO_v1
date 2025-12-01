@@ -290,6 +290,12 @@
                   "
                 >
                   {{ summary.todayErrorCount }}
+                  <span
+                    class="text-[10px] font-medium opacity-80"
+                    v-if="summary.todayErrorTotalCount > 0"
+                  >
+                    (Total: {{ summary.todayErrorTotalCount }})
+                  </span>
                 </p>
                 <span
                   v-if="summary.newAlarmCount > 0"
@@ -702,10 +708,12 @@ const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">(
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
+// [수정] 타입 오류 해결: todayErrorTotalCount 초기값 0 추가
 const summary = ref<DashboardSummaryDto>({
   totalEqpCount: 0,
   onlineAgentCount: 0,
   todayErrorCount: 0,
+  todayErrorTotalCount: 0,
   newAlarmCount: 0,
   latestAgentVersion: "",
 });
@@ -775,6 +783,7 @@ const loadData = async (showLoading = true) => {
   }
   hasSearched.value = true;
 
+  // 병렬 요청으로 로딩 속도 최적화
   dashboardApi
     .getSummary(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((data) => {
@@ -887,7 +896,6 @@ const filteredAgents = computed(() => {
   }
 });
 
-// [추가] 렌더링용 Slice된 Agent 목록
 const displayedAgents = computed(() => {
   const start = first.value;
   const end = start + rowsPerPage.value;
@@ -1017,18 +1025,16 @@ const getClockDriftColor = (s: number | null | undefined) => {
   return "text-slate-600 dark:text-slate-300";
 };
 
+// [수정] UTC 시간 메서드를 사용하여 타임존 중복 보정 방지
 const formatDate = (d: string | null) => {
   if (!d) return "-";
   const date = new Date(d);
-  
-  // getFullYear() 대신 getUTCFullYear() 등을 사용
   const yy = date.getUTCFullYear().toString().slice(2);
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(date.getUTCDate()).padStart(2, "0");
   const hh = String(date.getUTCHours()).padStart(2, "0");
   const min = String(date.getUTCMinutes()).padStart(2, "0");
   const ss = String(date.getUTCSeconds()).padStart(2, "0");
-  
   return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
 };
 </script>
