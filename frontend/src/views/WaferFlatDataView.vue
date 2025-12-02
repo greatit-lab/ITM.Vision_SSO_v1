@@ -228,9 +228,7 @@
       v-if="hasSearched"
       class="flex flex-col flex-1 min-h-0 gap-4 pb-4 overflow-hidden 2xl:flex-row fade-in"
     >
-      <div
-        class="flex-[5] flex flex-col gap-3 w-full 2xl:min-w-[600px] overflow-hidden h-full"
-      >
+      <div class="flex-1 flex flex-col gap-3 w-full overflow-hidden h-full">
         <div
           class="flex flex-col overflow-hidden bg-white border shadow-sm rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shrink-0 h-[50%]"
         >
@@ -432,12 +430,11 @@
 
             <div
               v-else-if="activeTab === 'points'"
-              class="overflow-auto"
-              style="max-height: 280px"
+              class="overflow-auto h-full"
             >
               <table
                 v-if="pointData && pointData.data && pointData.data.length > 0"
-                class="w-full text-xs text-center border-collapse"
+                class="w-full text-xs text-center border-collapse table-fixed"
               >
                 <thead
                   class="sticky top-0 z-20 text-xs font-bold uppercase bg-teal-50 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 shadow-sm"
@@ -447,12 +444,12 @@
                       v-for="h in pointData.headers"
                       :key="h"
                       v-show="h !== 'datetime' && h !== 'serv_ts'"
-                      class="py-2 px-2 whitespace-nowrap border-b dark:border-zinc-700 min-w-[80px]"
-                      :class="
-                        h === 'point'
-                          ? 'pl-4 pr-4 text-right bg-teal-50 dark:bg-zinc-800 sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
-                          : 'text-right'
-                      "
+                      class="py-2 px-4 whitespace-nowrap border-b dark:border-zinc-700 min-w-[80px]"
+                      :class="[
+                        h.toLowerCase() === 'point'
+                          ? 'sticky left-0 z-30 bg-teal-50 dark:bg-zinc-800 text-left pl-4 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                          : 'text-right',
+                      ]"
                     >
                       {{ h.toUpperCase() }}
                     </th>
@@ -462,10 +459,12 @@
                   <tr
                     v-for="(row, idx) in pointData.data"
                     :key="idx"
-                    class="group transition-colors hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                    class="group transition-colors cursor-pointer"
                     :class="{
                       'bg-teal-100 dark:bg-teal-900/40':
                         idx === selectedPointIdx,
+                      'hover:bg-teal-50 dark:hover:bg-teal-900/20':
+                        idx !== selectedPointIdx,
                     }"
                     @click="onPointClick(idx)"
                   >
@@ -476,16 +475,11 @@
                         pointData.headers[ci] !== 'datetime' &&
                         pointData.headers[ci] !== 'serv_ts'
                       "
-                      class="py-1 px-2 min-w-[80px] cursor-pointer"
+                      class="py-1.5 px-4 min-w-[80px]"
                       :class="[
-                        pointData.headers[ci] === 'point'
-                          ? 'pl-4 pr-4 text-right font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                        pointData.headers[ci].toLowerCase() === 'point'
+                          ? 'sticky left-0 z-10 text-left pl-4 font-bold bg-inherit'
                           : 'text-right',
-                        pointData.headers[ci] === 'point'
-                          ? (idx === selectedPointIdx 
-                              ? 'bg-teal-100 dark:bg-teal-900/40 group-hover:bg-teal-100 dark:group-hover:bg-teal-900/40' 
-                              : 'bg-white dark:bg-zinc-900 group-hover:bg-teal-50 dark:group-hover:bg-teal-900/20')
-                          : ''
                       ]"
                     >
                       {{ cell }}
@@ -686,11 +680,9 @@
         </div>
       </div>
 
-      <div
-        class="flex-[2] flex flex-col gap-4 h-full w-full 2xl:min-w-[400px]"
-      >
+      <div class="w-[450px] shrink-0 flex flex-col gap-4 h-full">
         <div
-          class="h-[50%] shrink-0 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 relative flex flex-col items-center justify-center p-1 overflow-hidden"
+          class="h-[415px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-4 overflow-hidden"
         >
           <div
             class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center"
@@ -717,18 +709,26 @@
             <div
               v-if="!pdfImageUrl"
               class="flex flex-col items-center justify-center text-slate-400 w-full h-full transition-opacity duration-300"
-              :class="{ 'opacity-0': isImageLoading, 'opacity-40': !isImageLoading }"
+              :class="{
+                'opacity-0': isImageLoading,
+                'opacity-40': !isImageLoading,
+              }"
             >
               <i class="pi pi-circle text-6xl mb-3 opacity-20"></i>
               <span class="text-xs">No Map Image Available</span>
             </div>
 
-            <div v-else class="w-full h-full relative fade-in flex items-center justify-center">
-              <img 
-                :src="pdfImageUrl" 
-                class="w-full h-full object-contain rounded-full" 
+            <div
+              v-else
+              class="w-full h-full relative fade-in flex items-center justify-center"
+            >
+              <img
+                :src="pdfImageUrl"
+                class="w-full h-full object-contain rounded-full"
               />
-              <div class="absolute inset-0 pointer-events-none rounded-full overflow-hidden">
+              <div
+                class="absolute inset-0 pointer-events-none rounded-full overflow-hidden"
+              >
                 <div
                   class="absolute top-0 bottom-0 left-1/2 w-px bg-red-500 transform -translate-x-1/2"
                 ></div>
@@ -743,7 +743,9 @@
             v-if="selectedRow && pdfExists"
             class="absolute bottom-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md font-mono shadow-lg border border-white/10 z-30"
           >
-            {{ selectedRow.lotId }} W{{ selectedRow.waferId }} #{{ selectedPointValue }}
+            {{ selectedRow.lotId }} W{{ selectedRow.waferId }} #{{
+              selectedPointValue
+            }}
           </div>
         </div>
 
@@ -757,13 +759,14 @@
           </div>
 
           <div class="flex-1 overflow-auto p-0 relative">
-            
             <div
               v-if="isSpectrumLoading"
               class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 z-10"
             >
               <ProgressSpinner style="width: 25px; height: 25px" />
-              <span class="mt-2 text-xs text-slate-500">Loading Spectrum...</span>
+              <span class="mt-2 text-xs text-slate-500"
+                >Loading Spectrum...</span
+              >
             </div>
 
             <AmChart
@@ -774,7 +777,7 @@
               height="100%"
               :isDarkMode="false"
             />
-            
+
             <div
               v-else-if="selectedPointIdx !== -1"
               class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60"
@@ -870,7 +873,7 @@ const rowsPerPage = ref(10);
 const isStatsLoading = ref(false);
 const isPointsLoading = ref(false);
 const isImageLoading = ref(false);
-const isSpectrumLoading = ref(false); 
+const isSpectrumLoading = ref(false);
 
 const statistics = ref<StatisticsDto | null>(null);
 const pointData = ref<PointDataResponseDto>({ headers: [], data: [] });
@@ -884,13 +887,21 @@ const spectrumData = ref<any[]>([]);
 const spectrumConfig = ref<any>({
   xAxisType: "value",
   xField: "wavelength",
-  yAxes: [
-    { title: "Values" }
-  ],
+  yAxes: [{ title: "Values" }],
   series: [
-    { name: "Exp", valueField: "exp", color: "#ef4444", tooltipText: "Exp: {valueY}" },
-    { name: "Gen", valueField: "gen", color: "#3b82f6", tooltipText: "Gen: {valueY}" }
-  ]
+    {
+      name: "Exp",
+      valueField: "exp",
+      color: "#ef4444",
+      tooltipText: "Exp: {valueY}",
+    },
+    {
+      name: "Gen",
+      valueField: "gen",
+      color: "#3b82f6",
+      tooltipText: "Gen: {valueY}",
+    },
+  ],
 });
 
 const activeTab = ref<"points" | "stats">("points");
@@ -925,7 +936,10 @@ const onSdwtChange = () => {
 
 const loadEqpIds = async () => {
   if (filterStore.selectedSdwt)
-    eqpIds.value = await equipmentApi.getEqpIds(undefined, filterStore.selectedSdwt);
+    eqpIds.value = await equipmentApi.getEqpIds(
+      undefined,
+      filterStore.selectedSdwt
+    );
 };
 
 const onEqpSelect = (event: any) => {
@@ -935,12 +949,28 @@ const onEqpSelect = (event: any) => {
   if (filters.eqpId) loadFilterOptions();
 };
 
-const onEqpChange = () => { if (!filters.eqpId) clearEqpId(); };
-const clearEqpId = () => { filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; };
-const onLotSelect = (event: any) => { filters.lotId = event.value; filters.waferId = ""; };
-const onLotChange = () => { if (!filters.lotId) clearLotId(); };
-const clearLotId = () => { filters.lotId = ""; filters.waferId = ""; };
-const onAdvancedFilterChange = () => { loadFilterOptions(); };
+const onEqpChange = () => {
+  if (!filters.eqpId) clearEqpId();
+};
+const clearEqpId = () => {
+  filters.eqpId = "";
+  filters.lotId = "";
+  filters.waferId = "";
+};
+const onLotSelect = (event: any) => {
+  filters.lotId = event.value;
+  filters.waferId = "";
+};
+const onLotChange = () => {
+  if (!filters.lotId) clearLotId();
+};
+const clearLotId = () => {
+  filters.lotId = "";
+  filters.waferId = "";
+};
+const onAdvancedFilterChange = () => {
+  loadFilterOptions();
+};
 
 const loadFilterOptions = async () => {
   if (!filters.eqpId) return;
@@ -963,17 +993,38 @@ const loadFilterOptions = async () => {
     waferApi.getDistinctValues("stagegroups", params),
     waferApi.getDistinctValues("films", params),
   ]);
-  lotIds.value = lots; filteredLotIds.value = lots;
-  waferIds.value = wafers; filteredWaferIds.value = wafers;
-  cassetteRcps.value = cRcps; stageRcps.value = sRcps;
-  stageGroups.value = sGrps; films.value = filmsList;
+  lotIds.value = lots;
+  filteredLotIds.value = lots;
+  waferIds.value = wafers;
+  filteredWaferIds.value = wafers;
+  cassetteRcps.value = cRcps;
+  stageRcps.value = sRcps;
+  stageGroups.value = sGrps;
+  films.value = filmsList;
 };
 
-const searchEqp = (e: any) => { filteredEqpIds.value = eqpIds.value.filter((id) => id.toLowerCase().includes(e.query.toLowerCase())); };
-const searchLot = (e: any) => { const query = e.query.toLowerCase(); filteredLotIds.value = query ? lotIds.value.filter((id) => id.toLowerCase().includes(query)) : lotIds.value; };
-const searchWafer = (e: any) => { const query = e.query.toLowerCase(); filteredWaferIds.value = query ? waferIds.value.filter((id) => id.toLowerCase().includes(query)) : waferIds.value; };
+const searchEqp = (e: any) => {
+  filteredEqpIds.value = eqpIds.value.filter((id) =>
+    id.toLowerCase().includes(e.query.toLowerCase())
+  );
+};
+const searchLot = (e: any) => {
+  const query = e.query.toLowerCase();
+  filteredLotIds.value = query
+    ? lotIds.value.filter((id) => id.toLowerCase().includes(query))
+    : lotIds.value;
+};
+const searchWafer = (e: any) => {
+  const query = e.query.toLowerCase();
+  filteredWaferIds.value = query
+    ? waferIds.value.filter((id) => id.toLowerCase().includes(query))
+    : waferIds.value;
+};
 
-const searchData = async () => { first.value = 0; await loadDataGrid(); };
+const searchData = async () => {
+  first.value = 0;
+  await loadDataGrid();
+};
 
 const loadDataGrid = async () => {
   isLoading.value = true;
@@ -1000,10 +1051,25 @@ const loadDataGrid = async () => {
   }
 };
 
-const onRowsChange = () => { first.value = 0; loadDataGrid(); };
-const prevPage = () => { if (first.value > 0) first.value -= rowsPerPage.value; loadDataGrid(); };
-const nextPage = () => { if (first.value + rowsPerPage.value < totalRecords.value) first.value += rowsPerPage.value; loadDataGrid(); };
-const lastPage = () => { first.value = Math.floor(Math.max(totalRecords.value - 1, 0) / rowsPerPage.value) * rowsPerPage.value; loadDataGrid(); };
+const onRowsChange = () => {
+  first.value = 0;
+  loadDataGrid();
+};
+const prevPage = () => {
+  if (first.value > 0) first.value -= rowsPerPage.value;
+  loadDataGrid();
+};
+const nextPage = () => {
+  if (first.value + rowsPerPage.value < totalRecords.value)
+    first.value += rowsPerPage.value;
+  loadDataGrid();
+};
+const lastPage = () => {
+  first.value =
+    Math.floor(Math.max(totalRecords.value - 1, 0) / rowsPerPage.value) *
+    rowsPerPage.value;
+  loadDataGrid();
+};
 
 const onRowSelect = async (event: any) => {
   const row = event.data;
@@ -1013,13 +1079,19 @@ const onRowSelect = async (event: any) => {
   pdfExists.value = false;
   pdfImageUrl.value = null;
   selectedPointIdx.value = -1;
-  selectedPointValue.value = ""; 
+  selectedPointValue.value = "";
   statistics.value = null;
   pointData.value = { headers: [], data: [] };
   spectrumData.value = [];
 
   try {
-    const params = { ...row, eqpId: row.eqpId, lotId: row.lotId, waferId: row.waferId, servTs: row.servTs };
+    const params = {
+      ...row,
+      eqpId: row.eqpId,
+      lotId: row.lotId,
+      waferId: row.waferId,
+      servTs: row.servTs,
+    };
     const [stats, pts, pdfCheck] = await Promise.all([
       waferApi.getStatistics(params),
       waferApi.getPointData(params),
@@ -1037,14 +1109,18 @@ const onRowSelect = async (event: any) => {
 };
 
 const loadPointImage = async (idx: number) => {
-  const pointValue = idx; 
-  
+  const pointValue = idx;
+
   if (!pdfExists.value || !selectedRow.value) return;
   isImageLoading.value = true;
   pdfImageUrl.value = null;
 
   try {
-    const base64 = await waferApi.getPdfImageBase64(selectedRow.value.eqpId, selectedRow.value.dateTime, pointValue);
+    const base64 = await waferApi.getPdfImageBase64(
+      selectedRow.value.eqpId,
+      selectedRow.value.dateTime,
+      pointValue
+    );
     pdfImageUrl.value = `data:image/png;base64,${base64}`;
   } catch (error) {
     pdfImageUrl.value = null;
@@ -1057,29 +1133,30 @@ const loadSpectrumData = async (pointValue: number) => {
   if (!selectedRow.value) return;
   spectrumData.value = [];
   isSpectrumLoading.value = true;
-  
+
   try {
     const rawData = await waferApi.getSpectrum({
       eqpId: selectedRow.value.eqpId,
       ts: selectedRow.value.dateTime, // [수정] servTs -> ts로 변경
       lotId: selectedRow.value.lotId,
       waferId: selectedRow.value.waferId,
-      pointNumber: pointValue
+      pointNumber: pointValue,
     });
 
     if (rawData && rawData.length > 0) {
-      const expData = rawData.find(d => d.class === 'exp');
-      const genData = rawData.find(d => d.class === 'gen');
-      const baseWavelengths = expData?.wavelengths || genData?.wavelengths || [];
-      
+      const expData = rawData.find((d) => d.class === "exp");
+      const genData = rawData.find((d) => d.class === "gen");
+      const baseWavelengths =
+        expData?.wavelengths || genData?.wavelengths || [];
+
       const chartData = baseWavelengths.map((wl, i) => {
         return {
           wavelength: wl,
           exp: expData?.values[i] || null,
-          gen: genData?.values[i] || null
+          gen: genData?.values[i] || null,
         };
       });
-      
+
       spectrumData.value = chartData;
     }
   } catch (e) {
@@ -1090,12 +1167,14 @@ const loadSpectrumData = async (pointValue: number) => {
 };
 
 const onPointClick = (idx: number) => {
-  let pointValue = idx + 1; 
-  
+  let pointValue = idx + 1;
+
   if (pointData.value && pointData.value.headers && pointData.value.data) {
-    const pointColIndex = pointData.value.headers.findIndex(h => h.toLowerCase() === 'point');
+    const pointColIndex = pointData.value.headers.findIndex(
+      (h) => h.toLowerCase() === "point"
+    );
     const rowData = pointData.value.data[idx];
-    
+
     if (pointColIndex > -1 && rowData) {
       pointValue = Number(rowData[pointColIndex]);
     }
@@ -1105,7 +1184,7 @@ const onPointClick = (idx: number) => {
   selectedPointIdx.value = idx; // 하이라이트용 인덱스 업데이트
 
   if (pdfExists.value && selectedRow.value) {
-    loadPointImage(pointValue); 
+    loadPointImage(pointValue);
   } else {
     pdfImageUrl.value = null;
   }
@@ -1114,44 +1193,141 @@ const onPointClick = (idx: number) => {
 };
 
 const resetFilters = () => {
-  filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; filters.cassetteRcp = ""; filters.stageRcp = ""; filters.stageGroup = ""; filters.film = "";
-  flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; spectrumData.value = [];
+  filters.eqpId = "";
+  filters.lotId = "";
+  filters.waferId = "";
+  filters.cassetteRcp = "";
+  filters.stageRcp = "";
+  filters.stageGroup = "";
+  filters.film = "";
+  flatData.value = [];
+  selectedRow.value = null;
+  hasSearched.value = false;
+  first.value = 0;
+  spectrumData.value = [];
 };
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
-  return `${d.getUTCFullYear().toString().slice(2)}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")} ${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}:${String(d.getUTCSeconds()).padStart(2,"0")}`;
+  return `${d.getUTCFullYear().toString().slice(2)}-${String(
+    d.getUTCMonth() + 1
+  ).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} ${String(
+    d.getUTCHours()
+  ).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:${String(
+    d.getUTCSeconds()
+  ).padStart(2, "0")}`;
 };
-const fmt = (num: number | null | undefined, prec: number = 3) => (num === null || num === undefined) ? "0.".padEnd(prec + 2, "0") : num.toFixed(prec);
+const fmt = (num: number | null | undefined, prec: number = 3) =>
+  num === null || num === undefined
+    ? "0.".padEnd(prec + 2, "0")
+    : num.toFixed(prec);
 </script>
 
 <style scoped>
-:deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700; }
-:deep(.p-datatable-tbody > tr > td) { @apply py-1 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
-:deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
+:deep(.p-datatable-thead > tr > th) {
+  @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700;
+}
+:deep(.p-datatable-tbody > tr > td) {
+  @apply py-1 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50;
+}
+:deep(.dark .p-datatable-tbody > tr:hover) {
+  @apply !bg-[#27272a] !text-white;
+}
 
 /* Dropdown & Input Styles */
-:deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
-:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
-:deep(.custom-input-text.small) { @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0; }
-:deep(.date-picker .p-inputtext) { @apply !text-[13px] !py-1 !px-2 !h-7; }
-:deep(.p-select-clear-icon), :deep(.p-datepicker-clear-icon) { @apply text-[9px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300; }
-:deep(.custom-dropdown.small) { @apply h-7; }
-:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
-:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6; }
-:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
+:deep(.p-select),
+:deep(.custom-dropdown) {
+  @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
+}
+:deep(.custom-dropdown .p-select-label) {
+  @apply text-[13px] py-[5px] px-3;
+}
+:deep(.custom-input-text.small) {
+  @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0;
+}
+:deep(.date-picker .p-inputtext) {
+  @apply !text-[13px] !py-1 !px-2 !h-7;
+}
+:deep(.p-select-clear-icon),
+:deep(.p-datepicker-clear-icon) {
+  @apply text-[9px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300;
+}
+:deep(.custom-dropdown.small) {
+  @apply h-7;
+}
+:deep(.custom-dropdown:hover) {
+  @apply !bg-slate-200 dark:!bg-zinc-800;
+}
+:deep(.p-select-dropdown) {
+  @apply text-slate-400 dark:text-zinc-500 w-6;
+}
+:deep(.p-select-dropdown svg) {
+  @apply w-3 h-3;
+}
 
 /* [수정] AutoComplete List Item Font Size Fix */
 :deep(.p-autocomplete-option),
 :deep(.p-autocomplete-item) {
-  @apply !text-[11px] !py-1.5 !px-2.5; 
+  @apply !text-[11px] !py-1.5 !px-2.5;
 }
 
-.animate-slide-left { animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
-@keyframes slideLeft { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+/* [추가] 테이블 행 강조 및 줄무늬 스타일 강화 */
+:deep(.p-datatable-tbody > tr.p-highlight) {
+  @apply !bg-teal-50 dark:!bg-teal-900/30 !text-teal-700 dark:!text-teal-200;
+}
+:deep(
+    .p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(even)
+  ) {
+  @apply bg-slate-50/50 dark:bg-zinc-800/30;
+}
+
+/* [추가] Point Data Table 전용 스타일 */
+table th,
+table td {
+  @apply px-4 py-2; /* 셀 여백 조정 */
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* [추가] 로딩 애니메이션 */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
 </style>
 
 <style>
