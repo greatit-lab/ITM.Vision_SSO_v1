@@ -88,6 +88,7 @@ export class WaferService {
           lotid: true,
           waferid: true,
           servTs: true,
+          datetime: true, // EQP Time
           cassettercp: true,
           stagercp: true,
           stagegroup: true,
@@ -103,6 +104,7 @@ export class WaferService {
         lotId: i.lotid,
         waferId: i.waferid,
         servTs: i.servTs,
+        dateTime: i.datetime,
         cassetteRcp: i.cassettercp,
         stageRcp: i.stagercp,
         stageGroup: i.stagegroup,
@@ -112,6 +114,7 @@ export class WaferService {
   }
 
   async getStatistics(params: WaferQueryParams) {
+    // buildUniqueWhere를 통해 stageGroup까지 포함된 정밀한 WHERE 절 생성
     const whereSql = this.buildUniqueWhere(params);
     if (!whereSql) return this.getEmptyStatistics();
 
@@ -163,10 +166,12 @@ export class WaferService {
   async getPointData(
     params: WaferQueryParams,
   ): Promise<{ headers: string[]; data: unknown[][] }> {
+    // buildUniqueWhere를 통해 stageGroup, film 조건이 포함된 WHERE 절 생성
     const whereSql = this.buildUniqueWhere(params);
     if (!whereSql) return { headers: [], data: [] };
 
     try {
+      // 포인트 데이터 조회 시에도 stageGroup 조건이 적용되어 중복 데이터가 제거됨
       const rawData = await this.prisma.$queryRawUnsafe<
         Record<string, unknown>[]
       >(`
@@ -184,6 +189,7 @@ export class WaferService {
         'stagercp',
         'stagegroup',
         'film',
+        'datetime',
       ]);
 
       const allKeys = new Set<string>();
@@ -193,13 +199,38 @@ export class WaferService {
         });
       });
 
-      const headers = Array.from(allKeys).sort();
+      // [수정] 사용자 지정 순서 정렬 로직 적용
+      const customOrder = [
+        'point',
+        'mse',
+        't1',
+        'gof',
+        'x',
+        'y',
+        'diex',
+        'diey',
+        'dierow',
+        'diecol',
+        'dienum',
+        'diepointtag',
+        'z',
+        'srvisz',
+      ];
 
-      if (headers.includes('point')) {
-        const idx = headers.indexOf('point');
-        headers.splice(idx, 1);
-        headers.unshift('point');
-      }
+      const headers = Array.from(allKeys).sort((a, b) => {
+        const lowerA = a.toLowerCase();
+        const lowerB = b.toLowerCase();
+        const idxA = customOrder.indexOf(lowerA);
+        const idxB = customOrder.indexOf(lowerB);
+
+        // 둘 다 지정된 순서에 있으면 인덱스 비교
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        // 하나만 있으면 지정된 것을 앞으로
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        // 둘 다 없으면 알파벳 순
+        return lowerA.localeCompare(lowerB);
+      });
 
       const data = rawData.map((row) => headers.map((h) => row[h]));
 
@@ -220,7 +251,6 @@ export class WaferService {
     try {
       const ts = typeof servTs === 'string' ? servTs : servTs.toISOString();
 
-      // [수정] 타임존 문제를 피하기 위해 24시간 범위로 검색 (식별자가 확실하다면 안전)
       const result = await this.prisma.$queryRawUnsafe<PdfResult[]>(
         `SELECT file_uri FROM public.plg_wf_map 
          WHERE eqpid = $1 
@@ -241,13 +271,12 @@ export class WaferService {
     return { exists: false, url: null };
   }
 
-  // [핵심 수정] WHERE 절 생성 - 타임존 이슈 해결을 위해 시간 범위 대폭 확대
+  // 유니크한 행 식별을 위해 stageGroup과 film 조건 추가
   private buildUniqueWhere(p: WaferQueryParams): string | null {
     if (!p.eqpId) return null;
 
     let sql = `WHERE eqpid = '${p.eqpId}'`;
 
-    // [중요] ±24시간 범위 검색으로 변경하여 타임존(UTC vs Local) 불일치 문제 해결
     if (p.servTs) {
       const ts =
         typeof p.servTs === 'string' ? p.servTs : p.servTs.toISOString();
@@ -255,11 +284,13 @@ export class WaferService {
       sql += ` AND serv_ts <= '${ts}'::timestamp + interval '24 hours'`;
     }
 
-    // [중요] 다른 식별자들을 모두 조건에 포함하여 정확한 행 식별
     if (p.lotId) sql += ` AND lotid = '${p.lotId}'`;
     if (p.waferId) sql += ` AND waferid = ${p.waferId}`;
     if (p.cassetteRcp) sql += ` AND cassettercp = '${p.cassetteRcp}'`;
     if (p.stageRcp) sql += ` AND stagercp = '${p.stageRcp}'`;
+    
+    if (p.stageGroup) sql += ` AND stagegroup = '${p.stageGroup}'`;
+    if (p.film) sql += ` AND film = '${p.film}'`;
 
     return sql;
   }
