@@ -41,7 +41,6 @@ const createLineChart = (
   config: any,
   isDark: boolean
 ) => {
-  // [수정] 로컬 변수를 사용하여 null 가능성 제거
   const chartInstance = root.container.children.push(
     am5xy.XYChart.new(root, {
       panX: true,
@@ -52,10 +51,8 @@ const createLineChart = (
     })
   );
 
-  // 전역 변수 업데이트
   chart = chartInstance;
 
-  // 이후 로직에서는 chartInstance 사용
   const cursor = chartInstance.set(
     "cursor",
     am5xy.XYCursor.new(root, { behavior: "zoomXY" })
@@ -64,37 +61,51 @@ const createLineChart = (
 
   const textColor = isDark ? am5.color(0xffffff) : am5.color(0x000000);
 
-  // 1. X축 설정
-  const xAxis = chartInstance.xAxes.push(
-    am5xy.DateAxis.new(root, {
-      baseInterval: { timeUnit: config.xTimeUnit || "minute", count: 1 },
-      renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 80 }),
-      tooltip: am5.Tooltip.new(root, {}),
-    })
-  );
+  // 1. X축 설정 (타입에 따른 분기)
+  let xAxis: am5xy.Axis<am5xy.AxisRenderer>;
 
-  if (config.xAxisDateFormat) {
-    const dateFormats = xAxis.get("dateFormats");
-    const periodChangeDateFormats = xAxis.get("periodChangeDateFormats");
+  if (config.xAxisType === "value") {
+    // 숫자형 X축 (예: Wavelength)
+    xAxis = chartInstance.xAxes.push(
+      am5xy.ValueAxis.new(root, {
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 50 }),
+        tooltip: am5.Tooltip.new(root, {}),
+      })
+    );
+  } else {
+    // 기본값: 날짜형 X축
+    xAxis = chartInstance.xAxes.push(
+      am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: config.xTimeUnit || "minute", count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 80 }),
+        tooltip: am5.Tooltip.new(root, {}),
+      })
+    );
 
-    if (dateFormats) {
-      dateFormats["minute"] = config.xAxisDateFormat;
-      dateFormats["hour"] = config.xAxisDateFormat;
-      dateFormats["day"] = config.xAxisDateFormat;
-      dateFormats["week"] = config.xAxisDateFormat;
-      dateFormats["month"] = config.xAxisDateFormat;
+    if (config.xAxisDateFormat) {
+      // 날짜 포맷 설정 로직 (기존 유지)
+      const dateFormats = (xAxis as am5xy.DateAxis<am5xy.AxisRenderer>).get("dateFormats");
+      const periodChangeDateFormats = (xAxis as am5xy.DateAxis<am5xy.AxisRenderer>).get("periodChangeDateFormats");
+
+      if (dateFormats) {
+        dateFormats["minute"] = config.xAxisDateFormat;
+        dateFormats["hour"] = config.xAxisDateFormat;
+        dateFormats["day"] = config.xAxisDateFormat;
+        dateFormats["week"] = config.xAxisDateFormat;
+        dateFormats["month"] = config.xAxisDateFormat;
+      }
+      if (periodChangeDateFormats) {
+        periodChangeDateFormats["minute"] = config.xAxisDateFormat;
+        periodChangeDateFormats["hour"] = config.xAxisDateFormat;
+        periodChangeDateFormats["day"] = config.xAxisDateFormat;
+        periodChangeDateFormats["week"] = config.xAxisDateFormat;
+        periodChangeDateFormats["month"] = config.xAxisDateFormat;
+      }
     }
-    if (periodChangeDateFormats) {
-      periodChangeDateFormats["minute"] = config.xAxisDateFormat;
-      periodChangeDateFormats["hour"] = config.xAxisDateFormat;
-      periodChangeDateFormats["day"] = config.xAxisDateFormat;
-      periodChangeDateFormats["week"] = config.xAxisDateFormat;
-      periodChangeDateFormats["month"] = config.xAxisDateFormat;
-    }
-  }
 
-  if (config.tooltipDateFormat) {
-    xAxis.set("tooltipDateFormat", config.tooltipDateFormat);
+    if (config.tooltipDateFormat) {
+      (xAxis as am5xy.DateAxis<am5xy.AxisRenderer>).set("tooltipDateFormat", config.tooltipDateFormat);
+    }
   }
 
   xAxis.get("renderer").labels.template.setAll({
@@ -113,7 +124,7 @@ const createLineChart = (
         opposite: yCfg.opposite || false,
       });
       renderer.labels.template.set("fill", textColor);
-      // [수정] chartInstance 사용
+      
       const axis = chartInstance.yAxes.push(
         am5xy.ValueAxis.new(root, {
           renderer,
@@ -121,12 +132,26 @@ const createLineChart = (
           max: yCfg.max,
         })
       );
+      
+      // 축 제목 추가
+      if (yCfg.title) {
+        axis.children.unshift(
+          am5.Label.new(root, {
+            rotation: -90,
+            text: yCfg.title,
+            y: am5.p50,
+            centerX: am5.p50,
+            fill: textColor,
+            fontWeight: "bold"
+          })
+        );
+      }
+      
       yAxes.push(axis);
     });
   } else {
     const renderer = am5xy.AxisRendererY.new(root, {});
     renderer.labels.template.set("fill", textColor);
-    // [수정] chartInstance 사용
     yAxes.push(
       chartInstance.yAxes.push(am5xy.ValueAxis.new(root, { renderer }))
     );
@@ -157,7 +182,6 @@ const createLineChart = (
         fill: am5.color(0xffffff),
       });
 
-      // [수정] chartInstance 사용
       const series = chartInstance.series.push(
         am5xy.LineSeries.new(root, {
           name: s.name,
@@ -186,21 +210,22 @@ const createLineChart = (
         );
       }
 
-      series.data.processor = am5.DataProcessor.new(root, {
-        dateFields: [config.xField],
-        dateFormat: "yyyy-MM-ddTHH:mm:ss",
-      });
+      // X축이 DateAxis일 때만 날짜 처리
+      if (config.xAxisType !== "value") {
+        series.data.processor = am5.DataProcessor.new(root, {
+          dateFields: [config.xField],
+          dateFormat: "yyyy-MM-ddTHH:mm:ss",
+        });
+      }
 
       series.data.setAll(data);
     });
   }
 
-  // [수정] chartInstance 사용
   const legend = chartInstance.children.push(
     am5.Legend.new(root, { centerX: am5.p50, x: am5.p50 })
   );
   legend.labels.template.set("fill", textColor);
-  // [수정] chartInstance 사용
   legend.data.setAll(chartInstance.series.values);
 };
 
@@ -213,7 +238,6 @@ onUnmounted(() => {
 watch(
   () => props.data,
   (newData) => {
-    // [수정] chart가 null이 아님을 확인
     if (chart && root) {
       chart.series.each((series) => {
         series.data.setAll(newData);
@@ -233,4 +257,3 @@ watch(
   { deep: true }
 );
 </script>
-
