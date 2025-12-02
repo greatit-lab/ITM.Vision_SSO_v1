@@ -1115,18 +1115,39 @@ const onRowSelect = async (event: any) => {
   }
 };
 
-const onPointClick = (idx: number) => {
+// ▼▼▼ [핵심 수정] Base64 이미지 데이터를 비동기적으로 가져와 로드 상태를 관리합니다. ▼▼▼
+const loadPointImage = async (idx: number) => {
+  if (!pdfExists.value || !selectedRow.value) return;
+
+  isImageLoading.value = true;
+  pdfImageUrl.value = null;
   selectedPointIdx.value = idx;
-  if (pdfExists.value && selectedRow.value) {
-    isImageLoading.value = true;
-    pdfImageUrl.value = waferApi.getPdfImageUrl(
+
+  try {
+    const base64 = await waferApi.getPdfImageBase64(
       selectedRow.value.eqpId,
-      selectedRow.value.servTs,
+      selectedRow.value.dateTime, // Image API는 EQP Time (dateTime)을 사용하는 것이 일반적이지만, 현재 백엔드는 servTs를 사용하도록 가이드됨. 백엔드에서 servTs로 수정되었으므로, 여기서는 프론트엔드에서 사용 가능한 dateTime을 사용합니다.
       idx
     );
-    setTimeout(() => {
-      isImageLoading.value = false;
-    }, 300);
+    // Base64 문자열 앞에 MIME 타입 접두사를 붙여 img src로 사용합니다.
+    pdfImageUrl.value = `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.error("Failed to load PDF image:", error);
+    // 이미지 로드 실패 시 No Map Image Available 메시지를 표시하도록 URL을 null로 유지합니다.
+    pdfImageUrl.value = null; 
+  } finally {
+    isImageLoading.value = false;
+  }
+};
+
+// ▼▼▼ [수정] onPointClick에서 loadPointImage를 호출하도록 변경 ▼▼▼
+const onPointClick = (idx: number) => {
+  if (pdfExists.value && selectedRow.value) {
+    loadPointImage(idx);
+  } else {
+    // PDF가 존재하지 않으면 이미지를 초기화하고 로딩 상태를 해제합니다.
+    selectedPointIdx.value = idx;
+    pdfImageUrl.value = null;
   }
 };
 
@@ -1263,3 +1284,4 @@ const fmt = (num: number | null | undefined, prec: number = 3) => {
   font-size: 11px !important;
 }
 </style>
+
