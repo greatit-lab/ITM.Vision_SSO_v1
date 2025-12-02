@@ -1,3 +1,4 @@
+// backend/src/wafer/wafer.controller.ts
 import { Controller, Get, Query } from '@nestjs/common';
 import { WaferService, WaferQueryParams } from './wafer.service';
 
