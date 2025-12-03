@@ -431,7 +431,7 @@
             <div
               v-else-if="activeTab === 'points'"
               class="overflow-auto"
-              style="max-height: 280p"
+              style="max-height: 280px"
             >
               <table
                 v-if="pointData && pointData.data && pointData.data.length > 0"
@@ -550,7 +550,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.max, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.max, 4) }}
                     </td>
                   </tr>
@@ -569,7 +569,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.min, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.min, 4) }}
                     </td>
                   </tr>
@@ -588,7 +588,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.range, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.range, 4) }}
                     </td>
                   </tr>
@@ -607,7 +607,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.mean, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.mean, 4) }}
                     </td>
                   </tr>
@@ -626,7 +626,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.stdDev, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.stdDev, 4) }}
                     </td>
                   </tr>
@@ -645,7 +645,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.percentStdDev, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.percentStdDev, 4) }}
                     </td>
                   </tr>
@@ -664,7 +664,7 @@
                     <td class="px-2 py-1 text-right">
                       {{ fmt(statistics.z.percentNonU, 4) }}
                     </td>
-                    <td class="px-2 py-1 text-right pr-4">
+                    <td class="px-2 py-1 pr-4 text-right">
                       {{ fmt(statistics.srvisz.percentNonU, 4) }}
                     </td>
                   </tr>
@@ -694,7 +694,7 @@
         
           <!-- 🟩 이 div가 전체 높이를 유지하는 wrapper -->
           <div
-            class="relative w-full h-full max-w-full aspect-square rounded-full border-4 border-slate-100 dark:border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] overflow-hidden bg-slate-50 dark:bg-black flex items-center justify-center"
+            class="relative h-full max-w-full aspect-square rounded-full border-4 border-slate-100 dark:border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] overflow-hidden bg-slate-50 dark:bg-black flex items-center justify-center"
           >
             <!-- ⛔ 로딩 오버레이 -->
             <transition name="fade">
@@ -732,21 +732,23 @@
             </transition>
         
             <!-- 십자선 (항상 유지) -->
-            <div class="absolute inset-0 pointer-events-none rounded-full overflow-hidden">
-              <div class="absolute top-0 bottom-0 left-1/2 w-px bg-red-500 -translate-x-1/2"></div>
-              <div class="absolute left-0 right-0 top-1/2 h-px bg-red-500 -translate-y-1/2"></div>
+            <div
+              v-if="pdfImageUrl && selectedPointIdx !== -1"
+              class="absolute inset-0 pointer-events-none rounded-full overflow-hidden"
+            >
+              <div class="absolute top-0 bottom-0 left-1/2 w-px bg-red-500 transform -translate-x-1/2"></div>
+              <div class="absolute left-0 right-0 top-1/2 h-px bg-red-500 transform -translate-y-1/2"></div>
             </div>
           </div>
         
           <!-- Point Badge -->
           <div
-            v-if="selectedRow && pdfExists"
+            v-if="pdfExists && selectedPointIdx !== -1"
             class="absolute bottom-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md font-mono shadow-lg border border-white/10 z-30"
           >
-            {{ selectedRow.lotId }} W{{ selectedRow.waferId }} #{{ selectedPointValue }}
+            {{ selectedRow?.lotId }} W{{ selectedRow?.waferId }} #{{ selectedPointValue }}
           </div>
         </div>
-
 
         <div
           class="flex-1 min-h-0 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden shrink-0"
@@ -1341,4 +1343,5 @@ table td {
   font-size: 11px !important;
 }
 </style>
+
 
