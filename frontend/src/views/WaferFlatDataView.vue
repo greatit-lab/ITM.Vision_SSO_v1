@@ -1132,40 +1132,51 @@ const loadPointImage = async (idx: number) => {
 
 const loadSpectrumData = async (pointValue: number) => {
   if (!selectedRow.value) return;
-  spectrumData.value = [];
+
   isSpectrumLoading.value = true;
+  spectrumData.value = [];
 
   try {
     const rawData = await waferApi.getSpectrum({
       eqpId: selectedRow.value.eqpId,
-      ts: selectedRow.value.dateTime, // [수정] servTs -> ts로 변경
+      ts: selectedRow.value.dateTime,
       lotId: selectedRow.value.lotId,
       waferId: selectedRow.value.waferId,
-      pointNumber: pointValue,
+      pointNumber: pointValue, // 반드시 DB와 동일한 Point 값
     });
 
-    if (rawData && rawData.length > 0) {
-      const expData = rawData.find((d) => d.class === "exp");
-      const genData = rawData.find((d) => d.class === "gen");
-      const baseWavelengths =
-        expData?.wavelengths || genData?.wavelengths || [];
-
-      const chartData = baseWavelengths.map((wl, i) => {
-        return {
-          wavelength: wl,
-          exp: expData?.values[i] || null,
-          gen: genData?.values[i] || null,
-        };
-      });
-
-      spectrumData.value = chartData;
+    if (!rawData || rawData.length === 0) {
+      console.warn("No spectrum data");
+      return;
     }
-  } catch (e) {
-    console.error("Failed to load spectrum data", e);
+
+    const expData = rawData.find((d) => d.class === "exp");
+    const genData = rawData.find((d) => d.class === "gen");
+
+    const baseWavelengths =
+      expData?.wavelengths || genData?.wavelengths || [];
+
+    const chartData = baseWavelengths.map((wl, i) => {
+      return {
+        wavelength: wl,
+        exp: expData?.values[i] ?? null,
+        gen: genData?.values[i] ?? null,
+      };
+    });
+
+    spectrumData.value = chartData;
+
+    // 👇 중요: amCharts 인스턴스에 직접 데이터 갱신함
+    if (spectrumChart.value) {
+      spectrumChart.value.set("data", chartData);
+    }
+  } catch (err) {
+    console.error("loadSpectrumData error:", err);
   } finally {
     isSpectrumLoading.value = false;
   }
 };
+
 
 const onPointClick = (idx: number) => {
   let pointValue = idx + 1;
