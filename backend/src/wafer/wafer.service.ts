@@ -26,7 +26,7 @@ export class WaferQueryParams {
   page?: string | number;
   pageSize?: string | number;
   servTs?: string | Date;
-  ts?: string | Date; // [추가] EQP Time 파라미터
+  ts?: string | Date;
   dateTime?: string | Date;
   pointNumber?: string | number;
 }
@@ -39,11 +39,31 @@ interface PdfResult {
   file_uri: string;
 }
 
-// 스펙트럼 데이터 결과 인터페이스
 interface SpectrumRawResult {
-  class: string; // 'exp' | 'gen'
+  class: string;
   wavelengths: number[];
   values: number[];
+}
+
+// [수정] JOIN 결과에 맞게 인터페이스 수정
+interface ResidualRawResult {
+  point: number;
+  x: number | null;
+  y: number | null;
+  class: string;
+  values: number[];
+}
+
+interface GoldenRawResult {
+  wavelengths: number[];
+  values: number[];
+}
+
+export interface ResidualMapItem {
+  point: number;
+  x: number;
+  y: number;
+  residual: number;
 }
 
 @Injectable()
@@ -65,22 +85,20 @@ export class WaferService {
       pageSize = 20,
     } = params;
 
-    // [핵심 수정] 종료일(endDate) 처리 로직 개선
-    // 사용자가 선택한 날짜의 '끝'까지 포함하기 위해 하루를 더하고 '보다 작음(lt)' 조건 사용
     let searchEnd: Date | undefined;
     if (endDate) {
       searchEnd = new Date(endDate);
-      searchEnd.setDate(searchEnd.getDate() + 1); // 1일 추가
+      searchEnd.setDate(searchEnd.getDate() + 1);
     }
 
     const where: Prisma.PlgWfFlatWhereInput = {
       eqpid: eqpId || undefined,
       servTs: {
         gte: startDate ? new Date(startDate) : undefined,
-        lt: searchEnd, // [수정] lte -> lt (Less Than Next Day) 로 변경하여 해당 일자 전체 포함
+        lt: searchEnd,
       },
       lotid: lotId ? { contains: lotId, mode: 'insensitive' } : undefined,
-      waferid: waferId ? Number(waferId) : undefined, // (주의) DB가 String이면 String(waferId)로 변경 필요
+      waferid: waferId ? Number(waferId) : undefined,
       cassettercp: cassetteRcp || undefined,
       stagercp: stageRcp || undefined,
       stagegroup: stageGroup || undefined,
@@ -161,29 +179,25 @@ export class WaferService {
       );
     }
 
-    // 1. DB에서 파일 경로 조회
     const pdfCheckResult = await this.checkPdf({ eqpId, servTs: dateTime });
     if (!pdfCheckResult.exists || !pdfCheckResult.url) {
       throw new NotFoundException('PDF file URI not found in database.');
     }
 
-    // [캐싱] 파일명 규칙 생성 (YYYYMMDD)
     const dateObj = new Date(dateTime as string);
     const dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
     const cacheFileName = `wafer_${eqpId}_${dateStr}_pt${pointNumber}.png`;
     const cacheFilePath = path.join(os.tmpdir(), cacheFileName);
 
-    // [캐싱] 파일이 존재하면 바로 반환
     if (fs.existsSync(cacheFilePath)) {
       try {
         const imageBuffer = fs.readFileSync(cacheFilePath);
         return imageBuffer.toString('base64');
       } catch {
-        /* 읽기 실패 시 무시 */
+        /* ignore */
       }
     }
 
-    // URL 조합 및 인코딩
     let downloadUrl = pdfCheckResult.url;
     const baseUrl = process.env.PDF_SERVER_BASE_URL;
 
@@ -198,8 +212,6 @@ export class WaferService {
     }
 
     const encodedUrl = encodeURI(downloadUrl);
-
-    // 임시 파일 경로
     const tempId = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const tempPdfPath = path.join(os.tmpdir(), `temp_wafer_${tempId}.pdf`);
     const outputPrefix = path.join(os.tmpdir(), `temp_img_${tempId}`);
@@ -210,7 +222,7 @@ export class WaferService {
         url: encodedUrl,
         method: 'GET',
         responseType: 'stream',
-        proxy: false, // 로컬 접속 시 프록시 우회
+        proxy: false,
       });
 
       (response.data as Readable).pipe(writer);
@@ -220,7 +232,6 @@ export class WaferService {
         writer.on('error', reject);
       });
 
-      // Poppler 실행 옵션
       const popplerBinPath =
         'F:\\Workspaces\\WEB\\ITM.Dashboard.Modern\\poppler-25.11.0\\Library\\bin';
 
@@ -237,7 +248,6 @@ export class WaferService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       await (poppler as any).convert(tempPdfPath, opts);
 
-      // 생성된 이미지 찾기
       const dirFiles = fs.readdirSync(os.tmpdir());
       const generatedImageName = dirFiles.find(
         (f) => f.startsWith(path.basename(outputPrefix)) && f.endsWith('.png'),
@@ -249,22 +259,19 @@ export class WaferService {
 
       const generatedImagePath = path.join(os.tmpdir(), generatedImageName);
 
-      // [캐싱] 생성된 이미지를 캐시 이름으로 저장
       try {
         fs.copyFileSync(generatedImagePath, cacheFilePath);
         fs.unlinkSync(generatedImagePath);
       } catch {
-        /* 복사 실패 시 원본 사용 */
+        /* ignore */
       }
 
-      // 최종 파일 읽기
       const finalPath = fs.existsSync(cacheFilePath)
         ? cacheFilePath
         : generatedImagePath;
       const imageBuffer = fs.readFileSync(finalPath);
       const base64Image = imageBuffer.toString('base64');
 
-      // PDF 원본 삭제
       try {
         if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
       } catch {
@@ -287,25 +294,18 @@ export class WaferService {
     }
   }
 
-  // ▼▼▼ [수정] Spectrum 데이터 조회: ts 기준, waferId String 처리 ▼▼▼
   async getSpectrum(params: WaferQueryParams) {
     const { eqpId, lotId, waferId, pointNumber, ts } = params;
 
-    // 필수 파라미터 체크
     if (!eqpId || !lotId || !waferId || pointNumber === undefined || !ts) {
-      console.warn('[WaferService] Missing parameters for spectrum:', params);
       return [];
     }
 
     try {
       const targetDate = new Date(ts);
-      // SQL 쿼리용 원본 문자열 (ISO 형식)
       const tsRaw = targetDate.toISOString();
-
-      // 파티셔닝된 테이블의 부모 테이블 직접 조회
       const tableName = 'public.plg_onto_spectrum';
 
-      // [수정] waferId를 String으로 처리, 시간 범위 ±2초
       const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
         `SELECT class, wavelengths, values 
          FROM ${tableName}
@@ -318,8 +318,8 @@ export class WaferService {
         eqpId,
         tsRaw,
         lotId,
-        String(waferId), // [변경] DB 컬럼 타입(String)에 맞춰 변환 없이 전달 (또는 명시적 String 변환)
-        Number(pointNumber), // pointNumber는 숫자형 유지
+        String(waferId),
+        Number(pointNumber),
       );
 
       if (!results || results.length === 0) {
@@ -476,6 +476,122 @@ export class WaferService {
       console.warn(`Failed to check PDF for ${String(eqpId)}:`, e);
     }
     return { exists: false, url: null };
+  }
+
+  async getResidualMap(params: WaferQueryParams): Promise<ResidualMapItem[]> {
+    const { eqpId, lotId, waferId, ts } = params;
+    if (!eqpId || !lotId || !waferId || !ts) return [];
+
+    const targetDate = new Date(ts);
+    const tsRaw = targetDate.toISOString();
+
+    // [오류 해결 1] x, y 컬럼이 없는 문제를 해결하기 위해 plg_wf_flat과 JOIN
+    // [오류 해결 2] waferid 타입 불일치(varchar vs int) 해결을 위해 ::varchar 형변환 추가
+    const rawData = await this.prisma.$queryRawUnsafe<ResidualRawResult[]>(
+      `SELECT s.point, f.x, f.y, s.class, s.values 
+       FROM public.plg_onto_spectrum s
+       JOIN public.plg_wf_flat f 
+         ON s.eqpid = f.eqpid 
+         AND s.lotid = f.lotid 
+         AND s.waferid = f.waferid::varchar 
+         AND s.point = f.point
+       WHERE s.eqpid = $1 
+         AND s.ts >= $2::timestamp - interval '2 second'
+         AND s.ts <= $2::timestamp + interval '2 second'
+         AND f.serv_ts >= $2::timestamp - interval '5 second'
+         AND f.serv_ts <= $2::timestamp + interval '5 second'
+         AND s.lotid = $3 
+         AND s.waferid = $4`,
+      eqpId,
+      tsRaw,
+      lotId,
+      String(waferId),
+    );
+
+    const mapData: Map<
+      number,
+      { exp: number[]; gen: number[]; x: number; y: number }
+    > = new Map();
+
+    rawData.forEach((r) => {
+      if (!mapData.has(r.point)) {
+        mapData.set(r.point, {
+          exp: [],
+          gen: [],
+          x: r.x || 0,
+          y: r.y || 0,
+        });
+      }
+      const item = mapData.get(r.point);
+      if (item) {
+        if (r.class.toLowerCase() === 'exp') item.exp = r.values || [];
+        if (r.class.toLowerCase() === 'gen') item.gen = r.values || [];
+      }
+    });
+
+    const result: ResidualMapItem[] = [];
+    mapData.forEach((val, point) => {
+      if (
+        val.exp.length > 0 &&
+        val.gen.length > 0 &&
+        val.exp.length === val.gen.length
+      ) {
+        const sumDiff = val.exp.reduce(
+          (acc, curr, idx) => acc + Math.abs(curr - val.gen[idx]),
+          0,
+        );
+        result.push({ point, x: val.x, y: val.y, residual: sumDiff });
+      }
+    });
+
+    return result;
+  }
+
+  async getGoldenSpectrum(params: WaferQueryParams) {
+    const { eqpId, cassetteRcp, stageGroup, film } = params;
+
+    // [오류 해결 2] waferid 타입 불일치(varchar vs int) 해결을 위해 ::varchar 형변환 추가
+    const samples = await this.prisma.$queryRawUnsafe<GoldenRawResult[]>(
+      `SELECT s.wavelengths, s.values
+       FROM public.plg_onto_spectrum s
+       JOIN public.plg_wf_flat f 
+         ON s.eqpid = f.eqpid AND s.lotid = f.lotid AND s.waferid = f.waferid::varchar AND s.point = f.point
+       WHERE s.class = 'exp'
+         AND f.eqpid = $1
+         AND f.cassettercp = $2
+         AND f.stagegroup = $3
+         AND f.film = $4
+         AND f.gof >= 0.98
+         AND f.serv_ts >= NOW() - INTERVAL '7 days'
+       LIMIT 50`,
+      eqpId,
+      cassetteRcp || '',
+      stageGroup || '',
+      film || '',
+    );
+
+    if (samples.length === 0) return null;
+
+    const baseWavelengths = samples[0].wavelengths;
+    const valueSums: number[] = Array.from(
+      { length: baseWavelengths.length },
+      () => 0,
+    );
+    let count = 0;
+
+    samples.forEach((sample) => {
+      if (sample.values && sample.values.length === baseWavelengths.length) {
+        sample.values.forEach((v: number, i: number) => (valueSums[i] += v));
+        count++;
+      }
+    });
+
+    if (count === 0) return null;
+
+    return {
+      wavelengths: baseWavelengths,
+      values: valueSums.map((v) => v / count),
+    };
   }
 
   private buildUniqueWhere(p: WaferQueryParams): string | null {
