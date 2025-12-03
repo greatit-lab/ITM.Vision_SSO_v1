@@ -900,7 +900,6 @@ const pdfExists = ref(false);
 const pdfImageUrl = ref<string | null>(null);
 
 const spectrumData = ref<any[]>([]);
-const spectrumData = ref<any[]>([]);
 
 // [추가] 다크모드 감지
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
@@ -1154,7 +1153,6 @@ const onRowSelect = async (event: any) => {
   }
 };
 
-
 const loadPointImage = async (pointValue: number) => {
   if (!pdfExists.value || !selectedRow.value) return;
   isImageLoading.value = true;
@@ -1328,20 +1326,22 @@ const fmt = (num: number | null | undefined, prec: number = 3) =>
 :deep(.custom-dropdown:hover) {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
-:deep(.p-select-dropdown) {
-  @apply text-slate-400 dark:text-zinc-500 w-6;
+
+/* [수정] 드롭다운 화살표 아이콘 및 버튼 스타일 수정 */
+:deep(.p-select-dropdown),
+:deep(.p-autocomplete-dropdown) {
+  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
 }
-:deep(.p-select-dropdown svg) {
+:deep(.p-select-dropdown svg),
+:deep(.p-autocomplete-dropdown svg) {
   @apply w-3 h-3;
 }
 
-/* [수정] AutoComplete List Item Font Size Fix */
 :deep(.p-autocomplete-option),
 :deep(.p-autocomplete-item) {
   @apply !text-[11px] !py-1.5 !px-2.5;
 }
 
-/* [추가] 테이블 행 강조 및 줄무늬 스타일 강화 */
 :deep(.p-datatable-tbody > tr.p-highlight) {
   @apply !bg-teal-50 dark:!bg-teal-900/30 !text-teal-700 dark:!text-teal-200;
 }
@@ -1351,10 +1351,9 @@ const fmt = (num: number | null | undefined, prec: number = 3) =>
   @apply bg-slate-50/50 dark:bg-zinc-800/30;
 }
 
-/* [추가] Point Data Table 전용 스타일 */
 table th,
 table td {
-  @apply px-4 py-2; /* 셀 여백 조정 */
+  @apply px-4 py-2;
 }
 
 .animate-slide-left {
@@ -1384,7 +1383,6 @@ table td {
   }
 }
 
-/* [추가] 로딩 애니메이션 */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -1411,6 +1409,7 @@ table td {
   font-size: 11px !important;
 }
 </style>
+
 
 
 
