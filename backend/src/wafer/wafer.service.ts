@@ -1,5 +1,9 @@
 // backend/src/wafer/wafer.service.ts
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
 import * as fs from 'fs';
@@ -37,7 +41,7 @@ interface PdfResult {
 
 // 스펙트럼 데이터 결과 인터페이스
 interface SpectrumRawResult {
-  class: string;       // 'exp' | 'gen'
+  class: string; // 'exp' | 'gen'
   wavelengths: number[];
   values: number[];
 }
@@ -48,18 +52,35 @@ export class WaferService {
 
   async getFlatData(params: WaferQueryParams) {
     const {
-      eqpId, lotId, waferId, startDate, endDate, cassetteRcp, stageRcp, stageGroup, film,
-      page = 0, pageSize = 20,
+      eqpId,
+      lotId,
+      waferId,
+      startDate,
+      endDate,
+      cassetteRcp,
+      stageRcp,
+      stageGroup,
+      film,
+      page = 0,
+      pageSize = 20,
     } = params;
+
+    // [핵심 수정] 종료일(endDate) 처리 로직 개선
+    // 사용자가 선택한 날짜의 '끝'까지 포함하기 위해 하루를 더하고 '보다 작음(lt)' 조건 사용
+    let searchEnd: Date | undefined;
+    if (endDate) {
+      searchEnd = new Date(endDate);
+      searchEnd.setDate(searchEnd.getDate() + 1); // 1일 추가
+    }
 
     const where: Prisma.PlgWfFlatWhereInput = {
       eqpid: eqpId || undefined,
       servTs: {
         gte: startDate ? new Date(startDate) : undefined,
-        lte: endDate ? new Date(endDate) : undefined,
+        lt: searchEnd, // [수정] lte -> lt (Less Than Next Day) 로 변경하여 해당 일자 전체 포함
       },
       lotid: lotId ? { contains: lotId, mode: 'insensitive' } : undefined,
-      waferid: waferId ? Number(waferId) : undefined,
+      waferid: waferId ? Number(waferId) : undefined, // (주의) DB가 String이면 String(waferId)로 변경 필요
       cassettercp: cassetteRcp || undefined,
       stagercp: stageRcp || undefined,
       stagegroup: stageGroup || undefined,
@@ -67,7 +88,16 @@ export class WaferService {
     };
 
     const uniqueGroupsPromise = this.prisma.plgWfFlat.groupBy({
-      by: ['eqpid', 'servTs', 'lotid', 'waferid', 'cassettercp', 'stagercp', 'stagegroup', 'film'],
+      by: [
+        'eqpid',
+        'servTs',
+        'lotid',
+        'waferid',
+        'cassettercp',
+        'stagercp',
+        'stagegroup',
+        'film',
+      ],
       where,
       _count: { _all: true },
     });
@@ -77,21 +107,47 @@ export class WaferService {
       take: Number(pageSize),
       skip: Number(page) * Number(pageSize),
       orderBy: [{ servTs: 'desc' }, { waferid: 'asc' }],
-      distinct: ['eqpid', 'servTs', 'lotid', 'waferid', 'cassettercp', 'stagercp', 'stagegroup', 'film'],
+      distinct: [
+        'eqpid',
+        'servTs',
+        'lotid',
+        'waferid',
+        'cassettercp',
+        'stagercp',
+        'stagegroup',
+        'film',
+      ],
       select: {
-        eqpid: true, lotid: true, waferid: true, servTs: true, datetime: true,
-        cassettercp: true, stagercp: true, stagegroup: true, film: true,
+        eqpid: true,
+        lotid: true,
+        waferid: true,
+        servTs: true,
+        datetime: true,
+        cassettercp: true,
+        stagercp: true,
+        stagegroup: true,
+        film: true,
       },
     });
 
-    const [uniqueGroups, items] = await this.prisma.$transaction([uniqueGroupsPromise, itemsPromise]);
+    const [uniqueGroups, items] = await this.prisma.$transaction([
+      uniqueGroupsPromise,
+      itemsPromise,
+    ]);
     const total = uniqueGroups.length;
 
     return {
       totalItems: total,
       items: items.map((i) => ({
-        eqpId: i.eqpid, lotId: i.lotid, waferId: i.waferid, servTs: i.servTs, dateTime: i.datetime,
-        cassetteRcp: i.cassettercp, stageRcp: i.stagercp, stageGroup: i.stagegroup, film: i.film,
+        eqpId: i.eqpid,
+        lotId: i.lotid,
+        waferId: i.waferid,
+        servTs: i.servTs,
+        dateTime: i.datetime,
+        cassetteRcp: i.cassettercp,
+        stageRcp: i.stagercp,
+        stageGroup: i.stagegroup,
+        film: i.film,
       })),
     };
   }
@@ -100,7 +156,9 @@ export class WaferService {
     const { eqpId, dateTime, pointNumber } = params;
 
     if (!eqpId || !dateTime || pointNumber === undefined) {
-      throw new InternalServerErrorException('EQP ID, DateTime, and PointNumber are required for PDF image.');
+      throw new InternalServerErrorException(
+        'EQP ID, DateTime, and PointNumber are required for PDF image.',
+      );
     }
 
     // 1. DB에서 파일 경로 조회
@@ -120,7 +178,9 @@ export class WaferService {
       try {
         const imageBuffer = fs.readFileSync(cacheFilePath);
         return imageBuffer.toString('base64');
-      } catch { /* 읽기 실패 시 무시 */ }
+      } catch {
+        /* 읽기 실패 시 무시 */
+      }
     }
 
     // URL 조합 및 인코딩
@@ -129,8 +189,11 @@ export class WaferService {
 
     if (baseUrl && !downloadUrl.startsWith('http')) {
       let normalizedPath = downloadUrl.replace(/\\/g, '/');
-      if (!normalizedPath.startsWith('/')) normalizedPath = `/${normalizedPath}`;
-      const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      if (!normalizedPath.startsWith('/'))
+        normalizedPath = `/${normalizedPath}`;
+      const normalizedBase = baseUrl.endsWith('/')
+        ? baseUrl.slice(0, -1)
+        : baseUrl;
       downloadUrl = `${normalizedBase}${normalizedPath}`;
     }
 
@@ -158,9 +221,10 @@ export class WaferService {
       });
 
       // Poppler 실행 옵션
-      const popplerBinPath = 'F:\\Workspaces\\WEB\\ITM.Dashboard.Modern\\poppler-25.11.0\\Library\\bin';
-      
-      const targetPage = Number(pointNumber); 
+      const popplerBinPath =
+        'F:\\Workspaces\\WEB\\ITM.Dashboard.Modern\\poppler-25.11.0\\Library\\bin';
+
+      const targetPage = Number(pointNumber);
 
       const opts = {
         format: 'png',
@@ -170,13 +234,13 @@ export class WaferService {
         binPath: popplerBinPath,
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       await (poppler as any).convert(tempPdfPath, opts);
 
       // 생성된 이미지 찾기
       const dirFiles = fs.readdirSync(os.tmpdir());
       const generatedImageName = dirFiles.find(
-        (f) => f.startsWith(path.basename(outputPrefix)) && f.endsWith('.png')
+        (f) => f.startsWith(path.basename(outputPrefix)) && f.endsWith('.png'),
       );
 
       if (!generatedImageName) {
@@ -189,89 +253,86 @@ export class WaferService {
       try {
         fs.copyFileSync(generatedImagePath, cacheFilePath);
         fs.unlinkSync(generatedImagePath);
-      } catch { /* 복사 실패 시 원본 사용 */ }
+      } catch {
+        /* 복사 실패 시 원본 사용 */
+      }
 
       // 최종 파일 읽기
-      const finalPath = fs.existsSync(cacheFilePath) ? cacheFilePath : generatedImagePath;
+      const finalPath = fs.existsSync(cacheFilePath)
+        ? cacheFilePath
+        : generatedImagePath;
       const imageBuffer = fs.readFileSync(finalPath);
       const base64Image = imageBuffer.toString('base64');
 
       // PDF 원본 삭제
       try {
         if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       return base64Image;
-
     } catch (e) {
       try {
         if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       const error = e as { code?: string; message?: string };
       console.error(`[ERROR] PDF Processing Failed. URL: ${encodedUrl}`, e);
       throw new InternalServerErrorException(
-        `Failed to process PDF image: ${error.message || 'Unknown error'}`
+        `Failed to process PDF image: ${error.message || 'Unknown error'}`,
       );
     }
   }
 
-  // ▼▼▼ [수정] Spectrum 데이터 조회: 'ts' 파라미터 사용 ▼▼▼
+  // ▼▼▼ [수정] Spectrum 데이터 조회: ts 기준, waferId String 처리 ▼▼▼
   async getSpectrum(params: WaferQueryParams) {
-    // [수정] servTs -> ts 로 변경
     const { eqpId, lotId, waferId, pointNumber, ts } = params;
 
     // 필수 파라미터 체크
     if (!eqpId || !lotId || !waferId || pointNumber === undefined || !ts) {
+      console.warn('[WaferService] Missing parameters for spectrum:', params);
       return [];
     }
 
     try {
-      const targetDate = new Date(ts as string | Date);
-      const now = new Date();
+      const targetDate = new Date(ts);
+      // SQL 쿼리용 원본 문자열 (ISO 형식)
+      const tsRaw = targetDate.toISOString();
 
-      // SQL 쿼리용 원본 문자열 (중심 시간)
-      const tsRaw = typeof ts === 'string' ? ts : targetDate.toISOString();
+      // 파티셔닝된 테이블의 부모 테이블 직접 조회
+      const tableName = 'public.plg_onto_spectrum';
 
-      let tableName = 'public.plg_onto_spectrum'; 
-
-      const isCurrentMonth = 
-        targetDate.getFullYear() === now.getFullYear() && 
-        targetDate.getMonth() === now.getMonth();
-
-      if (!isCurrentMonth) {
-        const year = targetDate.getFullYear();
-        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-        tableName = `public.plg_onto_spectrum_y${year}m${month}`;
-      }
-
-      // [수정] ts 컬럼 사용 + ±1초 범위 검색
+      // [수정] waferId를 String으로 처리, 시간 범위 ±2초
       const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
         `SELECT class, wavelengths, values 
          FROM ${tableName}
          WHERE eqpid = $1 
-           AND ts >= $2::timestamp - interval '1 second'
-           AND ts <= $2::timestamp + interval '1 second'
+           AND ts >= $2::timestamp - interval '2 second'
+           AND ts <= $2::timestamp + interval '2 second'
            AND lotid = $3 
            AND waferid = $4 
            AND point = $5`,
         eqpId,
-        tsRaw, 
+        tsRaw,
         lotId,
-        Number(waferId),
-        Number(pointNumber)
+        String(waferId), // [변경] DB 컬럼 타입(String)에 맞춰 변환 없이 전달 (또는 명시적 String 변환)
+        Number(pointNumber), // pointNumber는 숫자형 유지
       );
 
-      if (!results || results.length === 0) return [];
+      if (!results || results.length === 0) {
+        return [];
+      }
 
-      return results.map(r => ({
+      return results.map((r) => ({
         class: r.class,
         wavelengths: r.wavelengths,
-        values: r.values
+        values: r.values,
       }));
-
     } catch (e) {
-      console.error('Error fetching spectrum data:', e);
+      console.error('[WaferService] Error fetching spectrum data:', e);
       return [];
     }
   }
@@ -302,7 +363,11 @@ export class WaferService {
         const std = Number(row[`${prefix}_std`] || 0);
         const range = max - min;
         return {
-          max, min, range, mean, stdDev: std,
+          max,
+          min,
+          range,
+          mean,
+          stdDev: std,
           percentStdDev: mean !== 0 ? (std / mean) * 100 : 0,
           percentNonU: mean !== 0 ? (range / (2 * mean)) * 100 : 0,
         };
@@ -320,18 +385,32 @@ export class WaferService {
     }
   }
 
-  async getPointData(params: WaferQueryParams): Promise<{ headers: string[]; data: unknown[][] }> {
+  async getPointData(
+    params: WaferQueryParams,
+  ): Promise<{ headers: string[]; data: unknown[][] }> {
     const whereSql = this.buildUniqueWhere(params);
     if (!whereSql) return { headers: [], data: [] };
 
     try {
-      const rawData = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
+      const rawData = await this.prisma.$queryRawUnsafe<
+        Record<string, unknown>[]
+      >(`
         SELECT * FROM public.plg_wf_flat ${whereSql} ORDER BY point
       `);
 
       if (!rawData || rawData.length === 0) return { headers: [], data: [] };
 
-      const excludeCols = new Set(['eqpid', 'lotid', 'waferid', 'serv_ts', 'cassettercp', 'stagercp', 'stagegroup', 'film', 'datetime']);
+      const excludeCols = new Set([
+        'eqpid',
+        'lotid',
+        'waferid',
+        'serv_ts',
+        'cassettercp',
+        'stagercp',
+        'stagegroup',
+        'film',
+        'datetime',
+      ]);
       const allKeys = new Set<string>();
       rawData.forEach((row) => {
         Object.keys(row).forEach((k) => {
@@ -339,7 +418,22 @@ export class WaferService {
         });
       });
 
-      const customOrder = ['point', 'mse', 't1', 'gof', 'x', 'y', 'diex', 'diey', 'dierow', 'diecol', 'dienum', 'diepointtag', 'z', 'srvisz'];
+      const customOrder = [
+        'point',
+        'mse',
+        't1',
+        'gof',
+        'x',
+        'y',
+        'diex',
+        'diey',
+        'dierow',
+        'diecol',
+        'dienum',
+        'diepointtag',
+        'z',
+        'srvisz',
+      ];
       const headers = Array.from(allKeys).sort((a, b) => {
         const lowerA = a.toLowerCase();
         const lowerB = b.toLowerCase();
@@ -371,7 +465,8 @@ export class WaferService {
            AND datetime >= $2::timestamp - interval '24 hours'
            AND datetime <= $2::timestamp + interval '24 hours'
          LIMIT 1`,
-        eqpId, ts
+        eqpId,
+        ts,
       );
 
       if (result && result.length > 0 && result[0].file_uri) {
@@ -388,7 +483,8 @@ export class WaferService {
     let sql = `WHERE eqpid = '${String(p.eqpId)}'`;
 
     if (p.servTs) {
-      const ts = typeof p.servTs === 'string' ? p.servTs : p.servTs.toISOString();
+      const ts =
+        typeof p.servTs === 'string' ? p.servTs : p.servTs.toISOString();
       sql += ` AND serv_ts >= '${ts}'::timestamp - interval '24 hours'`;
       sql += ` AND serv_ts <= '${ts}'::timestamp + interval '24 hours'`;
     }
@@ -403,7 +499,15 @@ export class WaferService {
   }
 
   private getEmptyStatistics() {
-    const emptyItem = { max: 0, min: 0, range: 0, mean: 0, stdDev: 0, percentStdDev: 0, percentNonU: 0 };
+    const emptyItem = {
+      max: 0,
+      min: 0,
+      range: 0,
+      mean: 0,
+      stdDev: 0,
+      percentStdDev: 0,
+      percentNonU: 0,
+    };
     return { t1: emptyItem, gof: emptyItem, z: emptyItem, srvisz: emptyItem };
   }
 }
