@@ -803,14 +803,22 @@
               </span>
             </div>
 
-            <div v-show="spectrumData.length > 0" class="h-full w-full">
-              <AmChart
-                chartType="LineChart"
-                :data="spectrumData"
-                :config="spectrumConfig"
-                height="100%"
-                :isDarkMode="isDarkMode"
-              />
+            <div
+              v-if="spectrumData.length > 0"
+              class="h-full w-full relative group"
+            >
+              <EChart :option="spectrumOption" @chartCreated="onChartCreated" />
+
+              <transition name="fade">
+                <button
+                  v-if="isZoomed"
+                  @click="resetZoom"
+                  class="absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1 transition-colors z-30"
+                >
+                  <i class="pi pi-refresh" style="font-size: 0.7rem"></i>
+                  Reset Zoom
+                </button>
+              </transition>
             </div>
           </div>
         </div>
@@ -832,7 +840,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { dashboardApi } from "@/api/dashboard";
 import {
@@ -842,7 +850,8 @@ import {
   type PointDataResponseDto,
 } from "@/api/wafer";
 import { equipmentApi } from "@/api/equipment";
-import AmChart from "@/components/common/AmChart.vue";
+import EChart from "@/components/common/EChart.vue";
+import type { ECharts } from "echarts"; // ECharts 타입 임포트
 
 // PrimeVue Components
 import Select from "primevue/select";
@@ -904,55 +913,19 @@ const pdfImageUrl = ref<string | null>(null);
 
 const spectrumData = ref<any[]>([]);
 
-const isDarkMode = ref(document.documentElement.classList.contains("dark"));
-onMounted(() => {
-  const observer = new MutationObserver(() => {
-    isDarkMode.value = document.documentElement.classList.contains("dark");
-  });
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-});
-
-const spectrumConfig = ref<any>({
-  xAxisType: "value",
-  xField: "wavelength",
-  xAxisTitle: "Wavelength (nm)",
-
-  yAxes: [
-    {
-      title: "TE-Reflectance (%)",
-      min: 0,
-      max: 90,
-    },
-  ],
-
-  series: [
-    {
-      name: "EXP",
-      valueField: "exp",
-      color: "#F43F5E", // Vivid Red
-      strokeWidth: 3,
-      tooltipText: "[bold]EXP[/]\n{valueX}nm: {valueY.formatNumber('#.00')}%",
-    },
-    {
-      name: "GEN",
-      valueField: "gen",
-      color: "#6366F1", // Vivid Blue
-      strokeWidth: 3,
-      strokeDasharray: [4, 4],
-      tooltipText: "[bold]GEN[/]\n{valueX}nm: {valueY.formatNumber('#.00')}%",
-    },
-  ],
-});
-
 const activeTab = ref<"points" | "stats">("points");
+
+// 줌 상태 관리 변수
+const isZoomed = ref(false);
+let spectrumChartInstance: ECharts | null = null;
+
+// 다크 모드 감지 로직
+const isDarkMode = ref(document.documentElement.classList.contains("dark"));
+let themeObserver: MutationObserver | null = null;
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // [수정] LocalStorage에서 복원 로직 추가
   const savedSite = localStorage.getItem("dashboard_site");
   const savedSdwt = localStorage.getItem("dashboard_sdwt");
 
@@ -964,7 +937,6 @@ onMounted(async () => {
       filterStore.selectedSdwt = savedSdwt;
       await loadEqpIds();
 
-      // [추가] EQP ID 복원 로직
       const savedEqpId = localStorage.getItem("dashboard_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         filters.eqpId = savedEqpId;
@@ -972,10 +944,193 @@ onMounted(async () => {
       }
     }
   }
+
+  themeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === "class") {
+        isDarkMode.value = document.documentElement.classList.contains("dark");
+      }
+    });
+  });
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+});
+
+onUnmounted(() => {
+  if (themeObserver) themeObserver.disconnect();
+});
+
+// 차트 생성 완료 시 핸들러
+const onChartCreated = (instance: any) => {
+  spectrumChartInstance = instance;
+
+  // 줌 이벤트 리스너 등록
+  instance.on("dataZoom", (params: any) => {
+    // dataZoom 이벤트 발생 시 줌 상태 확인
+    // batch 배열로 들어오는 경우가 많음
+    const batch = params.batch?.[0];
+    if (batch) {
+      // start가 0이 아니거나 end가 100이 아니면 줌된 상태로 간주
+      if (batch.start !== 0 || batch.end !== 100) {
+        isZoomed.value = true;
+      } else {
+        isZoomed.value = false;
+      }
+    }
+  });
+};
+
+// 줌 리셋 함수
+const resetZoom = () => {
+  if (spectrumChartInstance) {
+    spectrumChartInstance.dispatchAction({
+      type: "restore", // 차트 초기 상태로 복구
+    });
+    isZoomed.value = false; // 버튼 숨김
+  }
+};
+
+// ECharts 옵션 계산
+const spectrumOption = computed(() => {
+  if (!spectrumData.value || spectrumData.value.length === 0) return {};
+
+  const xValues = spectrumData.value.map((d) => d.wavelength);
+  const minVal = Math.min(...xValues);
+  const maxVal = Math.max(...xValues);
+  const xMin = Math.floor(minVal / 10) * 10;
+  const xMax = Math.ceil(maxVal / 10) * 10;
+
+  const textColor = isDarkMode.value ? "#cbd5e1" : "#334155";
+  const gridColor = isDarkMode.value
+    ? "rgba(255, 255, 255, 0.15)"
+    : "rgba(0, 0, 0, 0.15)";
+
+  return {
+    backgroundColor: "transparent",
+
+    // 마우스 휠 줌 활성화 (Toolbox는 사용하지 않음)
+    dataZoom: [
+      {
+        type: "inside",
+        xAxisIndex: [0],
+        filterMode: "filter",
+      },
+    ],
+
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: isDarkMode.value
+        ? "rgba(24, 24, 27, 0.9)"
+        : "rgba(255, 255, 255, 0.95)",
+      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
+      textStyle: {
+        color: isDarkMode.value ? "#fff" : "#1e293b",
+      },
+      formatter: (params: any) => {
+        const item = params[0].value;
+        const xVal = item.wavelength;
+        let html = `<div class="font-bold mb-1">${xVal} nm</div>`;
+        params.forEach((p: any) => {
+          const yKey = p.seriesName === "EXP" ? "exp" : "gen";
+          const val = p.value[yKey];
+          if (val !== null && val !== undefined) {
+            const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
+            html += `<div>${colorDot} ${p.seriesName}: ${val.toFixed(
+              2
+            )}%</div>`;
+          }
+        });
+        return html;
+      },
+    },
+    // 범례를 차트 안쪽 우측 상단으로 이동
+    legend: {
+      data: ["EXP", "GEN"],
+      top: 5,
+      right: 10,
+      icon: "circle",
+      itemGap: 15,
+      textStyle: {
+        color: textColor,
+        fontSize: 11,
+      },
+      backgroundColor: isDarkMode.value
+        ? "rgba(0,0,0,0.3)"
+        : "rgba(255,255,255,0.5)",
+      borderRadius: 4,
+      padding: [5, 10],
+    },
+    grid: {
+      left: 50, // Y축 제목 공간 확보
+      right: 20,
+      bottom: 45, // X축 제목 공간 확보
+      top: 30, // 범례 공간
+      containLabel: false, // 직접 제어
+    },
+    dataset: {
+      source: spectrumData.value,
+    },
+    xAxis: {
+      type: "value",
+      name: "Wavelength (nm)",
+      nameLocation: "middle",
+      nameGap: 25,
+      nameTextStyle: {
+        color: textColor,
+        fontWeight: "bold",
+        fontSize: 11,
+      },
+      min: xMin,
+      max: xMax,
+      axisLabel: { color: textColor, fontSize: 10 },
+      splitLine: {
+        show: true,
+        lineStyle: { color: gridColor },
+      },
+      axisLine: { lineStyle: { color: gridColor } },
+    },
+    yAxis: {
+      type: "value",
+      name: "TE-Reflectance (%)",
+      nameLocation: "middle",
+      nameRotate: 90, // 세로 회전
+      nameGap: 35,
+      nameTextStyle: {
+        color: textColor,
+        fontWeight: "bold",
+        fontSize: 11,
+      },
+      min: 0,
+      max: 100,
+      axisLabel: { color: textColor, fontSize: 10 },
+      splitLine: { show: true, lineStyle: { color: gridColor } },
+    },
+    series: [
+      {
+        name: "EXP",
+        type: "line",
+        encode: { x: "wavelength", y: "exp" },
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 2 },
+        itemStyle: { color: "#F43F5E" },
+      },
+      {
+        name: "GEN",
+        type: "line",
+        encode: { x: "wavelength", y: "gen" },
+        showSymbol: false,
+        smooth: true,
+        lineStyle: { width: 2 }, // 실선 변경
+        itemStyle: { color: "#6366F1" },
+      },
+    ],
+  };
 });
 
 const onSiteChange = async () => {
-  // [수정] 변경 시 LocalStorage 업데이트
   if (filterStore.selectedSite) {
     localStorage.setItem("dashboard_site", filterStore.selectedSite);
     sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
@@ -986,7 +1141,7 @@ const onSiteChange = async () => {
 
   filterStore.selectedSdwt = "";
   localStorage.removeItem("dashboard_sdwt");
-  localStorage.removeItem("dashboard_eqpid"); // [추가]
+  localStorage.removeItem("dashboard_eqpid");
 
   filters.eqpId = "";
   filters.lotId = "";
@@ -994,7 +1149,6 @@ const onSiteChange = async () => {
 };
 
 const onSdwtChange = () => {
-  // [수정] 변경 시 LocalStorage 업데이트
   if (filterStore.selectedSdwt) {
     localStorage.setItem("dashboard_sdwt", filterStore.selectedSdwt);
     loadEqpIds();
@@ -1003,7 +1157,7 @@ const onSdwtChange = () => {
     eqpIds.value = [];
   }
 
-  localStorage.removeItem("dashboard_eqpid"); // [추가]
+  localStorage.removeItem("dashboard_eqpid");
   filters.eqpId = "";
   filters.lotId = "";
   filters.waferId = "";
@@ -1019,7 +1173,7 @@ const loadEqpIds = async () => {
 
 const onEqpSelect = (event: any) => {
   filters.eqpId = event.value;
-  localStorage.setItem("dashboard_eqpid", filters.eqpId); // [추가]
+  localStorage.setItem("dashboard_eqpid", filters.eqpId);
   filters.lotId = "";
   filters.waferId = "";
   if (filters.eqpId) loadFilterOptions();
@@ -1030,7 +1184,7 @@ const onEqpChange = () => {
 };
 const clearEqpId = () => {
   filters.eqpId = "";
-  localStorage.removeItem("dashboard_eqpid"); // [추가]
+  localStorage.removeItem("dashboard_eqpid");
   filters.lotId = "";
   filters.waferId = "";
 };
@@ -1207,8 +1361,6 @@ const loadPointImage = async (pointValue: number) => {
 const loadSpectrumData = async (pointValue: number) => {
   if (!selectedRow.value) return;
 
-  console.log(`🔥 loadSpectrumData() point: ${pointValue}`);
-
   spectrumData.value = [];
   isSpectrumLoading.value = true;
 
@@ -1221,11 +1373,7 @@ const loadSpectrumData = async (pointValue: number) => {
       pointNumber: pointValue,
     };
 
-    console.log("🔥 Spectrum API params:", params);
-
     const rawData = await waferApi.getSpectrum(params);
-
-    console.log("🔥 Spectrum API result:", rawData);
 
     if (!rawData || rawData.length === 0) {
       console.warn("No spectrum data received.");
@@ -1296,12 +1444,11 @@ const onPointClick = async (idx: number) => {
 };
 
 const resetFilters = () => {
-  // [수정] Site, SDWT 및 LocalStorage 초기화
   filterStore.selectedSite = "";
   filterStore.selectedSdwt = "";
   localStorage.removeItem("dashboard_site");
   localStorage.removeItem("dashboard_sdwt");
-  localStorage.removeItem("dashboard_eqpid"); // [추가]
+  localStorage.removeItem("dashboard_eqpid");
 
   sdwts.value = [];
   eqpIds.value = [];
@@ -1455,4 +1602,3 @@ table td {
   font-size: 11px !important;
 }
 </style>
-
