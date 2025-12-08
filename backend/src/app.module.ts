@@ -1,12 +1,12 @@
 // backend/src/app.module.ts
 import { Module } from '@nestjs/common';
-// import { TypeOrmModule } from '@nestjs/typeorm'; // [삭제]
 import { PrismaService } from './prisma.service';
 
 // Modules
 import { EquipmentModule } from './equipment/equipment.module';
+import { PreAlignModule } from './prealign/prealign.module'; // [추가]
 
-// Controllers & Services
+// Controllers & Services (기존 유지)
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
 import { PerformanceController } from './performance/performance.controller';
@@ -20,10 +20,8 @@ import { WaferService } from './wafer/wafer.service';
 
 @Module({
   imports: [
-    // [삭제] TypeOrmModule.forRoot(...) 블록 전체 삭제
-    // PrismaService가 DB 연결을 전담하므로 TypeORM은 필요 없습니다.
-
-    EquipmentModule, // 내부에서 PrismaService를 사용하도록 변경됨
+    EquipmentModule,
+    PreAlignModule, // [추가] 모듈 등록
   ],
   controllers: [
     DashboardController,
