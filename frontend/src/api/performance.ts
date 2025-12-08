@@ -1,3 +1,4 @@
+// frontend/src/api/performance.ts
 import axios from "axios";
 
 const apiClient = axios.create({
@@ -42,9 +43,11 @@ export const performanceApi = {
   getProcessHistory: async (
     startDate: string,
     endDate: string,
-    eqpId: string
+    eqpId: string,
+    intervalSeconds?: number
   ) => {
-    const params = { startDate, endDate, eqpid: eqpId };
+    // params에 intervalSeconds 포함
+    const params = { startDate, endDate, eqpid: eqpId, intervalSeconds };
     const { data } = await apiClient.get<ProcessMemoryDataDto[]>(
       "/PerformanceAnalytics/process-history",
       { params }
