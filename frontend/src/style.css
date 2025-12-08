@@ -1,3 +1,25 @@
+/* frontend/src/style.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* [수정] 커스텀 아이콘: 중괄호 { } 모양 및 정렬 수정 */
+/* 아이콘 컨테이너: 표준 아이콘과 동일한 너비(1em)를 차지하도록 강제하여 텍스트 정렬을 맞춤 */
+.pi-curly-braces {
+  display: inline-block;
+  width: 1em;          
+  text-align: center;  /* 지정된 너비 안에서 중앙 정렬 */
+  font-style: normal;
+  line-height: 1;
+}
+
+/* 실제 아이콘 모양 (가상 요소) */
+.pi-curly-braces:before {
+  content: "{}";       /* 괄호 사이 공백을 제거하여 컴팩트하게 만듦 */
+  font-family: monospace;
+  font-weight: 800;    /* 굵기 조정 */
+  font-size: 0.9em;    /* 폰트 크기 미세 조정하여 아이콘 크기와 맞춤 */
+  letter-spacing: -1px;/* 자간을 좁혀서 아이콘처럼 보이게 함 */
+  display: inline-block;
+  transform: scaleY(1.1); /* 세로로 살짝 길게 늘려 아이콘 비율 맞춤 */
+}
