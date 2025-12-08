@@ -159,7 +159,7 @@ const menuGroups = [
       {
         to: "/waferflatdata",
         label: "Wafer Flat Data",
-        icon: "pi pi-curly-braces",
+        icon: "pi pi-chart-pie", 
       },
       {
         to: "/lot-uniformity-trend",
@@ -244,3 +244,4 @@ const toggleGroup = (group: string) => {
   scrollbar-width: none;
 }
 </style>
+
