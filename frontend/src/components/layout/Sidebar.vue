@@ -175,12 +175,12 @@ const menuGroups = [
       {
         to: "/equipment-explorer",
         label: "ITM Equip Specs",
-        icon: "pi pi-desktop", // [수정] pi-server -> pi-desktop (페이지 제목과 일치)
+        icon: "pi pi-desktop",
       },
       {
         to: "/performance-trend",
         label: "Performance",
-        icon: "pi pi-chart-bar",
+        icon: "pi pi-wave-pulse", 
       },
       {
         to: "/process-memory",
@@ -244,4 +244,5 @@ const toggleGroup = (group: string) => {
   scrollbar-width: none;
 }
 </style>
+
 
