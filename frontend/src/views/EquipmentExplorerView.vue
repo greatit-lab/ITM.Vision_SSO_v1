@@ -66,6 +66,7 @@
             filter
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
+            @change="onEqpIdChange" 
           />
         </div>
       </div>
@@ -517,9 +518,36 @@ const filteredRecords = computed(() => {
 const totalRecords = computed(() => filteredRecords.value.length);
 
 // Lifecycle
+// [수정] onMounted에서 localStorage 값을 확인하여 복원하는 로직 추가
 onMounted(async () => {
   try {
     sites.value = await dashboardApi.getSites();
+
+    // 1. Site 복원
+    const savedSite = localStorage.getItem("explorer_site");
+    if (savedSite && sites.value.includes(savedSite)) {
+      selectedSite.value = savedSite;
+      sdwts.value = await dashboardApi.getSdwts(savedSite);
+
+      // 2. SDWT 복원 및 데이터 로드
+      const savedSdwt = localStorage.getItem("explorer_sdwt");
+      if (savedSdwt) {
+        selectedSdwt.value = savedSdwt;
+        await loadEquipmentData(); // 데이터 로드 (Eqp List)
+
+        // 3. EQP ID 복원 (데이터 로드 후에만 가능)
+        const savedEqpId = localStorage.getItem("explorer_eqpid");
+        if (savedEqpId) {
+          // 로드된 리스트에 해당 ID가 있는지 확인
+          const exists = equipmentList.value.some(e => e.eqpId === savedEqpId);
+          if (exists) {
+            selectedEqpId.value = savedEqpId;
+          } else {
+            localStorage.removeItem("explorer_eqpid"); // 유효하지 않으면 삭제
+          }
+        }
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -527,12 +555,8 @@ onMounted(async () => {
 
 // Handlers
 const onSiteChange = async () => {
-  selectedSdwt.value = "";
-  selectedEqpId.value = "";
-  equipmentList.value = [];
-  first.value = 0;
-
   if (selectedSite.value) {
+    localStorage.setItem("explorer_site", selectedSite.value); // [추가] 저장
     isLoading.value = true;
     try {
       sdwts.value = await dashboardApi.getSdwts(selectedSite.value);
@@ -540,29 +564,57 @@ const onSiteChange = async () => {
       isLoading.value = false;
     }
   } else {
+    localStorage.removeItem("explorer_site");
     sdwts.value = [];
   }
+  
+  // 하위 필터 초기화
+  selectedSdwt.value = "";
+  localStorage.removeItem("explorer_sdwt");
+  selectedEqpId.value = "";
+  localStorage.removeItem("explorer_eqpid");
+  equipmentList.value = [];
+  first.value = 0;
 };
 
 const onSdwtChange = async () => {
-  selectedEqpId.value = "";
-  first.value = 0;
-  
   if (selectedSite.value && selectedSdwt.value) {
-    isLoading.value = true;
-    try {
-      equipmentList.value = await equipmentApi.getDetails(
-        undefined, 
-        selectedSdwt.value
-      );
-    } catch (e) {
-      console.error(e);
-      equipmentList.value = [];
-    } finally {
-      isLoading.value = false;
-    }
+    localStorage.setItem("explorer_sdwt", selectedSdwt.value); // [추가] 저장
+    await loadEquipmentData();
   } else {
+    localStorage.removeItem("explorer_sdwt");
     equipmentList.value = [];
+  }
+  
+  // 하위 필터 초기화
+  selectedEqpId.value = "";
+  localStorage.removeItem("explorer_eqpid");
+  first.value = 0;
+};
+
+// [추가] EqpId 변경 시 저장 핸들러
+const onEqpIdChange = () => {
+  if (selectedEqpId.value) {
+    localStorage.setItem("explorer_eqpid", selectedEqpId.value);
+  } else {
+    localStorage.removeItem("explorer_eqpid");
+  }
+  first.value = 0;
+};
+
+// [추가] 데이터 로드 로직 분리 (재사용을 위해)
+const loadEquipmentData = async () => {
+  isLoading.value = true;
+  try {
+    equipmentList.value = await equipmentApi.getDetails(
+      undefined, 
+      selectedSdwt.value
+    );
+  } catch (e) {
+    console.error(e);
+    equipmentList.value = [];
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -570,6 +622,12 @@ const resetFilters = () => {
   selectedSite.value = "";
   selectedSdwt.value = "";
   selectedEqpId.value = "";
+  
+  // [추가] 저장소 초기화
+  localStorage.removeItem("explorer_site");
+  localStorage.removeItem("explorer_sdwt");
+  localStorage.removeItem("explorer_eqpid");
+
   sdwts.value = [];
   equipmentList.value = [];
   first.value = 0;
