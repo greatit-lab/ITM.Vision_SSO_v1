@@ -9,7 +9,7 @@
           class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
         >
           <i
-            class="text-lg text-teal-600 pi pi-chart-line dark:text-teal-400"
+            class="text-lg text-teal-600 pi pi-wave-pulse dark:text-teal-400"
           ></i>
         </div>
         <div class="flex items-baseline gap-2">
@@ -44,7 +44,7 @@
         >
       </div>
     </div>
-
+    
     <div
       class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm transition-colors duration-300 shrink-0"
     >
@@ -90,6 +90,7 @@
             overlayClass="custom-dropdown-panel small"
             :class="{ '!text-slate-400': !selectedEqpId }"
             :disabled="!filterStore.selectedSdwt || isRealtime"
+            @change="onEqpIdChange"
           />
         </div>
 
@@ -677,7 +678,8 @@ const gpuOption = computed(() => {
 // --- Chart Events (Zoom) ---
 const onChartInit = (chartKey: string, instance: any) => {
   chartInstances[chartKey] = instance;
-  instance.on('dataZoom', (params: any) => {
+  // [수정] 사용하지 않는 params 인자 제거
+  instance.on('dataZoom', () => {
     const option = instance.getOption();
     if(option.dataZoom && option.dataZoom[0]) {
       const start = option.dataZoom[0].start;
@@ -699,10 +701,27 @@ const resetChartZoom = (chartKey: string) => {
 // --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
-  if (filterStore.selectedSite) {
-    sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
-    if (filterStore.selectedSdwt) await loadEqpIds();
+
+  // [추가] 1. Site 복원
+  const savedSite = localStorage.getItem("dashboard_site");
+  if (savedSite && sites.value.includes(savedSite)) {
+    filterStore.setSite(savedSite);
+    sdwts.value = await dashboardApi.getSdwts(savedSite);
+
+    // [추가] 2. SDWT 복원
+    const savedSdwt = localStorage.getItem("dashboard_sdwt");
+    if (savedSdwt) {
+      filterStore.setSdwt(savedSdwt);
+      await loadEqpIds();
+
+      // [추가] 3. EQP ID 복원
+      const savedEqpId = localStorage.getItem("performance_eqpid");
+      if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
+        selectedEqpId.value = savedEqpId;
+      }
+    }
   }
+
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "class") {
@@ -720,16 +739,44 @@ onUnmounted(() => {
 
 // --- Methods ---
 const onSiteChange = async () => {
-  filterStore.setSite(filterStore.selectedSite);
+  if (filterStore.selectedSite) {
+    localStorage.setItem("dashboard_site", filterStore.selectedSite); // [추가]
+    sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
+  } else {
+    localStorage.removeItem("dashboard_site"); // [추가]
+    sdwts.value = [];
+  }
+  
+  // 하위 필터 초기화 & 로컬스토리지 삭제
+  filterStore.selectedSdwt = "";
+  localStorage.removeItem("dashboard_sdwt");
   selectedEqpId.value = "";
-  sdwts.value = filterStore.selectedSite ? await dashboardApi.getSdwts(filterStore.selectedSite) : [];
+  localStorage.removeItem("performance_eqpid");
   eqpIds.value = [];
   hasSearched.value = false;
 };
 
 const onSdwtChange = async () => {
+  if (filterStore.selectedSdwt) {
+    localStorage.setItem("dashboard_sdwt", filterStore.selectedSdwt); // [추가]
+    await loadEqpIds();
+  } else {
+    localStorage.removeItem("dashboard_sdwt"); // [추가]
+    eqpIds.value = [];
+  }
+  
+  // 하위 필터 초기화 & 로컬스토리지 삭제
   selectedEqpId.value = "";
-  if (filterStore.selectedSdwt) await loadEqpIds();
+  localStorage.removeItem("performance_eqpid");
+};
+
+// [추가] EQP ID 변경 시 저장
+const onEqpIdChange = () => {
+  if (selectedEqpId.value) {
+    localStorage.setItem("performance_eqpid", selectedEqpId.value);
+  } else {
+    localStorage.removeItem("performance_eqpid");
+  }
 };
 
 const loadEqpIds = async () => {
@@ -795,12 +842,15 @@ const searchData = async (silent = false) => {
     chartData.value = rawData
       .filter((d) => d.timestamp)
       .map((d) => {
-        let ts = String(d.timestamp);
-        if (ts.includes(".")) ts = ts.split(".")[0];
+        // timestamp 변환 시 안전하게 string 보장
+        let ts = String(d.timestamp || "");
+        if (ts.includes(".")) {
+          ts = ts.split(".")[0] ?? ts;
+        }
         if (ts.includes("Z")) ts = ts.replace("Z", "");
 
         return {
-          eqpId: d.eqpId,
+          eqpId: d.eqpId || "",
           timestamp: ts,
           cpuUsage: Number(d.cpuUsage ?? 0),
           memoryUsage: Number(d.memoryUsage ?? 0),
@@ -837,7 +887,7 @@ const calculateSummary = (data: PerformanceDataPointDto[]) => {
 
   summaryData.value = [
     {
-      eqpId: selectedEqpId.value,
+      eqpId: selectedEqpId.value || "",
       cpuPeakTime: cpuPeakItem.timestamp ?? "",
       cpuMax: cpuPeakItem.cpuUsage,
       cpuTempAtPeak: cpuPeakItem.cpuTemp,
@@ -852,8 +902,17 @@ const calculateSummary = (data: PerformanceDataPointDto[]) => {
 
 const resetFilters = () => {
   if (isRealtime.value) return;
+  
   filterStore.reset();
   selectedEqpId.value = "";
+  
+  // [추가] 로컬스토리지 전체 초기화
+  localStorage.removeItem("dashboard_site");
+  localStorage.removeItem("dashboard_sdwt");
+  localStorage.removeItem("performance_eqpid");
+
+  sdwts.value = [];
+  eqpIds.value = [];
   chartData.value = [];
   summaryData.value = [];
   hasSearched.value = false;
