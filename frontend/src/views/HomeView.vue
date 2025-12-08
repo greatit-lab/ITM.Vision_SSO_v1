@@ -370,255 +370,239 @@
         </div>
       </div>
 
-      <div
-        class="overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 rounded-2xl border-slate-200 dark:border-zinc-800"
-      >
-        <DataTable
-          :value="displayedAgents"
-          :paginator="false"
-          :rows="rowsPerPage"
-          :first="first"
-          class="text-sm p-datatable-sm"
-          :rowHover="true"
-          :loading="isTableLoading"
-          stripedRows
+      <div class="flex flex-col gap-4">
+        <div
+          class="flex flex-col md:flex-row items-center justify-between px-2"
         >
-          <template #header>
-            <div
-              class="flex flex-col items-center justify-between gap-3 px-2 py-1 md:flex-row"
+          <div class="flex items-center gap-2 mb-2 md:mb-0">
+            <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+            <h3 class="text-base font-bold text-slate-800 dark:text-white">
+              Agent Status Monitoring
+            </h3>
+            <span
+              class="text-xs font-medium text-slate-400 dark:text-slate-500 ml-1"
             >
-              <div class="flex items-center gap-2">
-                <div class="w-1 h-3 bg-indigo-500 rounded-full"></div>
-                <h3 class="text-sm font-bold text-slate-800 dark:text-white">
-                  Agent Status
-                </h3>
+              ({{ totalRecords }} Machines)
+            </span>
+          </div>
+
+          <div
+            class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-zinc-900 py-1.5 px-3 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm"
+          >
+            <div class="flex items-center gap-2">
+              <span class="font-medium">Rows:</span>
+              <select
+                v-model="rowsPerPage"
+                class="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 py-0.5 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                @change="first = 0"
+              >
+                <option :value="20">20</option>
+                <option :value="40">40</option>
+                <option :value="60">60</option>
+              </select>
+            </div>
+            <div class="h-3 w-px bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+            <span class="font-medium min-w-[60px] text-right">
+              {{ totalRecords === 0 ? 0 : first + 1 }} -
+              {{ Math.min(first + rowsPerPage, totalRecords) }}
+            </span>
+            <div class="flex items-center gap-1 ml-1">
+              <button
+                @click="first = 0"
+                :disabled="first === 0"
+                class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded disabled:opacity-30"
+              >
+                <i class="pi pi-angle-double-left"></i>
+              </button>
+              <button
+                @click="prevPage"
+                :disabled="first === 0"
+                class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded disabled:opacity-30"
+              >
+                <i class="pi pi-angle-left"></i>
+              </button>
+              <button
+                @click="nextPage"
+                :disabled="first + rowsPerPage >= totalRecords"
+                class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded disabled:opacity-30"
+              >
+                <i class="pi pi-angle-right"></i>
+              </button>
+              <button
+                @click="lastPage"
+                :disabled="first + rowsPerPage >= totalRecords"
+                class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded disabled:opacity-30"
+              >
+                <i class="pi pi-angle-double-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isTableLoading" class="flex justify-center py-20">
+          <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
+        </div>
+
+        <div
+          v-else
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-4"
+        >
+          <div
+            v-for="agent in displayedAgents"
+            :key="agent.eqpId"
+            class="relative flex flex-col bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group hover:-translate-y-1"
+          >
+            <div
+              class="absolute top-0 left-0 w-full h-2 transition-colors duration-300"
+              :class="getStatusBarClass(agent)"
+            ></div>
+
+            <div class="p-3 flex flex-col h-full gap-2 pt-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <h4
+                    class="text-sm font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-1.5"
+                  >
+                    {{ agent.eqpId }}
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-zinc-700"
+                    >
+                      {{ agent.type || "Unknown" }}
+                    </span>
+                  </h4>
+                  <div
+                    class="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-mono cursor-pointer hover:text-slate-600 dark:hover:text-slate-300"
+                    title="Click to copy IP"
+                    @click="copyToClipboard(agent.ipAddress)"
+                  >
+                    <i class="pi pi-globe text-[9px]"></i> {{ agent.ipAddress }}
+                  </div>
+                </div>
+
+                <div class="flex flex-col items-end gap-1">
+                  <span
+                    class="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1 border shadow-sm"
+                    :class="getStatusBadgeClass(agent)"
+                  >
+                    <i :class="getStatusIcon(agent)" class="text-[8px]"></i>
+                    {{ getStatusLabel(agent) }}
+                  </span>
+                  <span
+                    class="text-[10px] font-mono font-bold flex items-center gap-1 transition-colors"
+                    :class="getAgentVerStyle(agent.appVersion)"
+                  >
+                    {{ agent.appVersion }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-5 gap-2 text-[10px]">
+                <div
+                  class="col-span-5 flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800"
+                >
+                  <span
+                    class="text-slate-400 font-semibold flex items-center gap-1"
+                    ><i class="pi pi-microsoft"></i> OS</span
+                  >
+                  <span
+                    class="text-slate-600 dark:text-slate-300 font-medium truncate max-w-[180px]"
+                    :class="getOsStyle(agent.os).text"
+                  >
+                    {{ formatOperatingSystem(agent.os, agent.systemType) }}
+                  </span>
+                </div>
+
+                <div
+                  class="col-span-3 flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 overflow-hidden"
+                >
+                  <span
+                    class="text-slate-400 font-semibold text-[9px] whitespace-nowrap"
+                    >PC Name</span
+                  >
+                  <span
+                    class="text-slate-600 dark:text-slate-300 font-medium truncate ml-2 text-right"
+                    :title="agent.pcName"
+                    >{{ agent.pcName }}</span
+                  >
+                </div>
+
+                <div
+                  class="col-span-2 flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 overflow-hidden"
+                >
+                  <span
+                    v-tooltip.top="'+: Agent Fast, -: Agent Slow'"
+                    class="text-slate-400 font-semibold text-[9px] whitespace-nowrap flex items-center gap-1 cursor-help hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    <i class="pi pi-clock text-[9px]"></i>
+                  </span>
+                  <span
+                    class="font-mono font-bold truncate ml-2 text-right"
+                    :class="getClockDriftColor(agent.clockDrift)"
+                  >
+                    {{ formatTimeDifference(agent.clockDrift) }}
+                  </span>
+                </div>
               </div>
 
               <div
-                class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400"
+                class="mt-auto pt-2 border-t border-dashed border-slate-200 dark:border-zinc-800 cursor-pointer group/chart"
+                @click="openChart(agent)"
               >
-                <div class="flex items-center gap-1">
-                  <span class="font-medium">Rows:</span>
-                  <select
-                    v-model="rowsPerPage"
-                    class="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 py-0.5 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                    @change="first = 0"
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="text-[9px] font-bold text-slate-400 w-6"
+                    >CPU</span
                   >
-                    <option :value="15">15</option>
-                    <option :value="30">30</option>
-                    <option :value="50">50</option>
-                  </select>
+                  <div
+                    class="flex-1 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden"
+                  >
+                    <div
+                      class="h-full bg-blue-500 rounded-full transition-all duration-500"
+                      :style="{ width: `${Math.min(agent.cpuUsage, 100)}%` }"
+                    ></div>
+                  </div>
+                  <span
+                    class="text-[9px] font-mono text-slate-500 w-8 text-right"
+                    >{{ agent.cpuUsage.toFixed(0) }}%</span
+                  >
                 </div>
 
-                <span class="font-medium min-w-[60px] text-right">
-                  {{ totalRecords === 0 ? 0 : first + 1 }} -
-                  {{ Math.min(first + rowsPerPage, totalRecords) }} of
-                  {{ totalRecords }}
-                </span>
-
-                <div class="flex items-center gap-1">
-                  <button
-                    @click="first = 0"
-                    :disabled="first === 0"
-                    class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="First Page"
+                <div class="flex items-center gap-2">
+                  <span class="text-[9px] font-bold text-slate-400 w-6"
+                    >MEM</span
                   >
-                    <i class="pi pi-angle-double-left text-[10px]"></i>
-                  </button>
-                  <button
-                    @click="prevPage"
-                    :disabled="first === 0"
-                    class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Previous Page"
+                  <div
+                    class="flex-1 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden"
                   >
-                    <i class="pi pi-angle-left text-[10px]"></i>
-                  </button>
-                  <button
-                    @click="nextPage"
-                    :disabled="first + rowsPerPage >= totalRecords"
-                    class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Next Page"
+                    <div
+                      class="h-full bg-teal-500 rounded-full transition-all duration-500"
+                      :style="{
+                        width: `${Math.min(agent.memoryUsage, 100)}%`,
+                      }"
+                    ></div>
+                  </div>
+                  <span
+                    class="text-[9px] font-mono text-slate-500 w-8 text-right"
+                    >{{ agent.memoryUsage.toFixed(0) }}%</span
                   >
-                    <i class="pi pi-angle-right text-[10px]"></i>
-                  </button>
-                  <button
-                    @click="lastPage"
-                    :disabled="first + rowsPerPage >= totalRecords"
-                    class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Last Page"
-                  >
-                    <i class="pi pi-angle-double-right text-[10px]"></i>
-                  </button>
                 </div>
               </div>
-            </div>
-          </template>
 
-          <template #empty>
-            <div
-              class="flex flex-col items-center justify-center py-12 text-gray-400"
-            >
-              <i class="mb-2 text-2xl pi pi-filter opacity-20"></i>
-              <p class="text-[10px] font-medium">No match found.</p>
-            </div>
-          </template>
-
-          <Column
-            header="Connection"
-            sortable
-            field="isOnline"
-            style="width: 110px"
-            :bodyStyle="{ paddingLeft: '16px' }"
-            headerStyle="padding-left: 16px"
-          >
-            <template #body="{ data }">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors"
-                :class="
-                  data.isOnline
-                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-                    : 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
-                "
-              >
-                <i
-                  :class="
-                    data.isOnline
-                      ? 'pi pi-check-circle'
-                      : 'pi pi-exclamation-circle'
-                  "
-                  class="text-[9px]"
-                ></i>
-                {{ data.isOnline ? "Online" : "Offline" }}
-              </span>
-            </template>
-          </Column>
-
-          <Column header="Status" style="width: 100px">
-            <template #body="{ data }">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors"
-                :class="getStatusBadgeClass(data)"
-              >
-                <i :class="getStatusIcon(data)" class="text-[9px]"></i>
-                {{ getStatusLabel(data) }}
-              </span>
-            </template>
-          </Column>
-
-          <Column field="eqpId" header="EQP ID" sortable style="width: 120px">
-            <template #body="{ data }"
-              ><span class="font-bold text-slate-700 dark:text-slate-200">{{
-                data.eqpId
-              }}</span></template
-            >
-          </Column>
-          <Column field="type" header="Type" sortable style="width: 70px">
-            <template #body="{ data }"
-              ><span class="text-slate-600 dark:text-slate-300">{{
-                data.type
-              }}</span></template
-            >
-          </Column>
-          <Column field="ipAddress" header="IP Address" style="width: 110px">
-            <template #body="{ data }"
-              ><span class="text-slate-600 dark:text-slate-300">{{
-                data.ipAddress
-              }}</span></template
-            >
-          </Column>
-          <Column field="pcName" header="PC Name" style="width: 140px">
-            <template #body="{ data }"
-              ><span class="text-slate-600 dark:text-slate-300">{{
-                data.pcName
-              }}</span></template
-            >
-          </Column>
-
-          <Column header="Operating System(OS)" style="width: 170px">
-            <template #body="{ data }">
-              <div class="flex items-center gap-1.5">
+              <div class="pt-1 flex justify-between items-center text-[9px]">
+                <span class="text-slate-400">Last Contact</span>
                 <span
-                  class="inline-flex items-center justify-center w-5 h-5 rounded border text-[10px] transition-colors"
-                  :class="getOsStyle(data.os).badge"
+                  class="font-mono font-medium"
+                  :class="
+                    agent.isOnline
+                      ? 'text-slate-500 dark:text-slate-400'
+                      : 'text-rose-500'
+                  "
                 >
-                  <i class="pi pi-microsoft"></i>
+                  {{ formatDate(agent.lastContact) }}
                 </span>
-                <span class="truncate" :class="getOsStyle(data.os).text">{{
-                  formatOperatingSystem(data.os, data.systemType)
-                }}</span>
               </div>
-            </template>
-          </Column>
-
-          <Column header="CPU / Memory" style="width: 160px">
-            <template #body="{ data }">
-              <div
-                class="flex flex-col gap-1 cursor-pointer opacity-90 hover:opacity-100"
-                @click="openChart(data)"
-              >
-                <div
-                  class="relative w-full h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
-                >
-                  <div
-                    class="h-full bg-blue-500 rounded-full"
-                    :style="{ width: data.cpuUsage + '%' }"
-                  ></div>
-                </div>
-                <div
-                  class="relative w-full h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
-                >
-                  <div
-                    class="h-full bg-teal-500 rounded-full"
-                    :style="{ width: data.memoryUsage + '%' }"
-                  ></div>
-                </div>
-              </div>
-            </template>
-          </Column>
-
-          <Column style="width: 90px">
-            <template #header>
-              <span
-                v-tooltip.top="'+: Agent Fast\n-: Agent Slow'"
-                class="border-b border-dotted cursor-help border-slate-400 dark:border-slate-600 whitespace-nowrap"
-              >
-                Time Diff
-              </span>
-            </template>
-            <template #body="{ data }">
-              <span
-                class="font-mono text-xs tracking-tight"
-                :class="getClockDriftColor(data.clockDrift)"
-                >{{ formatTimeDifference(data.clockDrift) }}</span
-              >
-            </template>
-          </Column>
-
-          <Column
-            field="lastContact"
-            header="Last Contact"
-            style="width: 140px"
-          >
-            <template #body="{ data }"
-              ><span
-                class="font-mono text-[11px] text-slate-600 dark:text-slate-300"
-                >{{ formatDate(data.lastContact) }}</span
-              ></template
-            >
-          </Column>
-
-          <Column field="appVersion" header="Agent Ver" style="width: 90px">
-            <template #body="{ data }">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors"
-                :class="getAgentVerStyle(data.appVersion)"
-              >
-                <i class="pi pi-tag text-[9px] opacity-70"></i>
-                {{ data.appVersion }}
-              </span>
-            </template>
-          </Column>
-        </DataTable>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -685,8 +669,6 @@ import { performanceApi } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue"; // ECharts 컴포넌트 사용
 import Select from "primevue/select";
 import Button from "primevue/button";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
 import Dialog from "primevue/dialog";
 import ProgressSpinner from "primevue/progressspinner";
 
@@ -990,8 +972,9 @@ const chartOption = computed(() => {
   };
 });
 
+// [수정] 기본 rowsPerPage: 20
 const first = ref(0);
-const rowsPerPage = ref(15);
+const rowsPerPage = ref(20);
 
 const filteredAgents = computed(() => {
   switch (activeFilter.value) {
@@ -1022,12 +1005,11 @@ const timeSyncErrorCount = computed(() => {
 const totalRecords = computed(() => filteredAgents.value.length);
 
 const getAgentVerStyle = (ver: string | null) => {
-  if (!ver)
-    return "bg-transparent border-slate-200 text-slate-400 dark:border-slate-700 dark:text-slate-600";
+  if (!ver) return "text-slate-400 dark:text-zinc-600";
   if (ver === summary.value.latestAgentVersion) {
-    return "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/50 dark:text-indigo-300 shadow-sm";
+    return "px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-500/20 dark:border-indigo-500/50 dark:text-indigo-300 shadow-sm";
   }
-  return "bg-transparent border-slate-300 text-slate-500 dark:border-zinc-600 dark:text-zinc-400";
+  return "text-slate-400 dark:text-zinc-500";
 };
 
 const prevPage = () => {
@@ -1036,7 +1018,7 @@ const prevPage = () => {
 const nextPage = () => {
   if (first.value + rowsPerPage.value < totalRecords.value)
     first.value += rowsPerPage.value;
-  loadData(true); // 간단한 페이지네이션 갱신 트리거 (필요시 수정)
+  loadData(true);
 };
 const lastPage = () => {
   first.value =
@@ -1101,6 +1083,22 @@ const getStatusBadgeClass = (data: AgentStatusDto) => {
     return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20";
   return "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20";
 };
+
+const getStatusBarClass = (agent: AgentStatusDto) => {
+  if (!agent.isOnline) return "bg-slate-300 dark:bg-zinc-700";
+  if (agent.todayAlarmCount > 0) return "bg-amber-500";
+  return "bg-emerald-500";
+};
+
+const copyToClipboard = async (text: string) => {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    console.error("Failed to copy: ", err);
+  }
+};
+
 const formatOperatingSystem = (os: string | null, sys: string | null) =>
   `${(os || "")
     .replace("Microsoft Windows", "Win")
@@ -1152,13 +1150,11 @@ const formatDate = (d: string | null) => {
 </script>
 
 <style scoped>
-/* Select Styles - 폰트 크기를 11px로 조정 */
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
 
-/* 라벨(선택된 텍스트) 폰트 크기 11px 적용 및 수직 정렬 패딩 조정 */
 :deep(.custom-dropdown .p-select-label) {
   @apply text-[13px] py-[5px] px-3;
 }
@@ -1171,49 +1167,13 @@ const formatDate = (d: string | null) => {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
 
-/* 드롭다운 화살표 아이콘 크기 조정 */
 :deep(.p-select-dropdown) {
   @apply text-slate-400 dark:text-zinc-500 w-6;
 }
 :deep(.p-select-dropdown svg) {
   @apply w-3 h-3;
 }
-/* 테이블 헤더 스타일 유지 */
-:deep(.p-datatable .p-datatable-thead > tr > th) {
-  font-weight: 800;
-  font-size: 0.65rem;
-  color: #64748b;
-  background-color: transparent;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.6rem 0.8rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-:deep(.dark .p-datatable .p-datatable-thead > tr > th) {
-  color: #71717a;
-  border-bottom: 1px solid #27272a;
-}
-:deep(.p-datatable-tbody > tr) {
-  background: transparent !important;
-  border-bottom: 1px solid #f1f5f9;
-}
-:deep(.dark .p-datatable-tbody > tr) {
-  border-bottom: 1px solid #18181b;
-}
-:deep(.p-datatable-tbody > tr:hover) {
-  background-color: #f8fafc !important;
-}
-:deep(.dark .p-datatable-tbody > tr:hover) {
-  background-color: #09090b !important;
-}
-:deep(.p-datatable-tbody > tr > td) {
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
-  color: #334155;
-}
-:deep(.dark .p-datatable-tbody > tr > td) {
-  color: #e2e8f0 !important;
-}
+
 .fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
@@ -1232,13 +1192,12 @@ const formatDate = (d: string | null) => {
 <style>
 .custom-dropdown-panel .p-select-option {
   padding: 6px 10px !important;
-  font-size: 11px !important; /* 옵션 폰트 11px */
+  font-size: 11px !important;
 }
 .custom-dropdown-panel .p-select-empty-message {
   padding: 6px 10px !important;
   font-size: 11px !important;
 }
-/* 툴팁 스타일 */
 body .p-tooltip .p-tooltip-text {
   font-size: 10px !important;
   background-color: #64748b !important;
@@ -1250,7 +1209,6 @@ body .p-tooltip .p-tooltip-arrow {
   border-bottom-color: #64748b !important;
 }
 
-/* 추가된 드롭다운 패널 스타일 */
 .custom-dropdown-panel.small .p-select-option {
   padding: 6px 10px !important;
   font-size: 12px !important;
