@@ -78,22 +78,35 @@ export class PerformanceService {
   }
 
   // [C#] GetProcessPerformanceHistory 이식
-  async getProcessHistory(startDate: string, endDate: string, eqpId: string) {
+  async getProcessHistory(
+    startDate: string,
+    endDate: string,
+    eqpId: string,
+    intervalSeconds?: number,
+  ) {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // C# 로직과 동일하게 조회 기간에 따라 interval 자동 계산
-    const dateDiffDays = (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
-    let intervalSeconds = 1800;
-    if (dateDiffDays <= 1) intervalSeconds = 60;
-    else if (dateDiffDays <= 3) intervalSeconds = 300;
-    else if (dateDiffDays <= 7) intervalSeconds = 600;
+    // [수정] 프론트엔드에서 interval을 넘겨주면 그것을 사용, 아니면 기존 로직대로 계산 (Fallback)
+    let interval = intervalSeconds;
 
-    // [수정] any 대신 구체적인 인터페이스(ProcessMemoryRawResult[])를 지정
+    if (!interval || interval <= 0) {
+      const dateDiffDays =
+        (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
+      if (dateDiffDays <= 1)
+        interval = 60; // 1일 이하: 1분
+      else if (dateDiffDays <= 3)
+        interval = 300; // 3일 이하: 5분
+      else if (dateDiffDays <= 7)
+        interval = 600; // 7일 이하: 10분
+      else interval = 1800; // 그 외: 30분
+    }
+
+    // [수정] SQL 쿼리 내 interval 변수 적용 (${interval})
     const results = await this.prisma.$queryRawUnsafe<ProcessMemoryRawResult[]>(
       `
         SELECT
-            (to_timestamp(floor((extract('epoch' from serv_ts) / ${intervalSeconds} )) * ${intervalSeconds})) as "Timestamp",
+            (to_timestamp(floor((extract('epoch' from serv_ts) / ${interval} )) * ${interval})) as "Timestamp",
             process_name as "ProcessName",
             AVG(memory_usage_mb) as "MemoryUsageMB"
         FROM public.eqp_proc_perf
