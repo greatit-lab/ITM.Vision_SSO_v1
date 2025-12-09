@@ -186,7 +186,7 @@
             <h3
               class="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2"
             >
-              <i class="pi pi-desktop text-blue-500"></i> CPU Usage
+              <i class="pi pi-desktop text-blue-500"></i> {{ selectedEqpId }} - CPU Usage
             </h3>
           </div>
           <div class="flex-1 min-h-0 w-full relative">
@@ -207,7 +207,7 @@
             <h3
               class="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2"
             >
-              <i class="pi pi-microchip text-emerald-500"></i> Memory Usage
+              <i class="pi pi-microchip text-emerald-500"></i> {{ selectedEqpId }} - Memory Usage
             </h3>
           </div>
           <div class="flex-1 min-h-0 w-full relative">
@@ -228,7 +228,7 @@
             <h3
               class="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2"
             >
-              <i class="pi pi-cog text-amber-500"></i> CPU Temp & Fan Speed
+              <i class="pi pi-cog text-amber-500"></i> {{ selectedEqpId }} - CPU Temp & Fan Speed
             </h3>
           </div>
           <div class="flex-1 min-h-0 w-full relative">
@@ -249,7 +249,7 @@
             <h3
               class="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2"
             >
-              <i class="pi pi-palette text-orange-500"></i> GPU Temp
+              <i class="pi pi-palette text-orange-500"></i> {{ selectedEqpId }} - GPU Temp
             </h3>
           </div>
           <div class="flex-1 min-h-0 w-full relative">
@@ -983,3 +983,4 @@ const fmt = (val: number | string | undefined, digits: number) => {
   padding: 4px 8px !important;
 }
 </style>
+
