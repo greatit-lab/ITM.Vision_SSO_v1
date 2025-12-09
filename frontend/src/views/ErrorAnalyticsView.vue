@@ -55,29 +55,36 @@
           />
         </div>
         <div class="min-w-[160px] shrink-0">
-          <AutoComplete
+          <Select
             v-model="filter.eqpId"
-            :suggestions="filteredEqpIds"
-            @complete="searchEqp"
+            :options="eqpIds"
+            filter
             placeholder="EQP ID"
             :disabled="!filter.sdwt"
-            dropdown
+            showClear
             class="w-full custom-dropdown small"
-            inputClass="custom-input-text small !pr-7"
-            panelClass="custom-dropdown-panel small"
+            overlayClass="custom-dropdown-panel small"
+            @change="onEqpIdChange"
           />
         </div>
 
         <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
 
-        <div class="min-w-[220px] shrink-0">
+        <div class="min-w-[150px] shrink-0">
           <DatePicker
-            v-model="filter.dateRange"
-            selectionMode="range"
-            :manualInput="false"
-            dateFormat="yy-mm-dd"
-            placeholder="Date Range"
+            v-model="filter.startDate"
             showIcon
+            dateFormat="yy-mm-dd"
+            placeholder="Start Date"
+            class="w-full custom-dropdown small date-picker"
+          />
+        </div>
+        <div class="min-w-[150px] shrink-0">
+          <DatePicker
+            v-model="filter.endDate"
+            showIcon
+            dateFormat="yy-mm-dd"
+            placeholder="End Date"
             class="w-full custom-dropdown small date-picker"
           />
         </div>
@@ -92,7 +99,7 @@
           class="!bg-rose-500 !border-rose-500 hover:!bg-rose-600 !w-8 !h-8 !text-xs"
           @click="search"
           :loading="isLoading"
-          :disabled="!filter.sdwt || !filter.dateRange"
+          :disabled="!filter.sdwt || !filter.startDate || !filter.endDate"
         />
         <Button
           icon="pi pi-refresh"
@@ -256,7 +263,7 @@
       </div>
 
       <div
-        class="flex flex-col flex-1 min-h-0 overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+        class="flex flex-col h-[450px] shrink-0 overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
       >
         <div
           class="flex items-center justify-between px-4 py-2 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0"
@@ -363,12 +370,16 @@
                 <p class="font-medium">No logs found.</p>
               </div>
             </template>
-
             <Column field="timeStamp" header="Time" style="min-width: 140px">
               <template #body="{ data }">
-                <span class="font-mono text-slate-600 dark:text-slate-400">{{
-                  formatDate(data.timeStamp, false, true)
-                }}</span>
+                <div class="flex flex-col">
+                  <span class="font-bold text-slate-700 dark:text-slate-300">
+                    {{ formatDate(data.timeStamp).split(" ")[0] }}
+                  </span>
+                  <span class="text-slate-400 font-mono">
+                    {{ formatDate(data.timeStamp).split(" ")[1] }}
+                  </span>
+                </div>
               </template>
             </Column>
             <Column field="eqpId" header="EQP ID" style="min-width: 120px">
@@ -438,7 +449,6 @@ import EChart from "@/components/common/EChart.vue";
 
 // Components
 import Select from "primevue/select";
-import AutoComplete from "primevue/autocomplete";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import DataTable from "primevue/datatable";
@@ -449,13 +459,11 @@ const filter = reactive({
   site: "",
   sdwt: "",
   eqpId: "",
-  dateRange: [
-    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    new Date(),
-  ] as Date[],
+  startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  endDate: new Date(),
 });
 
-// [추가] 차트 클릭으로 인한 그리드 전용 필터
+// 차트 인터랙션용 필터
 const gridFilter = reactive({
   date: null as string | null,
   eqpId: null as string | null,
@@ -464,7 +472,6 @@ const gridFilter = reactive({
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 const eqpIds = ref<string[]>([]);
-const filteredEqpIds = ref<string[]>([]);
 
 const isLoading = ref(false);
 const isGridLoading = ref(false);
@@ -482,7 +489,7 @@ const summary = ref<ErrorAnalyticsSummaryDto>({
 const trendData = ref<any[]>([]);
 const logs = ref<ErrorLogDto[]>([]);
 const totalRecords = ref(0);
-const rowsPerPage = ref(20);
+const rowsPerPage = ref(10);
 const first = ref(0);
 
 // Theme
@@ -501,35 +508,100 @@ onMounted(async () => {
     attributes: true,
     attributeFilter: ["class"],
   });
+
+  // [추가] 초기화 시 localStorage에서 필터 값 복원
+  const savedSite = localStorage.getItem("error_site");
+  const savedSdwt = localStorage.getItem("error_sdwt");
+  const savedEqpId = localStorage.getItem("error_eqpid");
+
+  if (savedSite && sites.value.includes(savedSite)) {
+    filter.site = savedSite;
+    // Site가 유효할 때만 SDWT 목록 로드
+    sdwts.value = await dashboardApi.getSdwts(savedSite);
+
+    if (savedSdwt) {
+      filter.sdwt = savedSdwt;
+      // SDWT가 유효할 때만 EQPID 목록 로드
+      eqpIds.value = await equipmentApi.getEqpIds(undefined, savedSdwt);
+
+      if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
+        filter.eqpId = savedEqpId;
+      }
+    }
+  }
 });
 
 // Handlers
 const onSiteChange = async () => {
-  sdwts.value = filter.site ? await dashboardApi.getSdwts(filter.site) : [];
+  // [추가] 변경 시 localStorage 저장 및 하위 필터 초기화
+  if (filter.site) {
+    localStorage.setItem("error_site", filter.site);
+    sdwts.value = await dashboardApi.getSdwts(filter.site);
+  } else {
+    localStorage.removeItem("error_site");
+    sdwts.value = [];
+  }
+
+  // 하위 필터 초기화 및 저장소 삭제
   filter.sdwt = "";
+  localStorage.removeItem("error_sdwt");
   filter.eqpId = "";
+  localStorage.removeItem("error_eqpid");
   eqpIds.value = [];
 };
 
 const onSdwtChange = async () => {
+  // [추가] 변경 시 localStorage 저장 및 하위 필터 초기화
   if (filter.sdwt) {
+    localStorage.setItem("error_sdwt", filter.sdwt);
     eqpIds.value = await equipmentApi.getEqpIds(undefined, filter.sdwt);
   } else {
+    localStorage.removeItem("error_sdwt");
     eqpIds.value = [];
   }
+
+  // 하위 필터 초기화 및 저장소 삭제
   filter.eqpId = "";
+  localStorage.removeItem("error_eqpid");
 };
 
-const searchEqp = (e: any) => {
-  filteredEqpIds.value = eqpIds.value.filter((id) =>
-    id.toLowerCase().includes(e.query.toLowerCase())
-  );
+// [추가] EQP ID 변경 시 localStorage 처리 핸들러 추가
+const onEqpIdChange = () => {
+  if (filter.eqpId) {
+    localStorage.setItem("error_eqpid", filter.eqpId);
+  } else {
+    localStorage.removeItem("error_eqpid");
+  }
+};
+
+const getEffectiveParams = () => {
+  let start = filter.startDate;
+  let end = filter.endDate;
+  let eqps = filter.eqpId;
+
+  if (gridFilter.date) {
+    start = new Date(gridFilter.date);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(gridFilter.date);
+    end.setHours(23, 59, 59, 999);
+  }
+
+  if (gridFilter.eqpId) {
+    eqps = gridFilter.eqpId;
+  }
+
+  return {
+    site: filter.site,
+    sdwt: filter.sdwt,
+    eqpids: eqps,
+    startDate: start ? start.toISOString() : "",
+    endDate: end ? end.toISOString() : "",
+  };
 };
 
 const search = async () => {
-  if (!filter.dateRange[0] || !filter.dateRange[1]) return;
+  if (!filter.startDate || !filter.endDate) return;
 
-  // 검색 시 그리드 필터 초기화
   gridFilter.date = null;
   gridFilter.eqpId = null;
 
@@ -538,16 +610,7 @@ const search = async () => {
   first.value = 0;
 
   try {
-    const params = getQueryParams();
-
-    const [sumRes, trendRes] = await Promise.all([
-      errorApi.getSummary(params),
-      errorApi.getTrend(params),
-    ]);
-
-    summary.value = sumRes;
-    trendData.value = trendRes;
-
+    await Promise.all([updateSummaryData(), updateTrendData()]);
     await loadGridData();
   } catch (e) {
     console.error(e);
@@ -556,30 +619,21 @@ const search = async () => {
   }
 };
 
-// [수정] 그리드 데이터 로드 시 gridFilter 적용
+const updateSummaryData = async () => {
+  const params = getEffectiveParams();
+  summary.value = await errorApi.getSummary(params);
+};
+
+const updateTrendData = async () => {
+  const params = getEffectiveParams();
+  trendData.value = await errorApi.getTrend(params);
+};
+
 const loadGridData = async () => {
   isGridLoading.value = true;
   try {
-    const queryParams = getQueryParams();
-
-    // 차트 클릭으로 인한 필터 오버라이드
-    if (gridFilter.date) {
-      const targetDate = new Date(gridFilter.date);
-      // 해당 날짜의 00:00:00 ~ 23:59:59 범위로 설정
-      const start = new Date(targetDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(targetDate);
-      end.setHours(23, 59, 59, 999);
-      queryParams.startDate = start.toISOString();
-      queryParams.endDate = end.toISOString();
-    }
-
-    if (gridFilter.eqpId) {
-      queryParams.eqpids = gridFilter.eqpId;
-    }
-
     const params = {
-      ...queryParams,
+      ...getEffectiveParams(),
       page: Math.floor(first.value / rowsPerPage.value),
       pageSize: rowsPerPage.value,
     };
@@ -591,40 +645,42 @@ const loadGridData = async () => {
   }
 };
 
-// [추가] 차트 클릭 핸들러 (Trend)
 const onTrendChartInit = (instance: any) => {
-  instance.on("click", (params: any) => {
+  instance.on("click", async (params: any) => {
     if (params.dataIndex !== undefined && trendData.value[params.dataIndex]) {
-      // trendData의 date는 ISO string이거나 날짜 형식이므로 그대로 사용
       gridFilter.date = trendData.value[params.dataIndex].date;
       first.value = 0;
+      await updateSummaryData();
       loadGridData();
     }
   });
 };
 
-// [추가] 차트 클릭 핸들러 (Equipment)
 const onEqpChartInit = (instance: any) => {
-  instance.on("click", (params: any) => {
+  instance.on("click", async (params: any) => {
     if (params.name) {
-      gridFilter.eqpId = params.name; // ECharts params.name은 category 이름(EQP ID)
+      gridFilter.eqpId = params.name;
       first.value = 0;
+      await updateTrendData();
       loadGridData();
     }
   });
 };
 
-// [추가] 필터 해제
-const clearGridDateFilter = () => {
+const clearGridDateFilter = async () => {
   gridFilter.date = null;
-  loadGridData();
-};
-const clearGridEqpFilter = () => {
-  gridFilter.eqpId = null;
+  await updateSummaryData();
+  first.value = 0;
   loadGridData();
 };
 
-// Pagination Logic
+const clearGridEqpFilter = async () => {
+  gridFilter.eqpId = null;
+  await updateTrendData();
+  first.value = 0;
+  loadGridData();
+};
+
 const prevPage = () => {
   if (first.value > 0) {
     first.value -= rowsPerPage.value;
@@ -644,31 +700,38 @@ const lastPage = () => {
   loadGridData();
 };
 
-const getQueryParams = () => ({
-  site: filter.site,
-  sdwt: filter.sdwt,
-  eqpids: filter.eqpId,
-  startDate: filter.dateRange[0] ? filter.dateRange[0].toISOString() : "",
-  endDate: filter.dateRange[1] ? filter.dateRange[1].toISOString() : "",
-});
-
 const reset = () => {
   hasSearched.value = false;
   filter.site = "";
   filter.sdwt = "";
   filter.eqpId = "";
-  filter.dateRange = [
-    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    new Date(),
-  ];
+  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  filter.endDate = new Date();
+
   gridFilter.date = null;
   gridFilter.eqpId = null;
+
   sdwts.value = [];
   eqpIds.value = [];
+
+  // [추가] 리셋 시 localStorage 값 삭제
+  localStorage.removeItem("error_site");
+  localStorage.removeItem("error_sdwt");
+  localStorage.removeItem("error_eqpid");
+
+  summary.value = {
+    totalErrorCount: 0,
+    errorEqpCount: 0,
+    topErrorId: "",
+    topErrorCount: 0,
+    topErrorLabel: "",
+    errorCountByEqp: [],
+  };
+  trendData.value = [];
+  logs.value = [];
 };
 
-// --- ECharts Options ---
-
+// ... (ECharts Options는 기존과 동일) ...
 const trendOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value
@@ -702,12 +765,16 @@ const trendOption = computed(() => {
         name: "Alerts",
         type: "bar",
         data: trendData.value.map((d) => d.count),
-        itemStyle: {
-          color: "#f43f5e",
-          borderRadius: [4, 4, 0, 0],
+        itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] },
+        barMaxWidth: 50,
+        cursor: "pointer",
+        label: {
+          show: true,
+          position: "top",
+          color: textColor,
+          fontSize: 10,
+          formatter: "{c} 건",
         },
-        barMaxWidth: 30,
-        cursor: "pointer", // 클릭 가능 표시
       },
     ],
   };
@@ -718,9 +785,7 @@ const byEqpOption = computed(() => {
   const gridColor = isDarkMode.value
     ? "rgba(255, 255, 255, 0.1)"
     : "rgba(0, 0, 0, 0.1)";
-
   const data = summary.value.errorCountByEqp.slice(0, 10);
-
   const colors = [
     "#f97316",
     "#ef4444",
@@ -747,12 +812,7 @@ const byEqpOption = computed(() => {
     xAxis: {
       type: "category",
       data: data.map((d) => d.label),
-      axisLabel: {
-        color: textColor,
-        fontSize: 10,
-        interval: 0,
-        rotate: 30,
-      },
+      axisLabel: { color: textColor, fontSize: 10, interval: 0, rotate: 30 },
       axisLine: { lineStyle: { color: gridColor } },
     },
     yAxis: {
@@ -773,12 +833,18 @@ const byEqpOption = computed(() => {
         })),
         barMaxWidth: 30,
         cursor: "pointer",
+        label: {
+          show: true,
+          position: "top",
+          color: textColor,
+          fontSize: 10,
+          formatter: "{c} 건",
+        },
       },
     ],
   };
 });
 
-// Utils
 const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
@@ -786,9 +852,7 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
   const yy2 = String(yy).slice(2);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-
   if (short) return `${mm}-${dd}`;
-
   if (twoDigitYear) {
     return `${yy2}-${mm}-${dd} ${String(d.getHours()).padStart(
       2,
@@ -797,7 +861,6 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
       d.getSeconds()
     ).padStart(2, "0")}`;
   }
-
   return `${yy}-${mm}-${dd} ${String(d.getHours()).padStart(2, "0")}:${String(
     d.getMinutes()
   ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
@@ -805,7 +868,16 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 </script>
 
 <style scoped>
-/* 공통 스타일 */
+/* Style unchanged */
+:deep(.p-datatable-thead > tr > th) {
+  @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0;
+}
+:deep(.p-datatable-tbody > tr > td) {
+  @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50;
+}
+:deep(.dark .p-datatable-tbody > tr:hover) {
+  @apply !bg-[#27272a] !text-white;
+}
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
@@ -825,26 +897,12 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 :deep(.custom-dropdown:hover) {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
-:deep(.p-select-dropdown),
-:deep(.p-autocomplete-dropdown) {
+:deep(.p-select-dropdown) {
   @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
 }
-:deep(.p-select-dropdown svg),
-:deep(.p-autocomplete-dropdown svg) {
+:deep(.p-select-dropdown svg) {
   @apply w-3 h-3;
 }
-
-/* DataTable Customization */
-:deep(.p-datatable-thead > tr > th) {
-  @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700;
-}
-:deep(.p-datatable-tbody > tr > td) {
-  @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50;
-}
-:deep(.dark .p-datatable-tbody > tr:hover) {
-  @apply !bg-[#27272a] !text-white;
-}
-
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
