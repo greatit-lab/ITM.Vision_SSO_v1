@@ -7,7 +7,7 @@ import { EquipmentModule } from './equipment/equipment.module';
 import { PreAlignModule } from './prealign/prealign.module';
 import { LampLifeModule } from './lamplife/lamplife.module';
 
-// Controllers & Services (기존 유지)
+// Controllers & Services
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
 import { PerformanceController } from './performance/performance.controller';
