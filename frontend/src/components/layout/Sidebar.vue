@@ -159,12 +159,17 @@ const menuGroups = [
       {
         to: "/waferflatdata",
         label: "Wafer Flat Data",
-        icon: "pi pi-chart-pie", 
+        icon: "pi pi-chart-pie",
       },
       {
         to: "/lot-uniformity-trend",
         label: "Lot Uniformity",
         icon: "pi pi-chart-line",
+      },
+      {
+        to: "/spectrum-analytics",
+        label: "Spectrum Analysis",
+        icon: "pi pi-wave-pulse",
       },
     ],
   },
@@ -180,14 +185,18 @@ const menuGroups = [
       {
         to: "/performance-trend",
         label: "Performance",
-        icon: "pi pi-wave-pulse", 
+        icon: "pi pi-bolt", // [변경] wave-pulse(중복) -> bolt(성능)
       },
       {
         to: "/process-memory",
         label: "Process Memory",
         icon: "pi pi-microchip",
       },
-      { to: "/lamp-life", label: "Lamp Lifetime", icon: "pi pi-sun" },
+      {
+        to: "/lamp-life",
+        label: "Lamp Lifetime",
+        icon: "pi pi-sun", // [변경] sun(빛)으로 명시적 설정
+      },
     ],
   },
   {
@@ -199,11 +208,10 @@ const menuGroups = [
         label: "PreAlign Data",
         icon: "pi pi-compass",
       },
-      { to: "/error-analytics", label: "Alert History", icon: "pi pi-bell" },
       {
-        to: "/spectrum-analytics",
-        label: "Spectrum Analysis",
-        icon: "pi pi-bolt",
+        to: "/error-analytics",
+        label: "Alert History",
+        icon: "pi pi-bell", // [변경] bell(알림)로 명시적 설정
       },
     ],
   },
@@ -244,5 +252,3 @@ const toggleGroup = (group: string) => {
   scrollbar-width: none;
 }
 </style>
-
-
