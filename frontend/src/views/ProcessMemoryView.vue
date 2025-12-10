@@ -685,7 +685,7 @@ const resetZoom = () => {
 :deep(.custom-dropdown.small) { @apply h-7; }
 :deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
 :deep(.p-select-dropdown), :deep(.p-autocomplete-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
-:deep(.p-select-dropdown svg), :deep(.p-autocomplete-dropdown svg) { @apply w-3 h-3; }
+:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -694,6 +694,7 @@ const resetZoom = () => {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
+
 
 
 
