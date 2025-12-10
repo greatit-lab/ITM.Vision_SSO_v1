@@ -551,10 +551,10 @@ const onSiteChange = async () => {
 };
 
 const onSdwtChange = async () => {
-  // [추가] 변경 시 localStorage 저장 및 하위 필터 초기화
   if (filter.sdwt) {
     localStorage.setItem("error_sdwt", filter.sdwt);
-    eqpIds.value = await equipmentApi.getEqpIds(undefined, filter.sdwt);
+    // [수정] type: 'error' 전달
+    eqpIds.value = await equipmentApi.getEqpIds(undefined, filter.sdwt, 'error');
   } else {
     localStorage.removeItem("error_sdwt");
     eqpIds.value = [];
@@ -917,3 +917,4 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
   }
 }
 </style>
+
