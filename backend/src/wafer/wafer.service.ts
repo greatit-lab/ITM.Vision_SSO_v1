@@ -29,7 +29,6 @@ export class WaferQueryParams {
   ts?: string | Date;
   dateTime?: string | Date;
   pointNumber?: string | number;
-  // Spectrum Analysis 및 다중 필터용 파라미터
   pointId?: string;
   waferIds?: string;
   metric?: string;
@@ -43,6 +42,11 @@ interface PdfResult {
 }
 interface SpectrumRawResult {
   class: string;
+  wavelengths: number[];
+  values: number[];
+}
+interface SpectrumTrendRawResult {
+  waferid: string;
   wavelengths: number[];
   values: number[];
 }
@@ -77,7 +81,7 @@ export interface ResidualMapItem {
 export class WaferService {
   constructor(private prisma: PrismaService) {}
 
-  // [수정] 1. Distinct Values 조회 (Unsafe spread 오류 해결)
+  // 1. Distinct Values 조회
   async getDistinctValues(
     column: string,
     params: WaferQueryParams,
@@ -92,10 +96,10 @@ export class WaferService {
     if (column === 'cassettercps') colName = 'cassettercp';
     if (column === 'stagegroups') colName = 'stagegroup';
     if (column === 'films') colName = 'film';
+    if (column === 'waferids') colName = 'waferid';
 
     let whereClause = `WHERE 1=1`;
-
-    // [Fix] ESLint 'Unsafe spread' 해결을 위해 구체적인 타입 유니온 배열로 선언
+    // [수정] any[] 대신 구체적인 타입 지정
     const queryParams: (string | number | Date)[] = [];
 
     if (eqpId) {
@@ -123,56 +127,156 @@ export class WaferService {
     const sql = `SELECT DISTINCT "${colName}" as val FROM ${table} ${whereClause} ORDER BY "${colName}" DESC LIMIT 100`;
 
     try {
-      // [Fix] as any[] 캐스팅을 제거하고 타입이 명확한 배열을 spread 하여 안전하게 전달
-      const result = await this.prisma.$queryRawUnsafe<{ val: string }[]>(
+      const result = await this.prisma.$queryRawUnsafe<{ val: unknown }[]>(
         sql,
         ...queryParams,
       );
-      return result.map((r) => r.val).filter((v) => v);
+      // [수정] r.val을 string | number 등으로 단언 후 String 변환
+      return result
+        .map((r) => {
+          if (r.val === null || r.val === undefined) return '';
+          return String(r.val as string | number);
+        })
+        .filter((v) => v !== '');
     } catch (e) {
       console.warn(`Error fetching distinct ${column}:`, e);
       return [];
     }
   }
 
-  // [신규] 2. Spectrum Trend 데이터 조회
-  async getSpectrumTrend(params: WaferQueryParams): Promise<any[]> {
-    // [Fix] require-await 오류 해결 (가상 비동기 처리)
-    await new Promise((resolve) => setTimeout(resolve, 10));
+  // [수정] Lot, RCP, Stage 조건에 맞는 실제 Point 목록 조회 (JOIN 적용)
+  async getDistinctPoints(params: WaferQueryParams): Promise<string[]> {
+    const { eqpId, lotId, cassetteRcp, stageGroup, startDate, endDate } = params;
 
-    const { waferIds, pointId } = params;
+    // plg_onto_spectrum(스펙트럼)과 plg_wf_flat(메타데이터)을 조인하여 조회
+    // Wafer ID와 Point가 일치하고, RCP/Stage 조건이 맞는 데이터만 추출
+    let sql = `
+      SELECT DISTINCT s.point
+      FROM public.plg_onto_spectrum s
+      JOIN public.plg_wf_flat f 
+        ON s.eqpid = f.eqpid 
+        AND s.lotid = f.lotid 
+        AND s.waferid = f.waferid::varchar 
+        AND s.point = f.point
+      WHERE 1=1
+    `;
+    
+    const queryParams: (string | number | Date)[] = [];
 
-    const series: any[] = [];
-    const wafers = waferIds ? waferIds.split(',') : [];
-
-    for (const wId of wafers) {
-      const dataPoints: number[][] = [];
-
-      for (let nm = 200; nm <= 800; nm += 5) {
-        let value = Math.random() * 5 + 50;
-
-        if (nm > 400 && nm < 450) value += 40;
-        if (nm > 600 && nm < 650) value += 30;
-
-        const variance = parseInt(wId) * 0.5 * (Math.random() > 0.5 ? 1 : -1);
-        value = value + variance;
-
-        dataPoints.push([nm, parseFloat(value.toFixed(2))]);
-      }
-
-      series.push({
-        name: `W${wId}-Pt${pointId || 1}`,
-        waferId: parseInt(wId),
-        pointId: parseInt(pointId || '1'),
-        data: dataPoints,
-      });
+    if (eqpId) {
+      sql += ` AND s.eqpid = $${queryParams.length + 1}`;
+      queryParams.push(eqpId);
+    }
+    if (lotId) {
+      sql += ` AND s.lotid = $${queryParams.length + 1}`;
+      queryParams.push(lotId);
+    }
+    
+    // [추가] Cassette RCP & Stage Group 필터 적용
+    if (cassetteRcp) {
+      sql += ` AND f.cassettercp = $${queryParams.length + 1}`;
+      queryParams.push(cassetteRcp);
+    }
+    if (stageGroup) {
+      sql += ` AND f.stagegroup = $${queryParams.length + 1}`;
+      queryParams.push(stageGroup);
     }
 
-    return series;
+    if (startDate && endDate) {
+      sql += ` AND s.ts >= $${queryParams.length + 1} AND s.ts <= $${queryParams.length + 2}`;
+      queryParams.push(new Date(startDate), new Date(endDate));
+    }
+
+    sql += ` ORDER BY s.point ASC`;
+
+    try {
+      const results = await this.prisma.$queryRawUnsafe<{ point: number }[]>(
+        sql,
+        ...queryParams,
+      );
+      return results.map((r) => String(r.point));
+    } catch (e) {
+      console.error('Error fetching distinct points:', e);
+      return [];
+    }
   }
 
-  // ... (기존 메서드들 그대로 유지)
+  // [수정] 2. Spectrum Trend 데이터 조회 (실제 DB 연동)
+  async getSpectrumTrend(params: WaferQueryParams): Promise<any[]> {
+    const { eqpId, lotId, pointId, waferIds, startDate, endDate } = params;
 
+    if (!lotId || !pointId || !waferIds) {
+      return [];
+    }
+
+    const waferIdList = waferIds.split(',').map((w) => w.trim());
+    if (waferIdList.length === 0) return [];
+
+    // [수정] 타입 명시
+    const queryParams: (string | number | Date)[] = [];
+    let sql = `
+      SELECT waferid, wavelengths, values
+      FROM public.plg_onto_spectrum
+      WHERE lotid = $1
+        AND point = $2
+        AND class = 'exp'
+    `;
+    queryParams.push(lotId, Number(pointId));
+
+    if (eqpId) {
+      sql += ` AND eqpid = $${queryParams.length + 1}`;
+      queryParams.push(eqpId);
+    }
+
+    const waferParams = waferIdList
+      .map((_, idx) => `$${queryParams.length + 1 + idx}`)
+      .join(',');
+    sql += ` AND waferid IN (${waferParams})`;
+    queryParams.push(...waferIdList);
+
+    if (startDate) {
+      sql += ` AND ts >= $${queryParams.length + 1}`;
+      queryParams.push(new Date(startDate));
+    }
+    if (endDate) {
+      sql += ` AND ts <= $${queryParams.length + 1}`;
+      queryParams.push(new Date(endDate));
+    }
+
+    sql += ` ORDER BY waferid ASC`;
+
+    try {
+      const results = await this.prisma.$queryRawUnsafe<
+        SpectrumTrendRawResult[]
+      >(sql, ...queryParams);
+
+      const series = results.map((row) => {
+        const dataPoints: number[][] = [];
+        if (
+          row.wavelengths &&
+          row.values &&
+          row.wavelengths.length === row.values.length
+        ) {
+          for (let i = 0; i < row.wavelengths.length; i++) {
+            dataPoints.push([row.wavelengths[i], row.values[i] * 100]);
+          }
+        }
+        return {
+          name: `W${row.waferid}`,
+          waferId: row.waferid,
+          pointId: Number(pointId),
+          data: dataPoints,
+        };
+      });
+
+      return series;
+    } catch (e) {
+      console.error('Error fetching spectrum trend:', e);
+      return [];
+    }
+  }
+
+  // ... (이하 메서드들은 변경 사항 없음, 기존 코드 유지)
   async getFlatData(params: WaferQueryParams) {
     const {
       eqpId,
@@ -695,9 +799,7 @@ export class WaferService {
     };
   }
 
-  // [수정] Metric 컬럼 필터링
   async getAvailableMetrics(params: WaferQueryParams): Promise<string[]> {
-    // 1. 설정 테이블 조회
     let allowedMetrics: string[] = [];
     try {
       const configResult = await this.prisma.$queryRaw<
@@ -720,7 +822,6 @@ export class WaferService {
       return [];
     }
 
-    // 2. 현재 선택된 조건에 맞는 데이터 확인
     const whereSql = this.buildUniqueWhere(params);
     if (!whereSql) return [];
 
@@ -758,7 +859,6 @@ export class WaferService {
     }
   }
 
-  // [신규] Lot Uniformity Trend 데이터 조회
   async getLotUniformityTrend(params: WaferQueryParams & { metric: string }) {
     const { metric } = params;
 
