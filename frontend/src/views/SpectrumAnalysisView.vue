@@ -471,13 +471,15 @@ onUnmounted(() => {
 
 // Global Filter Handlers
 const onSiteChange = async () => {
+  // [수정] 1. 하위 초기화 먼저 수행
+  resetFrom(0);
+
   if (filterStore.selectedSite) {
     localStorage.setItem("spec_site", filterStore.selectedSite);
     sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
   } else {
     sdwts.value = [];
   }
-  resetFrom(0);
 };
 
 const onSdwtChange = async () => {
@@ -500,7 +502,11 @@ const onEqpChange = () => {
 // --- Sidebar Cascade Logic (날짜 포함) ---
 
 const onLotChange = async () => {
+  // [수정] 1. 하위 데이터 초기화 먼저 수행
+  resetFrom(3);
+
   if (filters.lotId) {
+    // 2. 데이터 로드
     // [중요] LotID 식별을 위해 Date Range 포함
     cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
       eqpId: filters.eqpId,
@@ -509,11 +515,14 @@ const onLotChange = async () => {
       endDate: filters.endDate?.toISOString(),
     });
   }
-  resetFrom(3);
 };
 
 const onCassetteChange = async () => {
+  // [수정] 1. 하위 데이터 초기화 먼저 수행
+  resetFrom(4);
+
   if (filters.cassetteRcp) {
+    // 2. 데이터 로드
     stageGroups.value = await waferApi.getDistinctValues("stagegroups", {
       eqpId: filters.eqpId,
       lotId: filters.lotId,
@@ -522,7 +531,6 @@ const onCassetteChange = async () => {
       endDate: filters.endDate?.toISOString(),
     });
   }
-  resetFrom(4);
 };
 
 const onStageGroupChange = async () => {
