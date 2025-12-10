@@ -729,11 +729,9 @@
         </div>
 
         <div
-          class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col h-[315px]"
+          class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col h-[290px]"
         >
-          <div
-            class="flex items-center justify-between relative mb-2 shrink-0"
-          >
+          <div class="flex items-center justify-between relative mb-2 shrink-0">
             <h2
               class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"
             >
@@ -743,8 +741,7 @@
 
             <span
               v-if="selectedPointValue && selectedRow"
-              class="absolute right-0 text-xs font-mono px-2 py-0.5 bg-teal-50 dark:bg-teal-900/30 
-                     text-teal-700 dark:text-teal-300 rounded border border-teal-100 dark:border-teal-800"
+              class="absolute right-0 text-xs font-mono px-2 py-0.5 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded border border-teal-100 dark:border-teal-800"
             >
               {{ selectedRow.lotId }} W{{ selectedRow.waferId }} #{{
                 selectedPointValue
@@ -959,22 +956,29 @@ const resetZoom = () => {
   }
 };
 
+// 예시: computed(() => { ... }) 내부
+
+// [수정] 변수명을 chartOption -> spectrumOption으로 변경
 const spectrumOption = computed(() => {
+  // 데이터가 없으면 빈 객체 반환
   if (!spectrumData.value || spectrumData.value.length === 0) return {};
 
+  // X축 범위 계산 (Smart Range)
   const xValues = spectrumData.value.map((d) => d.wavelength);
   const minVal = Math.min(...xValues);
   const maxVal = Math.max(...xValues);
   const xMin = Math.floor(minVal / 10) * 10;
   const xMax = Math.ceil(maxVal / 10) * 10;
 
-  const textColor = isDarkMode.value ? "#cbd5e1" : "#334155";
+  // 디자인 시스템 적용 (다크/라이트 모드 대응)
+  const textColor = isDarkMode.value ? "#cbd5e1" : "#334155"; // Slate-300 / Slate-700
   const gridColor = isDarkMode.value
     ? "rgba(255, 255, 255, 0.15)"
     : "rgba(0, 0, 0, 0.15)";
 
   return {
     backgroundColor: "transparent",
+    // 줌 기능 활성화
     dataZoom: [
       {
         type: "inside",
@@ -982,6 +986,7 @@ const spectrumOption = computed(() => {
         filterMode: "filter",
       },
     ],
+    // 툴팁 디자인 (Modern 스타일 적용)
     tooltip: {
       trigger: "axis",
       backgroundColor: isDarkMode.value
@@ -996,6 +1001,7 @@ const spectrumOption = computed(() => {
         const xVal = item.wavelength;
         let html = `<div class="font-bold mb-1">${xVal} nm</div>`;
         params.forEach((p: any) => {
+          // 시리즈 이름에 따라 키 매핑 (EXP -> exp, GEN -> gen)
           const yKey = p.seriesName === "EXP" ? "exp" : "gen";
           const val = p.value[yKey];
           if (val !== null && val !== undefined) {
@@ -1008,6 +1014,7 @@ const spectrumOption = computed(() => {
         return html;
       },
     },
+    // 범례 스타일
     legend: {
       data: ["EXP", "GEN"],
       top: 5,
@@ -1018,11 +1025,6 @@ const spectrumOption = computed(() => {
         color: textColor,
         fontSize: 11,
       },
-      backgroundColor: isDarkMode.value
-        ? "rgba(0,0,0,0.3)"
-        : "rgba(255,255,255,0.5)",
-      borderRadius: 4,
-      padding: [5, 10],
     },
     grid: {
       left: 50,
@@ -1034,6 +1036,7 @@ const spectrumOption = computed(() => {
     dataset: {
       source: spectrumData.value,
     },
+    // X축 설정
     xAxis: {
       type: "value",
       name: "Wavelength (nm)",
@@ -1053,6 +1056,7 @@ const spectrumOption = computed(() => {
       },
       axisLine: { lineStyle: { color: gridColor } },
     },
+    // Y축 설정
     yAxis: {
       type: "value",
       name: "TE-Reflectance (%)",
@@ -1069,6 +1073,7 @@ const spectrumOption = computed(() => {
       axisLabel: { color: textColor, fontSize: 10 },
       splitLine: { show: true, lineStyle: { color: gridColor } },
     },
+    // 시리즈 데이터 매핑
     series: [
       {
         name: "EXP",
@@ -1077,7 +1082,7 @@ const spectrumOption = computed(() => {
         showSymbol: false,
         smooth: true,
         lineStyle: { width: 2 },
-        itemStyle: { color: "#F43F5E" },
+        itemStyle: { color: "#F43F5E" }, // Rose-500 (강조색)
       },
       {
         name: "GEN",
@@ -1086,7 +1091,7 @@ const spectrumOption = computed(() => {
         showSymbol: false,
         smooth: true,
         lineStyle: { width: 2 },
-        itemStyle: { color: "#6366F1" },
+        itemStyle: { color: "#6366F1" }, // Indigo-500 (보조색)
       },
     ],
   };
@@ -1131,7 +1136,7 @@ const loadEqpIds = async () => {
     eqpIds.value = await equipmentApi.getEqpIds(
       undefined,
       filterStore.selectedSdwt,
-      'wafer'
+      "wafer"
     );
 };
 
@@ -1283,8 +1288,8 @@ const loadPointImage = async (pointValue: number) => {
     // [수정] selectedRow에서 lotId, waferId 추출
     const base64 = await waferApi.getPdfImageBase64(
       selectedRow.value.eqpId,
-      selectedRow.value.lotId,    // [추가]
-      selectedRow.value.waferId,  // [추가]
+      selectedRow.value.lotId, // [추가]
+      selectedRow.value.waferId, // [추가]
       selectedRow.value.dateTime,
       pointValue
     );
@@ -1540,4 +1545,3 @@ table td {
   font-size: 11px !important;
 }
 </style>
-
