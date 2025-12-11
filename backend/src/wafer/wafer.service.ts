@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+
 import { Prisma } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -37,36 +38,44 @@ export class WaferQueryParams {
 interface StatsRawResult {
   [key: string]: number | null;
 }
+
 interface PdfResult {
   file_uri: string;
 }
+
 interface SpectrumRawResult {
   class: string;
   wavelengths: number[];
   values: number[];
+  ts?: Date;
 }
 
-// Spectrum Trend 조회 시 JOIN된 결과를 담기 위한 인터페이스 (동적 컬럼 지원)
 interface SpectrumTrendJoinedResult {
   waferid: string;
+  eqpid: string;
   wavelengths: number[];
   values: number[];
   serv_ts: Date | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any; // 동적 쿼리 결과 매핑을 위해 허용
+  ts: Date | null;
+
+  [key: string]: any;
 }
 
-interface ResidualRawResult {
+// [수정] ESLint 'unused' 오류 방지를 위해 export 처리
+export interface ResidualRawResult {
   point: number;
   x: number | null;
   y: number | null;
   class: string;
   values: number[];
 }
-interface GoldenRawResult {
+
+// [수정] ESLint 'unused' 오류 방지를 위해 export 처리
+export interface GoldenRawResult {
   wavelengths: number[];
   values: number[];
 }
+
 interface LotTrendRawResult {
   waferid: number;
   point: number;
@@ -76,11 +85,16 @@ interface LotTrendRawResult {
   diecol: number | null;
   value: number;
 }
+
 export interface ResidualMapItem {
   point: number;
   x: number;
   y: number;
   residual: number;
+}
+
+interface PopplerModule {
+  convert: (file: string, options: any) => Promise<any>;
 }
 
 @Injectable()
@@ -148,9 +162,10 @@ export class WaferService {
     }
   }
 
-  // Lot, RCP, Stage 조건에 맞는 실제 Point 목록 조회 (JOIN 적용)
+  // Lot, RCP, Stage 조건에 맞는 실제 Point 목록 조회
   async getDistinctPoints(params: WaferQueryParams): Promise<string[]> {
-    const { eqpId, lotId, cassetteRcp, stageGroup, startDate, endDate } = params;
+    const { eqpId, lotId, cassetteRcp, stageGroup, startDate, endDate } =
+      params;
 
     let sql = `
       SELECT DISTINCT s.point
@@ -201,13 +216,19 @@ export class WaferService {
     }
   }
 
-  // [수정됨] Spectrum Trend 데이터 조회 (동적 컬럼 & Meta Data JOIN & 중복 제거)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getSpectrumTrend(params: WaferQueryParams): Promise<any[]> {
-    const { eqpId, lotId, pointId, waferIds, startDate, endDate, cassetteRcp, stageGroup } = params;
+  // [수정됨] Spectrum Trend 데이터 조회
 
-    console.log('--- [getSpectrumTrend] Request Params ---');
-    console.log({ eqpId, lotId, pointId, waferIds, cassetteRcp, stageGroup });
+  async getSpectrumTrend(params: WaferQueryParams): Promise<any[]> {
+    const {
+      eqpId,
+      lotId,
+      pointId,
+      waferIds,
+      startDate,
+      endDate,
+      cassetteRcp,
+      stageGroup,
+    } = params;
 
     if (!lotId || !pointId || !waferIds) {
       return [];
@@ -216,38 +237,37 @@ export class WaferService {
     const waferIdList = waferIds.split(',').map((w) => w.trim());
     if (waferIdList.length === 0) return [];
 
-    // 1. [동적 컬럼 조회] cgf_lot_uniformity_metrics에서 활성화된 컬럼 목록 가져오기
     let dynamicColumns: string[] = [];
     try {
-      const configMetrics = await this.prisma.$queryRaw<{ metric_name: string }[]>`
+      const configMetrics = await this.prisma.$queryRaw<
+        { metric_name: string }[]
+      >`
         SELECT metric_name FROM public.cgf_lot_uniformity_metrics WHERE is_excluded = 'N'
       `;
       const configColNames = configMetrics.map((r) => r.metric_name);
-
       if (configColNames.length > 0) {
         dynamicColumns = configColNames;
       } else {
-        dynamicColumns = ['t1', 'gof', 'mse']; // Fallback
+        dynamicColumns = ['t1', 'gof', 'mse'];
       }
     } catch (e) {
-      console.warn('Failed to fetch dynamic metrics config, using defaults.', e);
-      dynamicColumns = ['t1', 'gof', 'mse']; // Fallback
+      console.warn(
+        'Failed to fetch dynamic metrics config, using defaults.',
+        e,
+      );
+      dynamicColumns = ['t1', 'gof', 'mse'];
     }
 
-    // gof는 필수적으로 포함
     if (!dynamicColumns.includes('gof')) dynamicColumns.push('gof');
     dynamicColumns = [...new Set(dynamicColumns)];
 
-    // 2. [메인 쿼리 작성]
     const queryParams: (string | number | Date)[] = [];
-    
-    // 동적 컬럼 SELECT 절 구성 (f."colName")
-    const selectColumns = dynamicColumns.map(col => `f."${col}"`).join(', ');
+    const selectColumns = dynamicColumns.map((col) => `f."${col}"`).join(', ');
 
-    // DISTINCT ON을 사용하여 중복 제거 (WaferID 기준 최신 데이터 1개)
+    // [중요] s."ts", s."eqpid" 필수 조회
     let sql = `
       SELECT DISTINCT ON (s."waferid")
-        s."waferid", s."wavelengths", s."values",
+        s."waferid", s."wavelengths", s."values", s."ts", s."eqpid",
         f."serv_ts", f."lotid",
         ${selectColumns}
       FROM public.plg_onto_spectrum s
@@ -261,7 +281,6 @@ export class WaferService {
     `;
     queryParams.push(lotId, Number(pointId));
 
-    // Recipe 및 Stage 조건 추가
     if (cassetteRcp) {
       sql += ` AND f."cassettercp" = $${queryParams.length + 1}`;
       queryParams.push(cassetteRcp);
@@ -270,7 +289,6 @@ export class WaferService {
       sql += ` AND f."stagegroup" = $${queryParams.length + 1}`;
       queryParams.push(stageGroup);
     }
-
     if (eqpId) {
       sql += ` AND s."eqpid" = $${queryParams.length + 1}`;
       queryParams.push(eqpId);
@@ -291,16 +309,14 @@ export class WaferService {
       queryParams.push(new Date(endDate));
     }
 
-    // DISTINCT ON 사용 시 첫 번째 정렬 키는 waferid여야 함
     sql += ` ORDER BY s."waferid" ASC, f."serv_ts" DESC`;
 
     try {
-      const results = await this.prisma.$queryRawUnsafe<SpectrumTrendJoinedResult[]>(sql, ...queryParams);
-      
-      console.log(`[getSpectrumTrend] Rows found: ${results.length}`);
+      const results = await this.prisma.$queryRawUnsafe<
+        SpectrumTrendJoinedResult[]
+      >(sql, ...queryParams);
 
       const series = results.map((row) => {
-        // 스펙트럼 데이터 처리
         const dataPoints: number[][] = [];
         if (
           row.wavelengths &&
@@ -312,14 +328,15 @@ export class WaferService {
           }
         }
 
-        // explicit typing Record<string, unknown> 사용
         const meta: Record<string, unknown> = {
           timestamp: row.serv_ts,
-          lotId: row['lotid'] || lotId
+          scanTs: row.ts, // [중요] 실제 계측 시간
+          eqpId: row.eqpid, // [중요] 실제 계측 장비 ID
+          rawWaferId: row.waferid, // [중요] DB 원본 Wafer ID
+          lotId: row['lotid'] || lotId,
         };
-        
-        dynamicColumns.forEach(col => {
-          // row[col] 접근 시 타입 단언 또는 안전한 할당
+
+        dynamicColumns.forEach((col) => {
           meta[col] = row[col] as unknown;
         });
 
@@ -327,7 +344,7 @@ export class WaferService {
           name: `W${row.waferid}`,
           waferId: Number(row.waferid),
           pointId: Number(pointId),
-          meta: meta, // 동적 데이터 포함
+          meta: meta,
           data: dataPoints,
         };
       });
@@ -339,23 +356,32 @@ export class WaferService {
     }
   }
 
-  // [수정됨] Step 2: Model Fit Analysis용 GEN Spectrum 조회 (색상 변경 및 따옴표 처리)
+  // [수정됨] Model Fit Analysis용 GEN Spectrum 조회
   async getSpectrumGen(params: WaferQueryParams) {
-    const { lotId, waferId, pointId } = params;
-    if (!lotId || !waferId || !pointId) return null;
+    const { lotId, waferId, pointId, eqpId, ts } = params;
+
+    // 필수 파라미터 확인 (ts 포함)
+    if (!lotId || !waferId || !pointId || !eqpId || !ts) return null;
 
     try {
+      // [중요] Date 객체로 변환하여 Prisma에 전달 (DB Driver가 Timestamp 포맷으로 매핑)
+      const tsParam = typeof ts === 'string' ? new Date(ts) : ts;
+
       const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
         `SELECT "wavelengths", "values" 
          FROM public.plg_onto_spectrum
          WHERE "lotid" = $1 
-           AND "waferid" = $2 
-           AND "point" = $3
+           AND "waferid" = $2  -- String comparison ("1" vs "1")
+           AND "point" = $3    -- Number comparison
+           AND "eqpid" = $4    -- EQP ID Match
+           AND "ts" = $5       -- Timestamp Exact Match (Prisma handles Date -> Timestamp)
            AND "class" = 'GEN'
          LIMIT 1`,
         lotId,
         String(waferId),
-        Number(pointId)
+        Number(pointId),
+        eqpId,
+        tsParam,
       );
 
       if (!results || results.length === 0) return null;
@@ -370,10 +396,9 @@ export class WaferService {
       return {
         name: `Model (W${waferId})`,
         type: 'line',
-        // [수정] 선 색상을 빨간색(#ef4444)으로 변경하여 Golden Ref(Amber) 및 실측값과 구분
-        lineStyle: { type: 'dashed', width: 2, color: '#ef4444' }, 
+        lineStyle: { type: 'dashed', width: 2, color: '#ef4444' },
         data: dataPoints,
-        symbol: 'none'
+        symbol: 'none',
       };
     } catch (e) {
       console.error('Error fetching GEN spectrum:', e);
@@ -490,12 +515,14 @@ export class WaferService {
       );
     }
 
-    const pdfCheckResult = await this.checkPdf({
-      eqpId,
-      lotId,
-      waferId,
-      servTs: dateTime,
-    });
+    const pdfCheckResult: { exists: boolean; url: string | null } =
+      await this.checkPdf({
+        eqpId,
+        lotId,
+        waferId,
+        servTs: dateTime,
+      });
+
     if (!pdfCheckResult.exists || !pdfCheckResult.url) {
       throw new NotFoundException('PDF file URI not found in database.');
     }
@@ -541,7 +568,6 @@ export class WaferService {
         proxy: false,
       });
 
-      // 1. Header Check
       const headers = response.headers as Record<string, unknown>;
       const contentType = headers['content-type'];
 
@@ -563,10 +589,9 @@ export class WaferService {
         writer.on('error', reject);
       });
 
-      // 2. Magic Number Check
       try {
         const fd = fs.openSync(tempPdfPath, 'r');
-        const headerBuffer = Buffer.alloc(100); 
+        const headerBuffer = Buffer.alloc(100);
         const bytesRead = fs.readSync(fd, headerBuffer, 0, 100, 0);
         fs.closeSync(fd);
 
@@ -582,10 +607,9 @@ export class WaferService {
         }
       } catch (checkErr) {
         if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
-        throw checkErr; 
+        throw checkErr;
       }
 
-      // 3. Poppler 변환
       const popplerBinPath =
         process.env.POPPLER_BIN_PATH ||
         'F:\\Workspaces\\WEB\\ITM.Dashboard.Modern\\poppler-25.11.0\\Library\\bin';
@@ -599,8 +623,8 @@ export class WaferService {
         binPath: popplerBinPath,
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      await (poppler as any).convert(tempPdfPath, opts);
+      const popplerLib = poppler as unknown as PopplerModule;
+      await popplerLib.convert(tempPdfPath, opts);
 
       const dirFiles = fs.readdirSync(os.tmpdir());
       const generatedImageName = dirFiles.find(
@@ -650,7 +674,6 @@ export class WaferService {
     }
   }
 
-  // [수정됨] 단일 Spectrum 조회 (컬럼명 따옴표 처리)
   async getSpectrum(params: WaferQueryParams) {
     const { eqpId, lotId, waferId, pointNumber, ts } = params;
 
@@ -663,7 +686,6 @@ export class WaferService {
       const tsRaw = targetDate.toISOString();
       const tableName = 'public.plg_onto_spectrum';
 
-      // values, class 등 예약어 충돌 방지 및 따옴표 처리
       const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
         `SELECT "class", "wavelengths", "values" 
          FROM ${tableName}
@@ -811,13 +833,17 @@ export class WaferService {
     }
   }
 
-  async checkPdf(params: WaferQueryParams) {
+  // [수정] checkPdf 리턴 타입 명시 (ESLint 오류 해결)
+  async checkPdf(
+    params: WaferQueryParams,
+  ): Promise<{ exists: boolean; url: string | null }> {
     const { eqpId, lotId, waferId, servTs } = params;
     if (!eqpId || !servTs) return { exists: false, url: null };
 
     try {
       const ts = typeof servTs === 'string' ? servTs : servTs.toISOString();
 
+      // [수정] PdfResult 타입 사용 (unused vars 해결)
       const results = await this.prisma.$queryRawUnsafe<PdfResult[]>(
         `SELECT file_uri FROM public.plg_wf_map 
          WHERE eqpid = $1 
@@ -834,7 +860,7 @@ export class WaferService {
 
       if (lotId) {
         const targetLot = lotId.trim();
-        const targetLotUnderscore = targetLot.replace(/\./g, '_'); 
+        const targetLotUnderscore = targetLot.replace(/\./g, '_');
 
         const matched = results.find((r) => {
           if (!r.file_uri) return false;
@@ -870,6 +896,7 @@ export class WaferService {
     const targetDate = new Date(ts);
     const tsRaw = targetDate.toISOString();
 
+    // [수정] ResidualRawResult 타입 명시적 사용 (unused vars 해결)
     const rawData = await this.prisma.$queryRawUnsafe<ResidualRawResult[]>(
       `SELECT s.point, f.x, f.y, s.class, s.values 
        FROM public.plg_onto_spectrum s
@@ -930,52 +957,75 @@ export class WaferService {
     return result;
   }
 
-  // [수정됨] Golden Spectrum 조회 (조건 대폭 완화: 데이터 보장용)
+  // [수정됨] Golden Spectrum 조회
   async getGoldenSpectrum(params: WaferQueryParams) {
-    const { eqpId, cassetteRcp, stageGroup, film } = params;
+    const { eqpId, cassetteRcp, stageGroup, film, pointId } = params;
 
-    // [변경] 날짜 제한(7일) 제거, GOF 0.98 제한 제거
-    // 해당 레시피 이력 중 GOF가 가장 높은 상위 10개를 가져와 평균냄 (데이터가 있으면 무조건 나오게)
-    const samples = await this.prisma.$queryRawUnsafe<GoldenRawResult[]>(
-      `SELECT s."wavelengths", s."values"
-       FROM public.plg_onto_spectrum s
-       JOIN public.plg_wf_flat f 
-         ON s."eqpid" = f."eqpid" AND s."lotid" = f."lotid" AND s."waferid" = f."waferid"::varchar AND s."point" = f."point"
-       WHERE s."class" = 'EXP'
-         AND f."eqpid" = $1
-         AND f."cassettercp" = $2
-         AND f."stagegroup" = $3
-         AND f."film" = $4
-       ORDER BY f."gof" DESC
-       LIMIT 10`,
-      eqpId,
+    let sql = `
+      SELECT s."wavelengths", s."values"
+      FROM public.plg_onto_spectrum s
+      JOIN public.plg_wf_flat f 
+        ON s."eqpid" = f.eqpid 
+        AND s."lotid" = f.lotid 
+        AND s."waferid" = f.waferid::varchar 
+        AND s."point" = f.point
+      WHERE s."class" = 'EXP'
+        AND f."eqpid" = $1
+        AND f."cassettercp" = $2
+        AND f."stagegroup" = $3
+    `;
+
+    const queryParams: (string | number)[] = [
+      eqpId || '',
       cassetteRcp || '',
       stageGroup || '',
-      film || '',
-    );
+    ];
 
-    if (samples.length === 0) return null;
+    if (pointId) {
+      sql += ` AND s."point" = $${queryParams.length + 1}`;
+      queryParams.push(Number(pointId));
+    }
 
-    const baseWavelengths = samples[0].wavelengths;
-    const valueSums: number[] = Array.from(
-      { length: baseWavelengths.length },
-      () => 0,
-    );
-    let count = 0;
+    if (film) {
+      sql += ` AND f."film" = $${queryParams.length + 1}`;
+      queryParams.push(film);
+    }
 
-    samples.forEach((sample) => {
-      if (sample.values && sample.values.length === baseWavelengths.length) {
-        sample.values.forEach((v: number, i: number) => (valueSums[i] += v));
-        count++;
-      }
-    });
+    sql += ` ORDER BY f."gof" DESC LIMIT 10`;
 
-    if (count === 0) return null;
+    try {
+      // [수정] GoldenRawResult 타입 명시적 사용 (unused vars 해결)
+      const samples = await this.prisma.$queryRawUnsafe<GoldenRawResult[]>(
+        sql,
+        ...queryParams,
+      );
 
-    return {
-      wavelengths: baseWavelengths,
-      values: valueSums.map((v) => v / count),
-    };
+      if (samples.length === 0) return null;
+
+      const baseWavelengths = samples[0].wavelengths;
+      const valueSums: number[] = Array.from(
+        { length: baseWavelengths.length },
+        () => 0,
+      );
+      let count = 0;
+
+      samples.forEach((sample) => {
+        if (sample.values && sample.values.length === baseWavelengths.length) {
+          sample.values.forEach((v: number, i: number) => (valueSums[i] += v));
+          count++;
+        }
+      });
+
+      if (count === 0) return null;
+
+      return {
+        wavelengths: baseWavelengths,
+        values: valueSums.map((v) => v / count),
+      };
+    } catch (e) {
+      console.error('Error fetching Golden Spectrum:', e);
+      return null;
+    }
   }
 
   async getAvailableMetrics(params: WaferQueryParams): Promise<string[]> {
