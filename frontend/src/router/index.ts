@@ -10,6 +10,7 @@ import PreAlignAnalyticsView from "../views/PreAlignAnalyticsView.vue";
 import ProcessMemoryView from "../views/ProcessMemoryView.vue";
 import SpectrumAnalysisView from "../views/SpectrumAnalysisView.vue";
 import LotUniformityTrendView from "../views/LotUniformityTrendView.vue";
+import EquipmentHealthView from "../views/EquipmentHealthView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,7 +45,13 @@ const router = createRouter({
       name: "lot-uniformity",
       component: LotUniformityTrendView,
     },
+    {
+      path: "/health",
+      name: "health",
+      component: EquipmentHealthView,
+    },
   ],
 });
 
 export default router;
+
