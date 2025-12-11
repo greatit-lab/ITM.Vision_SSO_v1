@@ -45,11 +45,17 @@ interface SpectrumRawResult {
   wavelengths: number[];
   values: number[];
 }
-interface SpectrumTrendRawResult {
+
+// Spectrum Trend 조회 시 JOIN된 결과를 담기 위한 인터페이스 (동적 컬럼 지원)
+interface SpectrumTrendJoinedResult {
   waferid: string;
   wavelengths: number[];
   values: number[];
+  serv_ts: Date | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any; // 동적 쿼리 결과 매핑을 위해 허용
 }
+
 interface ResidualRawResult {
   point: number;
   x: number | null;
@@ -195,9 +201,13 @@ export class WaferService {
     }
   }
 
-  // Spectrum Trend 데이터 조회
+  // [수정됨] Spectrum Trend 데이터 조회 (동적 컬럼 & Meta Data JOIN & 중복 제거)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getSpectrumTrend(params: WaferQueryParams): Promise<any[]> {
-    const { eqpId, lotId, pointId, waferIds, startDate, endDate } = params;
+    const { eqpId, lotId, pointId, waferIds, startDate, endDate, cassetteRcp, stageGroup } = params;
+
+    console.log('--- [getSpectrumTrend] Request Params ---');
+    console.log({ eqpId, lotId, pointId, waferIds, cassetteRcp, stageGroup });
 
     if (!lotId || !pointId || !waferIds) {
       return [];
@@ -206,44 +216,91 @@ export class WaferService {
     const waferIdList = waferIds.split(',').map((w) => w.trim());
     if (waferIdList.length === 0) return [];
 
+    // 1. [동적 컬럼 조회] cgf_lot_uniformity_metrics에서 활성화된 컬럼 목록 가져오기
+    let dynamicColumns: string[] = [];
+    try {
+      const configMetrics = await this.prisma.$queryRaw<{ metric_name: string }[]>`
+        SELECT metric_name FROM public.cgf_lot_uniformity_metrics WHERE is_excluded = 'N'
+      `;
+      const configColNames = configMetrics.map((r) => r.metric_name);
+
+      if (configColNames.length > 0) {
+        dynamicColumns = configColNames;
+      } else {
+        dynamicColumns = ['t1', 'gof', 'mse']; // Fallback
+      }
+    } catch (e) {
+      console.warn('Failed to fetch dynamic metrics config, using defaults.', e);
+      dynamicColumns = ['t1', 'gof', 'mse']; // Fallback
+    }
+
+    // gof는 필수적으로 포함
+    if (!dynamicColumns.includes('gof')) dynamicColumns.push('gof');
+    dynamicColumns = [...new Set(dynamicColumns)];
+
+    // 2. [메인 쿼리 작성]
     const queryParams: (string | number | Date)[] = [];
+    
+    // 동적 컬럼 SELECT 절 구성 (f."colName")
+    const selectColumns = dynamicColumns.map(col => `f."${col}"`).join(', ');
+
+    // DISTINCT ON을 사용하여 중복 제거 (WaferID 기준 최신 데이터 1개)
     let sql = `
-      SELECT waferid, wavelengths, values
-      FROM public.plg_onto_spectrum
-      WHERE lotid = $1
-        AND point = $2
-        AND class = 'exp'
+      SELECT DISTINCT ON (s."waferid")
+        s."waferid", s."wavelengths", s."values",
+        f."serv_ts", f."lotid",
+        ${selectColumns}
+      FROM public.plg_onto_spectrum s
+      JOIN public.plg_wf_flat f 
+        ON s."lotid" = f."lotid" 
+        AND s."waferid" = f."waferid"::varchar 
+        AND s."point" = f."point"
+      WHERE s."lotid" = $1
+        AND s."point" = $2
+        AND s."class" = 'EXP'
     `;
     queryParams.push(lotId, Number(pointId));
 
+    // Recipe 및 Stage 조건 추가
+    if (cassetteRcp) {
+      sql += ` AND f."cassettercp" = $${queryParams.length + 1}`;
+      queryParams.push(cassetteRcp);
+    }
+    if (stageGroup) {
+      sql += ` AND f."stagegroup" = $${queryParams.length + 1}`;
+      queryParams.push(stageGroup);
+    }
+
     if (eqpId) {
-      sql += ` AND eqpid = $${queryParams.length + 1}`;
+      sql += ` AND s."eqpid" = $${queryParams.length + 1}`;
       queryParams.push(eqpId);
     }
 
     const waferParams = waferIdList
       .map((_, idx) => `$${queryParams.length + 1 + idx}`)
       .join(',');
-    sql += ` AND waferid IN (${waferParams})`;
+    sql += ` AND s."waferid" IN (${waferParams})`;
     queryParams.push(...waferIdList);
 
     if (startDate) {
-      sql += ` AND ts >= $${queryParams.length + 1}`;
+      sql += ` AND s."ts" >= $${queryParams.length + 1}`;
       queryParams.push(new Date(startDate));
     }
     if (endDate) {
-      sql += ` AND ts <= $${queryParams.length + 1}`;
+      sql += ` AND s."ts" <= $${queryParams.length + 1}`;
       queryParams.push(new Date(endDate));
     }
 
-    sql += ` ORDER BY waferid ASC`;
+    // DISTINCT ON 사용 시 첫 번째 정렬 키는 waferid여야 함
+    sql += ` ORDER BY s."waferid" ASC, f."serv_ts" DESC`;
 
     try {
-      const results = await this.prisma.$queryRawUnsafe<
-        SpectrumTrendRawResult[]
-      >(sql, ...queryParams);
+      const results = await this.prisma.$queryRawUnsafe<SpectrumTrendJoinedResult[]>(sql, ...queryParams);
+      
+      console.log(`[getSpectrumTrend] Rows found: ${results.length}`);
 
       const series = results.map((row) => {
+        // 스펙트럼 데이터 처리
         const dataPoints: number[][] = [];
         if (
           row.wavelengths &&
@@ -254,10 +311,23 @@ export class WaferService {
             dataPoints.push([row.wavelengths[i], row.values[i] * 100]);
           }
         }
+
+        // explicit typing Record<string, unknown> 사용
+        const meta: Record<string, unknown> = {
+          timestamp: row.serv_ts,
+          lotId: row['lotid'] || lotId
+        };
+        
+        dynamicColumns.forEach(col => {
+          // row[col] 접근 시 타입 단언 또는 안전한 할당
+          meta[col] = row[col] as unknown;
+        });
+
         return {
           name: `W${row.waferid}`,
-          waferId: row.waferid,
+          waferId: Number(row.waferid),
           pointId: Number(pointId),
+          meta: meta, // 동적 데이터 포함
           data: dataPoints,
         };
       });
@@ -266,6 +336,48 @@ export class WaferService {
     } catch (e) {
       console.error('Error fetching spectrum trend:', e);
       return [];
+    }
+  }
+
+  // [수정됨] Step 2: Model Fit Analysis용 GEN Spectrum 조회 (색상 변경 및 따옴표 처리)
+  async getSpectrumGen(params: WaferQueryParams) {
+    const { lotId, waferId, pointId } = params;
+    if (!lotId || !waferId || !pointId) return null;
+
+    try {
+      const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
+        `SELECT "wavelengths", "values" 
+         FROM public.plg_onto_spectrum
+         WHERE "lotid" = $1 
+           AND "waferid" = $2 
+           AND "point" = $3
+           AND "class" = 'GEN'
+         LIMIT 1`,
+        lotId,
+        String(waferId),
+        Number(pointId)
+      );
+
+      if (!results || results.length === 0) return null;
+
+      const row = results[0];
+      const dataPoints: number[][] = [];
+      if (row.wavelengths && row.values) {
+        for (let i = 0; i < row.wavelengths.length; i++) {
+          dataPoints.push([row.wavelengths[i], row.values[i] * 100]);
+        }
+      }
+      return {
+        name: `Model (W${waferId})`,
+        type: 'line',
+        // [수정] 선 색상을 빨간색(#ef4444)으로 변경하여 Golden Ref(Amber) 및 실측값과 구분
+        lineStyle: { type: 'dashed', width: 2, color: '#ef4444' }, 
+        data: dataPoints,
+        symbol: 'none'
+      };
+    } catch (e) {
+      console.error('Error fetching GEN spectrum:', e);
+      return null;
     }
   }
 
@@ -433,8 +545,6 @@ export class WaferService {
       const headers = response.headers as Record<string, unknown>;
       const contentType = headers['content-type'];
 
-      // 만약 content-type이 확실히 text/html 등으로 오면 여기서 1차 필터링 가능
-      // (일부 레거시 서버는 PDF임에도 application/octet-stream 등을 줄 수 있으므로 'pdf' 포함 여부만 체크)
       if (
         typeof contentType === 'string' &&
         contentType.toLowerCase().includes('html')
@@ -453,18 +563,16 @@ export class WaferService {
         writer.on('error', reject);
       });
 
-      // 2. [강화된 수정] Magic Number Check & Debug Logging
+      // 2. Magic Number Check
       try {
         const fd = fs.openSync(tempPdfPath, 'r');
-        const headerBuffer = Buffer.alloc(100); // 앞부분 100바이트 읽기
+        const headerBuffer = Buffer.alloc(100); 
         const bytesRead = fs.readSync(fd, headerBuffer, 0, 100, 0);
         fs.closeSync(fd);
 
         const headerString = headerBuffer.toString('utf8', 0, bytesRead);
 
-        // PDF 파일 시그니처 체크 (%PDF)
         if (bytesRead < 4 || !headerString.startsWith('%PDF')) {
-          // 디버깅을 위해 다운로드된 파일 내용의 앞부분을 로그에 출력
           console.error(
             `[PDF Signature Error] First 100 chars of downloaded file: \n${headerString}`,
           );
@@ -474,7 +582,7 @@ export class WaferService {
         }
       } catch (checkErr) {
         if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
-        throw checkErr; // 상위 catch로 전달 -> 클라이언트에 500 에러와 메시지 전송
+        throw checkErr; 
       }
 
       // 3. Poppler 변환
@@ -542,7 +650,7 @@ export class WaferService {
     }
   }
 
-  // ... (나머지 메서드들은 기존 유지) ...
+  // [수정됨] 단일 Spectrum 조회 (컬럼명 따옴표 처리)
   async getSpectrum(params: WaferQueryParams) {
     const { eqpId, lotId, waferId, pointNumber, ts } = params;
 
@@ -555,15 +663,16 @@ export class WaferService {
       const tsRaw = targetDate.toISOString();
       const tableName = 'public.plg_onto_spectrum';
 
+      // values, class 등 예약어 충돌 방지 및 따옴표 처리
       const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
-        `SELECT class, wavelengths, values 
+        `SELECT "class", "wavelengths", "values" 
          FROM ${tableName}
-         WHERE eqpid = $1 
-           AND ts >= $2::timestamp - interval '2 second'
-           AND ts <= $2::timestamp + interval '2 second'
-           AND lotid = $3 
-           AND waferid = $4 
-           AND point = $5`,
+         WHERE "eqpid" = $1 
+           AND "ts" >= $2::timestamp - interval '2 second'
+           AND "ts" <= $2::timestamp + interval '2 second'
+           AND "lotid" = $3 
+           AND "waferid" = $4 
+           AND "point" = $5`,
         eqpId,
         tsRaw,
         lotId,
@@ -703,16 +812,12 @@ export class WaferService {
   }
 
   async checkPdf(params: WaferQueryParams) {
-    // [수정] lotId, waferId 파라미터는 사용하지만, DB 쿼리에서는 제거
-    // (테이블 컬럼 존재 여부 불확실하므로 기존 로직대로 날짜만 사용하고 필터링)
     const { eqpId, lotId, waferId, servTs } = params;
     if (!eqpId || !servTs) return { exists: false, url: null };
 
     try {
       const ts = typeof servTs === 'string' ? servTs : servTs.toISOString();
 
-      // SQL 수정: lotid, waferid 조건 제거 (컬럼 없을 수 있음)
-      // 대신 날짜 범위 내의 모든 후보를 가져와서 JavaScript로 필터링
       const results = await this.prisma.$queryRawUnsafe<PdfResult[]>(
         `SELECT file_uri FROM public.plg_wf_map 
          WHERE eqpid = $1 
@@ -727,24 +832,19 @@ export class WaferService {
         return { exists: false, url: null };
       }
 
-      // [추가] 파일명(file_uri)을 기반으로 Lot ID와 Wafer ID 매칭 (메모리 필터링)
       if (lotId) {
         const targetLot = lotId.trim();
-        const targetLotUnderscore = targetLot.replace(/\./g, '_'); // "ABC.1" -> "ABC_1" 대응
+        const targetLotUnderscore = targetLot.replace(/\./g, '_'); 
 
         const matched = results.find((r) => {
           if (!r.file_uri) return false;
           const uri = r.file_uri;
 
-          // Lot ID 포함 여부 확인
           const hasLot =
             uri.includes(targetLot) || uri.includes(targetLotUnderscore);
 
-          // Wafer ID 포함 여부 확인 (숫자로 존재하면 체크)
           let hasWafer = true;
           if (waferId) {
-            // WaferID가 간단한 숫자(예: 1)일 경우 다른 숫자에 포함될 수 있으므로 주의가 필요하지만,
-            // 보통 파일명 패턴이 _W01_ 등으로 되어있으므로 단순 포함 여부 체크
             hasWafer = uri.includes(String(waferId));
           }
 
@@ -755,7 +855,6 @@ export class WaferService {
           return { exists: true, url: matched.file_uri };
         }
       } else {
-        // Lot ID 정보가 없으면 가장 최신 파일 반환 (Fallback)
         return { exists: true, url: results[0].file_uri };
       }
     } catch (e) {
@@ -831,22 +930,24 @@ export class WaferService {
     return result;
   }
 
+  // [수정됨] Golden Spectrum 조회 (조건 대폭 완화: 데이터 보장용)
   async getGoldenSpectrum(params: WaferQueryParams) {
     const { eqpId, cassetteRcp, stageGroup, film } = params;
 
+    // [변경] 날짜 제한(7일) 제거, GOF 0.98 제한 제거
+    // 해당 레시피 이력 중 GOF가 가장 높은 상위 10개를 가져와 평균냄 (데이터가 있으면 무조건 나오게)
     const samples = await this.prisma.$queryRawUnsafe<GoldenRawResult[]>(
-      `SELECT s.wavelengths, s.values
+      `SELECT s."wavelengths", s."values"
        FROM public.plg_onto_spectrum s
        JOIN public.plg_wf_flat f 
-         ON s.eqpid = f.eqpid AND s.lotid = f.lotid AND s.waferid = f.waferid::varchar AND s.point = f.point
-       WHERE s.class = 'exp'
-         AND f.eqpid = $1
-         AND f.cassettercp = $2
-         AND f.stagegroup = $3
-         AND f.film = $4
-         AND f.gof >= 0.98
-         AND f.serv_ts >= NOW() - INTERVAL '7 days'
-       LIMIT 50`,
+         ON s."eqpid" = f."eqpid" AND s."lotid" = f."lotid" AND s."waferid" = f."waferid"::varchar AND s."point" = f."point"
+       WHERE s."class" = 'EXP'
+         AND f."eqpid" = $1
+         AND f."cassettercp" = $2
+         AND f."stagegroup" = $3
+         AND f."film" = $4
+       ORDER BY f."gof" DESC
+       LIMIT 10`,
       eqpId,
       cassetteRcp || '',
       stageGroup || '',
