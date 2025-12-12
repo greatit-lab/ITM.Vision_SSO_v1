@@ -1271,7 +1271,7 @@ export class WaferService {
     }
   }
 
-  // [신규] 비교 분석용 상세 데이터 조회
+  // [수정] 비교 분석용 상세 데이터 조회
   async getComparisonData(
     params: WaferQueryParams,
   ): Promise<ComparisonRawResult[]> {
@@ -1279,7 +1279,7 @@ export class WaferService {
       params;
 
     if (!targetEqps || !startDate || !endDate || !cassetteRcp) return [];
-    const eqpList = targetEqps.split(',');
+    const eqpList = targetEqps.split(',').map((e) => e.trim()); // 공백 제거
 
     let metrics: string[] = ['t1', 'gof', 'mse', 'thickness'];
     try {
@@ -1292,9 +1292,6 @@ export class WaferService {
     }
 
     const selectCols = metrics.map((m) => `"${m}"`).join(', ');
-    const metricConditions = metrics
-      .map((m) => `"${m}" IS NOT NULL`)
-      .join(' AND ');
 
     const start =
       typeof startDate === 'string' ? new Date(startDate) : startDate;
