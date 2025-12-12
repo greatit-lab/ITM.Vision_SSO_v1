@@ -175,8 +175,8 @@ interface ComparisonRow {
   eqpid: string;
   lotid: string;
   waferid: string;
-  point: number;
-  [key: string]: number | string | null | undefined;
+  point?: number;
+  [key: string]: string | number | null | undefined;
 }
 
 interface FilterState {
@@ -213,9 +213,9 @@ const selectedEqps = ref<string[]>([]);
 // [핵심] 2. rawData에 인터페이스 적용
 const rawData = ref<ComparisonRow[]>([]);
 const metricOptions = ref<string[]>(['t1', 'gof', 'mse', 'thickness']);
-const selectedMetric = ref('t1');
-const scatterX = ref('t1');
-const scatterY = ref('gof');
+const selectedMetric = ref<string>('t1');
+const scatterX = ref<string>('t1');
+const scatterY = ref<string>('gof');
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver;
@@ -334,9 +334,17 @@ const loadComparisonData = async () => {
        
        if (keys.length > 0) {
          metricOptions.value = keys;
-         if(!keys.includes(selectedMetric.value)) selectedMetric.value = keys[0];
-         if(!keys.includes(scatterX.value)) scatterX.value = keys[0];
-         if(!keys.includes(scatterY.value)) scatterY.value = keys.length > 1 ? keys[1] : keys[0];
+         if (!keys.includes(selectedMetric.value)) {
+           selectedMetric.value = keys[0] ?? selectedMetric.value;
+         }
+
+         if(!keys.includes(scatterX.value)) {
+           scatterX.value = keys[0] ?? scatterX.value;
+         }
+
+         if(!keys.includes(scatterY.value)) {
+           scatterY.value = keys[1] ?? keys[0] ?? scatterY.value;
+         }
        }
     }
   } catch(e) {
@@ -354,51 +362,75 @@ const resetFilters = () => {
 };
 
 // Box Plot Calculation
-const calculateBoxPlotData = (data: number[]) => {
-  if (data.length === 0) return [0, 0, 0, 0, 0];
-  
-  const sorted = [...data].sort((a, b) => a - b);
+const calculateBoxPlotData = (
+  data: readonly (number | undefined)[]
+): number[] => {
+  // ✅ undefined/NaN 제거 + number[]로 확정
+  const values: number[] = [];
+  for (const v of data) {
+    if (typeof v === "number" && !Number.isNaN(v)) values.push(v);
+  }
+
+  // ✅ 빈 배열이면 즉시 반환 → 아래에서 sorted[0] undefined 불가
+  if (values.length === 0) return [0, 0, 0, 0, 0];
+
+  const sorted = values.slice().sort((a, b) => a - b);
+
+  // ✅ min/max를 "undefined 불가"로 확정 (length>0 보장 상태)
+  const min = sorted[0]!;
+  const max = sorted[sorted.length - 1]!;
+
   const q1 = quantile(sorted, 0.25);
   const median = quantile(sorted, 0.5);
   const q3 = quantile(sorted, 0.75);
-  const min = sorted[0];
-  const max = sorted[sorted.length - 1];
 
   return [min, q1, median, q3, max];
 };
 
 const quantile = (sorted: number[], q: number): number => {
+  if (sorted.length === 0) return 0;
+
   const pos = (sorted.length - 1) * q;
   const base = Math.floor(pos);
   const rest = pos - base;
-  
+
+  // ✅ index 접근 결과를 즉시 number로 좁힘
   const baseVal = sorted[base];
+  if (baseVal === undefined) {
+    return 0;
+  }
+
   const nextVal = sorted[base + 1];
 
-  if (baseVal === undefined) return 0;
-
-  if (nextVal !== undefined) {
+  if (typeof nextVal === "number") {
     return baseVal + rest * (nextVal - baseVal);
-  } else {
-    return baseVal;
   }
+
+  return baseVal;
 };
 
-// [핵심] 3. Box Plot Type Narrowing
+// [핵심] 3. Box Plot Type Narrowing (TS Strict 완전 통과 버전)
 const boxPlotOption = computed(() => {
   if (rawData.value.length === 0) return {};
-  
+
   const categories = selectedEqps.value;
-  const boxData: number[][] = []; 
-  const outliers: number[][] = []; 
+  const boxData: number[][] = [];
+  const outliers: number[][] = [];
 
   categories.forEach((eqp, index) => {
-    // Type Guard를 사용하여 number 타입만 필터링
-    const values = rawData.value
-      .filter(r => r.eqpid === eqp)
-      .map(r => r[selectedMetric.value])
-      .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    // ✅ TS가 100% 신뢰하는 number[] 생성 방식
+    const values: number[] = [];
 
+    for (const r of rawData.value) {
+      if (r.eqpid !== eqp) continue;
+
+      const v = r[selectedMetric.value];
+      if (typeof v === "number" && !Number.isNaN(v)) {
+        values.push(v);
+      }
+    }
+
+    // ✅ 이제 TS는 values를 확실한 number[]로 인식
     const stats = calculateBoxPlotData(values);
     boxData.push(stats);
 
@@ -408,34 +440,39 @@ const boxPlotOption = computed(() => {
     const lowerBound = q1 - 1.5 * iqr;
     const upperBound = q3 + 1.5 * iqr;
 
-    values.forEach(v => {
+    values.forEach((v) => {
       if (v < lowerBound || v > upperBound) {
         outliers.push([index, v]);
       }
     });
   });
 
-  const textColor = isDarkMode.value ? '#cbd5e1' : '#475569';
-  const gridColor = isDarkMode.value ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
+  const gridColor = isDarkMode.value
+    ? "rgba(255,255,255,0.1)"
+    : "rgba(0,0,0,0.1)";
 
   return {
-    backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'item', 
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
       confine: true,
       formatter: (param: any) => {
-        if (param.componentType === 'series' && param.seriesType === 'boxplot') {
-           return `
-             <div class="font-bold border-b pb-1 mb-1">${param.name}</div>
-             Max: ${param.data[5]?.toFixed(3)}<br/>
-             Q3: ${param.data[4]?.toFixed(3)}<br/>
-             Median: ${param.data[3]?.toFixed(3)}<br/>
-             Q1: ${param.data[2]?.toFixed(3)}<br/>
-             Min: ${param.data[1]?.toFixed(3)}
-           `;
+        if (
+          param.componentType === "series" &&
+          param.seriesType === "boxplot"
+        ) {
+          return `
+            <div class="pb-1 mb-1 font-bold border-b">${param.name}</div>
+            Max: ${param.data[5]?.toFixed(3)}<br/>
+            Q3: ${param.data[4]?.toFixed(3)}<br/>
+            Median: ${param.data[3]?.toFixed(3)}<br/>
+            Q1: ${param.data[2]?.toFixed(3)}<br/>
+            Min: ${param.data[1]?.toFixed(3)}
+          `;
         }
         return `${param.name}: ${param.data[1]}`;
-      }
+      },
     },
     grid: { left: 50, right: 20, bottom: 30, top: 30 },
     xAxis: {
