@@ -11,6 +11,7 @@ import ProcessMemoryView from "../views/ProcessMemoryView.vue";
 import SpectrumAnalysisView from "../views/SpectrumAnalysisView.vue";
 import LotUniformityTrendView from "../views/LotUniformityTrendView.vue";
 import EquipmentHealthView from "../views/EquipmentHealthView.vue";
+import ProcessMatchingAnalyticsView from "../views/ProcessMatchingAnalyticsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,8 +51,14 @@ const router = createRouter({
       name: "health",
       component: EquipmentHealthView,
     },
+    {
+      path: "/process-matching",
+      name: "process-matching",
+      component: ProcessMatchingAnalyticsView,
+    },
   ],
 });
 
 export default router;
+
 
