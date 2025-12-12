@@ -33,6 +33,10 @@ export class WaferQueryParams {
   pointId?: string;
   waferIds?: string;
   metric?: string;
+  // [추가] 필터링 및 매칭 분석용 필드
+  site?: string;
+  sdwt?: string;
+  targetEqps?: string;
 }
 
 interface StatsRawResult {
@@ -61,7 +65,6 @@ interface SpectrumTrendJoinedResult {
   [key: string]: any;
 }
 
-// [수정] ESLint 'unused' 오류 방지를 위해 export 처리
 export interface ResidualRawResult {
   point: number;
   x: number | null;
@@ -70,7 +73,6 @@ export interface ResidualRawResult {
   values: number[];
 }
 
-// [수정] ESLint 'unused' 오류 방지를 위해 export 처리
 export interface GoldenRawResult {
   wavelengths: number[];
   values: number[];
@@ -91,6 +93,15 @@ export interface ResidualMapItem {
   x: number;
   y: number;
   residual: number;
+}
+
+// [추가] 비교 분석 데이터 반환용 인터페이스 정의
+export interface ComparisonRawResult {
+  eqpid: string;
+  lotid: string;
+  waferid: number;
+  point: number;
+  [key: string]: string | number | null; // 동적 Metric 컬럼 허용
 }
 
 interface PopplerModule {
@@ -216,8 +227,7 @@ export class WaferService {
     }
   }
 
-  // [수정됨] Spectrum Trend 데이터 조회
-
+  // Spectrum Trend 데이터 조회
   async getSpectrumTrend(params: WaferQueryParams): Promise<any[]> {
     const {
       eqpId,
@@ -356,7 +366,7 @@ export class WaferService {
     }
   }
 
-  // [수정] Model Fit Analysis용 GEN Spectrum 조회 (시간 범위 검색 및 동적 테이블 적용)
+  // Model Fit Analysis용 GEN Spectrum 조회 (시간 범위 검색 및 동적 테이블 적용)
   async getSpectrumGen(params: WaferQueryParams) {
     const { lotId, waferId, pointId, eqpId, ts } = params;
 
@@ -367,9 +377,7 @@ export class WaferService {
       const targetDate = typeof ts === 'string' ? new Date(ts) : ts;
       const now = new Date();
 
-      // 1. 테이블 동적 선택 로직 (당월이 아니면 월별 테이블 사용)
-      // ts가 '2025-12-11'이고 현재가 '2025-12'라면 public.plg_onto_spectrum 사용
-      // 만약 과거 데이터라면 public.plg_onto_spectrum_y2025mXX 사용
+      // 1. 테이블 동적 선택 로직
       const tYear = targetDate.getFullYear();
       const tMonth = targetDate.getMonth();
       const cYear = now.getFullYear();
@@ -382,10 +390,9 @@ export class WaferService {
         tableName = `public.plg_onto_spectrum_y${tYear}m${mm}`;
       }
 
-      // [중요] 타임스탬프 포맷 (Prisma용)
       const tsRaw = targetDate.toISOString();
 
-      // 2. 쿼리 실행: Timestamp Exact Match(=) 대신 범위 검색(interval '2 second') 사용
+      // 2. 쿼리 실행: Timestamp 범위 검색(interval '2 second') 적용
       const results = await this.prisma.$queryRawUnsafe<SpectrumRawResult[]>(
         `SELECT "wavelengths", "values" 
          FROM ${tableName}
@@ -393,16 +400,16 @@ export class WaferService {
            AND "waferid" = $2  
            AND "point" = $3    
            AND "eqpid" = $4    
-           AND "ts" >= $5::timestamp - interval '2 second' -- [변경] 2초 전부터
-           AND "ts" <= $5::timestamp + interval '2 second' -- [변경] 2초 후까지 검색
+           AND "ts" >= $5::timestamp - interval '2 second'
+           AND "ts" <= $5::timestamp + interval '2 second'
            AND "class" = 'GEN'
-         ORDER BY ABS(EXTRACT(EPOCH FROM ("ts" - $5::timestamp))) ASC -- 가장 가까운 시간 순 정렬
+         ORDER BY ABS(EXTRACT(EPOCH FROM ("ts" - $5::timestamp))) ASC
          LIMIT 1`,
         lotId,
         String(waferId),
         Number(pointId),
         eqpId,
-        tsRaw, // Date 객체 대신 ISO 문자열 전달 후 SQL에서 캐스팅
+        tsRaw,
       );
 
       if (!results || results.length === 0) return null;
@@ -418,7 +425,7 @@ export class WaferService {
       return {
         name: `Model (W${waferId})`,
         type: 'line',
-        lineStyle: { type: 'dashed', width: 2, color: '#ef4444' }, // 빨간 점선
+        lineStyle: { type: 'dashed', width: 2, color: '#ef4444' },
         data: dataPoints,
         symbol: 'none',
       };
@@ -855,7 +862,6 @@ export class WaferService {
     }
   }
 
-  // [수정] checkPdf 리턴 타입 명시 (ESLint 오류 해결)
   async checkPdf(
     params: WaferQueryParams,
   ): Promise<{ exists: boolean; url: string | null }> {
@@ -865,7 +871,6 @@ export class WaferService {
     try {
       const ts = typeof servTs === 'string' ? servTs : servTs.toISOString();
 
-      // [수정] PdfResult 타입 사용 (unused vars 해결)
       const results = await this.prisma.$queryRawUnsafe<PdfResult[]>(
         `SELECT file_uri FROM public.plg_wf_map 
          WHERE eqpid = $1 
@@ -918,7 +923,6 @@ export class WaferService {
     const targetDate = new Date(ts);
     const tsRaw = targetDate.toISOString();
 
-    // [수정] ResidualRawResult 타입 명시적 사용 (unused vars 해결)
     const rawData = await this.prisma.$queryRawUnsafe<ResidualRawResult[]>(
       `SELECT s.point, f.x, f.y, s.class, s.values 
        FROM public.plg_onto_spectrum s
@@ -979,7 +983,6 @@ export class WaferService {
     return result;
   }
 
-  // [수정됨] Golden Spectrum 조회
   async getGoldenSpectrum(params: WaferQueryParams) {
     const { eqpId, cassetteRcp, stageGroup, film, pointId } = params;
 
@@ -1016,7 +1019,6 @@ export class WaferService {
     sql += ` ORDER BY f."gof" DESC LIMIT 10`;
 
     try {
-      // [수정] GoldenRawResult 타입 명시적 사용 (unused vars 해결)
       const samples = await this.prisma.$queryRawUnsafe<GoldenRawResult[]>(
         sql,
         ...queryParams,
@@ -1213,5 +1215,121 @@ export class WaferService {
       percentNonU: 0,
     };
     return { t1: emptyItem, gof: emptyItem, z: emptyItem, srvisz: emptyItem };
+  }
+
+  // [신규] 조건에 매칭되는 장비 목록 조회
+  async getMatchingEquipments(params: WaferQueryParams): Promise<string[]> {
+    const { site, sdwt, startDate, endDate, cassetteRcp, stageGroup, film } =
+      params;
+
+    if (!startDate || !endDate || !cassetteRcp) return [];
+
+    const start =
+      typeof startDate === 'string' ? new Date(startDate) : startDate;
+    const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+
+    let sql = `
+      SELECT DISTINCT t1.eqpid
+      FROM public.plg_wf_flat t1
+      JOIN public.ref_equipment t2 ON t1.eqpid = t2.eqpid
+      JOIN public.ref_sdwt t3 ON t2.sdwt = t3.sdwt
+      WHERE t1.serv_ts >= $1 AND t1.serv_ts <= $2
+        AND t1.cassettercp = $3
+    `;
+
+    const queryParams: (string | Date | number)[] = [start, end, cassetteRcp];
+    let pIdx = 4;
+
+    if (site) {
+      sql += ` AND t3.site = $${pIdx++}`;
+      queryParams.push(site);
+    }
+    if (sdwt) {
+      sql += ` AND t3.sdwt = $${pIdx++}`;
+      queryParams.push(sdwt);
+    }
+    if (stageGroup) {
+      sql += ` AND t1.stagegroup = $${pIdx++}`;
+      queryParams.push(stageGroup);
+    }
+    if (film) {
+      sql += ` AND t1.film = $${pIdx++}`;
+      queryParams.push(film);
+    }
+
+    sql += ` ORDER BY t1.eqpid`;
+
+    try {
+      const res = await this.prisma.$queryRawUnsafe<{ eqpid: string }[]>(
+        sql,
+        ...queryParams,
+      );
+      return res.map((r) => r.eqpid);
+    } catch (e) {
+      console.error('Error fetching matching equipments:', e);
+      return [];
+    }
+  }
+
+  // [신규] 비교 분석용 상세 데이터 조회
+  async getComparisonData(
+    params: WaferQueryParams,
+  ): Promise<ComparisonRawResult[]> {
+    const { startDate, endDate, cassetteRcp, stageGroup, film, targetEqps } =
+      params;
+
+    if (!targetEqps || !startDate || !endDate || !cassetteRcp) return [];
+    const eqpList = targetEqps.split(',');
+
+    let metrics: string[] = ['t1', 'gof', 'mse', 'thickness'];
+    try {
+      const conf = await this.prisma.$queryRaw<{ metric_name: string }[]>`
+        SELECT metric_name FROM public.cgf_lot_uniformity_metrics WHERE is_excluded = 'N'
+      `;
+      if (conf.length > 0) metrics = conf.map((c) => c.metric_name);
+    } catch (e) {
+      console.warn('Failed to fetch metrics config:', e);
+    }
+
+    const selectCols = metrics.map((m) => `"${m}"`).join(', ');
+    const metricConditions = metrics
+      .map((m) => `"${m}" IS NOT NULL`)
+      .join(' AND ');
+
+    const start =
+      typeof startDate === 'string' ? new Date(startDate) : startDate;
+    const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+
+    let sql = `
+      SELECT eqpid, lotid, waferid, point, ${selectCols}
+      FROM public.plg_wf_flat
+      WHERE serv_ts >= $1 AND serv_ts <= $2
+        AND cassettercp = $3
+        AND eqpid IN (${eqpList.map((e) => `'${e}'`).join(',')})
+    `;
+
+    const queryParams: (string | Date | number)[] = [start, end, cassetteRcp];
+    let pIdx = 4;
+
+    if (stageGroup) {
+      sql += ` AND stagegroup = $${pIdx++}`;
+      queryParams.push(stageGroup);
+    }
+    if (film) {
+      sql += ` AND film = $${pIdx++}`;
+      queryParams.push(film);
+    }
+
+    sql += ` ORDER BY serv_ts DESC LIMIT 5000`;
+
+    try {
+      return await this.prisma.$queryRawUnsafe<ComparisonRawResult[]>(
+        sql,
+        ...queryParams,
+      );
+    } catch (e) {
+      console.error('Error fetching comparison data:', e);
+      return [];
+    }
   }
 }
