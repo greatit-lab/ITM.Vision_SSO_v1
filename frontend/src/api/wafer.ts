@@ -129,9 +129,9 @@ export const waferApi = {
 
   // 5. PDF 존재 여부 확인
   checkPdf: async (
-    eqpId: string, 
-    lotId: string, 
-    waferId: number, 
+    eqpId: string,
+    lotId: string,
+    waferId: number,
     servTs: string
   ) => {
     const dt = typeof servTs === "string" ? servTs : (servTs as unknown as Date).toISOString();
@@ -238,4 +238,15 @@ export const waferApi = {
     const { data } = await apiClient.get<any>("/WaferData/spectrum-gen", { params });
     return data;
   },
+
+  getMatchingEquipments: async (params: any) => {
+    const { data } = await apiClient.get<string[]>("/WaferData/matching-eqps", { params });
+    return data;
+  },
+
+  getComparisonData: async (params: any) => {
+    const { data } = await apiClient.get<any[]>("/WaferData/comparison", { params });
+    return data;
+  },
 };
+
