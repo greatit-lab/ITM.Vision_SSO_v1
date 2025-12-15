@@ -111,6 +111,7 @@
     </div>
 
     <div
+      v-if="refEqpId"
       class="flex flex-col flex-1 min-h-0 gap-3 pb-2 overflow-hidden lg:flex-row animate-fade-in"
     >
       <div
@@ -138,10 +139,6 @@
               Target Condition
             </div>
             <div class="pl-2 space-y-2">
-              <div v-if="!refEqpId" class="text-[10px] text-amber-500 italic mb-2 pl-1">
-                * Please select Reference EQP first.
-              </div>
-              
               <div>
                 <label class="text-[10px] text-slate-400 block mb-1">CASSETTE RCP</label>
                 <Select
@@ -165,7 +162,7 @@
                   :disabled="!filters.cassetteRcp"
                   class="w-full custom-dropdown small"
                   overlayClass="custom-dropdown-panel small"
-                  @change="onConditionChange"
+                  @change="onStageChange"
                 />
               </div>
               
@@ -178,7 +175,7 @@
                   :disabled="!filters.stageGroup"
                   class="w-full custom-dropdown small"
                   overlayClass="custom-dropdown-panel small"
-                  @change="onConditionChange"
+                  @change="onFilmChange"
                 />
               </div>
             </div>
@@ -410,6 +407,19 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-else
+      class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]"
+    >
+      <div
+        class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
+      >
+        <i class="text-4xl pi pi-filter text-slate-300 dark:text-zinc-600"></i>
+      </div>
+      <p class="text-sm font-bold text-slate-500">Select Global Filters</p>
+      <p class="text-xs">Please select Site, SDWT, and Ref EQP first.</p>
+    </div>
   </div>
 </template>
 
@@ -449,7 +459,7 @@ const isEqpLoading = ref(false);
 const isDataLoading = ref(false);
 const hasSearched = ref(false);
 
-// [수정] Analytics State & Options (한글 툴팁 설명 추가)
+// Analytics State & Options
 const selectedAnalytics = ref<string[]>([]); 
 const analyticsOptions = ref([
   { name: 'Centroid', code: 'centroid', desc: '군집의 중심점(평균) 표시' },
@@ -620,20 +630,44 @@ const onCassetteChange = async () => {
   }
 };
 
-const onConditionChange = async () => {
-  if (filters.stageGroup) {
-    const params = {
-      ...getBaseParams(),
-      cassetteRcp: filters.cassetteRcp ?? "",
-      stageGroup: filters.stageGroup ?? "",
-    };
-    films.value = await waferApi.getDistinctValues("films", params);
+// [수정] Stage Group 변경 핸들러 (Film 목록 조회 및 자동 선택)
+const onStageChange = async () => {
+  filters.film = undefined;
+  films.value = [];
+  targetEqps.value = [];
+  selectedEqps.value = [];
+
+  if (filters.cassetteRcp && filters.stageGroup) {
+    try {
+      const params = {
+        ...getBaseParams(),
+        cassetteRcp: filters.cassetteRcp,
+        stageGroup: filters.stageGroup,
+      };
+      films.value = await waferApi.getDistinctValues("films", params);
+
+      // Film 항목이 1개면 자동 선택 후 장비 목록 조회
+      if (films.value.length === 1) {
+        filters.film = films.value[0];
+        await onFilmChange();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
-  loadEquipments();
+};
+
+// [수정] Film 변경 핸들러 (장비 목록 조회)
+const onFilmChange = async () => {
+  targetEqps.value = [];
+  selectedEqps.value = [];
+  if (filters.film) {
+    await loadEquipments();
+  }
 };
 
 const loadEquipments = async () => {
-  if (!filters.cassetteRcp || !filters.stageGroup) return;
+  if (!filters.cassetteRcp || !filters.stageGroup || !filters.film) return;
   
   isEqpLoading.value = true;
   try {
@@ -644,7 +678,17 @@ const loadEquipments = async () => {
       film: filters.film ?? "",
     };
     
-    targetEqps.value = await waferApi.getMatchingEquipments(params);
+    // 장비 목록 조회
+    const list = await waferApi.getMatchingEquipments(params);
+    
+    // [수정] Ref 장비가 최상단에 오도록 정렬
+    list.sort((a, b) => {
+      if (a === refEqpId.value) return -1;
+      if (b === refEqpId.value) return 1;
+      return a.localeCompare(b);
+    });
+
+    targetEqps.value = list;
     
     if (refEqpId.value && targetEqps.value.includes(refEqpId.value)) {
         selectedEqps.value = [refEqpId.value];
@@ -653,6 +697,7 @@ const loadEquipments = async () => {
     }
   } catch (e) {
     console.error(e);
+    targetEqps.value = [];
   } finally {
     isEqpLoading.value = false;
   }
@@ -671,7 +716,6 @@ const toggleAllEquipments = () => {
 };
 
 const toggleAnalytics = (code: string) => {
-  // [추가] 차트가 그려지지 않은 상태에서는 동작하지 않음
   if (!hasSearched.value) return; 
   
   const index = selectedAnalytics.value.indexOf(code);
