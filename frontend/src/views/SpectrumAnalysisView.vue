@@ -610,9 +610,11 @@ const onSdwtChange = async () => {
   resetFrom(1);
   if (filterStore.selectedSdwt) {
     localStorage.setItem("spec_sdwt", filterStore.selectedSdwt);
+    // [수정] Agent가 설치된 장비만 조회하도록 'agent' 타입 사용
     eqpIds.value = await equipmentApi.getEqpIds(
       undefined,
-      filterStore.selectedSdwt
+      filterStore.selectedSdwt,
+      "agent"
     );
   } else {
     localStorage.removeItem("spec_sdwt");
