@@ -122,29 +122,34 @@
 
     <div
       class="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-sm transition-all duration-300"
-      :class="isOpen ? '' : 'flex justify-center px-0'"
+      :class="isOpen ? '' : 'flex justify-center px-0'" 
     >
       <div
         class="flex items-center gap-3 p-1.5 rounded-lg cursor-pointer hover:bg-white dark:hover:bg-slate-700/50 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-600 shadow-sm hover:shadow-md group"
+        :class="isOpen ? 'w-full' : 'justify-center w-auto'"
       >
         <div
-          class="w-8 h-8 rounded-full bg-slate-800 dark:bg-slate-200 flex items-center justify-center text-white dark:text-slate-900 font-bold shadow-md flex-shrink-0 group-hover:scale-105 transition-transform text-xs"
+          class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold transition-all duration-300 text-xs shrink-0 relative"
+          :class="roleAvatarClass"
+          :title="mockRole"
         >
-          A
+          {{ roleInitial }}
+          
+          <span 
+            v-if="mockRole === 'Admin'"
+            class="absolute inset-0 rounded-full animate-ping opacity-20 bg-rose-500"
+          ></span>
         </div>
+
         <div
-          class="overflow-hidden transition-all duration-300"
+          class="overflow-hidden transition-all duration-300 flex-1 min-w-0 flex flex-col justify-center"
           :class="isOpen ? 'w-auto opacity-100' : 'w-0 opacity-0 hidden'"
         >
           <p
-            class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate"
+            class="text-sm font-extrabold text-slate-700 dark:text-slate-200 truncate leading-tight"
+            :title="mockSiteInfo"
           >
-            Administrator
-          </p>
-          <p
-            class="text-[10px] text-slate-500 dark:text-slate-400 truncate font-semibold"
-          >
-            System Manager
+            {{ mockSiteInfo }}
           </p>
         </div>
       </div>
@@ -153,10 +158,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
+// import { useAuthStore } from "@/stores/auth"; // [수정] 실제 데이터 연동 시 주석 해제하세요
 import logoUrl from "@/assets/ITM_Vision.png";
 
+// const authStore = useAuthStore(); // [수정] 현재 목업 사용으로 미사용 처리
 const isOpen = ref(true);
+
+// --- 목업 데이터 (Mock Data) ---
+const mockRole = ref("Admin"); 
+const mockSiteInfo = ref("P3-Ph2 / SDWT-Gr1");
+
+// 권한 이니셜 추출 (A, M, U)
+const roleInitial = computed(() => mockRole.value.charAt(0).toUpperCase());
+
+// [디자인 로직] 권한에 따른 Border & Glow 스타일 클래스 정의
+const roleAvatarClass = computed(() => {
+  switch (mockRole.value) {
+    case 'Admin': 
+      return [
+        'bg-rose-500', 
+        'shadow-[0_0_12px_rgba(244,63,94,0.6)]', 
+        'ring-2 ring-white dark:ring-zinc-800',  
+        'border border-rose-400'
+      ];
+    case 'Manager': 
+      return [
+        'bg-amber-500', 
+        'ring-2 ring-amber-300/80 dark:ring-amber-600', 
+        'ring-offset-1 ring-offset-white dark:ring-offset-zinc-900', 
+        'shadow-md'
+      ];
+    default: 
+      return [
+        'bg-slate-500', 
+        'border border-slate-300 dark:border-slate-600',
+        'shadow-sm'
+      ];
+  }
+});
 
 const menuGroups = [
   {
@@ -269,6 +309,3 @@ const toggleGroup = (group: string) => {
   scrollbar-width: none;
 }
 </style>
-
-
-
