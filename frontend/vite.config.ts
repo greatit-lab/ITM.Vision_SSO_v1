@@ -1,30 +1,42 @@
 // frontend/vite.config.ts
-import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
-import basicSsl from "@vitejs/plugin-basic-ssl"; // [신규 추가] HTTPS 플러그인
+import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite' // loadEnv 제거
+import vue from '@vitejs/plugin-vue'
+import fs from 'fs'
+import path from 'path'
 
-export default defineConfig({
-  plugins: [
-    vue(),
-    basicSsl() // [신규 추가] 이 플러그인이 자동으로 인증서를 생성하고 https를 활성화합니다.
-  ],
-  server: {
-    host: "0.0.0.0",
-    port: 8082, // 개발 포트
-    strictPort: true,
-    // https: true, // basicSsl 플러그인이 자동으로 true로 설정하므로 주석 처리해도 됨
-    proxy: {
-      "/api": {
-        target: "http://localhost:3000", // 백엔드는 여전히 HTTP (3000) 유지 (Vite가 SSL 종료 후 전달)
-        changeOrigin: true,
-        secure: false, // 백엔드가 HTTP이므로 보안 검증 무시
+// https://vitejs.dev/config/
+export default defineConfig(() => {
+  // [수정] 사용하지 않는 'const env = loadEnv(...)' 라인을 삭제했습니다.
+
+  return {
+    plugins: [
+      vue(),
+    ],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url))
+      }
+    },
+    server: {
+      // 1. 개발 PC 포트 설정 (8082)
+      port: 8082,
+      
+      // 2. HTTPS 설정 (받아둔 pfx 파일 사용)
+      https: {
+        // [직접 수정] pfx 파일 경로와 비밀번호를 입력하세요.
+        pfx: fs.readFileSync(path.resolve(__dirname, 'cert/개발PC_IP.pfx')),
+        passphrase: '인증서_비밀번호_입력', // 비밀번호가 없으면 이 줄 삭제
       },
-    },
-  },
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
-});
+
+      // 3. 프록시 설정 (8082 -> 3000 연결)
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000', // 백엔드 주소 (로컬 고정)
+          changeOrigin: true,
+          secure: false, // 백엔드가 HTTP여도 허용
+        }
+      }
+    }
+  }
+})
