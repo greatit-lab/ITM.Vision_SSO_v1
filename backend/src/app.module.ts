@@ -7,6 +7,7 @@ import { EquipmentModule } from './equipment/equipment.module';
 import { PreAlignModule } from './prealign/prealign.module';
 import { LampLifeModule } from './lamplife/lamplife.module';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module'; // [추가] AuthModule 임포트
 
 // Controllers & Services
 import { DashboardController } from './dashboard/dashboard.controller';
@@ -21,7 +22,13 @@ import { WaferController } from './wafer/wafer.controller';
 import { WaferService } from './wafer/wafer.service';
 
 @Module({
-  imports: [EquipmentModule, PreAlignModule, LampLifeModule, HealthModule],
+  imports: [
+    EquipmentModule, 
+    PreAlignModule, 
+    LampLifeModule, 
+    HealthModule,
+    AuthModule, // [추가] 여기에 AuthModule을 반드시 등록해야 합니다!
+  ],
   controllers: [
     DashboardController,
     PerformanceController,
