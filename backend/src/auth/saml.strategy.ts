@@ -90,9 +90,9 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
 
     const groups = profile.memberOf
       ? Array.isArray(profile.memberOf)
-         ? profile.memberOf
-         : [profile.memberOf]
-        : [];
+        ? profile.memberOf
+        : [profile.memberOf]
+      : [];
 
     const user: User = {
       userId: typeof userId === 'string' ? userId : '',
