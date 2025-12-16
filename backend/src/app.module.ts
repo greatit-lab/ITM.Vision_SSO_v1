@@ -28,13 +28,14 @@ import { WaferService } from './wafer/wafer.service';
     ConfigModule.forRoot({
       isGlobal: true, // 모든 모듈에서 접근 가능하게 설정
       // NODE_ENV가 'production'이면 .env.production, 아니면 .env.development 로드
-      envFilePath: process.env.NODE_ENV === 'production' 
-        ? '.env.production' 
-        : '.env.development',
+      envFilePath:
+        process.env.NODE_ENV === 'production'
+          ? '.env.production'
+          : '.env.development',
     }),
-    EquipmentModule, 
-    PreAlignModule, 
-    LampLifeModule, 
+    EquipmentModule,
+    PreAlignModule,
+    LampLifeModule,
     HealthModule,
     AuthModule,
   ],
