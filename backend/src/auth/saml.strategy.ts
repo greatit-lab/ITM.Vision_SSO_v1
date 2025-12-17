@@ -6,7 +6,8 @@ import { User } from './auth.interface';
 
 interface AdProfile extends Profile {
   'http://schemas.sec.com/2018/05/identity/claims/LoginId'?: string;
-  'http://schemas.sec.com/2018/05/identity/claims/CompId'?: string; // [필수] 회사코드
+  'http://schemas.sec.com/2018/05/identity/claims/CompId'?: string;
+  'http://schemas.sec.com/2018/05/identity/claims/DeptId'?: string; // [수정] 부서 ID 추가
   'http://schemas.sec.com/2018/05/identity/claims/DeptName'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Username'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Mail'?: string;
@@ -22,13 +23,11 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
   private readonly logger = new Logger(SamlStrategy.name);
 
   constructor() {
-    // [설정] process.env 값이 undefined일 경우 빈 문자열('')을 할당하여 타입 오류 방지
     const samlConfig: SamlConfig = {
       entryPoint: process.env.SAML_ENTRY_POINT || '',
       issuer: process.env.SAML_ISSUER || '',
       callbackUrl: process.env.SAML_CALLBACK_URL || '',
       idpCert: process.env.SAML_IDP_CERT || '',
-
       identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified',
       disableRequestedAuthnContext: true,
       signatureAlgorithm: 'sha256',
@@ -38,12 +37,9 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       authnRequestBinding: 'HTTP-Redirect',
       logoutUrl: process.env.SAML_LOGOUT_URL || '',
       logoutCallbackUrl: process.env.SAML_CALLBACK_URL || '',
-
-      // 개인키 설정 (서명용)
       privateKey: process.env.SAML_SP_PRIVATE_KEY || undefined,
     };
 
-    // [런타임 검사] 필수 설정값이 실제로 비어있으면 에러를 발생시켜 디버깅 유도
     if (
       !samlConfig.entryPoint ||
       !samlConfig.idpCert ||
@@ -51,7 +47,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       !samlConfig.issuer
     ) {
       throw new Error(
-        '[SamlStrategy] Critical SAML configuration is missing. Please check your .env.development or .env.production file.',
+        '[SamlStrategy] Critical SAML configuration is missing. Please check your .env file.',
       );
     }
 
@@ -65,6 +61,26 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       this.logger.error('SAML Authentication Failed: No Profile received');
       throw new UnauthorizedException('SAML Authentication Failed: No Profile');
     }
+
+    // [🔍 DEBUGGER START] -----------------------------------------------------------
+    const rawCompId =
+      profile['http://schemas.sec.com/2018/05/identity/claims/CompId'];
+    // [수정] DeptName 대신 DeptId 추출
+    const rawDeptId =
+      profile['http://schemas.sec.com/2018/05/identity/claims/DeptId'];
+
+    // 혹시 몰라 이름도 받아둠 (로그용)
+    const rawDeptName =
+      profile['http://schemas.sec.com/2018/05/identity/claims/DeptName'];
+
+    this.logger.warn('========== [SAML Profile Debugger] ==========');
+    this.logger.warn(`👉 CompId (회사코드): ${rawCompId}`);
+    this.logger.warn(`👉 DeptId (부서코드): ${rawDeptId}`);
+    this.logger.log(`   (참고) DeptName: ${rawDeptName}`); // 이름은 참고용으로만 출력
+    this.logger.log('---------------- Raw Profile Data ----------------');
+    console.log(JSON.stringify(profile, null, 2));
+    this.logger.warn('=============================================');
+    // [🔍 DEBUGGER END] -------------------------------------------------------------
 
     const userId =
       profile['http://schemas.sec.com/2018/05/identity/claims/LoginId'] ||
@@ -85,12 +101,9 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       profile.cn ||
       '';
 
-    const deptName =
-      profile['http://schemas.sec.com/2018/05/identity/claims/DeptName'] || '';
-
-    // [추가됨] 회사 코드 추출 (Gate 2 인증용)
-    const companyCode =
-      profile['http://schemas.sec.com/2018/05/identity/claims/CompId'] || '';
+    // [수정] user.department 필드에 'DeptId'를 할당합니다.
+    const deptId = rawDeptId || '';
+    const companyCode = rawCompId || '';
 
     const groups = profile.memberOf
       ? Array.isArray(profile.memberOf)
@@ -102,30 +115,22 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       userId: typeof userId === 'string' ? userId : '',
       email: typeof email === 'string' ? email : '',
       name: typeof name === 'string' ? name : '',
-      department: typeof deptName === 'string' ? deptName : '',
-      companyCode: typeof companyCode === 'string' ? companyCode : '', // [중요] AuthService로 전달
+      department: deptId, // [중요] 여기에 부서 코드가 들어감
+      companyCode: typeof companyCode === 'string' ? companyCode : '',
       groups: groups,
       sessionIndex: profile.sessionIndex,
     };
 
-    // 로그인 성공 로그
     this.logger.log(`SAML Login Successful: ${user.userId} (${user.name})`);
 
     return user;
   }
 
-  // 메타데이터 생성 시 공개키 포함
   getServiceProviderMetadata(): string {
-    // .env에서 공개키를 가져옵니다.
     let signingCert = process.env.SAML_SP_PUBLIC_CERT || null;
-
     if (signingCert) {
-      // 줄바꿈 문자(\n) 처리
       signingCert = signingCert.replace(/\\n/g, '\n');
     }
-
-    const decryptionCert = null; // 암호화용 인증서는 사용하지 않음
-
-    return this.generateServiceProviderMetadata(decryptionCert, signingCert);
+    return this.generateServiceProviderMetadata(null, signingCert);
   }
 }
