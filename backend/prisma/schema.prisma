@@ -218,11 +218,11 @@ model ItmInfo {
   @@map("itm_info")
 }
 
-model CgfLotUniformityMetrics {
+model CfgLotUniformityMetrics {
   metricName String  @id @map("metric_name")
   isExcluded String? @map("is_excluded") // 'Y' or 'N'
 
-  @@map("cgf_lot_uniformity_metrics")
+  @@map("cfg_lot_uniformity_metrics")
 }
 
 // ==========================================
