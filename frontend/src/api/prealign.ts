@@ -1,5 +1,5 @@
-import axios from "axios";
-const apiClient = axios.create({ baseURL: "http://localhost:3000/api" });
+// frontend/src/api/prealign.ts
+import http from "./http";
 
 export interface PreAlignDataDto {
   timestamp: string;
@@ -11,7 +11,8 @@ export interface PreAlignDataDto {
 export const preAlignApi = {
   getData: async (eqpId: string, startDate: string, endDate: string) => {
     const params = { eqpid: eqpId, startDate, endDate };
-    const { data } = await apiClient.get<PreAlignDataDto[]>(
+    // [수정] apiClient -> http
+    const { data } = await http.get<PreAlignDataDto[]>(
       "/PreAlignAnalytics/data",
       { params }
     );
