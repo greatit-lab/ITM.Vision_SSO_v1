@@ -233,8 +233,11 @@ model CfgLotUniformityMetrics {
 
 // [A. Access Control] 접근 허용 화이트리스트 (Gate 2)
 model RefAccessCode {
-  code        String   @id @db.VarChar(50) // PK: 회사코드(C001) or 부서코드(D_DEV)
-  type        String   @db.VarChar(10) // 'COMPANY' | 'DEPT'
+  // 기존 code -> compid 로 변경 (PK 유지)
+  compid      String   @id @map("compid") @db.VarChar(3) 
+  
+  // 기존 type -> deptid 로 변경
+  deptid      String   @map("deptid") @db.VarChar(20)
   description String?  @db.VarChar(100)
   isActive    String   @default("Y") @map("is_active") @db.Char(1)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
