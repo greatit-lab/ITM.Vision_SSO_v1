@@ -1,11 +1,7 @@
 // frontend/src/api/performance.ts
-import axios from "axios";
+import http from "./http"; // [수정] axios 직접 생성 대신 공통 http 모듈 사용
 
-const apiClient = axios.create({
-  baseURL: "http://localhost:3000/api",
-});
-
-// DTO 인터페이스 정의
+// DTO 인터페이스 정의 (기존 유지)
 export interface PerformanceDataPointDto {
   eqpId: string;
   timestamp: string;
@@ -32,23 +28,24 @@ export const performanceApi = {
     intervalSeconds: number
   ) => {
     const params = { startDate, endDate, eqpids, intervalSeconds };
-    const { data } = await apiClient.get<PerformanceDataPointDto[]>(
+    // [수정] apiClient -> http 로 변경
+    const { data } = await http.get<PerformanceDataPointDto[]>(
       "/PerformanceAnalytics/history",
       { params }
     );
     return data;
   },
 
-  // [누락되었던 부분 추가] Process Memory 데이터
+  // Process Memory 데이터
   getProcessHistory: async (
     startDate: string,
     endDate: string,
     eqpId: string,
     intervalSeconds?: number
   ) => {
-    // params에 intervalSeconds 포함
     const params = { startDate, endDate, eqpid: eqpId, intervalSeconds };
-    const { data } = await apiClient.get<ProcessMemoryDataDto[]>(
+    // [수정] apiClient -> http 로 변경
+    const { data } = await http.get<ProcessMemoryDataDto[]>(
       "/PerformanceAnalytics/process-history",
       { params }
     );
