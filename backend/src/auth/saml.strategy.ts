@@ -6,7 +6,7 @@ import { User } from './auth.interface';
 
 interface AdProfile extends Profile {
   'http://schemas.sec.com/2018/05/identity/claims/LoginId'?: string;
-  'http://schemas.sec.com/2018/05/identity/claims/CompId'?: string;
+  'http://schemas.sec.com/2018/05/identity/claims/CompId'?: string; // [필수] 회사코드
   'http://schemas.sec.com/2018/05/identity/claims/DeptName'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Username'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Mail'?: string;
@@ -22,7 +22,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
   private readonly logger = new Logger(SamlStrategy.name);
 
   constructor() {
-    // [수정] process.env 값이 undefined일 경우 빈 문자열('')을 할당하여 타입 오류 방지
+    // [설정] process.env 값이 undefined일 경우 빈 문자열('')을 할당하여 타입 오류 방지
     const samlConfig: SamlConfig = {
       entryPoint: process.env.SAML_ENTRY_POINT || '',
       issuer: process.env.SAML_ISSUER || '',
@@ -88,6 +88,10 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
     const deptName =
       profile['http://schemas.sec.com/2018/05/identity/claims/DeptName'] || '';
 
+    // [추가됨] 회사 코드 추출 (Gate 2 인증용)
+    const companyCode =
+      profile['http://schemas.sec.com/2018/05/identity/claims/CompId'] || '';
+
     const groups = profile.memberOf
       ? Array.isArray(profile.memberOf)
         ? profile.memberOf
@@ -99,6 +103,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       email: typeof email === 'string' ? email : '',
       name: typeof name === 'string' ? name : '',
       department: typeof deptName === 'string' ? deptName : '',
+      companyCode: typeof companyCode === 'string' ? companyCode : '', // [중요] AuthService로 전달
       groups: groups,
       sessionIndex: profile.sessionIndex,
     };
