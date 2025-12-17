@@ -24,6 +24,7 @@ model RefEquipment {
   agentStatus AgentStatus?
   plgErrors   PlgError[]
   eqpPerfs    EqpPerf[]
+  lampLifes   EqpLampLife[]
 
   @@map("ref_equipment")
 }
@@ -58,6 +59,10 @@ model AgentInfo {
   locale     String?
   timezone   String?
   macAddress String? @map("mac_address")
+  cpu        String?
+  memory     String?
+  disk       String?
+  vga        String?
 
   // [관계 설정] RefEquipment (1:1)
   equipment RefEquipment @relation(fields: [eqpid], references: [eqpid])
@@ -81,6 +86,10 @@ model PlgError {
   timeStamp  DateTime @map("time_stamp")
   errorId    String?  @map("error_id")
   errorLabel String?  @map("error_label")
+  errorDesc     String?  @map("error_desc")
+  extraMessage1 String?  @map("extra_message_1")
+  extraMessage2 String?  @map("extra_message_2")
+  servTs        DateTime @default(now()) @map("serv_ts")
 
   // [관계 설정] RefEquipment (N:1)
   equipment RefEquipment @relation(fields: [eqpid], references: [eqpid])
@@ -89,11 +98,10 @@ model PlgError {
   @@map("plg_error")
 }
 
+// [Wafer Metrology] - 수정됨: point를 Int로 변경하여 PK 오류 해결
 model PlgWfFlat {
-  eqpid  String
-  servTs DateTime @map("serv_ts")
-
-  // 조회 조건 컬럼
+  eqpid       String
+  servTs      DateTime  @map("serv_ts")
   lotid       String?
   waferid     Int?
   cassettercp String?
@@ -102,19 +110,60 @@ model PlgWfFlat {
   film        String?
   datetime    DateTime? @map("datetime")
 
-  // 상세 데이터 컬럼
-  point  Int?
-  t1     Float?
-  gof    Float?
-  z      Float?
-  srvisz Float?
-  x      Float?
-  y      Float?
-  dierow Float?
-  diecol Float?
+  // [수정] @@id에 포함되는 필드는 반드시 필수(Required)여야 합니다.
+  point       Int       
+  
+  t1          Float?
+  gof         Float?
+  z           Float?
+  srvisz      Float?
+  x           Float?
+  y           Float?
+  dierow      Float?
+  diecol      Float?
+  mse         Float?
+  thickness   Float?
+
+  @@id([eqpid, servTs, point]) 
+  @@map("plg_wf_flat")
+}
+
+// [PreAlign] - PreAlignAnalyticsView 에서 사용
+model PlgPreAlign {
+  eqpid  String
+  servTs DateTime @map("serv_ts")
+  xmm    Float?
+  ymm    Float?
+  notch  Float?
 
   @@id([eqpid, servTs])
-  @@map("plg_wf_flat")
+  @@map("plg_prealign")
+}
+
+// [Wafer Map PDF] - WaferFlatDataView (Wafer Map) 에서 사용
+model PlgWfMap {
+  eqpid    String
+  datetime DateTime
+  fileUri  String?  @map("file_uri")
+
+  @@id([eqpid, datetime])
+  @@map("plg_wf_map")
+}
+
+// [Spectrum] - SpectrumAnalysisView 에서 사용
+// *참고: 실제 서비스에서는 월별 동적 테이블(_y2025m01 등)을 사용하지만, Prisma 기본 모델을 위해 정의
+model PlgOntoSpectrum {
+  eqpid       String
+  ts          DateTime
+  lotid       String
+  waferid     String
+  point       Int
+  class       String   // 'EXP' | 'GEN'
+  wavelengths Float[]  // PostgreSQL Array Type
+  values      Float[]  // PostgreSQL Array Type
+
+  @@id([eqpid, ts, lotid, waferid, point, class])
+  @@map("plg_onto_spectrum")
 }
 
 model EqpPerf {
@@ -151,6 +200,8 @@ model EqpLampLife {
   ageHour      Int?      @map("age_hour")
   lifespanHour Int?      @map("lifespan_hour")
   lastChanged  DateTime? @map("last_changed")
+
+  equipment RefEquipment @relation(fields: [eqpid], references: [eqpid])
 
   @@id([eqpid, lampId, servTs])
   @@map("eqp_lamp_life")
