@@ -1,7 +1,7 @@
 <!-- frontend/src/views/LotUniformityTrendView.vue -->
 <template>
   <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden">
-    <div class="flex items-center gap-3 px-1 mb-3 shrink-0">
+    <div class="flex items-center gap-3 px-1 mb-2 shrink-0">
       <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-xl shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
         <i class="text-xl text-teal-600 pi pi-chart-line dark:text-teal-400"></i>
       </div>
@@ -15,7 +15,7 @@
       </div>
     </div>
 
-    <div class="mb-3 bg-white dark:bg-[#111111] p-2 rounded-2xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 shadow-sm shrink-0 transition-colors duration-300">
+    <div class="mb-5 bg-white dark:bg-[#111111] p-2 rounded-2xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 shadow-sm shrink-0 transition-colors duration-300">
       <div class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide">
         <div class="min-w-[140px] shrink-0">
           <Select v-model="filterStore.selectedSite" :options="sites" placeholder="Site" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onSiteChange" />
