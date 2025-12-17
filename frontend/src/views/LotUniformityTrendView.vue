@@ -37,12 +37,22 @@
           <DatePicker v-model="filters.endDate" showIcon dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
         </div>
       </div>
+      
       <div class="flex items-center gap-2 pl-3 border-l shrink-0 border-slate-100 dark:border-zinc-800">
+        <Button 
+          icon="pi pi-search" 
+          rounded 
+          class="!bg-teal-600 !border-teal-600 hover:!bg-teal-700 !w-8 !h-8 !text-xs !shadow-sm" 
+          v-tooltip.bottom="'Search Options'"
+          :disabled="!filters.lotId"
+          :loading="isTopLoading"
+          @click="onTopSearch" 
+        />
         <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-8 !h-8 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors" @click="resetFilters" />
       </div>
     </div>
 
-    <div v-if="filters.lotId" class="flex flex-col mb-3 shrink-0 animate-fade-in">
+    <div v-if="hasTopSearched" class="flex flex-col mb-3 shrink-0 animate-fade-in">
       <div class="flex flex-col md:flex-row gap-3 bg-white dark:bg-[#111111] p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm h-[165px]">
         
         <template v-for="(step, idx) in steps" :key="idx">
@@ -60,7 +70,10 @@
 
             <div class="flex-1 overflow-y-auto custom-scrollbar p-1">
               <ul class="space-y-0.5">
-                <li v-if="step.list.length === 0" class="py-4 text-[11px] text-center text-slate-400 italic">{{ step.emptyMsg }}</li>
+                <li v-if="step.list.length === 0" class="py-4 text-[11px] text-center text-slate-400 italic flex flex-col items-center gap-1">
+                   <i v-if="step.loading" class="pi pi-spin pi-spinner text-teal-500"></i>
+                   <span>{{ step.emptyMsg }}</span>
+                </li>
                 <li v-for="item in step.list" :key="item" @click="step.action(item)"
                     class="px-3 py-1.5 text-[11px] font-medium rounded-lg cursor-pointer transition-all flex items-center justify-between group"
                     :class="step.selected === item 
@@ -79,9 +92,19 @@
         </template>
 
         <div class="flex items-center justify-center pl-2 md:pl-4 md:border-l border-dashed border-slate-200 dark:border-zinc-800 shrink-0">
-          <Button icon="pi pi-search" class="!w-12 !h-12 !rounded-2xl !text-xl shadow-lg transition-all hover:scale-105 active:scale-95"
-            :class="isReadyToSearch ? '!bg-teal-600 hover:!bg-teal-700 !border-teal-600' : '!bg-slate-200 !border-slate-200 !text-slate-400 cursor-not-allowed'"
-            :loading="isLoading" :disabled="!isReadyToSearch" @click="searchData" v-tooltip.left="'Analyze'" />
+          <Button 
+            class="!flex !flex-col !items-center !justify-center !gap-1 !w-20 !h-full !rounded-xl !text-xs !font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-md border-0"
+            :class="isReadyToSearch 
+              ? '!bg-gradient-to-br !from-indigo-500 !to-indigo-600 hover:!from-indigo-600 hover:!to-indigo-700 !text-white !cursor-pointer' 
+              : '!bg-slate-100 dark:!bg-zinc-800 !text-slate-400 !cursor-not-allowed'"
+            :loading="isLoading" 
+            :disabled="!isReadyToSearch" 
+            @click="searchData" 
+            v-tooltip.left="'Generate Trend Chart'" 
+          >
+            <i class="text-2xl pi pi-chart-line mb-1" :class="{'animate-pulse': isLoading}"></i>
+            <span>Analyze</span>
+          </Button>
         </div>
       </div>
     </div>
@@ -110,7 +133,7 @@
           <div class="flex items-center gap-2">
             <div class="w-1 h-3 bg-blue-500 rounded-full"></div>
             <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-              Wafer Map Point
+              Wafer Map
             </h3>
           </div>
           <div class="flex bg-slate-200 dark:bg-zinc-800 p-0.5 rounded-lg">
@@ -138,14 +161,12 @@
 
         <div class="relative flex-1 w-full min-h-0 p-3 flex items-center justify-center overflow-hidden">
           <div class="relative h-full w-full max-w-full aspect-square flex items-center justify-center bg-slate-50/30 dark:bg-black/20 rounded-full border border-dashed border-slate-200 dark:border-zinc-800/50">
-             
              <div v-if="mapMode === 'heatmap' && !selectedWaferId" 
                   class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 dark:bg-zinc-900/60 backdrop-blur-[1px] text-center p-4 rounded-full">
                 <i class="pi pi-th-large text-2xl text-slate-400 mb-2 animate-pulse"></i>
                 <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Select a Wafer</p>
                 <p class="text-[10px] text-slate-400 mt-1">Select from the list above or click the trend line.</p>
              </div>
-
              <EChart :option="mapChartOption" class="w-full h-full rounded-full overflow-hidden" :key="mapMode" />
           </div>
         </div>
@@ -157,6 +178,7 @@
         <i class="text-4xl pi pi-chart-scatter text-slate-300 dark:text-zinc-600"></i>
       </div>
       <p class="text-sm font-medium">Ready to Analyze</p>
+      <p class="text-xs mt-1">Select filters and click search to view trends.</p>
     </div>
   </div>
 </template>
@@ -174,6 +196,8 @@ import Button from "primevue/button";
 
 const filterStore = useFilterStore();
 const isLoading = ref(false);
+const isTopLoading = ref(false); // [추가] 상단 검색 로딩 상태
+const hasTopSearched = ref(false); // [추가] 상단 검색 완료 여부
 const hasSearched = ref(false);
 const mapMode = ref<'point' | 'heatmap'>('point');
 const selectedWaferId = ref<number | null>(null);
@@ -187,6 +211,9 @@ const stageGroups = ref<string[]>([]);
 const films = ref<string[]>([]);
 const metrics = ref<string[]>([]);
 
+// [추가] 로딩 상태 관리 변수
+const isMetricLoading = ref(false);
+
 const filters = reactive({
   eqpId: "", lotId: "", startDate: new Date(Date.now() - 7 * 864e5), endDate: new Date(),
   cassetteRcp: "", stageGroup: "", film: "", metric: ""
@@ -196,11 +223,44 @@ const chartSeries = ref<LotUniformitySeriesDto[]>([]);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
+// [수정] Steps Computed: 로딩 상태와 데이터 유무에 따라 emptyMsg 동적 처리
 const steps = computed(() => [
-  { title: 'Cassette RCP', list: cassetteRcps.value, selected: filters.cassetteRcp, action: selectCassette, disabled: false, emptyMsg: 'No Items' },
-  { title: 'Stage Group', list: stageGroups.value, selected: filters.stageGroup, action: selectStageGroup, disabled: !filters.cassetteRcp, emptyMsg: 'Wait...' },
-  { title: 'Film', list: films.value, selected: filters.film, action: selectFilm, disabled: !filters.stageGroup, emptyMsg: 'Wait...' },
-  { title: 'Y-Axis Metric', list: metrics.value, selected: filters.metric, action: (v: string) => filters.metric = v, disabled: !filters.stageGroup, emptyMsg: 'Loading...' }
+  { 
+    title: 'Cassette RCP', 
+    list: cassetteRcps.value, 
+    selected: filters.cassetteRcp, 
+    action: selectCassette, 
+    disabled: false, 
+    loading: false, // 이미 로드됨 (상단 검색 시)
+    emptyMsg: 'No Data' 
+  },
+  { 
+    title: 'Stage Group', 
+    list: stageGroups.value, 
+    selected: filters.stageGroup, 
+    action: selectStageGroup, 
+    disabled: !filters.cassetteRcp, 
+    loading: false, 
+    emptyMsg: 'Select Previous' 
+  },
+  { 
+    title: 'Film', 
+    list: films.value, 
+    selected: filters.film, 
+    action: selectFilm, 
+    disabled: !filters.stageGroup, 
+    loading: false, 
+    emptyMsg: 'Select Previous' 
+  },
+  { 
+    title: 'Y-Axis Metric', 
+    list: metrics.value, 
+    selected: filters.metric, 
+    action: (v: string) => filters.metric = v, 
+    disabled: !filters.stageGroup, // Film 선택 전엔 비활성
+    loading: isMetricLoading.value, // 로딩 상태 반영
+    emptyMsg: isMetricLoading.value ? 'Loading...' : (filters.film ? 'No Metrics Found' : 'Select Film First') 
+  }
 ]);
 
 const isReadyToSearch = computed(() => filters.lotId && filters.cassetteRcp && filters.stageGroup && filters.film && filters.metric);
@@ -239,12 +299,14 @@ onMounted(async () => {
 onUnmounted(() => themeObserver?.disconnect());
 
 const clearStepsFrom = (stepIndex: number) => {
-  if (stepIndex <= 0) { filters.lotId = ""; lotIds.value = []; }
+  if (stepIndex <= 0) { filters.lotId = ""; lotIds.value = []; hasTopSearched.value = false; }
   if (stepIndex <= 1) { filters.cassetteRcp = ""; cassetteRcps.value = []; }
   if (stepIndex <= 2) { filters.stageGroup = ""; stageGroups.value = []; }
   if (stepIndex <= 3) { filters.film = ""; films.value = []; filters.metric = ""; metrics.value = []; }
   hasSearched.value = false; chartSeries.value = []; selectedWaferId.value = null;
 };
+
+// --- Handlers ---
 
 const onSiteChange = async () => { 
   if(filterStore.selectedSite) { localStorage.setItem("lot_site", filterStore.selectedSite); sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite); } 
@@ -259,35 +321,104 @@ const onSdwtChange = async () => {
   filters.eqpId = ""; localStorage.removeItem("lot_eqpid");
   clearStepsFrom(0); 
 };
-const onEqpChange = () => { if (filters.eqpId) { localStorage.setItem("lot_eqpid", filters.eqpId); loadLotIds(); } else { clearStepsFrom(0); } };
-const onLotChange = () => { if (filters.lotId) loadCassettes(); else clearStepsFrom(1); };
+const onEqpChange = () => { 
+  if (filters.eqpId) { localStorage.setItem("lot_eqpid", filters.eqpId); loadLotIds(); } 
+  else { clearStepsFrom(0); } 
+};
+
+// [변경] Lot 변경 시에는 하위 데이터 초기화만 수행 (자동 로딩 X)
+const onLotChange = () => { 
+  clearStepsFrom(1);
+  hasTopSearched.value = false; // Lot이 바뀌면 상세 옵션창 닫기
+};
+
 const onDateChange = () => { if(filters.eqpId) loadLotIds(); };
-const loadLotIds = async () => { lotIds.value = await waferApi.getDistinctValues("lotids", getBaseParams()); clearStepsFrom(1); };
-const loadCassettes = async () => { cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", { ...getBaseParams(), lotId: filters.lotId }); clearStepsFrom(2); };
+
+// [추가] 상단 검색 버튼 핸들러
+const onTopSearch = async () => {
+  if (!filters.lotId) return;
+  isTopLoading.value = true;
+  try {
+    // 1. 하위 데이터 초기화
+    clearStepsFrom(1);
+    // 2. Cassette 목록 로드
+    await loadCassettes();
+    // 3. 하단 영역 표시
+    hasTopSearched.value = true;
+  } finally {
+    isTopLoading.value = false;
+  }
+};
+
+const loadLotIds = async () => { lotIds.value = await waferApi.getDistinctValues("lotids", getBaseParams()); };
+
+const loadCassettes = async () => { 
+  cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", { ...getBaseParams(), lotId: filters.lotId }); 
+};
+
 const selectCassette = async (val: string) => { 
   filters.cassetteRcp = val; filters.stageGroup = ""; stageGroups.value = []; filters.film = ""; films.value = []; filters.metric = ""; metrics.value = [];
   stageGroups.value = await waferApi.getDistinctValues("stagegroups", { ...getBaseParams(), lotId: filters.lotId, cassetteRcp: val }); 
 };
+
 const selectStageGroup = async (val: string) => {
   filters.stageGroup = val; filters.film = ""; films.value = []; filters.metric = ""; metrics.value = [];
   films.value = await waferApi.getDistinctValues("films", { ...getBaseParams(), lotId: filters.lotId, cassetteRcp: filters.cassetteRcp, stageGroup: val });
 };
+
+// [변경] Metric 로딩 상태 처리 추가
 const selectFilm = async (val: string) => {
   filters.film = val; filters.metric = ""; metrics.value = []; 
-  const p = { ...getBaseParams(), lotId: filters.lotId, cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, film: val };
-  const m = await waferApi.getAvailableMetrics(p);
-  metrics.value = m.sort((a, b) => { if (a.toLowerCase() === 't1') return -1; if (b.toLowerCase() === 't1') return 1; return a.localeCompare(b); });
-  if (metrics.value.length > 0) { filters.metric = metrics.value[0] ?? ""; }
+  isMetricLoading.value = true; // 로딩 시작
+  
+  try {
+    const p = { ...getBaseParams(), lotId: filters.lotId, cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, film: val };
+    const m = await waferApi.getAvailableMetrics(p);
+    
+    // 알파벳순 정렬 (T1 우선)
+    metrics.value = m.sort((a, b) => { 
+      if (a.toLowerCase() === 't1') return -1; 
+      if (b.toLowerCase() === 't1') return 1; 
+      return a.localeCompare(b); 
+    });
+    
+    // 첫 번째 메트릭 자동 선택
+    if (metrics.value.length > 0) { filters.metric = metrics.value[0] ?? ""; }
+  } finally {
+    isMetricLoading.value = false; // 로딩 종료
+  }
 };
+
 const getBaseParams = () => ({ eqpId: filters.eqpId, startDate: filters.startDate?.toISOString(), endDate: filters.endDate?.toISOString() });
+
 const searchData = async () => {
-  if (!isReadyToSearch.value) return; isLoading.value = true; hasSearched.value = true; selectedWaferId.value = null;
-  try { chartSeries.value = await waferApi.getLotUniformityTrend({ ...getBaseParams(), lotId: filters.lotId, cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, film: filters.film, metric: filters.metric }); } finally { isLoading.value = false; }
+  if (!isReadyToSearch.value) return; 
+  isLoading.value = true; 
+  hasSearched.value = true; 
+  selectedWaferId.value = null;
+  try { 
+    chartSeries.value = await waferApi.getLotUniformityTrend({ 
+      ...getBaseParams(), 
+      lotId: filters.lotId, 
+      cassetteRcp: filters.cassetteRcp, 
+      stageGroup: filters.stageGroup, 
+      film: filters.film, 
+      metric: filters.metric 
+    }); 
+  } finally { 
+    isLoading.value = false; 
+  }
 };
+
 const resetFilters = () => { 
-  filterStore.reset(); localStorage.removeItem("lot_site"); localStorage.removeItem("lot_sdwt"); localStorage.removeItem("lot_eqpid"); 
-  filters.eqpId=""; filters.startDate=new Date(Date.now()-7*864e5); filters.endDate=new Date(); sdwts.value=[]; eqpIds.value=[]; clearStepsFrom(0); 
+  filterStore.reset(); 
+  localStorage.removeItem("lot_site"); localStorage.removeItem("lot_sdwt"); localStorage.removeItem("lot_eqpid"); 
+  filters.eqpId=""; filters.startDate=new Date(Date.now()-7*864e5); filters.endDate=new Date(); 
+  sdwts.value=[]; eqpIds.value=[]; 
+  clearStepsFrom(0); 
 };
+
+// --- 이하 차트 렌더링 로직 등은 기존 유지 (MapMode, ECharts Option 등) ---
 const setMapMode = (mode: 'point' | 'heatmap') => { mapMode.value = mode; if (mode === 'point') { selectedWaferId.value = null; } };
 const selectWafer = (id: number) => { selectedWaferId.value = id; mapMode.value = 'heatmap'; };
 const onLineChartClick = (params: any) => { if (params.seriesName) { const id = parseInt(params.seriesName.replace('W', '')); if (!isNaN(id)) { selectedWaferId.value = id; mapMode.value = 'heatmap'; } } };
@@ -387,11 +518,9 @@ const mapChartOption = computed(() => {
         textStyle: { color: axisColor, fontSize: 10 }
       };
 
-      // 1. Heatmap Background
       series.push({
         type: 'custom',
         data: [{ value: [0, 0], extras: interpolated, min: minVal, max: maxVal }],
-        // [수정] params -> _params (사용되지 않는 변수 경고 해결)
         renderItem: (_params: any, api: any) => {
            const width = api.getWidth(); const height = api.getHeight();
            const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
@@ -412,50 +541,16 @@ const mapChartOption = computed(() => {
         silent: true 
       });
 
-      // 2. Value Labels (수정된 부분: Point ID 표시)
       series.push({
-        name: "Values",
-        type: 'scatter',
-        symbol: 'circle',
-        
-        // 투명한 점 (Ghost Point) 설정
-        symbolSize: 1, 
-        itemStyle: { 
-            color: 'transparent', 
-            borderColor: 'transparent' 
-        },
-        
-        // 데이터 구조: [x, y, value, pointId]
-        data: targetWafer.dataPoints.map(p => [p.x, p.y, p.value, p.point]),
-        z: 200,
-        
-        label: {
-          show: true,
-          // [수정] Point ID를 표시 (p.data[3])
-          formatter: (p: any) => p.data[3], 
-          color: '#ffffff',
-          fontSize: 10,
-          fontWeight: 'bold',
-          textBorderColor: '#000000',
-          textBorderWidth: 2,
-          position: 'center',
-          hideOverlap: false 
-        },
-        tooltip: {
-            show: true,
-            trigger: 'item',
-            formatter: (p: any) => {
-                return `
-                  <div class="text-xs font-bold">Point #${p.data[3]}</div>
-                  <div class="text-xs">Value: ${p.data[2].toFixed(3)}</div>
-                `;
-            }
-        },
+        name: "Values", type: 'scatter', symbol: 'circle', symbolSize: 1, 
+        itemStyle: { color: 'transparent', borderColor: 'transparent' },
+        data: targetWafer.dataPoints.map(p => [p.x, p.y, p.value, p.point]), z: 200,
+        label: { show: true, formatter: (p: any) => p.data[3], color: '#ffffff', fontSize: 10, fontWeight: 'bold', textBorderColor: '#000000', textBorderWidth: 2, position: 'center', hideOverlap: false },
+        tooltip: { show: true, trigger: 'item', formatter: (p: any) => `<div class="text-xs font-bold">Point #${p.data[3]}</div><div class="text-xs">Value: ${p.data[2].toFixed(3)}</div>` },
         silent: false 
       });
     }
   } else {
-    // Point Mode
     visualMapOption = { show: false, min: 0, max: 100, inRange: { color: ['#2dd4bf'] } };
     let seriesData: any[] = [];
     const uniquePoints = new Set<string>();
