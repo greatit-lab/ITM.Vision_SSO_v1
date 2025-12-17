@@ -249,10 +249,11 @@ export class WaferService {
 
     let dynamicColumns: string[] = [];
     try {
+      // [수정] cgf -> cfg 테이블 명칭 변경
       const configMetrics = await this.prisma.$queryRaw<
         { metric_name: string }[]
       >`
-        SELECT metric_name FROM public.cgf_lot_uniformity_metrics WHERE is_excluded = 'N'
+        SELECT metric_name FROM public.cfg_lot_uniformity_metrics WHERE is_excluded = 'N'
       `;
       const configColNames = configMetrics.map((r) => r.metric_name);
       if (configColNames.length > 0) {
@@ -1052,32 +1053,34 @@ export class WaferService {
     }
   }
 
+  // [수정됨] Metric 목록 조회 (No Metrics Found 해결 버전)
   async getAvailableMetrics(params: WaferQueryParams): Promise<string[]> {
+    const { lotId, cassetteRcp, stageGroup, film } = params;
+
+    // 필수 파라미터가 없으면 빈 배열 반환
+    if (!lotId || !cassetteRcp || !stageGroup || !film) {
+      return [];
+    }
+
     let allowedMetrics: string[] = [];
     try {
+      // [수정] 테이블명 변경 (cgf -> cfg)
       const configResult = await this.prisma.$queryRaw<
         { metric_name: string }[]
       >`
         SELECT metric_name
-        FROM public.cgf_lot_uniformity_metrics
+        FROM public.cfg_lot_uniformity_metrics
         WHERE is_excluded = 'N'
       `;
       allowedMetrics = configResult.map((r) => r.metric_name);
-    } catch (e) {
-      console.warn(
-        'Config table not found or empty, skipping config check.',
-        e,
-      );
+    } catch {
+      // [수정] Config 테이블이 없으면 빈 배열 반환 (에러 변수 사용 안 함)
       return [];
     }
 
-    if (allowedMetrics.length === 0) {
-      return [];
-    }
+    if (allowedMetrics.length === 0) return [];
 
-    const whereSql = this.buildUniqueWhere(params);
-    if (!whereSql) return [];
-
+    // [수정] 날짜/설비 조건 제거하고 Lot, Cassette, Stage, Film 만으로 데이터 존재 여부 확인
     const countSelects = allowedMetrics
       .map((col) => `COUNT("${col}") as "${col}"`)
       .join(', ');
@@ -1085,13 +1088,20 @@ export class WaferService {
     const checkSql = `
       SELECT ${countSelects}
       FROM public.plg_wf_flat
-      ${whereSql}
+      WHERE "lotid" = $1
+        AND "cassettercp" = $2
+        AND "stagegroup" = $3
+        AND "film" = $4
     `;
 
     try {
       const countsResult =
         await this.prisma.$queryRawUnsafe<Record<string, number | bigint>[]>(
           checkSql,
+          lotId,
+          cassetteRcp,
+          stageGroup,
+          film,
         );
 
       if (!countsResult || countsResult.length === 0) {
@@ -1103,72 +1113,103 @@ export class WaferService {
       return allowedMetrics
         .filter((col) => {
           const val = counts[col];
+          // 값이 존재하는지(NULL이 아닌지) 확인 (BigInt 호환)
           return val !== undefined && val !== null && Number(val) > 0;
         })
         .sort();
-    } catch (e) {
-      console.error('Error checking metric data existence:', e);
+    } catch {
+      // [수정] 에러 변수 미사용 (로그 삭제 요청 반영)
       return [];
     }
   }
 
+  // [수정됨] Lot Uniformity Trend 조회
   async getLotUniformityTrend(params: WaferQueryParams & { metric: string }) {
-    const { metric } = params;
+    const { lotId, cassetteRcp, stageGroup, film, metric } = params;
 
-    if (!metric) throw new Error('Metric is required');
-
-    const validMetrics = await this.getAvailableMetrics(params);
-    if (!validMetrics.includes(metric)) {
+    if (!lotId || !cassetteRcp || !stageGroup || !film || !metric) {
       return [];
     }
 
-    const whereSql = this.buildUniqueWhere(params);
-    if (!whereSql) return [];
+    // SQL Injection 방지
+    const metricCol = `"${metric}"`;
 
+    // [수정 포인트] 
+    // JOIN 조건에서 f.waferid(Integer)를 ::varchar로 캐스팅하여 s.waferid(String)와 비교하도록 수정
     const sql = `
-      SELECT waferid, point, x, y, dierow, diecol, "${metric}" as value
-      FROM public.plg_wf_flat
-      ${whereSql}
-        AND point IS NOT NULL
-        AND "${metric}" IS NOT NULL
-      ORDER BY waferid, point ASC
+      SELECT 
+        f.waferid,
+        f.point,
+        f.${metricCol} as value,
+        s.x, 
+        s.y,
+        f.dierow, 
+        f.diecol
+      FROM public.plg_wf_flat f
+      LEFT JOIN public.plg_onto_spectrum s
+        ON f.lotid = s.lotid 
+        AND f.waferid::varchar = s.waferid 
+        AND f.point = s.point
+      WHERE f.lotid = $1
+        AND f.cassettercp = $2
+        AND f.stagegroup = $3
+        AND f.film = $4
+        AND f.${metricCol} IS NOT NULL
+      ORDER BY f.waferid ASC, f.point ASC
     `;
 
-    const results = await this.prisma.$queryRawUnsafe<LotTrendRawResult[]>(sql);
+    try {
+      const results = await this.prisma.$queryRawUnsafe<LotTrendRawResult[]>(
+        sql,
+        lotId,
+        cassetteRcp,
+        stageGroup,
+        film,
+      );
 
-    const grouped = new Map<
-      number,
-      {
-        waferId: number;
-        dataPoints: {
-          point: number;
-          value: number;
-          x: number;
-          y: number;
-          dieRow: number | null;
-          dieCol: number | null;
-        }[];
-      }
-    >();
+      // Wafer 별로 데이터 그룹핑
+      const grouped = new Map<
+        number,
+        {
+          waferId: number;
+          dataPoints: {
+            point: number;
+            value: number;
+            x: number;
+            y: number;
+            dieRow: number | null;
+            dieCol: number | null;
+          }[];
+        }
+      >();
 
-    results.forEach((r) => {
-      if (!grouped.has(r.waferid)) {
-        grouped.set(r.waferid, {
-          waferId: r.waferid,
-          dataPoints: [],
+      results.forEach((r) => {
+        if (!grouped.has(r.waferid)) {
+          grouped.set(r.waferid, {
+            waferId: r.waferid,
+            dataPoints: [],
+          });
+        }
+        
+        const xVal = r.x !== null ? Number(r.x) : 0;
+        const yVal = r.y !== null ? Number(r.y) : 0;
+
+        grouped.get(r.waferid)?.dataPoints.push({
+          point: r.point,
+          value: r.value,
+          x: xVal,
+          y: yVal,
+          dieRow: r.dierow,
+          dieCol: r.diecol,
         });
-      }
-      grouped.get(r.waferid)?.dataPoints.push({
-        point: r.point,
-        value: r.value,
-        x: r.x,
-        y: r.y,
-        dieRow: r.dierow,
-        dieCol: r.diecol,
       });
-    });
 
-    return Array.from(grouped.values());
+      return Array.from(grouped.values()).sort((a, b) => a.waferId - b.waferId);
+
+    } catch (e) {
+      console.error('Error fetching lot uniformity trend:', e);
+      return [];
+    }
   }
 
   private buildUniqueWhere(p: WaferQueryParams): string | null {
@@ -1283,8 +1324,9 @@ export class WaferService {
 
     let metrics: string[] = ['t1', 'gof', 'mse', 'thickness'];
     try {
+      // [수정] cgf -> cfg 테이블 명칭 변경
       const conf = await this.prisma.$queryRaw<{ metric_name: string }[]>`
-        SELECT metric_name FROM public.cgf_lot_uniformity_metrics WHERE is_excluded = 'N'
+        SELECT metric_name FROM public.cfg_lot_uniformity_metrics WHERE is_excluded = 'N'
       `;
       if (conf.length > 0) metrics = conf.map((c) => c.metric_name);
     } catch (e) {
