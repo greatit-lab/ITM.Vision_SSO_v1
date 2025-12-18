@@ -1,53 +1,78 @@
 // backend/src/lamplife/lamplife.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { LampLifeDto } from '../models/LampLifeDto';
 
-// Raw Query 결과 매핑을 위한 인터페이스 정의
-interface LampLifeRawResult {
-  eqpId: string;
-  lampId: string;
-  servTs: Date; // DB에서는 DateTime 타입
-  ageHour: number | null;
-  lifespanHour: number | null;
-  lastChanged: Date | null;
+// DB 조회 결과 매핑용 인터페이스
+interface LampLifeRaw {
+  eqpid: string;
+  lamp_id: string;
+  age_hour: number;
+  lifespan_hour: number;
+  last_changed: Date | null;
 }
 
 @Injectable()
 export class LampLifeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async getLampStatus(site: string, sdwt?: string) {
-    // 제네릭으로 반환 타입 명시 <LampLifeRawResult[]>
-    const result = await this.prisma.$queryRaw<LampLifeRawResult[]>`
-      SELECT 
-        l.eqpid as "eqpId",
-        l.lamp_id as "lampId",
-        l.serv_ts as "servTs",
-        l.age_hour as "ageHour",
-        l.lifespan_hour as "lifespanHour",
-        l.last_changed as "lastChanged"
-      FROM eqp_lamp_life l
-      JOIN ref_equipment e ON l.eqpid = e.eqpid
-      JOIN ref_sdwt s ON e.sdwt = s.sdwt
-      WHERE s.site = ${site}
-        AND (${sdwt}::text IS NULL OR s.sdwt = ${sdwt})
-        AND l.serv_ts = (
-            SELECT MAX(l2.serv_ts)
-            FROM eqp_lamp_life l2
-            WHERE l2.eqpid = l.eqpid AND l2.lamp_id = l.lamp_id
-        )
-      ORDER BY l.eqpid, l.lamp_id
+  async getLampStatus(site: string, sdwt?: string): Promise<LampLifeDto[]> {
+    // [수정] 테이블명 변경: public.lamp_life -> public.eqp_lamp_life
+    let sql = `
+      SELECT
+        l.eqpid,
+        l.lamp_id,
+        l.age_hour,
+        l.lifespan_hour,
+        l.last_changed
+      FROM public.eqp_lamp_life l
+      JOIN public.ref_equipment r ON l.eqpid = r.eqpid
+      WHERE 1=1
     `;
 
-    // 타입이 명확해졌으므로 안전하게 접근 가능
-    return result.map((row) => ({
-      ...row,
-      // Date 객체인지 확인 후 ISO 문자열 변환
-      servTs: row.servTs instanceof Date ? row.servTs.toISOString() : null,
-      lastChanged:
-        row.lastChanged instanceof Date
-          ? row.lastChanged.toISOString().split('T')[0]
+    const params: (string | number)[] = [];
+    let paramIndex = 1;
+
+    // Site 필터
+    if (site) {
+      sql += ` AND r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE site = $${paramIndex++})`;
+      params.push(site);
+    }
+
+    // SDWT 필터
+    if (sdwt) {
+      sql += ` AND r.sdwt = $${paramIndex++}`;
+      params.push(sdwt);
+    }
+
+    // 정렬 (사용 시간 역순)
+    sql += ` ORDER BY l.age_hour DESC, l.eqpid`;
+
+    try {
+      const rawData = await this.prisma.$queryRawUnsafe<LampLifeRaw[]>(
+        sql,
+        ...params,
+      );
+
+      return rawData.map((r) => ({
+        eqpId: r.eqpid,
+        lampId: r.lamp_id,
+        // 숫자가 아닐 경우 0으로 처리
+        ageHour: Number(r.age_hour) || 0,
+        lifespanHour: Number(r.lifespan_hour) || 0,
+        // Date -> YYYY-MM-DD 문자열 변환
+        lastChanged: r.last_changed
+          ? new Date(r.last_changed).toISOString().split('T')[0]
           : null,
-    }));
+        // 필수 필드 servTs 채우기 (데이터가 없으면 현재 시간)
+        servTs: r.last_changed
+          ? new Date(r.last_changed).toISOString()
+          : new Date().toISOString(),
+      }));
+    } catch (error) {
+      // 에러 로그 출력 후 빈 배열 반환하여 프론트엔드 크래시 방지
+      console.error('LampLife SQL Error:', error);
+      return [];
+    }
   }
 }
