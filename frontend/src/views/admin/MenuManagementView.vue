@@ -1,4 +1,4 @@
-<!-- frontend/src/views/MenuManagementView.vue -->
+<!-- frontend/src/views/admin/MenuManagementView.vue -->
 <template>
   <div class="min-h-screen p-6 space-y-6 animate-fade-in-up">
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
