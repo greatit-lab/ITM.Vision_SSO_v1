@@ -7,8 +7,8 @@ import { User } from './auth.interface';
 interface AdProfile extends Profile {
   'http://schemas.sec.com/2018/05/identity/claims/LoginId'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/CompId'?: string;
-  'http://schemas.sec.com/2018/05/identity/claims/DeptId'?: string; // [수정] 부서 ID 추가
-  'http://schemas.sec.com/2018/05/identity/claims/DeptName'?: string;
+  'http://schemas.sec.com/2018/05/identity/claims/DeptId'?: string;
+  'http://schemas.sec.com/2018/05/identity/claims/DeptName'?: string; // 부서명
   'http://schemas.sec.com/2018/05/identity/claims/Username'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Mail'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/UserId'?: string;
@@ -62,25 +62,13 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       throw new UnauthorizedException('SAML Authentication Failed: No Profile');
     }
 
-    // [🔍 DEBUGGER START] -----------------------------------------------------------
+    // 데이터 추출
     const rawCompId =
       profile['http://schemas.sec.com/2018/05/identity/claims/CompId'];
-    // [수정] DeptName 대신 DeptId 추출
     const rawDeptId =
       profile['http://schemas.sec.com/2018/05/identity/claims/DeptId'];
-
-    // 혹시 몰라 이름도 받아둠 (로그용)
     const rawDeptName =
       profile['http://schemas.sec.com/2018/05/identity/claims/DeptName'];
-
-    this.logger.warn('========== [SAML Profile Debugger] ==========');
-    this.logger.warn(`👉 CompId (회사코드): ${rawCompId}`);
-    this.logger.warn(`👉 DeptId (부서코드): ${rawDeptId}`);
-    this.logger.log(`   (참고) DeptName: ${rawDeptName}`); // 이름은 참고용으로만 출력
-    this.logger.log('---------------- Raw Profile Data ----------------');
-    console.log(JSON.stringify(profile, null, 2));
-    this.logger.warn('=============================================');
-    // [🔍 DEBUGGER END] -------------------------------------------------------------
 
     const userId =
       profile['http://schemas.sec.com/2018/05/identity/claims/LoginId'] ||
@@ -101,10 +89,6 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       profile.cn ||
       '';
 
-    // [수정] user.department 필드에 'DeptId'를 할당합니다.
-    const deptId = rawDeptId || '';
-    const companyCode = rawCompId || '';
-
     const groups = profile.memberOf
       ? Array.isArray(profile.memberOf)
         ? profile.memberOf
@@ -115,8 +99,9 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       userId: typeof userId === 'string' ? userId : '',
       email: typeof email === 'string' ? email : '',
       name: typeof name === 'string' ? name : '',
-      department: deptId, // [중요] 여기에 부서 코드가 들어감
-      companyCode: typeof companyCode === 'string' ? companyCode : '',
+      department: rawDeptId || '',      // 부서 코드
+      departmentName: rawDeptName || '', // [추가] 부서 명
+      companyCode: typeof rawCompId === 'string' ? rawCompId : '',
       groups: groups,
       sessionIndex: profile.sessionIndex,
     };
