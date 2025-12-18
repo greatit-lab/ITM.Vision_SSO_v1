@@ -496,6 +496,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
 import { useFilterStore } from "@/stores/filter";
+import { useAuthStore } from "@/stores/auth"; // [추가]
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import { waferApi } from "@/api/wafer";
@@ -509,6 +510,7 @@ import Column from "primevue/column";
 import ToggleSwitch from "primevue/toggleswitch";
 
 const filterStore = useFilterStore();
+const authStore = useAuthStore(); // [추가]
 const isLoading = ref(false);
 const isPointsLoading = ref(false);
 const hasSearched = ref(false);
@@ -558,19 +560,38 @@ const selectedTableRow = ref();
 const selectedModelWafer = ref<number | null>(null);
 
 onMounted(async () => {
+  // 1. Site 목록 로드
   sites.value = await dashboardApi.getSites();
-  const savedSite = localStorage.getItem("spec_site");
-  const savedSdwt = localStorage.getItem("spec_sdwt");
-  const savedEqp = localStorage.getItem("spec_eqp");
 
-  if (savedSite && sites.value.includes(savedSite)) {
-    filterStore.selectedSite = savedSite;
-    sdwts.value = await dashboardApi.getSdwts(savedSite);
-    if (savedSdwt && sdwts.value.includes(savedSdwt)) {
-      filterStore.selectedSdwt = savedSdwt;
-      // [수정] Agent가 설치된 장비만 조회하도록 'agent' 타입 사용
-      eqpIds.value = await equipmentApi.getEqpIds(undefined, savedSdwt, 'agent');
+  // 2. 기본 필터 결정 (우선순위: DB 사용자 설정 -> 페이지 전용 로컬 스토리지)
+  let defaultSite = authStore.user?.site;
+  let defaultSdwt = authStore.user?.sdwt;
 
+  // DB에 없으면 로컬 스토리지 확인 (페이지 전용 키: spec_site, spec_sdwt)
+  if (!defaultSite) {
+    defaultSite = localStorage.getItem("spec_site") || undefined;
+    if (defaultSite) {
+      defaultSdwt = localStorage.getItem("spec_sdwt") || undefined;
+    }
+  }
+
+  // 3. 결정된 Site가 유효하면 적용 및 SDWT 로드
+  if (defaultSite && sites.value.includes(defaultSite)) {
+    filterStore.selectedSite = defaultSite;
+    sdwts.value = await dashboardApi.getSdwts(defaultSite);
+
+    // 4. SDWT 적용 및 EqpID 로드
+    if (defaultSdwt && sdwts.value.includes(defaultSdwt)) {
+      filterStore.selectedSdwt = defaultSdwt;
+      // Agent가 설치된 장비만 조회
+      eqpIds.value = await equipmentApi.getEqpIds(
+        undefined,
+        defaultSdwt,
+        "agent"
+      );
+
+      // 5. EqpID 복원 (마지막 선택 장비, 페이지 전용 키: spec_eqp)
+      const savedEqp = localStorage.getItem("spec_eqp");
       if (savedEqp && eqpIds.value.includes(savedEqp)) {
         filters.eqpId = savedEqp;
         await loadLotIds();
@@ -595,6 +616,7 @@ onUnmounted(() => {
 });
 
 // --- Filter Change Handlers ---
+// [수정] Site 변경 시 로컬 스토리지(spec_site) 업데이트 및 하위 필터 초기화
 const onSiteChange = async () => {
   resetFrom(0);
   if (filterStore.selectedSite) {
@@ -606,11 +628,11 @@ const onSiteChange = async () => {
   }
 };
 
+// [수정] SDWT 변경 시 로컬 스토리지(spec_sdwt) 업데이트
 const onSdwtChange = async () => {
   resetFrom(1);
   if (filterStore.selectedSdwt) {
     localStorage.setItem("spec_sdwt", filterStore.selectedSdwt);
-    // [수정] Agent가 설치된 장비만 조회하도록 'agent' 타입 사용
     eqpIds.value = await equipmentApi.getEqpIds(
       undefined,
       filterStore.selectedSdwt,
@@ -622,6 +644,7 @@ const onSdwtChange = async () => {
   }
 };
 
+// [수정] EqpID 변경 시 로컬 스토리지(spec_eqp) 업데이트
 const onEqpChange = () => {
   resetFrom(2);
   if (filters.eqpId) {
@@ -709,6 +732,7 @@ const loadPoints = async () => {
   }
 };
 
+// [수정] resetFrom 함수 내에서 로컬 스토리지 삭제 로직 보강
 const resetFrom = (level: number) => {
   if (level <= 0) {
     filterStore.selectedSdwt = "";
@@ -780,7 +804,6 @@ const searchData = async () => {
         }))
       : [];
 
-    // WaferID 기준 오름차순 정렬
     mappedData.sort((a: any, b: any) => a.waferId - b.waferId);
 
     chartSeries.value = mappedData;
@@ -812,8 +835,6 @@ const searchData = async () => {
         });
       });
 
-      // [핵심] Backend에서 넘어온 eqpId, scanTs, rawWaferId, pointId를 테이블 데이터에 저장
-      // (pointId는 series 루트에 있으므로 d.pointId 사용)
       tableData.value = data
         .map((d: any) => ({
           waferId: d.waferId,
@@ -844,8 +865,6 @@ const toggleGoldenRef = async () => {
   if (showGoldenRef.value) {
     await fetchGoldenRef();
   } else {
-    // Golden Ref가 꺼질 때 명시적으로 null로 설정하여 차트 재계산을 유도합니다.
-    // chartOption에서 이를 감지하여 "Dummy Series"를 넣어 잔상을 제거합니다.
     goldenSeries.value = null;
   }
 };
@@ -892,18 +911,16 @@ const onRowSelect = async (event: any) => {
 
   selectedModelWafer.value = wid;
 
-  // GEN 데이터 요청 시, 화면의 필터 값이 아닌 '해당 행(Row)'의 정보를 사용해야 정확합니다.
   try {
     const genData = await waferApi.getSpectrumGen({
       lotId: filters.lotId,
-      waferId: rawWid, // DB 원본 Wafer ID
-      pointId: pid, // 해당 행의 Point ID
-      eqpId: eqp, // 해당 행의 EQP ID
-      ts: ts, // 해당 행의 Timestamp
+      waferId: rawWid,
+      pointId: pid,
+      eqpId: eqp,
+      ts: ts,
     });
 
     if (genData) {
-      console.log("GEN Data Fetched:", genData); // 디버깅용 로그
       genSeries.value = {
         ...genData,
         name: `Model (Slot #${wid})`,
@@ -914,7 +931,6 @@ const onRowSelect = async (event: any) => {
         z: 50,
       };
     } else {
-      console.warn("No GEN Data found for:", { wid, rawWid, pid, eqp, ts });
       genSeries.value = null;
     }
   } catch (e) {
@@ -929,6 +945,7 @@ const clearModelFit = () => {
   selectedTableRow.value = null;
 };
 
+// [수정] resetFilters: 로컬 스토리지 삭제 포함
 const resetFilters = () => {
   filterStore.reset();
   localStorage.removeItem("spec_site");
@@ -976,12 +993,10 @@ const chartOption = computed(() => {
 
   const series: any[] = [];
 
-  // 1. Golden Reference
-  // showGoldenRef가 true이고 데이터가 있을 때만 실제 데이터를 그림
   if (showGoldenRef.value && goldenSeries.value) {
     series.push({
       ...goldenSeries.value,
-      id: "golden-ref", // 고정 ID
+      id: "golden-ref",
       name: "Golden Ref",
       type: "line",
       symbol: "none",
@@ -992,12 +1007,11 @@ const chartOption = computed(() => {
       z: 1,
     });
   } else {
-    // [핵심] 꺼졌을 때 빈 데이터의 'Golden Ref' 시리즈를 보내어 ECharts가 이전 선을 지우도록 유도
     series.push({
-      id: "golden-ref", // 같은 ID 사용
+      id: "golden-ref",
       name: "Golden Ref",
       type: "line",
-      data: [], // 빈 데이터
+      data: [],
       showSymbol: false,
       lineStyle: { opacity: 0 },
       smooth: false,
@@ -1005,7 +1019,6 @@ const chartOption = computed(() => {
     });
   }
 
-  // 2. Wafer Series
   chartSeries.value.forEach((s, idx) => {
     const isHovered = hoveredWaferId.value === s.waferId;
     const isSelected = selectedModelWafer.value === s.waferId;
@@ -1029,7 +1042,6 @@ const chartOption = computed(() => {
     });
   });
 
-  // 3. GEN (Model Fit)
   if (genSeries.value && genSeries.value.data?.length > 0) {
     series.push({
       ...genSeries.value,
@@ -1040,18 +1052,17 @@ const chartOption = computed(() => {
         width: 2,
         type: "dashed",
         color: "#ef4444",
-        opacity: 1, // [핵심 수정] 명시적으로 불투명도(1)를 설정하여 이전 상태(0)를 덮어씀
+        opacity: 1,
       },
       itemStyle: {
-        color: "#ef4444", // [추가] 색상 명시
-        opacity: 1 
-      }
+        color: "#ef4444",
+        opacity: 1,
+      },
     });
   } else {
-    // [기존 유지] 데이터가 없으면 투명하게 숨김
     series.push({
       id: "model-gen",
-      name: "Model", 
+      name: "Model",
       type: "line",
       data: [],
       showSymbol: false,
@@ -1100,15 +1111,10 @@ const chartOption = computed(() => {
         return html;
       },
     },
-    // [핵심] 범례 데이터 생성 시, 현재 series 배열에 있는 모든 이름을 포함시킵니다.
-    // 단, 데이터가 빈 껍데기(Dummy)인 경우 범례에서 제외하고 싶다면 필터링을 추가할 수 있습니다.
-    // 여기서는 사용자가 켰는데 데이터가 없는 경우를 제외하고는 모두 보여줍니다.
     legend: {
       data: series
         .filter((s) => {
-          // Golden Ref는 꺼져있으면 범례에서도 숨김
           if (s.id === "golden-ref" && !showGoldenRef.value) return false;
-          // Model은 데이터가 없으면(Dummy) 범례에서 숨김
           if (s.id === "model-gen" && (!s.data || s.data.length === 0))
             return false;
           return true;
@@ -1160,7 +1166,6 @@ const chartOption = computed(() => {
   };
 });
 
-// --- Helper Functions for Table ---
 const formatHeader = (key: string) => {
   return key.replace(/_/g, " ").toUpperCase();
 };
