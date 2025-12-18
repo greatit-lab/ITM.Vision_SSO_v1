@@ -1,19 +1,40 @@
 // frontend/src/api/menu.ts
-import http from "./http";
+import http from './http';
 
-// 메뉴 데이터 타입 정의 (백엔드 RefMenu + children 구조)
+// [API 응답용] 순수 데이터 모델 (DB 스키마와 일치, null 허용)
 export interface MenuNode {
   menuId: number;
   label: string;
   routerPath: string | null;
   icon: string | null;
   parentId: number | null;
-  sortOrder: number;
-  statusTag: string | null; // 'BETA', 'NEW' 등
-  isVisible: string;
-  children?: MenuNode[]; // 계층형 구조
+  children: MenuNode[];
+  statusTag?: string | null;
 }
 
-export const fetchMyMenus = async () => {
-  return await http.get<MenuNode[]>("/menus/my-menus");
-};
+// [UI 표시용] TreeTable 호환 모델 (null 불가, undefined 사용)
+// Omit을 사용하여 MenuNode의 null 허용 필드를 제거하고, UI용으로 재정의
+export interface UIMenuNode extends Omit<MenuNode, 'children' | 'icon' | 'routerPath' | 'statusTag'> {
+  key: string;            // TreeTable 필수
+  data: MenuNode;         // 원본 데이터 보존
+  children: UIMenuNode[]; // 자식 재귀
+  
+  // [재정의] PrimeVue TreeNode 호환을 위해 null 대신 optional(?) 사용
+  icon?: string;          // string | undefined
+  routerPath?: string;    // string | undefined
+  statusTag?: string;     // string | undefined
+}
+
+export interface RolePermission {
+  role: string;
+  menuId: number;
+}
+
+// 기존 내 메뉴 조회
+export const fetchMyMenus = () => http.get<MenuNode[]>('/menu/my');
+
+// [관리자용] 전체 메뉴 및 권한 관리
+export const fetchAllMenus = () => http.get<MenuNode[]>('/menu/all');
+export const fetchPermissions = () => http.get<RolePermission[]>('/menu/permissions');
+export const saveRolePermissions = (role: string, menuIds: number[]) => 
+  http.post(`/menu/permissions/${role}`, { menuIds });
