@@ -19,6 +19,9 @@ import LotUniformityTrendView from "../views/LotUniformityTrendView.vue";
 import EquipmentHealthView from "../views/EquipmentHealthView.vue";
 import ProcessMatchingAnalyticsView from "../views/ProcessMatchingAnalyticsView.vue";
 
+// Admin Components
+import MenuManagementView from "../views/admin/MenuManagementView.vue";
+
 // Routes Definition
 const routes: Array<RouteRecordRaw> = [
   {
@@ -99,15 +102,13 @@ const routes: Array<RouteRecordRaw> = [
     component: ProcessMatchingAnalyticsView,
     meta: { requiresAuth: true },
   },
-  // 관리자 전용 라우트 예시
-  /*
+  // [관리자 전용] 메뉴 권한 관리
   {
-    path: "/admin/settings",
-    name: "admin-settings",
-    component: () => import("../views/admin/SettingsView.vue"),
+    path: "/admin/menus",
+    name: "admin-menus",
+    component: MenuManagementView,
     meta: { requiresAuth: true, requiresAdmin: true },
   },
-  */
 ];
 
 const router = createRouter({
@@ -138,7 +139,6 @@ function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
 }
 
 // [Navigation Guard] 페이지 이동 전 인증 및 권한 확인
-// [수정] unused parameter 'from' -> '_from'
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   const menuStore = useMenuStore();
@@ -172,12 +172,12 @@ router.beforeEach(async (to, _from, next) => {
     }
 
     // 예외: 홈('/')은 기본 대시보드로서 항상 허용하거나, 메뉴에 반드시 포함되어야 함.
-    // 여기서는 루프 방지를 위해 '/'는 검사에서 제외하되, 필요시 포함 가능.
-    if (to.path !== "/") {
+    // 관리자 페이지(/admin/*)는 별도 requiresAdmin 가드로 처리되므로 여기서는 패스 가능하나,
+    // 메뉴 트리 기반 접근 제어를 원한다면 포함 가능. 여기서는 '/'만 예외 처리.
+    if (to.path !== "/" && !to.path.startsWith("/admin")) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
 
       if (!hasPermission) {
-        // 메뉴 리스트에 없는 경로로 접근 시도 시 차단
         console.warn(`[Router Guard] Unauthorized access attempt to: ${to.path}`);
         alert("접근 권한이 없는 메뉴입니다.");
         return next({ name: "home" });
