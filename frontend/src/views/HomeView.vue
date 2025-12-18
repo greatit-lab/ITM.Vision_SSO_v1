@@ -668,6 +668,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useFilterStore } from "@/stores/filter";
+import { useAuthStore } from "@/stores/auth"; // [추가]
 import {
   dashboardApi,
   type DashboardSummaryDto,
@@ -681,6 +682,7 @@ import Dialog from "primevue/dialog";
 import ProgressSpinner from "primevue/progressspinner";
 
 const filterStore = useFilterStore();
+const authStore = useAuthStore(); // [추가]
 
 const isSummaryLoading = ref(false);
 const isTableLoading = ref(false);
@@ -715,17 +717,34 @@ let themeObserver: MutationObserver | null = null;
 
 onMounted(async () => {
   try {
-    // 사이트 목록 로드 및 필터 복원 로직
+    // 1. 사이트 목록 로드
     sites.value = await dashboardApi.getSites();
-    const savedSite = localStorage.getItem("dashboard_site");
-    const savedSdwt = localStorage.getItem("dashboard_sdwt");
 
-    if (savedSite && sites.value.includes(savedSite)) {
-      filterStore.selectedSite = savedSite;
-      sdwts.value = await dashboardApi.getSdwts(savedSite);
+    // 2. 기본 필터 값 결정 (우선순위: DB 저장값 > 로컬 스토리지)
+    let defaultSite = authStore.user?.site;
+    let defaultSdwt = authStore.user?.sdwt;
 
-      if (savedSdwt) {
-        filterStore.selectedSdwt = savedSdwt;
+    // DB에 저장된 값이 없으면 로컬 스토리지 확인 (기존 편의성 유지)
+    if (!defaultSite) {
+      defaultSite = localStorage.getItem("dashboard_site") || undefined;
+      // 로컬 스토리지의 경우에만 SDWT도 로컬에서 가져옴 (DB 사용 시에는 Site에 종속되므로 아래에서 처리)
+      if (defaultSite) {
+        defaultSdwt = localStorage.getItem("dashboard_sdwt") || undefined;
+      }
+    } else {
+        // DB 값 사용 시 SDWT도 DB 값 사용 (위에서 이미 할당됨)
+    }
+
+    // 3. 결정된 필터 적용 및 데이터 로드
+    if (defaultSite && sites.value.includes(defaultSite)) {
+      filterStore.selectedSite = defaultSite;
+      
+      // 해당 Site의 SDWT 목록 로드
+      sdwts.value = await dashboardApi.getSdwts(defaultSite);
+
+      if (defaultSdwt) {
+        filterStore.selectedSdwt = defaultSdwt;
+        // 데이터 자동 조회
         await loadData(true);
       }
     }
