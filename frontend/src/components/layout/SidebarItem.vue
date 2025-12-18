@@ -70,7 +70,7 @@
           class="flex items-center justify-between flex-1 min-w-0"
         >
           <span
-            class="text-[13.5px] tracking-tight truncate transition-colors duration-300 ml-1"
+            class="text-[13.5px] tracking-tight truncate transition-colors duration-300 ml-0"
             :class="isActive ? 'font-bold' : 'font-medium'"
           >
             {{ item.label }}
