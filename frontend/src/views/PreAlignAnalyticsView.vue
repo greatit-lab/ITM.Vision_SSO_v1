@@ -192,7 +192,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted, nextTick } from "vue"; // [수정] nextTick 추가
+import {
+  ref,
+  reactive,
+  onMounted,
+  computed,
+  onUnmounted,
+  nextTick,
+  watch,
+} from "vue";
+import { useAuthStore } from "@/stores/auth"; // [Add] Auth Store import
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import { preAlignApi, type PreAlignDataDto } from "@/api/prealign";
@@ -204,6 +213,15 @@ import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import ProgressSpinner from "primevue/progressspinner";
+
+// --- Store & Constants ---
+const authStore = useAuthStore();
+// [New] Page-specific LocalStorage Keys
+const LS_KEYS = {
+  SITE: "prealign-view-site",
+  SDWT: "prealign-view-sdwt",
+  EQPID: "prealign-view-eqpid",
+};
 
 // --- State ---
 const filter = reactive({
@@ -237,7 +255,6 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-// [추가] 창 크기 변경 시 차트 리사이즈 핸들러
 const handleResize = () => {
   if (chartInstance) {
     chartInstance.resize();
@@ -248,25 +265,48 @@ const handleResize = () => {
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  const savedSite = localStorage.getItem("prealign_site");
-  const savedSdwt = localStorage.getItem("prealign_sdwt");
-  const savedEqpId = localStorage.getItem("prealign_eqpid");
+  // [Logic] Initialize Filters: Auth Store > LocalStorage > Default
+  let initSite =
+    authStore.user?.site || localStorage.getItem(LS_KEYS.SITE) || "";
 
-  if (savedSite && sites.value.includes(savedSite)) {
-    filter.site = savedSite;
-    sdwts.value = await dashboardApi.getSdwts(savedSite);
+  // Validate site existence
+  if (initSite && !sites.value.includes(initSite)) {
+    initSite = "";
+  }
 
-    if (savedSdwt) {
-      filter.sdwt = savedSdwt;
-      eqpIds.value = await equipmentApi.getEqpIds(
-        undefined,
-        savedSdwt,
-        "prealign"
-      );
+  if (initSite) {
+    filter.site = initSite;
+    // Load SDWTs for valid Site
+    try {
+      sdwts.value = await dashboardApi.getSdwts(initSite);
 
-      if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
-        filter.eqpId = savedEqpId;
+      let initSdwt =
+        authStore.user?.sdwt || localStorage.getItem(LS_KEYS.SDWT) || "";
+
+      // Validate SDWT existence
+      if (initSdwt && !sdwts.value.includes(initSdwt)) {
+        initSdwt = "";
       }
+
+      if (initSdwt) {
+        filter.sdwt = initSdwt;
+        // Load EqpIds for valid SDWT
+        eqpIds.value = await equipmentApi.getEqpIds(
+          undefined,
+          initSdwt,
+          "prealign"
+        );
+
+        // Restore EqpId (Page specific only)
+        const initEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
+        if (initEqpId && eqpIds.value.includes(initEqpId)) {
+          filter.eqpId = initEqpId;
+          // Auto Search if all conditions met
+          search();
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore filter state:", e);
     }
   }
 
@@ -275,56 +315,71 @@ onMounted(async () => {
     attributeFilter: ["class"],
   });
 
-  // [추가] 리사이즈 이벤트 리스너 등록
   window.addEventListener("resize", handleResize);
 });
 
 onUnmounted(() => {
   themeObserver.disconnect();
-  // [추가] 리사이즈 이벤트 리스너 제거
   window.removeEventListener("resize", handleResize);
 });
+
+// --- Watchers for Persistence ---
+// [New] Using watchers to save filter state automatically
+watch(
+  () => filter.site,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
+    else localStorage.removeItem(LS_KEYS.SITE);
+  }
+);
+
+watch(
+  () => filter.sdwt,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
+    else localStorage.removeItem(LS_KEYS.SDWT);
+  }
+);
+
+watch(
+  () => filter.eqpId,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.EQPID, newVal);
+    else localStorage.removeItem(LS_KEYS.EQPID);
+  }
+);
 
 // --- Handlers ---
 const onSiteChange = async () => {
   if (filter.site) {
-    localStorage.setItem("prealign_site", filter.site);
     sdwts.value = await dashboardApi.getSdwts(filter.site);
   } else {
-    localStorage.removeItem("prealign_site");
     sdwts.value = [];
   }
-
+  // Reset child filters
   filter.sdwt = "";
-  localStorage.removeItem("prealign_sdwt");
   filter.eqpId = "";
-  localStorage.removeItem("prealign_eqpid");
   eqpIds.value = [];
+  // Persistence handled by watchers
 };
 
 const onSdwtChange = async () => {
   if (filter.sdwt) {
-    localStorage.setItem("prealign_sdwt", filter.sdwt);
     eqpIds.value = await equipmentApi.getEqpIds(
       undefined,
       filter.sdwt,
       "prealign"
     );
   } else {
-    localStorage.removeItem("prealign_sdwt");
     eqpIds.value = [];
   }
-
+  // Reset child filter
   filter.eqpId = "";
-  localStorage.removeItem("prealign_eqpid");
+  // Persistence handled by watchers
 };
 
 const onEqpIdChange = () => {
-  if (filter.eqpId) {
-    localStorage.setItem("prealign_eqpid", filter.eqpId);
-  } else {
-    localStorage.removeItem("prealign_eqpid");
-  }
+  // Persistence handled by watchers
 };
 
 const search = async () => {
@@ -347,7 +402,6 @@ const search = async () => {
     chartData.value = [];
   } finally {
     isLoading.value = false;
-    // [추가] 데이터를 받아온 후 차트가 표시되면 리사이즈 호출
     if (chartInstance) {
       nextTick(() => {
         chartInstance?.resize();
@@ -357,29 +411,28 @@ const search = async () => {
 };
 
 const reset = () => {
+  // Reset Values
   filter.site = "";
   filter.sdwt = "";
   filter.eqpId = "";
   filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   filter.endDate = new Date();
 
-  localStorage.removeItem("prealign_site");
-  localStorage.removeItem("prealign_sdwt");
-  localStorage.removeItem("prealign_eqpid");
-
+  // Reset Lists & Data
   sdwts.value = [];
   eqpIds.value = [];
   chartData.value = [];
   hasSearched.value = false;
   isZoomed.value = false;
   searchedEqpId.value = "";
+
+  // Persistence cleared by watchers automatically
 };
 
 // --- Chart Helper (Zoom & Resize) ---
 const onChartCreated = (instance: any) => {
   chartInstance = instance;
 
-  // [추가] 차트 인스턴스가 생성되면 DOM 업데이트 후 즉시 리사이즈
   nextTick(() => {
     instance.resize();
   });
@@ -557,7 +610,6 @@ const chartOption = computed(() => {
 </script>
 
 <style scoped>
-/* (기존 스타일과 동일) */
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
