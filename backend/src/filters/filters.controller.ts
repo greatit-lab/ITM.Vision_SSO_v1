@@ -2,7 +2,8 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { FiltersService, FilterQueryDto } from './filters.service';
 
-@Controller('api/Filters')
+// [수정] 'api/Filters' -> 'Filters'로 변경 (Global Prefix 'api'와 결합되어 최종 '/api/Filters'가 됨)
+@Controller('Filters')
 export class FiltersController {
   constructor(private readonly filtersService: FiltersService) {}
 
