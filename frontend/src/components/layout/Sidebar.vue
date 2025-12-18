@@ -5,24 +5,22 @@
     :class="isOpen ? 'w-60' : 'w-[70px]'"
   >
     <div
-      class="relative flex items-center transition-all duration-300 border-b h-12 border-slate-100 dark:border-slate-800/50"
+      class="relative flex items-center transition-all duration-300 border-b h-16 border-slate-100 dark:border-slate-800/50"
       :class="isOpen ? 'px-5 justify-start' : 'px-0 justify-center'"
     >
       <div class="flex items-center gap-3 overflow-hidden">
-        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8">
-          <img
-            :src="logoUrl"
-            alt="ITM Vision Logo"
-            class="object-contain w-full h-full transition-all duration-300 drop-shadow-md filter hover:scale-110"
-          />
-        </div>
+        <img
+          :src="logoUrl"
+          alt="ITM Vision Logo"
+          class="object-contain w-auto h-10 transition-all duration-300 drop-shadow-md filter hover:scale-110"
+        />
 
         <div
           class="flex flex-col transition-opacity duration-300"
           :class="isOpen ? 'opacity-100' : 'opacity-0 w-0 hidden'"
         >
           <span
-            class="text-sm font-extrabold leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap"
+            class="text-xl font-extrabold leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap"
           >
             ITM Vision
           </span>
@@ -181,4 +179,3 @@ onMounted(async () => {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
-
