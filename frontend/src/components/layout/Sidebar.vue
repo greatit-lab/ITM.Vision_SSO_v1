@@ -12,7 +12,7 @@
         <img
           :src="logoUrl"
           alt="ITM Vision Logo"
-          class="object-contain w-auto h-10 transition-all duration-300 drop-shadow-md filter hover:scale-110"
+          class="object-contain w-auto h-8 transition-all duration-300 drop-shadow-md filter hover:scale-110"
         />
 
         <div
@@ -20,7 +20,7 @@
           :class="isOpen ? 'opacity-100' : 'opacity-0 w-0 hidden'"
         >
           <span
-            class="text-xl font-extrabold leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap"
+            class="text-lg font-extrabold leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap"
           >
             ITM Vision
           </span>
@@ -179,3 +179,4 @@ onMounted(async () => {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+
