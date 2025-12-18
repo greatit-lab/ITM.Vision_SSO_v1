@@ -14,7 +14,11 @@ export class AuthService {
   ) {}
 
   async login(user: User): Promise<LoginResult> {
-    // [Gate 2] 접근 허용 확인
+    const rawUserId = user.userId;
+    this.logger.log(`===========================================================`);
+    this.logger.log(`[LOGIN START] Processing login for Raw UserID: '${rawUserId}'`);
+
+    // [Gate 2] 접근 허용 확인 (Company / Department Whitelist)
     let isAllowed = false;
 
     if (user.companyCode) {
@@ -32,89 +36,112 @@ export class AuthService {
     }
 
     if (!isAllowed) {
+      this.logger.error(`[ACCESS DENIED] Company: ${user.companyCode}, Dept: ${user.department}`);
       throw new ForbiddenException(
         `Access Denied: Unauthorized Company (${user.companyCode}) or Department (${user.department}).`,
       );
     }
 
-    // [Gate 3] 사용자 식별 및 컨텍스트(Site/SDWT) 조회
-    let contextSite = '';
-    let contextSdwt = '';
+    // ---------------------------------------------------------------------------
+    // [Step 1] DB ID 동기화 및 식별 (ID 정규화)
+    // ---------------------------------------------------------------------------
+    let dbLoginId = rawUserId; 
 
-    // upsert를 사용하여 사용자 정보 갱신 및 컨텍스트 조회
-    // Prisma transaction을 사용하거나, 조회 후 업데이트 방식 사용
-    let sysUser = await this.prisma.sysUser.findUnique({
-      where: { loginId: user.userId },
-      include: {
-        context: {
-          include: {
-            sdwtInfo: true,
-          },
-        },
-      },
-    });
-
-    if (sysUser) {
-      // 기존 유저: 로그인 카운트 증가
-      await this.prisma.sysUser.update({
-        where: { loginId: user.userId },
-        data: { loginCount: { increment: 1 }, lastLoginAt: new Date() },
+    try {
+      const existingUser = await this.prisma.sysUser.findFirst({
+        where: { loginId: { equals: rawUserId, mode: 'insensitive' } }
       });
 
-      // 저장된 컨텍스트 정보 추출
-      if (sysUser.context && sysUser.context.sdwtInfo) {
-        contextSite = sysUser.context.sdwtInfo.site;
-        contextSdwt = sysUser.context.sdwtInfo.sdwt;
+      if (existingUser) {
+        dbLoginId = existingUser.loginId; // DB에 저장된 실제 ID 사용
+        this.logger.log(`[STEP 1] User Found in DB. Raw: '${rawUserId}' -> Resolved: '${dbLoginId}'`);
+        
+        await this.prisma.sysUser.update({
+          where: { loginId: dbLoginId },
+          data: { loginCount: { increment: 1 }, lastLoginAt: new Date() },
+        });
+      } else {
+        this.logger.log(`[STEP 1] New User Detected. Creating: '${rawUserId}'`);
+        const newUser = await this.prisma.sysUser.create({
+          data: { loginId: rawUserId, loginCount: 1 }
+        });
+        dbLoginId = newUser.loginId;
       }
-    } else {
-      // 신규 유저 생성
-      sysUser = await this.prisma.sysUser.create({
-        data: { loginId: user.userId, loginCount: 1 },
-        include: {
-          context: { include: { sdwtInfo: true } }
-        }
+    } catch (e) {
+      this.logger.warn(`[STEP 1] Error during user sync: ${e}. Retrying lookup...`);
+      const retryUser = await this.prisma.sysUser.findFirst({
+        where: { loginId: { equals: rawUserId, mode: 'insensitive' } }
       });
+      if (retryUser) dbLoginId = retryUser.loginId;
     }
 
-    // [Gate 4] 권한 결정 (Admin Role Check)
-    // [수정] 대소문자 이슈 방지를 위해 findFirst 사용 (Prisma 버전에 따라 mode: 'insensitive' 지원 여부 확인 필요)
-    // 지원하지 않는 DB일 경우를 대비해 Application 레벨에서 검증 로직 추가 가능하지만,
-    // 여기서는 findFirst로 유연하게 검색합니다.
+    // ---------------------------------------------------------------------------
+    // [Step 2] Admin 권한 부여 확인
+    // ---------------------------------------------------------------------------
     let role = 'USER';
-    
+    this.logger.log(`[STEP 2] Checking Admin Privileges for ID: '${dbLoginId}'...`);
+
     const adminUser = await this.prisma.cfgAdminUser.findFirst({
       where: { 
-        loginId: {
-          equals: user.userId,
-          // Postgres 등에서는 insensitive 지원, 아닐 경우 정확한 매칭
-          // mode: 'insensitive' 
-        }
-      }, 
+        loginId: { equals: dbLoginId, mode: 'insensitive' }
+      }
     });
 
-    // 만약 equals 검색이 실패했다면, 모든 목록을 가져와서 비교하는 것은 비효율적이므로
-    // DB Collation이 대소문자 구분(CI)되어 있기를 기대하거나,
-    // 데이터가 소문자로 저장되어 있다면 user.userId.toLowerCase() 시도
     if (adminUser) {
-      role = adminUser.role;
+      // [수정] DB에 'admin' 소문자로 저장되어 있어도 대문자로 변환하여 Frontend와 일치시킴
+      role = adminUser.role.toUpperCase(); 
+      this.logger.log(`   ✅ Admin Matched! Role set to: [${role}]`);
     } else {
       // Guest Check
       const guestUser = await this.prisma.cfgGuestAccess.findFirst({
         where: {
-          loginId: user.userId,
+          loginId: { equals: dbLoginId, mode: 'insensitive' },
           validUntil: { gte: new Date() },
         },
       });
-      if (guestUser) role = guestUser.grantedRole;
+      if (guestUser) {
+        role = guestUser.grantedRole.toUpperCase(); // [수정] 대문자 변환
+        this.logger.log(`   ✅ Guest Access Granted! Role set to: [${role}]`);
+      } else {
+        this.logger.warn(`   ❌ Admin Not Found in 'cfg_admin_user' for ID: '${dbLoginId}'. Defaulting to USER.`);
+      }
     }
-    
-    this.logger.log(`User [${user.userId}] logged in. Role: [${role}]. Context: [${contextSite}/${contextSdwt}]`);
 
-    // [최종] 반환할 User 객체 구성
+    // ---------------------------------------------------------------------------
+    // [Step 3] Site/Sdwt Context 정보 확인
+    // ---------------------------------------------------------------------------
+    let contextSite = '';
+    let contextSdwt = '';
+    this.logger.log(`[STEP 3] Checking Saved Context for ID: '${dbLoginId}'...`);
+
+    const userContext = await this.prisma.sysUserContext.findFirst({
+      where: { 
+        loginId: { equals: dbLoginId, mode: 'insensitive' } 
+      },
+      include: {
+        sdwtInfo: true, 
+      },
+    });
+
+    if (userContext && userContext.sdwtInfo) {
+      contextSite = userContext.sdwtInfo.site;
+      contextSdwt = userContext.sdwtInfo.sdwt;
+      this.logger.log(`   ✅ Context Found: Site=[${contextSite}], SDWT=[${contextSdwt}]`);
+    } else {
+      this.logger.warn(`   ❌ Context Not Found in 'sys_user_context' for ID: '${dbLoginId}'.`);
+    }
+
+    // ---------------------------------------------------------------------------
+    // [Final] 최종 결과 반환
+    // ---------------------------------------------------------------------------
+    this.logger.log(`[LOGIN COMPLETE] Final User State -> ID: ${dbLoginId}, Role: ${role}, Context: ${contextSite}/${contextSdwt}`);
+    this.logger.log(`===========================================================`);
+
     const finalUser: User = {
       ...user,
+      userId: dbLoginId,
       role, 
-      site: contextSite || undefined, // 값이 없으면 undefined 처리
+      site: contextSite || undefined,
       sdwt: contextSdwt || undefined,
     };
 
@@ -134,19 +161,30 @@ export class AuthService {
   }
 
   async saveUserContext(loginId: string, site: string, sdwt: string) {
+    this.logger.log(`[SAVE CONTEXT] Request for ${loginId} -> Site: ${site}, SDWT: ${sdwt}`);
+
     const sdwtInfo = await this.prisma.refSdwt.findFirst({
       where: { site, sdwt },
     });
 
     if (!sdwtInfo) {
+      this.logger.error(`[SAVE CONTEXT] Failed: Invalid Site/SDWT combination.`);
       throw new NotFoundException(`Invalid Site (${site}) or SDWT (${sdwt}).`);
     }
 
-    // Upsert로 컨텍스트 저장
-    return await this.prisma.sysUserContext.upsert({
-      where: { loginId },
-      update: { lastSdwtId: sdwtInfo.id },
-      create: { loginId, lastSdwtId: sdwtInfo.id },
+    const sysUser = await this.prisma.sysUser.findFirst({
+      where: { loginId: { equals: loginId, mode: 'insensitive' } }
     });
+    
+    const targetLoginId = sysUser ? sysUser.loginId : loginId;
+
+    const result = await this.prisma.sysUserContext.upsert({
+      where: { loginId: targetLoginId },
+      update: { lastSdwtId: sdwtInfo.id },
+      create: { loginId: targetLoginId, lastSdwtId: sdwtInfo.id },
+    });
+
+    this.logger.log(`[SAVE CONTEXT] Success for ${targetLoginId}`);
+    return result;
   }
 }
