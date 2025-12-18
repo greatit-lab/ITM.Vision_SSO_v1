@@ -2,7 +2,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { WaferService, WaferQueryParams } from './wafer.service';
 
-@Controller('api/WaferData')
+// [수정] 'api/WaferData' -> 'WaferData'
+// 프론트엔드/프록시가 '/api'를 처리하므로 백엔드는 'WaferData'로 대기해야 합니다.
+@Controller('WaferData')
 export class WaferController {
   constructor(private readonly waferService: WaferService) {}
 
@@ -56,19 +58,16 @@ export class WaferController {
     return this.waferService.getLotUniformityTrend(query);
   }
 
-  // Spectrum Analysis - 실제 포인트 목록 조회
   @Get('points')
   getPoints(@Query() query: WaferQueryParams) {
     return this.waferService.getDistinctPoints(query);
   }
 
-  // Spectrum Trend 데이터 조회
   @Get('trend/spectrum')
   getSpectrumTrend(@Query() query: WaferQueryParams) {
     return this.waferService.getSpectrumTrend(query);
   }
 
-  // Model Fit(GEN) Spectrum 조회 엔드포인트
   @Get('spectrum-gen')
   getSpectrumGen(@Query() query: WaferQueryParams) {
     return this.waferService.getSpectrumGen(query);
