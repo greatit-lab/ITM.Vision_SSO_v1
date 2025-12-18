@@ -35,9 +35,11 @@ export class AuthController {
       return res.redirect(`${frontendUrl}?error=NoUser`);
     }
 
+    // AuthService.login 실행 -> 여기서 Role과 Context가 계산됨
     const jwtResult = await this.authService.login(req.user);
 
-    const userJson = JSON.stringify(req.user);
+    // [수정 핵심] req.user(구 정보) 대신 jwtResult.user(계산된 신규 정보)를 사용해야 함
+    const userJson = JSON.stringify(jwtResult.user); 
     const encodedUser = encodeURIComponent(userJson);
 
     const redirectUrl = `${frontendUrl}?token=${jwtResult.access_token}&user=${encodedUser}`;
@@ -58,14 +60,13 @@ export class AuthController {
     }
   }
 
-  // [추가] 4. 사용자 Context (Site/SDWT) 저장
+  // 4. 사용자 Context (Site/SDWT) 저장
   @Post('context')
   @UseGuards(AuthGuard('jwt'))
   async saveContext(
     @Req() req: RequestWithUser,
     @Body() body: { site: string; sdwt: string }
   ) {
-    // req.user는 JWT Strategy에 의해 디코딩된 정보
     return await this.authService.saveUserContext(req.user.userId, body.site, body.sdwt);
   }
 }
