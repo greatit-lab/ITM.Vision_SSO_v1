@@ -2,7 +2,6 @@
 import { Injectable } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { RefMenu, CfgMenuRole } from '@prisma/client';
 
 export interface MenuNode {
   menuId: number;
