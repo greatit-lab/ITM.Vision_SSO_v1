@@ -309,7 +309,9 @@
       <div
         class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
       >
-        <i class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-server"></i>
+        <i
+          class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-server"
+        ></i>
       </div>
       <p class="text-sm font-bold text-slate-500">
         Ready to analyze processes.
@@ -322,9 +324,9 @@
 </template>
 
 <script setup lang="ts">
-// ... (Script setup - imports and state 기존 유지) ...
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useFilterStore } from "@/stores/filter";
+import { useAuthStore } from "@/stores/auth"; // [추가] Auth Store
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import { performanceApi, type ProcessMemoryDataDto } from "@/api/performance";
@@ -344,8 +346,8 @@ interface ProcessStat {
   last: number;
 }
 
-// ... (State 정의 기존 유지) ...
 const filterStore = useFilterStore();
+const authStore = useAuthStore(); // [추가]
 const selectedEqpId = ref("");
 const startDate = ref(new Date(Date.now() - 24 * 60 * 60 * 1000));
 const endDate = ref(new Date());
@@ -360,7 +362,6 @@ const processStats = ref<ProcessStat[]>([]);
 const displayedProcessCount = ref(0);
 
 const isLoading = ref(false);
-// EQP ID 로딩 상태 변수
 const isEqpIdLoading = ref(false);
 const hasSearched = ref(false);
 const isZoomed = ref(false);
@@ -382,23 +383,41 @@ const colorPalette = [
   "#84cc16",
 ];
 
-// ... (Lifecycle, Handlers, searchData 기존 유지) ...
+// --- Lifecycle ---
 onMounted(async () => {
+  // 1. Site 목록 로드
   sites.value = await dashboardApi.getSites();
-  const savedSite = localStorage.getItem("dashboard_site");
-  if (savedSite && sites.value.includes(savedSite)) {
-    filterStore.setSite(savedSite);
-    sdwts.value = await dashboardApi.getSdwts(savedSite);
-    const savedSdwt = localStorage.getItem("dashboard_sdwt");
-    if (savedSdwt) {
-      filterStore.setSdwt(savedSdwt);
+
+  // 2. 기본 필터 결정 (우선순위: DB 사용자 설정 -> 페이지 전용 로컬 스토리지)
+  let defaultSite = authStore.user?.site;
+  let defaultSdwt = authStore.user?.sdwt;
+
+  // DB에 없으면 로컬 스토리지 확인 (페이지 전용 키: process_site, process_sdwt)
+  if (!defaultSite) {
+    defaultSite = localStorage.getItem("process_site") || undefined;
+    if (defaultSite) {
+      defaultSdwt = localStorage.getItem("process_sdwt") || undefined;
+    }
+  }
+
+  // 3. 결정된 Site가 유효하면 적용 및 SDWT 로드
+  if (defaultSite && sites.value.includes(defaultSite)) {
+    filterStore.selectedSite = defaultSite;
+    sdwts.value = await dashboardApi.getSdwts(defaultSite);
+
+    // 4. SDWT 적용 및 EqpID 로드
+    if (defaultSdwt) {
+      filterStore.selectedSdwt = defaultSdwt;
       await loadEqpIds();
+
+      // 5. EqpID 복원 (마지막 선택 장비, 페이지 전용 키: process_eqpid)
       const savedEqpId = localStorage.getItem("process_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
       }
     }
   }
+
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "class") {
@@ -416,30 +435,42 @@ onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
 });
 
+// --- Handlers ---
+// [수정] Site 변경 시 로컬 스토리지 업데이트 (process_site)
 const onSiteChange = async () => {
-  filterStore.setSite(filterStore.selectedSite);
-  localStorage.setItem("dashboard_site", filterStore.selectedSite);
+  if (filterStore.selectedSite) {
+    localStorage.setItem("process_site", filterStore.selectedSite);
+    sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
+  } else {
+    localStorage.removeItem("process_site");
+    sdwts.value = [];
+  }
+
+  // 하위 필터 초기화 & 로컬스토리지 삭제
+  filterStore.selectedSdwt = "";
+  localStorage.removeItem("process_sdwt");
   selectedEqpId.value = "";
   localStorage.removeItem("process_eqpid");
-  sdwts.value = filterStore.selectedSite
-    ? await dashboardApi.getSdwts(filterStore.selectedSite)
-    : [];
   eqpIds.value = [];
   hasSearched.value = false;
 };
 
+// [수정] SDWT 변경 시 로컬 스토리지 업데이트 (process_sdwt)
 const onSdwtChange = async () => {
   if (filterStore.selectedSdwt) {
-    localStorage.setItem("dashboard_sdwt", filterStore.selectedSdwt);
+    localStorage.setItem("process_sdwt", filterStore.selectedSdwt);
     await loadEqpIds();
   } else {
-    localStorage.removeItem("dashboard_sdwt");
+    localStorage.removeItem("process_sdwt");
     eqpIds.value = [];
   }
+
+  // 하위 필터 초기화 & 로컬스토리지 삭제
   selectedEqpId.value = "";
   localStorage.removeItem("process_eqpid");
 };
 
+// [수정] EqpID 변경 시 로컬 스토리지 업데이트 (process_eqpid)
 const onEqpIdChange = () => {
   if (selectedEqpId.value)
     localStorage.setItem("process_eqpid", selectedEqpId.value);
@@ -447,10 +478,9 @@ const onEqpIdChange = () => {
 };
 
 const loadEqpIds = async () => {
-  // [수정] 로딩 상태 관리 추가 및 type 변경
   isEqpIdLoading.value = true;
   try {
-    // [수정] type: 'agent' 전달 (Process Table 대신 Agent Info 사용으로 속도 개선)
+    // Agent가 설치된 장비만 조회
     eqpIds.value = await equipmentApi.getEqpIds(
       undefined,
       filterStore.selectedSdwt,
@@ -514,7 +544,6 @@ const processData = (data: ProcessMemoryDataDto[]) => {
   const maxTs = Math.max(...timestamps);
 
   data.forEach((d) => {
-    // [수정] 데이터 안전 처리: 숫자로 확실하게 변환
     const memVal = Number(d.memoryUsageMB) || 0;
 
     if (!procMap.has(d.processName)) {
@@ -577,7 +606,6 @@ const processData = (data: ProcessMemoryDataDto[]) => {
     });
 
     const pData = data.filter((d) => d.processName === name);
-    // [수정] reduce 합계 계산 시 안전하게 Number 변환
     const sum = pData.reduce(
       (acc, cur) => acc + (Number(cur.memoryUsageMB) || 0),
       0
@@ -602,12 +630,15 @@ const processData = (data: ProcessMemoryDataDto[]) => {
   processStats.value = stats.sort((a, b) => b.max - a.max);
 };
 
+// [수정] 초기화 시 로컬 스토리지 키 삭제
 const resetFilters = () => {
   filterStore.reset();
   selectedEqpId.value = "";
-  localStorage.removeItem("dashboard_site");
-  localStorage.removeItem("dashboard_sdwt");
+
+  localStorage.removeItem("process_site");
+  localStorage.removeItem("process_sdwt");
   localStorage.removeItem("process_eqpid");
+
   sdwts.value = [];
   eqpIds.value = [];
   hasSearched.value = false;
@@ -739,7 +770,6 @@ const resetZoom = () => {
 </script>
 
 <style scoped>
-/* Style omitted for brevity - same as before */
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
@@ -801,4 +831,3 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
-
