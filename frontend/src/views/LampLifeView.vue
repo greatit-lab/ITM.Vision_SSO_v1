@@ -65,6 +65,7 @@
           </button>
         </div>
       </div>
+
       <div
         class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800"
       >
@@ -365,7 +366,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
+import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { lampApi, type LampLifeDto } from "@/api/lamp";
 import EChart from "@/components/common/EChart.vue";
@@ -380,6 +382,14 @@ interface LampDisplay extends LampLifeDto {
   usageRatio: number;
   status: string;
 }
+
+// --- Store & Constants ---
+const authStore = useAuthStore();
+// [New] Page-specific LocalStorage Keys
+const LS_KEYS = {
+  SITE: "lamplife-view-site",
+  SDWT: "lamplife-view-sdwt",
+};
 
 // --- State ---
 const filter = reactive({
@@ -401,6 +411,38 @@ let themeObserver: MutationObserver | null = null;
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
+  // [Logic] Initialize Filters with Priority: Auth Store > LocalStorage > Default
+  let initSite =
+    authStore.user?.site || localStorage.getItem(LS_KEYS.SITE) || "";
+
+  // Validate existence (optional, but prevents stuck on invalid values)
+  if (initSite && !sites.value.includes(initSite)) {
+    initSite = "";
+  }
+
+  if (initSite) {
+    filter.site = initSite;
+    // Immediate fetch for SDWTs dependent on Site
+    try {
+      sdwts.value = await dashboardApi.getSdwts(initSite);
+
+      // Resolve SDWT
+      const initSdwt =
+        authStore.user?.sdwt || localStorage.getItem(LS_KEYS.SDWT) || "";
+
+      // Only set SDWT if it belongs to the loaded Site
+      if (initSdwt && sdwts.value.includes(initSdwt)) {
+        filter.sdwt = initSdwt;
+
+        // [New] Auto-Search if both filters are ready
+        fetchData();
+      }
+    } catch (e) {
+      console.error("Failed to load SDWTs during init:", e);
+    }
+  }
+
+  // Theme observer setup
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "class") {
@@ -412,36 +454,42 @@ onMounted(async () => {
     attributes: true,
     attributeFilter: ["class"],
   });
-
-  const savedSite = localStorage.getItem("lamp_site");
-  if (savedSite && sites.value.includes(savedSite)) {
-    filter.site = savedSite;
-    sdwts.value = await dashboardApi.getSdwts(savedSite);
-    const savedSdwt = localStorage.getItem("lamp_sdwt");
-    if (savedSdwt) filter.sdwt = savedSdwt;
-  }
 });
 
 onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
 });
 
+// --- Watchers for Persistence ---
+watch(
+  () => filter.site,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
+    else localStorage.removeItem(LS_KEYS.SITE);
+  }
+);
+
+watch(
+  () => filter.sdwt,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
+    else localStorage.removeItem(LS_KEYS.SDWT);
+  }
+);
+
 // --- Handlers ---
 const onSiteChange = async () => {
   if (filter.site) {
-    localStorage.setItem("lamp_site", filter.site);
     sdwts.value = await dashboardApi.getSdwts(filter.site);
   } else {
-    localStorage.removeItem("lamp_site");
     sdwts.value = [];
   }
+  // Reset child filter when parent changes
   filter.sdwt = "";
-  localStorage.removeItem("lamp_sdwt");
 };
 
 const onSdwtChange = () => {
-  if (filter.sdwt) localStorage.setItem("lamp_sdwt", filter.sdwt);
-  else localStorage.removeItem("lamp_sdwt");
+  // Watcher handles persistence
 };
 
 const setStatusFilter = (status: string | null) => {
@@ -477,8 +525,7 @@ const reset = () => {
   filter.sdwt = "";
   filter.status = null;
   allLamps.value = [];
-  localStorage.removeItem("lamp_site");
-  localStorage.removeItem("lamp_sdwt");
+  // Persistence cleared by watchers
 };
 
 // --- Logic ---
