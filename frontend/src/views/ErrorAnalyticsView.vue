@@ -62,7 +62,6 @@
             showClear
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
-            @change="onEqpIdChange"
           />
         </div>
 
@@ -435,7 +434,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
+import { useAuthStore } from "@/stores/auth"; // [Add] Auth Store import
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import {
@@ -452,7 +452,16 @@ import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 
-// State
+// --- Store & Constants ---
+const authStore = useAuthStore();
+// [New] Page-specific LocalStorage Keys
+const LS_KEYS = {
+  SITE: "error-view-site",
+  SDWT: "error-view-sdwt",
+  EQPID: "error-view-eqpid",
+};
+
+// --- State ---
 const filter = reactive({
   site: "",
   sdwt: "",
@@ -500,80 +509,118 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
+// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
+
+  // [Logic] Initialize Filters with Priority: Auth Store > LocalStorage > Default
+  let initSite =
+    authStore.user?.site || localStorage.getItem(LS_KEYS.SITE) || "";
+
+  // Validate site
+  if (initSite && !sites.value.includes(initSite)) {
+    initSite = "";
+  }
+
+  if (initSite) {
+    filter.site = initSite;
+    // Load SDWTS
+    try {
+      sdwts.value = await dashboardApi.getSdwts(initSite);
+
+      let initSdwt =
+        authStore.user?.sdwt || localStorage.getItem(LS_KEYS.SDWT) || "";
+
+      // Validate SDWT
+      if (initSdwt && !sdwts.value.includes(initSdwt)) {
+        initSdwt = "";
+      }
+
+      if (initSdwt) {
+        filter.sdwt = initSdwt;
+        // Load EqpIds
+        eqpIds.value = await equipmentApi.getEqpIds(
+          undefined,
+          initSdwt,
+          "error"
+        );
+
+        // Restore EqpID (Page Specific)
+        const initEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
+        if (initEqpId && eqpIds.value.includes(initEqpId)) {
+          filter.eqpId = initEqpId;
+        }
+
+        // Auto Search if mandatory filters (Site, SDWT) are set
+        if (filter.sdwt) {
+          search();
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore filter state:", e);
+    }
+  }
+
   themeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["class"],
   });
-
-  // [추가] 초기화 시 localStorage에서 필터 값 복원
-  const savedSite = localStorage.getItem("error_site");
-  const savedSdwt = localStorage.getItem("error_sdwt");
-  const savedEqpId = localStorage.getItem("error_eqpid");
-
-  if (savedSite && sites.value.includes(savedSite)) {
-    filter.site = savedSite;
-    // Site가 유효할 때만 SDWT 목록 로드
-    sdwts.value = await dashboardApi.getSdwts(savedSite);
-
-    if (savedSdwt) {
-      filter.sdwt = savedSdwt;
-      // SDWT가 유효할 때만 EQPID 목록 로드
-      eqpIds.value = await equipmentApi.getEqpIds(undefined, savedSdwt);
-
-      if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
-        filter.eqpId = savedEqpId;
-      }
-    }
-  }
 });
 
-// Handlers
+// --- Watchers for Persistence ---
+watch(
+  () => filter.site,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
+    else localStorage.removeItem(LS_KEYS.SITE);
+  }
+);
+
+watch(
+  () => filter.sdwt,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
+    else localStorage.removeItem(LS_KEYS.SDWT);
+  }
+);
+
+watch(
+  () => filter.eqpId,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.EQPID, newVal);
+    else localStorage.removeItem(LS_KEYS.EQPID);
+  }
+);
+
+// --- Handlers ---
 const onSiteChange = async () => {
-  // [추가] 변경 시 localStorage 저장 및 하위 필터 초기화
   if (filter.site) {
-    localStorage.setItem("error_site", filter.site);
     sdwts.value = await dashboardApi.getSdwts(filter.site);
   } else {
-    localStorage.removeItem("error_site");
     sdwts.value = [];
   }
 
-  // 하위 필터 초기화 및 저장소 삭제
+  // Reset child filters
   filter.sdwt = "";
-  localStorage.removeItem("error_sdwt");
   filter.eqpId = "";
-  localStorage.removeItem("error_eqpid");
   eqpIds.value = [];
+  // Persistence handled by watchers
 };
 
 const onSdwtChange = async () => {
   if (filter.sdwt) {
-    localStorage.setItem("error_sdwt", filter.sdwt);
-    // [수정] type: 'error' 전달
     eqpIds.value = await equipmentApi.getEqpIds(
       undefined,
       filter.sdwt,
       "error"
     );
   } else {
-    localStorage.removeItem("error_sdwt");
     eqpIds.value = [];
   }
 
-  // 하위 필터 초기화 및 저장소 삭제
+  // Reset child filter
   filter.eqpId = "";
-  localStorage.removeItem("error_eqpid");
-};
-
-// [추가] EQP ID 변경 시 localStorage 처리 핸들러 추가
-const onEqpIdChange = () => {
-  if (filter.eqpId) {
-    localStorage.setItem("error_eqpid", filter.eqpId);
-  } else {
-    localStorage.removeItem("error_eqpid");
-  }
+  // Persistence handled by watchers
 };
 
 const getEffectiveParams = () => {
@@ -716,11 +763,7 @@ const reset = () => {
   sdwts.value = [];
   eqpIds.value = [];
 
-  // [추가] 리셋 시 localStorage 값 삭제
-  localStorage.removeItem("error_site");
-  localStorage.removeItem("error_sdwt");
-  localStorage.removeItem("error_eqpid");
-
+  // Note: Persistence is cleared by watchers automatically
   summary.value = {
     totalErrorCount: 0,
     errorEqpCount: 0,
