@@ -242,15 +242,15 @@
                   field="compid"
                   header="회사 코드"
                   sortable
-                  style="width: 12%; font-weight: bold; color: #475569"
+                  style="width: 17%; font-weight: bold; color: #475569"
                 ></Column>
 
-                <Column header="회사명" style="width: 18%">
+                <Column header="회사명" style="width: 17%">
                   <template #body="slotProps">
                     <span
                       class="font-semibold text-slate-700 dark:text-slate-200"
                     >
-                      {{ getCompanyName(slotProps.data.compid) }}
+                      {{ slotProps.data.compName || slotProps.data.compid }}
                     </span>
                   </template>
                 </Column>
@@ -259,7 +259,7 @@
                   field="deptid"
                   header="부서 코드"
                   sortable
-                  style="width: 12%"
+                  style="width: 17%"
                 >
                   <template #body="slotProps">
                     <span class="font-mono font-bold text-blue-600">{{
@@ -268,18 +268,21 @@
                   </template>
                 </Column>
 
-                <Column header="부서명" style="width: 18%">
+                <Column header="부서명" style="width: 17%">
                   <template #body="slotProps">
                     <span class="text-slate-600 dark:text-slate-300">
-                      {{ getDeptName(slotProps.data.deptid) }}
+                      {{
+                        slotProps.data.deptName ||
+                        getDeptName(slotProps.data.deptid)
+                      }}
                     </span>
                   </template>
                 </Column>
 
                 <Column
                   field="description"
-                  header="설명"
-                  style="width: 24%"
+                  header="Comment"
+                  style="width: 17%"
                 ></Column>
 
                 <Column
@@ -301,13 +304,9 @@
                   </template>
                 </Column>
 
-                <Column
-                  header="Action"
-                  style="width: 80px; min-width: 80px"
-                  align="center"
-                >
+                <Column header="Action" style="width: 80px; min-width: 80px">
                   <template #body="slotProps">
-                    <div class="flex justify-center gap-1">
+                    <div class="flex items-center gap-1">
                       <Button
                         icon="pi pi-pencil"
                         text
@@ -464,7 +463,7 @@
           />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="font-semibold">설명</label>
+          <label class="font-semibold">Comment</label>
           <InputText v-model="newAccess.description" />
         </div>
         <div class="flex items-center gap-2">
@@ -569,35 +568,11 @@ const getRoleColorClass = (role: string) => {
   return "!bg-gray-400";
 };
 
-// [수정] AD Claim Code Mapping (Case-Insensitive)
-// 실제 환경에서는 AD 동기화 DB나 공통 코드 API를 통해 이름을 가져와야 합니다.
-const getCompanyName = (code: string) => {
-  if (!code) return "-";
-  const c = code.toUpperCase().trim();
-  const map: Record<string, string> = {
-    SEC: "Samsung Electronics",
-    LGD: "LG Display",
-    SKH: "SK Hynix",
-    ITM: "ITM Semiconductor",
-    "001": "Headquarters",
-    SSO: "Single Sign On Team",
-    DEV: "Development Center",
-  };
-  return map[c] || code; // 매핑 없으면 코드 그대로 표시
-};
-
+// [수정] AD Claim Code Mapping 제거
+// 백엔드 자동 업데이트로 DB에 저장된 값을 우선 표시하므로, 매핑 로직은 불필요.
+// 만약 DB에도 이름이 없을 경우 코드를 그대로 보여줍니다.
 const getDeptName = (code: string) => {
-  if (!code) return "-";
-  const c = code.toUpperCase().trim();
-  const map: Record<string, string> = {
-    DEV: "Development Team",
-    QA: "Quality Assurance",
-    EQP: "Equipment Eng.",
-    MFG: "Manufacturing",
-    HR: "Human Resources",
-    IT: "Information Tech",
-  };
-  return map[c] || code;
+  return code || "-";
 };
 
 // Fetch Data
