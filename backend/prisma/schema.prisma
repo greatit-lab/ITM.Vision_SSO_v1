@@ -1,4 +1,5 @@
 // backend/prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,11 +14,22 @@ datasource db {
 // ==========================================
 
 model RefEquipment {
-  eqpid String @id
-  sdwt  String
+  eqpid      String    @id
+  sdwt       String
+  
+  // [추가됨] 요청하신 컬럼 정의
+  lineCode   String?   @map("line_code") @db.VarChar(50)
+  simaxLine  String?   @map("simax_line") @db.VarChar(50)
+  indexLine  String?   @map("index_line") @db.VarChar(50)
+  maker      String?   @db.VarChar(50)
+  model      String?   @db.VarChar(50)
+  prcGroup   String?   @map("prc_group") @db.VarChar(50)
+  bay        String?   @db.VarChar(50)
+  lastUpdate DateTime? @default(now()) @map("last_update") @db.Timestamp()
 
   sdwtRel RefSdwt @relation(fields: [sdwt], references: [sdwt])
 
+  // 연관 테이블 (유지)
   agentInfo   AgentInfo?
   agentStatus AgentStatus?
   plgErrors   PlgError[]
@@ -42,6 +54,7 @@ model RefSdwt {
   @@map("ref_sdwt")
 }
 
+// ... (이하 다른 모델들은 기존과 동일하게 유지)
 model AgentInfo {
   eqpid      String  @id
   pcName     String? @map("pc_name")
@@ -233,7 +246,7 @@ model RefMenu {
   children RefMenu[] @relation("MenuHierarchy")
 
   sortOrder Int @default(0) @map("sort_order")
-  statusTag String? @map("status_tag") @db.VarChar(10) 
+  statusTag String?  @map("status_tag") @db.VarChar(10) 
   isVisible String @default("Y") @map("is_visible") @db.Char(1)
 
   roleMappings CfgMenuRole[]
