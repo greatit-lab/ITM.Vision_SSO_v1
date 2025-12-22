@@ -28,9 +28,9 @@
       </div>
     </div>
 
-    <div class="flex flex-1 gap-2 min-h-0 overflow-hidden">
+    <div class="flex flex-1 gap-3 min-h-0 overflow-hidden">
       
-      <div class="flex flex-col w-4/12 min-w-[350px] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+      <div class="flex flex-col w-1/2 min-w-[400px] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         
         <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30 shrink-0">
           <div class="flex items-center gap-2">
@@ -74,7 +74,7 @@
               </div>
             </template>
 
-            <Column field="label" header="Menu Name" expander style="width: 50%">
+            <Column field="label" header="Menu Name" expander style="width: 45%">
               <template #body="slotProps">
                 <div class="flex items-center gap-1.5 py-0.5">
                   <i v-if="slotProps.node.data.icon" :class="slotProps.node.data.icon" class="text-slate-400 text-[10px]"></i>
@@ -84,7 +84,13 @@
               </template>
             </Column>
 
-            <Column field="roles" header="Access" style="width: 35%">
+            <Column field="sortOrder" header="Order" style="width: 10%; text-align: center;">
+              <template #body="slotProps">
+                <span class="font-mono text-slate-400 font-bold">{{ slotProps.node.data.sortOrder }}</span>
+              </template>
+            </Column>
+
+            <Column field="roles" header="Access" style="width: 30%">
               <template #body="slotProps">
                 <div class="flex items-center -space-x-1.5 hover:space-x-1 transition-all">
                   <span 
@@ -113,7 +119,7 @@
         </div>
       </div>
 
-      <div class="flex flex-col w-8/12 gap-2 overflow-hidden">
+      <div class="flex flex-col w-1/2 gap-3 overflow-hidden">
         
         <div class="flex flex-col h-[30%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
            <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/30 shrink-0">
@@ -138,25 +144,43 @@
               
               <Column field="compid" header="Comp Code" sortable style="width: 12%; font-weight: bold"></Column>
               
+              <Column header="Company" style="width: 18%">
+                <template #body="slotProps">
+                   <div class="truncate" :title="slotProps.data.compName || slotProps.data.compid">
+                     <span class="font-semibold text-slate-700 dark:text-slate-200">
+                       {{ slotProps.data.compName || slotProps.data.compid }}
+                     </span>
+                   </div>
+                </template>
+              </Column>
+              
               <Column field="deptid" header="Dept Code" sortable style="width: 12%" class="font-mono text-indigo-600 dark:text-indigo-400"></Column>
               
-              <Column header="Department Name" style="width: 20%">
+              <Column header="Dept Name" style="width: 18%">
                  <template #body="slotProps">
-                   <span class="text-slate-700 dark:text-slate-300 font-medium">
-                     {{ slotProps.data.deptName || '-' }}
-                   </span>
+                   <div class="truncate" :title="slotProps.data.deptName">
+                     <span class="text-slate-700 dark:text-slate-300 font-medium">
+                       {{ slotProps.data.deptName || '-' }}
+                     </span>
+                   </div>
                  </template>
               </Column>
               
-              <Column field="description" header="Comment" style="width: 36%"></Column>
+              <Column field="description" header="Comment" style="width: 25%">
+                <template #body="slotProps">
+                  <div class="truncate text-slate-500" :title="slotProps.data.description">
+                    {{ slotProps.data.description }}
+                  </div>
+                </template>
+              </Column>
               
-              <Column field="isActive" header="Status" align="center" style="width: 10%">
+              <Column field="isActive" header="Status" align="center" style="width: 8%">
                 <template #body="slotProps">
                   <i class="pi" :class="slotProps.data.isActive === 'Y' ? 'pi-check-circle text-green-500' : 'pi-ban text-slate-300'"></i>
                 </template>
               </Column>
               
-              <Column header="Action" style="width: 10%" align="center">
+              <Column header="Action" style="width: 7%" align="center">
                 <template #body="slotProps">
                   <div class="flex justify-center gap-1">
                     <i class="pi pi-pencil text-slate-300 hover:text-blue-500 cursor-pointer text-[10px]" @click="editAccessCode(slotProps.data)"></i>
