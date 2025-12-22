@@ -30,7 +30,7 @@
 
     <div class="flex flex-1 gap-3 min-h-0 overflow-hidden">
       
-      <div class="flex flex-col w-1/2 min-w-[400px] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+      <div class="flex flex-col w-1/2 min-w-[500px] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         
         <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30 shrink-0">
           <div class="flex items-center gap-2">
@@ -74,23 +74,29 @@
               </div>
             </template>
 
-            <Column field="label" header="Menu Name" expander style="width: 45%">
+            <Column field="label" header="Menu Name" expander style="width: 35%">
               <template #body="slotProps">
-                <div class="flex items-center gap-1.5 py-0.5">
-                  <i v-if="slotProps.node.data.icon" :class="slotProps.node.data.icon" class="text-slate-400 text-[10px]"></i>
+                <div class="flex items-center gap-2 py-0.5" :class="{ 'opacity-50': !slotProps.node.data.isVisible }">
+                  <i v-if="slotProps.node.data.icon" :class="slotProps.node.data.icon" class="text-slate-400 text-[11px]"></i>
                   <span class="font-bold text-slate-700 dark:text-slate-200 truncate">{{ slotProps.node.data.label }}</span>
-                  <span v-if="slotProps.node.data.statusTag" class="text-[8px] px-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-500">{{ slotProps.node.data.statusTag }}</span>
                 </div>
               </template>
             </Column>
 
-            <Column field="sortOrder" header="Order" style="width: 10%; text-align: center;">
+            <Column field="statusTag" header="Status" style="width: 10%; text-align: center;">
+               <template #body="slotProps">
+                  <Tag v-if="slotProps.node.data.statusTag" :value="slotProps.node.data.statusTag" :severity="getBadgeSeverity(slotProps.node.data.statusTag)" class="!text-[9px] !h-4 !px-1" />
+                  <span v-else class="text-slate-300 text-[9px]">-</span>
+               </template>
+            </Column>
+
+            <Column field="sortOrder" header="Ord" style="width: 8%; text-align: center;">
               <template #body="slotProps">
                 <span class="font-mono text-slate-400 font-bold">{{ slotProps.node.data.sortOrder }}</span>
               </template>
             </Column>
 
-            <Column field="roles" header="Access" style="width: 30%">
+            <Column field="roles" header="Access Roles" style="width: 25%">
               <template #body="slotProps">
                 <div class="flex items-center -space-x-1.5 hover:space-x-1 transition-all">
                   <span 
@@ -107,11 +113,19 @@
               </template>
             </Column>
 
-            <Column style="width: 15%; text-align: center">
+            <Column field="isVisible" header="Vis" style="width: 8%; text-align: center;">
+              <template #body="slotProps">
+                 <i class="pi text-[10px]" 
+                    :class="slotProps.node.data.isVisible ? 'pi-eye text-emerald-500' : 'pi-eye-slash text-slate-300'">
+                 </i>
+              </template>
+            </Column>
+
+            <Column header="Action" style="width: 12%; text-align: center">
               <template #body="slotProps">
                 <div class="flex justify-center gap-1">
-                  <i class="pi pi-pencil text-slate-300 hover:text-indigo-500 cursor-pointer text-[10px]" @click="editMenu(slotProps.node)"></i>
-                  <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="confirmDeleteMenu(slotProps.node)"></i>
+                  <Button icon="pi pi-pencil" text rounded size="small" class="!w-6 !h-6 !p-0 !text-slate-400 hover:!text-indigo-500" @click="editMenu(slotProps.node)" />
+                  <Button icon="pi pi-trash" text rounded size="small" class="!w-6 !h-6 !p-0 !text-slate-400 hover:!text-red-500" @click="confirmDeleteMenu(slotProps.node)" />
                 </div>
               </template>
             </Column>
@@ -121,7 +135,7 @@
 
       <div class="flex flex-col w-1/2 gap-3 overflow-hidden">
         
-        <div class="flex flex-col h-[30%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <div class="flex flex-col h-[40%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
            <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/30 shrink-0">
              <div class="flex items-center gap-2">
                <i class="pi pi-lock text-slate-500 text-xs"></i>
@@ -142,45 +156,23 @@
                 <div class="p-4 text-center text-slate-400">화이트리스트 데이터가 없습니다.</div>
               </template>
               
-              <Column field="compid" header="Comp Code" sortable style="width: 12%; font-weight: bold"></Column>
-              
-              <Column header="Company" style="width: 18%">
-                <template #body="slotProps">
-                   <div class="truncate" :title="slotProps.data.compName || slotProps.data.compid">
-                     <span class="font-semibold text-slate-700 dark:text-slate-200">
-                       {{ slotProps.data.compName || slotProps.data.compid }}
-                     </span>
-                   </div>
-                </template>
-              </Column>
-              
-              <Column field="deptid" header="Dept Code" sortable style="width: 12%" class="font-mono text-indigo-600 dark:text-indigo-400"></Column>
-              
-              <Column header="Dept Name" style="width: 18%">
+              <Column field="compid" header="Comp" sortable style="width: 15%; font-weight: bold"></Column>
+              <Column field="deptName" header="Dept" style="width: 25%">
                  <template #body="slotProps">
-                   <div class="truncate" :title="slotProps.data.deptName">
-                     <span class="text-slate-700 dark:text-slate-300 font-medium">
-                       {{ slotProps.data.deptName || '-' }}
-                     </span>
-                   </div>
+                     <span class="truncate block" :title="slotProps.data.deptName">{{ slotProps.data.deptName || '-' }}</span>
                  </template>
               </Column>
-              
-              <Column field="description" header="Comment" style="width: 25%">
+              <Column field="description" header="Comment" style="width: 35%">
                 <template #body="slotProps">
-                  <div class="truncate text-slate-500" :title="slotProps.data.description">
-                    {{ slotProps.data.description }}
-                  </div>
+                  <span class="truncate block text-slate-500" :title="slotProps.data.description">{{ slotProps.data.description }}</span>
                 </template>
               </Column>
-              
-              <Column field="isActive" header="Status" align="center" style="width: 8%">
+              <Column field="isActive" header="St" align="center" style="width: 10%">
                 <template #body="slotProps">
                   <i class="pi" :class="slotProps.data.isActive === 'Y' ? 'pi-check-circle text-green-500' : 'pi-ban text-slate-300'"></i>
                 </template>
               </Column>
-              
-              <Column header="Action" style="width: 7%" align="center">
+              <Column header="Act" style="width: 15%" align="center">
                 <template #body="slotProps">
                   <div class="flex justify-center gap-1">
                     <i class="pi pi-pencil text-slate-300 hover:text-blue-500 cursor-pointer text-[10px]" @click="editAccessCode(slotProps.data)"></i>
@@ -191,7 +183,7 @@
            </DataTable>
         </div>
 
-        <div class="flex flex-col h-[70%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <div class="flex flex-col h-[60%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
            <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-[#111111] shrink-0">
              <div class="flex items-center gap-3">
                <div class="flex items-center gap-2">
@@ -217,7 +209,7 @@
               <template #empty>
                 <div class="p-4 text-center text-slate-400">등록된 운영자가 없습니다.</div>
               </template>
-              <Column field="loginId" header="User ID" sortable style="width: 30%">
+              <Column field="loginId" header="User ID" sortable style="width: 35%">
                 <template #body="slotProps">
                   <div class="flex items-center gap-2">
                     <Avatar :label="slotProps.data.loginId.charAt(0).toUpperCase()" shape="circle" class="!w-6 !h-6 !text-[10px] !bg-slate-100 dark:!bg-zinc-800 !font-bold" />
@@ -225,7 +217,6 @@
                   </div>
                 </template>
               </Column>
-              
               <Column field="role" header="Role" sortable style="width: 20%">
                 <template #body="slotProps">
                    <div class="flex items-center">
@@ -239,12 +230,10 @@
                    </div>
                 </template>
               </Column>
-              
-              <Column field="assignedBy" header="Assigned By" style="width: 30%" class="text-slate-500"></Column>
-              <Column field="assignedAt" header="Date" sortable style="width: 20%">
+              <Column field="assignedAt" header="Date" sortable style="width: 25%">
                 <template #body="slotProps">{{ formatDateShort(slotProps.data.assignedAt) }}</template>
               </Column>
-              <Column header="Action" style="width: 50px" align="center">
+              <Column header="Act" style="width: 20%" align="center">
                 <template #body="slotProps">
                   <div class="flex justify-center">
                     <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAdmin(slotProps.data.loginId)"></i>
@@ -253,7 +242,6 @@
               </Column>
            </DataTable>
         </div>
-
       </div>
     </div>
 
@@ -261,47 +249,121 @@
       v-model:visible="isMenuModalOpen" 
       :header="editMode ? 'Edit Menu' : 'New Menu'" 
       modal 
-      class="p-fluid w-full max-w-md custom-dialog"
+      class="p-fluid w-full max-w-[500px] custom-dialog"
+      :dismissableMask="true"
     >
-      <div class="flex flex-col gap-4 mt-2">
-        <div>
-           <label class="block text-xs font-bold text-slate-500 mb-1">Name</label>
-           <InputText v-model="menuForm.label" class="!text-sm" />
+      <div class="flex flex-col gap-4 mt-1">
+        
+        <div class="flex flex-col gap-1">
+           <label class="text-xs font-bold text-slate-500">Menu Name</label>
+           <InputText v-model="menuForm.label" class="!text-sm" placeholder="e.g. Dashboard" />
         </div>
-        <div class="grid grid-cols-2 gap-3">
-           <div>
-             <label class="block text-xs font-bold text-slate-500 mb-1">Path</label>
-             <InputText v-model="menuForm.routerPath" class="!text-sm font-mono" placeholder="/path" />
+
+        <div class="grid grid-cols-2 gap-4">
+           <div class="flex flex-col gap-1">
+              <label class="text-xs font-bold text-slate-500">Router Path</label>
+              <InputText v-model="menuForm.routerPath" class="!text-sm font-mono" placeholder="/path" />
            </div>
-           <div>
-             <label class="block text-xs font-bold text-slate-500 mb-1">Order</label>
-             <InputNumber v-model="menuForm.sortOrder" class="!text-sm" showButtons :min="0" />
-           </div>
-        </div>
-        <div>
-           <label class="block text-xs font-bold text-slate-500 mb-1">Parent</label>
-           <TreeSelect v-model="selectedParentKey" :options="parentOptions" placeholder="Root" class="!text-sm" showClear />
-        </div>
-        <div>
-           <label class="block text-xs font-bold text-slate-500 mb-1">Icon</label>
-           <div class="flex items-center gap-2">
-              <i :class="menuForm.icon || 'pi pi-image'" class="text-xl text-slate-400"></i>
-              <InputText v-model="menuForm.icon" placeholder="pi pi-home" class="!text-sm flex-1" />
-           </div>
-        </div>
-        <div>
-           <label class="block text-xs font-bold text-slate-500 mb-1">Roles</label>
-           <div class="flex gap-4">
-             <div v-for="role in availableRoles" :key="role" class="flex items-center">
-               <Checkbox v-model="menuForm.roles" :inputId="'r_'+role" :name="role" :value="role" />
-               <label :for="'r_'+role" class="ml-1 text-sm">{{ role }}</label>
-             </div>
+           <div class="flex flex-col gap-1">
+              <label class="text-xs font-bold text-slate-500">Parent Menu</label>
+              <TreeSelect 
+                v-model="selectedParentKey" 
+                :options="parentOptions" 
+                placeholder="Root" 
+                class="!text-sm" 
+                showClear 
+                appendTo="body" 
+                panelClass="!text-sm"
+              />
            </div>
         </div>
+
+        <div class="grid grid-cols-12 gap-4">
+           <div class="col-span-5 flex flex-col gap-1">
+              <label class="text-xs font-bold text-slate-500">Icon</label>
+              <Select 
+                  v-model="menuForm.icon" 
+                  :options="iconOptions" 
+                  optionLabel="label" 
+                  optionValue="value" 
+                  placeholder="Select" 
+                  class="!text-sm w-full"
+                  filter
+                  showClear
+                  appendTo="body"
+                  :virtualScrollerOptions="{ itemSize: 32 }" 
+              >
+                  <template #value="slotProps">
+                      <div v-if="slotProps.value" class="flex items-center gap-2">
+                          <i :class="slotProps.value" class="text-indigo-500"></i>
+                          <span class="truncate">{{ slotProps.value.replace('pi pi-', '') }}</span>
+                      </div>
+                      <span v-else class="text-slate-400">{{ slotProps.placeholder }}</span>
+                  </template>
+                  <template #option="slotProps">
+                      <div class="flex items-center gap-2">
+                          <i :class="slotProps.option.value" class="text-slate-500 w-5 text-center"></i>
+                          <span class="text-sm">{{ slotProps.option.label }}</span>
+                      </div>
+                  </template>
+              </Select>
+           </div>
+
+           <div class="col-span-3 flex flex-col gap-1">
+              <label class="text-xs font-bold text-slate-500">Order</label>
+              <InputNumber v-model="menuForm.sortOrder" class="!text-sm" showButtons :min="0" />
+           </div>
+
+           <div class="col-span-4 flex flex-col gap-1">
+              <label class="text-xs font-bold text-slate-500">Tag</label>
+              <Select 
+                  v-model="menuForm.statusTag" 
+                  :options="statusTagOptions" 
+                  placeholder="None" 
+                  class="!text-sm w-full"
+                  showClear
+                  appendTo="body"
+              >
+                  <template #option="slotProps">
+                      <Tag :value="slotProps.option" :severity="getBadgeSeverity(slotProps.option)" class="!text-[10px] !h-5" />
+                  </template>
+              </Select>
+           </div>
+        </div>
+
+        <div class="p-4 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Menu Visibility</span>
+                    <span class="text-[10px] text-slate-400">Toggle to show/hide in sidebar</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold" :class="menuForm.isVisible ? 'text-indigo-600' : 'text-slate-400'">
+                        {{ menuForm.isVisible ? 'Visible' : 'Hidden' }}
+                    </span>
+                    <ToggleSwitch v-model="menuForm.isVisible" class="scale-75" />
+                </div>
+            </div>
+            
+            <div class="h-px bg-slate-200 dark:bg-zinc-700 w-full"></div>
+
+            <div class="flex flex-col gap-2">
+                <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Access Permissions</span>
+                <div class="flex gap-3">
+                   <div v-for="role in availableRoles" :key="role" class="flex items-center">
+                     <Checkbox v-model="menuForm.roles" :inputId="'r_'+role" :value="role" />
+                     <label :for="'r_'+role" class="ml-1.5 text-xs font-bold cursor-pointer select-none text-slate-600 dark:text-slate-400">{{ role }}</label>
+                   </div>
+                </div>
+            </div>
+        </div>
+
       </div>
       <template #footer>
-        <Button label="Cancel" text severity="secondary" @click="isMenuModalOpen = false" />
-        <Button label="Save" @click="saveMenu" :loading="isSaving" />
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800 mt-2">
+           <Button label="Cancel" text severity="secondary" @click="isMenuModalOpen = false" class="!w-20 !text-xs" />
+           <Button label="Save Changes" @click="saveMenu" :loading="isSaving" severity="primary" class="!w-28 !text-xs" icon="pi pi-check" />
+        </div>
       </template>
     </Dialog>
 
@@ -313,7 +375,7 @@
         </div>
         <div>
           <label class="font-bold text-xs text-slate-500">Role</label>
-          <div class="p-2 bg-slate-100 rounded text-sm font-bold mt-1">MANAGER</div>
+          <div class="p-2 bg-slate-100 rounded text-sm font-bold mt-1 text-slate-600">MANAGER</div>
         </div>
       </div>
       <template #footer>
@@ -349,7 +411,7 @@
 
     <Dialog v-model:visible="isBulkModalOpen" header="Bulk Permissions" modal class="w-full max-w-sm">
       <div class="flex flex-col gap-3 pt-2">
-         <p class="text-sm text-slate-600">Apply roles to {{ selectedCount }} selected menus:</p>
+         <p class="text-sm text-slate-600">Apply roles to <span class="font-bold text-indigo-600">{{ selectedCount }}</span> selected menus:</p>
          <div class="flex flex-col gap-2 p-3 bg-slate-50 rounded border">
             <div v-for="role in availableRoles" :key="role" class="flex items-center">
               <Checkbox v-model="bulkRoles" :inputId="'b_'+role" :name="role" :value="role" />
@@ -359,7 +421,7 @@
       </div>
       <template #footer>
         <Button label="Cancel" text severity="secondary" @click="isBulkModalOpen = false" />
-        <Button label="Apply" severity="help" @click="saveBulkRoles" :loading="isSaving" />
+        <Button label="Apply Roles" severity="help" @click="saveBulkRoles" :loading="isSaving" />
       </template>
     </Dialog>
 
@@ -385,6 +447,7 @@ import Select from 'primevue/select';
 import TreeSelect from 'primevue/treeselect';
 import Tag from 'primevue/tag';
 import Avatar from "primevue/avatar";
+import ToggleSwitch from 'primevue/toggleswitch'; // [New] Added ToggleSwitch
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
 
@@ -415,11 +478,46 @@ const menuForm = reactive({
   icon: '', 
   sortOrder: 0,
   statusTag: '',
+  isVisible: true,
   roles: [] as string[]
 });
 
 const availableRoles = ['MANAGER', 'USER', 'GUEST'];
-const statusTagOptions = ['Beta', 'New', 'Updated', 'Hot', 'Deprecated'];
+const statusTagOptions = ['NEW', 'BETA', 'UPD', 'HOT', 'DEPRECATED'];
+
+// Icon Options
+const iconOptions = [
+  { label: 'Home', value: 'pi pi-home' },
+  { label: 'Dashboard', value: 'pi pi-th-large' },
+  { label: 'Chart', value: 'pi pi-chart-bar' },
+  { label: 'Line Chart', value: 'pi pi-chart-line' },
+  { label: 'Pie Chart', value: 'pi pi-chart-pie' },
+  { label: 'Table', value: 'pi pi-table' },
+  { label: 'List', value: 'pi pi-list' },
+  { label: 'User', value: 'pi pi-user' },
+  { label: 'Users', value: 'pi pi-users' },
+  { label: 'Settings', value: 'pi pi-cog' },
+  { label: 'Search', value: 'pi pi-search' },
+  { label: 'Calendar', value: 'pi pi-calendar' },
+  { label: 'Envelope', value: 'pi pi-envelope' },
+  { label: 'Bell', value: 'pi pi-bell' },
+  { label: 'File', value: 'pi pi-file' },
+  { label: 'Folder', value: 'pi pi-folder' },
+  { label: 'Database', value: 'pi pi-database' },
+  { label: 'Cloud', value: 'pi pi-cloud' },
+  { label: 'Server', value: 'pi pi-server' },
+  { label: 'Shield', value: 'pi pi-shield' },
+  { label: 'Lock', value: 'pi pi-lock' },
+  { label: 'Check', value: 'pi pi-check-circle' },
+  { label: 'Exclamation', value: 'pi pi-exclamation-circle' },
+  { label: 'Info', value: 'pi pi-info-circle' },
+  { label: 'Wifi', value: 'pi pi-wifi' },
+  { label: 'Map', value: 'pi pi-map' },
+  { label: 'Compass', value: 'pi pi-compass' },
+  { label: 'Globe', value: 'pi pi-globe' },
+  { label: 'Tag', value: 'pi pi-tag' },
+  { label: 'Tags', value: 'pi pi-tags' },
+];
 
 // --- State: Security Management ---
 const admins = ref<any[]>([]);
@@ -475,11 +573,16 @@ const formatDateShort = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
-const getRoleSeverity = (role: string) => {
-  if (role === 'MANAGER') return 'success';
-  if (role === 'ADMIN') return 'danger';
-  return 'info';
-};
+const getBadgeSeverity = (tag: string) => {
+    if (!tag) return 'secondary';
+    switch(tag.toUpperCase()) {
+        case 'NEW': return 'danger';
+        case 'BETA': return 'info';
+        case 'HOT': return 'warning';
+        case 'UPD': return 'success';
+        default: return 'secondary';
+    }
+}
 
 const getRoleColorClass = (role: string) => {
   if (role === 'MANAGER') return 'bg-emerald-500 border-emerald-600';
@@ -531,7 +634,17 @@ const refreshAllData = () => {
 // --- Methods: Menu Actions ---
 const openNewMenuModal = () => {
   editMode.value = false;
-  Object.assign(menuForm, { id: null, label: '', routerPath: '', parentId: null, icon: '', sortOrder: 0, statusTag: '', roles: [] });
+  Object.assign(menuForm, { 
+      id: null, 
+      label: '', 
+      routerPath: '', 
+      parentId: null, 
+      icon: '', 
+      sortOrder: 0, 
+      statusTag: '', 
+      isVisible: true,
+      roles: [] 
+  });
   selectedParentKey.value = null;
   isMenuModalOpen.value = true;
 };
@@ -547,6 +660,7 @@ const editMenu = (node: any) => {
     icon: data.icon || '', 
     sortOrder: data.sortOrder || 0,
     statusTag: data.statusTag || '', 
+    isVisible: data.isVisible !== false, 
     roles: [...(data.roles || [])]
   });
   selectedParentKey.value = data.parentId ? String(data.parentId) : null;
@@ -554,7 +668,10 @@ const editMenu = (node: any) => {
 };
 
 const saveMenu = async () => {
-  if (!menuForm.label) return;
+  if (!menuForm.label) {
+      toast.add({ severity: 'warn', summary: 'Validation', detail: 'Menu Name is required.', life: 3000 });
+      return;
+  }
   
   let path = menuForm.routerPath.trim();
   if (path && !path.startsWith('/')) path = '/' + path;
@@ -571,10 +688,10 @@ const saveMenu = async () => {
   try {
     if (editMode.value && menuForm.id) {
       await menuStore.updateMenu(menuForm.id, payload);
-      toast.add({ severity: 'success', summary: 'Updated', life: 2000 });
+      toast.add({ severity: 'success', summary: 'Updated', detail: `Menu '${menuForm.label}' updated.`, life: 2000 });
     } else {
       await menuStore.createMenu(payload);
-      toast.add({ severity: 'success', summary: 'Created', life: 2000 });
+      toast.add({ severity: 'success', summary: 'Created', detail: `Menu '${menuForm.label}' created.`, life: 2000 });
     }
     await loadMenuData();
     isMenuModalOpen.value = false;
@@ -588,12 +705,13 @@ const saveMenu = async () => {
 const confirmDeleteMenu = (node: any) => {
   confirm.require({
     message: `Delete '${node.data.label}'?`,
-    header: 'Confirm',
+    header: 'Confirm Delete',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
     accept: async () => {
       await menuStore.deleteMenu(node.data.id);
       loadMenuData();
+      toast.add({ severity: 'success', summary: 'Deleted', detail: 'Menu item removed.', life: 2000 });
     }
   });
 };
@@ -623,7 +741,7 @@ const saveBulkRoles = async () => {
   }
 };
 
-// --- Methods: Admin (Manager) Actions ---
+// --- Methods: Admin & Access ---
 const openAdminDialog = () => {
   newAdmin.value = { loginId: "", role: "MANAGER", assignedBy: currentUserId.value };
   adminDialogVisible.value = true;
@@ -638,7 +756,7 @@ const saveAdmin = async () => {
     loadSecurityData();
     toast.add({ severity: 'success', summary: 'Manager Added', life: 2000 });
   } catch (e) {
-    alert("Error saving manager.");
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to add manager', life: 3000 });
   }
 };
 
@@ -655,7 +773,6 @@ const removeAdmin = async (id: string) => {
   });
 };
 
-// --- Methods: Access Code Actions ---
 const openAccessDialog = () => {
   isAccessEditMode.value = false;
   newAccess.value = { compid: "", deptid: "", description: "", isActive: true };
@@ -686,7 +803,7 @@ const saveAccessCode = async () => {
     loadSecurityData();
     toast.add({ severity: 'success', summary: 'Whitelist Saved', life: 2000 });
   } catch (e) {
-    alert("Error saving whitelist.");
+     toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to save whitelist', life: 3000 });
   }
 };
 
@@ -720,7 +837,7 @@ onMounted(() => {
   @apply bg-slate-50/80 dark:bg-zinc-800/30 cursor-pointer;
 }
 
-/* DataTable Custom Styling (No Border) */
+/* DataTable Custom Styling */
 :deep(.p-datatable-sm .p-datatable-thead > tr > th) {
   @apply bg-white dark:bg-[#111111] text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase border-b border-slate-100 dark:border-zinc-800;
 }
