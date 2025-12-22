@@ -2,11 +2,17 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { EquipmentService } from './equipment.service';
 
-// [수정] 'api/Equipment' -> 'Equipment'
-// 프론트엔드/프록시가 '/api'를 제거하고 요청하므로, 백엔드는 'Equipment'로 받아야 합니다.
+// [중요] Controller 경로가 'Equipment' (대문자)로 설정되어 있습니다.
 @Controller('Equipment')
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
+
+  // [추가] 인프라 관리용 장비 목록 조회 엔드포인트 추가
+  // 프론트엔드 요청 경로: /api/Equipment/infra
+  @Get('infra')
+  async getInfraList() {
+    return this.equipmentService.getInfraList();
+  }
 
   @Get('details')
   async getDetails(
@@ -21,7 +27,7 @@ export class EquipmentController {
   async getEqpIds(
     @Query('site') site?: string,
     @Query('sdwt') sdwt?: string,
-    @Query('type') type?: string, // type 파라미터 추가 (Wafer/Agent 등 구분용)
+    @Query('type') type?: string,
   ) {
     return this.equipmentService.getEqpIds(site, sdwt, type);
   }
