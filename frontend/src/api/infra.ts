@@ -6,6 +6,10 @@ export const getInfraEquipment = () => http.get("/equipment");
 
 // 1. SDWT (ref_sdwt)
 export const getInfraSdwt = () => http.get("/infra/sdwt");
+// [추가] SDWT CRUD
+export const createInfraSdwt = (data: any) => http.post("/infra/sdwt", data);
+export const updateInfraSdwt = (id: string, data: any) => http.put(`/infra/sdwt/${id}`, data);
+export const deleteInfraSdwt = (id: string) => http.delete(`/infra/sdwt/${id}`);
 
 // 3. Agent Server Config (cfg_server)
 export const getAgentServers = () => http.get("/infra/agent-server");
