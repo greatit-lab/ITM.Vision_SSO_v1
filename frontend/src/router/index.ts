@@ -154,6 +154,12 @@ const routes: Array<RouteRecordRaw> = [
       },
     ],
   },
+  // [추가] 404 Not Found (옵션)
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    redirect: "/",
+  }
 ];
 
 const router = createRouter({
@@ -162,19 +168,33 @@ const router = createRouter({
 });
 
 /**
- * [Helper] 재귀적으로 메뉴 트리에서 경로 권한을 확인하는 함수
+ * [Helper] 재귀적으로 메뉴 트리에서 경로 권한을 확인하는 함수 (개선됨)
+ * - 정확한 일치뿐만 아니라, 하위 경로(StartWith)도 허용하여 상세 페이지 접근 지원
  * @param targetPath 이동하려는 경로
  * @param menus 현재 사용자의 메뉴 리스트
  * @returns 권한 존재 여부 (boolean)
  */
-// [Helper] 권한 재귀 체크 함수 (기존 유지 또는 아래 코드로 확인)
 function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
+  // 정규화: Trailing Slash 제거 (단, 루트 '/' 제외)
+  const normalizedTarget = targetPath.endsWith('/') && targetPath.length > 1 
+    ? targetPath.slice(0, -1) 
+    : targetPath;
+
   for (const menu of menus) {
-    // 1. 정확히 일치하거나
-    if (menu.routerPath === targetPath) return true;
-    
-    // 2. 하위 경로인지 체크 (예: /equipment/detail 은 /equipment 권한 필요 등 규칙 정의 가능)
-    // 여기서는 단순 일치만 봅니다.
+    if (menu.routerPath) {
+      const menuPath = menu.routerPath.endsWith('/') && menu.routerPath.length > 1
+        ? menu.routerPath.slice(0, -1)
+        : menu.routerPath;
+
+      // 1. 정확히 일치하거나
+      if (menuPath === normalizedTarget) return true;
+
+      // 2. 하위 경로인지 체크 (예: /equipment 권한으로 /equipment/detail/1 접근 허용)
+      // 단, 단순 접두사가 아니라 '/'로 구분된 경로여야 함 (예: /users가 /users-log를 허용하면 안됨)
+      if (normalizedTarget.startsWith(menuPath + '/')) {
+        return true;
+      }
+    }
     
     // 3. 자식 재귀 탐색
     if (menu.children && menu.children.length > 0) {
@@ -184,7 +204,7 @@ function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
   return false;
 }
 
-// --- Navigation Guard 강화 ---
+// --- Navigation Guard ---
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   const menuStore = useMenuStore();
@@ -207,9 +227,9 @@ router.beforeEach(async (to, _from, next) => {
   if (isAuthenticated) {
     // 3-1. 관리자 전용 페이지 체크
     if (requiresAdmin && !authStore.isAdmin) {
-      // alert는 UX를 해칠 수 있으므로, Toast 또는 별도 Error 페이지가 좋으나 여기선 경고만
-      console.warn(`[Access Denied] Admin required for ${to.path}`);
-      return next({ name: "home" }); // 또는 'error-403'
+      console.warn(`[Access Denied] Admin privileges required for ${to.path}`);
+      // 권한 없음 페이지가 있다면 그곳으로 리다이렉트 권장
+      return next({ name: "home" }); 
     }
 
     // 3-2. 동적 메뉴 권한 체크
@@ -219,26 +239,23 @@ router.beforeEach(async (to, _from, next) => {
         await menuStore.loadMenus();
       } catch (e) {
         console.error("Failed to load menus during navigation guard.", e);
-        // 메뉴 로드 실패 시에도 홈으로 보내거나 에러 처리
       }
     }
 
-    // 홈(/), 관리자(/admin), 그리고 예외 페이지는 권한 체크 건너뜀
-    // (관리자는 위 requiresAdmin에서 이미 체크됨)
-    if (
-      to.path !== "/" && 
-      !to.path.startsWith("/admin") &&
-      to.name !== "not-found"
-    ) {
+    // 예외 경로: 홈(/), 관리자(/admin 하위), 404 등은 메뉴 권한 체크 건너뜀
+    // (관리자 페이지는 위에서 requiresAdmin으로 이미 1차 방어됨)
+    const isExceptionPath = 
+      to.path === "/" || 
+      to.path.startsWith("/admin") || 
+      to.name === "not-found";
+
+    if (!isExceptionPath) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
 
-      // [중요] 개발 중인 페이지나 메뉴에 등록되지 않은 페이지 처리
-      // 실제 배포 시에는 엄격하게 차단해야 함
       if (!hasPermission) {
-        // [옵션] DB에 메뉴가 없더라도 라우터에 정의되어 있으면 허용할지 결정
-        // 여기서는 "메뉴에 없으면 접근 불가" 정책을 따름
+        // [UX 개선] 메뉴에 없지만 접근 가능한 공통 페이지(예: 프로필)가 있다면 여기서 허용 로직 추가
         console.warn(`[Router Guard] Unauthorized access or menu not linked: ${to.path}`);
-        // alert("해당 메뉴에 대한 접근 권한이 없습니다."); 
+        // Toast 메시지 등을 띄워줄 수 있음 (App.vue 레벨에서 감지 필요)
         return next({ name: "home" });
       }
     }
@@ -248,4 +265,3 @@ router.beforeEach(async (to, _from, next) => {
 });
 
 export default router;
-
