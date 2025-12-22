@@ -135,7 +135,7 @@
             ITM Agent Memory Trend ({{ displayedEqpCount }} Units)
           </h3>
           <span class="text-[10px] text-slate-400 font-medium">
-            Comparing memory usage across equipments
+            Showing only equipments with valid data.
           </span>
         </div>
 
@@ -151,7 +151,7 @@
             class="absolute inset-0 flex flex-col items-center justify-center text-slate-400"
           >
             <i class="mb-2 text-2xl opacity-50 pi pi-info-circle"></i>
-            <span class="text-xs">No agent data found for this period.</span>
+            <span class="text-xs">No agent data found (values > 0) for this period.</span>
           </div>
 
           <transition name="fade">
@@ -205,23 +205,39 @@
                 <th scope="col" class="px-4 py-2.5 font-bold">Equipment ID</th>
 
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
-                  <div class="flex items-center justify-end gap-1 cursor-help">
+                  <div
+                    class="flex items-center justify-end gap-1 cursor-help"
+                    v-tooltip.top="'조회 기간 내 최대 메모리 사용량 (Peak)'"
+                  >
                     Max Usage
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
-                  <div class="flex items-center justify-end gap-1 cursor-help">
+                  <div
+                    class="flex items-center justify-end gap-1 cursor-help"
+                    v-tooltip.top="'조회 기간 내 전체 평균 사용량 (Mean)'"
+                  >
                     Avg Usage
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
-                  <div class="flex items-center justify-end gap-1 cursor-help">
+                  <div
+                    class="flex items-center justify-end gap-1 cursor-help"
+                    v-tooltip.top="'가장 최근 수집된 시점의 사용량 (Current)'"
+                  >
                     Last Recorded
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-center">
-                  <div class="flex items-center justify-center gap-1 cursor-help">
+                  <div
+                    class="flex items-center justify-center gap-1 cursor-help"
+                    v-tooltip.top="'평균 대비 최근 사용량의 증감 상태'"
+                  >
                     Trend
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
               </tr>
@@ -257,22 +273,22 @@
                 </td>
                 <td class="px-4 py-2 text-center">
                   <span
-                    v-if="stat.last > stat.avg * 1.15"
+                    v-if="stat.last > stat.avg * 1.1"
                     class="text-red-500 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded"
                   >
-                    Rising
+                    높음 (High)
                   </span>
                   <span
-                    v-else-if="stat.last < stat.avg * 0.85"
+                    v-else-if="stat.last < stat.avg * 0.9"
                     class="text-emerald-500 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded"
                   >
-                    Dropping
+                    낮음 (Low)
                   </span>
                   <span
                     v-else
                     class="text-slate-400 text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded"
                   >
-                    Stable
+                    안정적 (Stable)
                   </span>
                 </td>
               </tr>
@@ -362,7 +378,7 @@ const colorPalette = [
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // Restore Filters (Auth -> LocalStorage -> Default)
+  // Restore Filters
   let defaultSite = authStore.user?.site || localStorage.getItem("agent_site") || undefined;
   
   if (defaultSite && sites.value.includes(defaultSite)) {
@@ -442,7 +458,6 @@ const loadEqpIds = async () => {
 };
 
 const searchData = async () => {
-  // Requirement: SDWT is mandatory
   if (!filterStore.selectedSdwt) return;
   
   isLoading.value = true;
@@ -464,7 +479,6 @@ const searchData = async () => {
     else if (diffDays <= 30) fetchInterval = 1800;
     else fetchInterval = 3600;
 
-    // [수정] || "" 를 사용하여 undefined/null 일 경우 빈 문자열 전달 (TS2322 해결)
     const rawData = await performanceApi.getItmAgentTrend(
       filterStore.selectedSite || "", 
       filterStore.selectedSdwt || "",
@@ -488,31 +502,67 @@ const processData = (data: ItmAgentDataDto[]) => {
   if (!data || data.length === 0) {
     chartData.value = [];
     eqpStats.value = [];
+    eqpSeries.value = [];
     return;
   }
 
-  // 1. Identify all Equipments in data
-  const eqpSet = new Set(data.map(d => d.eqpId));
-  displayedEqpCount.value = eqpSet.size;
-  const sortedEqps = Array.from(eqpSet).sort();
+  // 1. 유효한 장비 목록 추출 (값이 있는 장비만)
+  const activeEqpSet = new Set<string>();
+  
+  data.forEach(d => {
+    const rawId = (d as any).eqpid ?? d.eqpId;
+    const val = Number(d.memoryUsageMB) || 0;
+    if (rawId && val > 0) {
+      activeEqpSet.add(String(rawId));
+    }
+  });
 
-  // 2. Transform to Chart Data (Pivot by EqpId)
+  const sortedEqps = Array.from(activeEqpSet).sort();
+  displayedEqpCount.value = sortedEqps.length;
+
+  if (sortedEqps.length === 0) {
+     chartData.value = [];
+     eqpSeries.value = [];
+     eqpStats.value = [];
+     return;
+  }
+
+  // 2. Chart Data 변환 (Pivot by EqpId)
   const timeMap = new Map<string, any>();
   
   data.forEach((d) => {
     let tsKey = String(d.timestamp);
-    if (tsKey.includes('.')) tsKey = tsKey.split('.')[0];
+    if (tsKey.includes('.')) {
+      const parts = tsKey.split('.');
+      if (parts[0]) tsKey = parts[0];
+    }
     if (tsKey.includes('Z')) tsKey = tsKey.replace('Z', '');
 
     if (!timeMap.has(tsKey)) timeMap.set(tsKey, { timestamp: tsKey });
-    timeMap.get(tsKey)[d.eqpId] = Number(d.memoryUsageMB) || 0;
+
+    const rawId = (d as any).eqpid ?? d.eqpId;
+    const key = rawId ? String(rawId) : '';
+    
+    // 활성화된 장비만 데이터 매핑
+    if (key && activeEqpSet.has(key)) {
+      timeMap.get(tsKey)![key] = Number(d.memoryUsageMB) || 0;
+    }
   });
+
+  // 결측치 처리 (Chart 선 끊김 방지)
+  for (const item of timeMap.values()) {
+    sortedEqps.forEach(eqpId => {
+      if (item[eqpId] === undefined) {
+        item[eqpId] = null; 
+      }
+    });
+  }
 
   chartData.value = Array.from(timeMap.values()).sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
-  // 3. Build Series & Stats
+  // 3. Series & Stats 생성
   const series: any[] = [];
   const stats: EqpStat[] = [];
 
@@ -524,26 +574,40 @@ const processData = (data: ItmAgentDataDto[]) => {
       name: eqpId,
       type: "line",
       smooth: true,
-      showSymbol: false,
-      symbolSize: 2,
+      // [수정] showSymbol: true로 변경하여 포인트 표시
+      showSymbol: true, 
+      symbolSize: 2, // ProcessMemoryView와 동일한 사이즈 2
       itemStyle: { color: color },
       lineStyle: { width: 2 },
       encode: { x: "timestamp", y: eqpId },
+      connectNulls: true, 
     });
 
     // Stats
-    const pData = data.filter(d => d.eqpId === eqpId);
+    const pData = data.filter(d => {
+      const rawId = (d as any).eqpid ?? d.eqpId;
+      return String(rawId) === eqpId;
+    });
+    
     const memValues = pData.map(d => Number(d.memoryUsageMB) || 0);
-    const sum = memValues.reduce((a, b) => a + b, 0);
-    const max = Math.max(...memValues);
-    const last = pData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]?.memoryUsageMB || 0;
+    
+    let sum = 0;
+    let max = 0;
+    let last = 0;
+
+    if (memValues.length > 0) {
+      sum = memValues.reduce((a, b) => a + b, 0);
+      max = Math.max(...memValues);
+      const lastRecord = pData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+      last = Number(lastRecord?.memoryUsageMB) || 0;
+    }
 
     stats.push({
       eqpId,
       color,
       max,
       avg: pData.length > 0 ? sum / pData.length : 0,
-      last: Number(last) || 0
+      last
     });
   });
 
@@ -601,7 +665,7 @@ const chartOption = computed(() => {
         
         sortedParams.forEach((p: any) => {
           const val = p.value[p.seriesName];
-          if (val !== undefined) {
+          if (val !== undefined && val !== null) {
             const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
             html += `<div class="flex justify-between items-center gap-4 text-xs">
                        <span>${colorDot} ${p.seriesName}</span>
