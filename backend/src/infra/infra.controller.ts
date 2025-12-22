@@ -21,6 +21,27 @@ export class InfraController {
     return await this.infraService.getSdwts();
   }
 
+  // [추가] SDWT 생성
+  @Post('sdwt')
+  async createSdwt(@Body() body: Prisma.RefSdwtCreateInput) {
+    return await this.infraService.createSdwt(body);
+  }
+
+  // [추가] SDWT 수정
+  @Put('sdwt/:id')
+  async updateSdwt(
+    @Param('id') id: string,
+    @Body() body: Prisma.RefSdwtUpdateInput,
+  ) {
+    return await this.infraService.updateSdwt(id, body);
+  }
+
+  // [추가] SDWT 삭제
+  @Delete('sdwt/:id')
+  async deleteSdwt(@Param('id') id: string) {
+    return await this.infraService.deleteSdwt(id);
+  }
+
   // 3. Agent Server (Per Eqp Config)
   @Get('agent-server')
   async getAgentServers() {
