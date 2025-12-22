@@ -8,39 +8,61 @@ interface RequestWithUser extends Request {
   user: User;
 }
 
-// [중요] 기존 경로 'menu' 유지 (사이드바 등 기존 기능 보호)
+// [추가] DTO 클래스 정의
+// (Service의 인터페이스와 호환되도록 정의합니다)
+export class CreateMenuDto {
+  label: string;
+  routerPath?: string;
+  parentId?: number;
+  icon?: string;
+  sortOrder?: number;
+  statusTag?: string;
+  roles?: string[];
+}
+
+export class UpdateMenuDto {
+  label?: string;
+  routerPath?: string;
+  parentId?: number;
+  icon?: string;
+  sortOrder?: number;
+  statusTag?: string;
+  roles?: string[];
+}
+
 @Controller('menu')
 @UseGuards(JwtAuthGuard)
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 
-  // 1. 내 메뉴 조회 (기존 유지)
+  // 1. 내 메뉴 조회
   @Get('my')
   async getMyMenus(@Request() req: RequestWithUser) {
     const role = req.user.role ?? 'USER';
     return this.menuService.getMyMenus(role);
   }
 
-  // 2. 전체 메뉴 트리 조회 (Frontend의 loadMenuData에서 호출)
-  // 기존 'all' 경로 재활용
+  // 2. 전체 메뉴 트리 조회
   @Get('all')
   async getAllMenus() {
     return this.menuService.getAllMenus();
   }
 
-  // 3. [신규] 메뉴 생성
+  // 3. 메뉴 생성
+  // [수정] Body 타입을 any -> CreateMenuDto로 변경
   @Post()
-  async createMenu(@Body() createMenuDto: any) {
+  async createMenu(@Body() createMenuDto: CreateMenuDto) {
     return this.menuService.createMenu(createMenuDto);
   }
 
-  // 4. [신규] 메뉴 수정
+  // 4. 메뉴 수정
+  // [수정] Body 타입을 any -> UpdateMenuDto로 변경
   @Put(':id')
-  async updateMenu(@Param('id') id: string, @Body() updateMenuDto: any) {
+  async updateMenu(@Param('id') id: string, @Body() updateMenuDto: UpdateMenuDto) {
     return this.menuService.updateMenu(Number(id), updateMenuDto);
   }
 
-  // 5. [신규] 메뉴 삭제
+  // 5. 메뉴 삭제
   @Delete(':id')
   async deleteMenu(@Param('id') id: string) {
     return this.menuService.deleteMenu(Number(id));
@@ -53,6 +75,7 @@ export class MenuController {
   }
 
   // 7. 권한 저장
+  // menuIds는 숫자 배열이므로 별도 DTO 없이 구체적 타입 명시
   @Post('permissions/:role')
   async savePermissions(
     @Param('role') role: string,
