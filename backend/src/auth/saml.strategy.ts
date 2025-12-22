@@ -42,6 +42,20 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       logoutCallbackUrl: process.env.SAML_CALLBACK_URL || '',
       privateKey: process.env.SAML_SP_PRIVATE_KEY || undefined,
     };
+
+    if (
+      !samlConfig.entryPoint ||
+      !samlConfig.idpCert ||
+      !samlConfig.callbackUrl ||
+      !samlConfig.issuer
+    ) {
+      throw new Error(
+        '[SamlStrategy] Critical SAML configuration is missing. Please check your .env file.',
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error   
     super(samlConfig);
   }
 
@@ -111,6 +125,13 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
 
     return user;
   }
-  
-  // ... (기존 getServiceProviderMetadata 등 유지)
+
+  getServiceProviderMetadata(): string {
+    let signingCert = process.env.SAML_SP_PUBLIC_CERT || null;
+    if (signingCert) {
+      signingCert = signingCert.replace(/\\n/g, '\n');
+    }
+    return this.generateServiceProviderMetadata(null, signingCert);
+  }
+}
 }
