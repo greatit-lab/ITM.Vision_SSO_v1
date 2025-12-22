@@ -1,23 +1,20 @@
 // frontend/src/api/infra.ts
 import http from "./http";
 
+// [추가됨] View에서 호출하는 장비 목록 API (기존 /equipment API 활용)
+export const getInfraEquipment = () => http.get("/equipment");
+
 // 1. SDWT (ref_sdwt)
 export const getInfraSdwt = () => http.get("/infra/sdwt");
 
-// 2. New Server Config (cfg_new_server)
-export const getNewServers = () => http.get("/infra/new-server");
-export const createNewServer = (data: any) =>
-  http.post("/infra/new-server", data);
-export const updateNewServer = (id: number, data: any) =>
-  http.put(`/infra/new-server/${id}`, data);
-export const deleteNewServer = (id: number) =>
-  http.delete(`/infra/new-server/${id}`);
+// 2. Infra Server List (cfg_infra_server)
+export const getInfraServers = () => http.get("/infra/server-list");
+export const createInfraServer = (data: any) => http.post("/infra/server-list", data);
+export const updateInfraServer = (id: number, data: any) => http.put(`/infra/server-list/${id}`, data);
+export const deleteInfraServer = (id: number) => http.delete(`/infra/server-list/${id}`);
 
 // 3. Agent Server Config (cfg_server)
 export const getAgentServers = () => http.get("/infra/agent-server");
-export const createAgentServer = (data: any) =>
-  http.post("/infra/agent-server", data);
-export const updateAgentServer = (id: string, data: any) =>
-  http.put(`/infra/agent-server/${id}`, data);
-export const deleteAgentServer = (id: string) =>
-  http.delete(`/infra/agent-server/${id}`);
+export const createAgentServer = (data: any) => http.post("/infra/agent-server", data);
+export const updateAgentServer = (id: string, data: any) => http.put(`/infra/agent-server/${id}`, data);
+export const deleteAgentServer = (id: string) => http.delete(`/infra/agent-server/${id}`);
