@@ -1,7 +1,7 @@
 // backend/src/infra/infra.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { RefSdwt, CfgInfraServer, CfgServer, Prisma } from '@prisma/client';
+import { RefSdwt, CfgServer, Prisma } from '@prisma/client';
 
 @Injectable()
 export class InfraService {
@@ -11,31 +11,6 @@ export class InfraService {
   async getSdwts(): Promise<RefSdwt[]> {
     return await this.prisma.refSdwt.findMany({
       orderBy: { sdwt: 'asc' },
-    });
-  }
-
-  // --- 2. Infra Server List (cfg_infra_server) ---
-  // * 변경: data 타입을 any에서 Prisma Generated Type으로 변경하여 ESLint 오류 해결
-  async getInfraServers(): Promise<CfgInfraServer[]> {
-    return await this.prisma.cfgInfraServer.findMany({
-      orderBy: { id: 'asc' },
-    });
-  }
-
-  async createInfraServer(data: Prisma.CfgInfraServerCreateInput): Promise<CfgInfraServer> {
-    return await this.prisma.cfgInfraServer.create({ data });
-  }
-
-  async updateInfraServer(id: number, data: Prisma.CfgInfraServerUpdateInput): Promise<CfgInfraServer> {
-    return await this.prisma.cfgInfraServer.update({
-      where: { id },
-      data,
-    });
-  }
-
-  async deleteInfraServer(id: number): Promise<CfgInfraServer> {
-    return await this.prisma.cfgInfraServer.delete({
-      where: { id },
     });
   }
 
