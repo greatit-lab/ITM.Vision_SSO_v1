@@ -19,20 +19,45 @@ export class AuthService {
     this.logger.log(`[LOGIN START] Processing login for Raw UserID: '${rawUserId}'`);
 
     // [Gate 2] 접근 허용 확인 (Company / Department Whitelist)
+    // + AD 정보로 DB의 이름 정보 현행화 (Auto Update)
     let isAllowed = false;
 
+    // 1. 회사 코드로 확인
     if (user.companyCode) {
       const companyAuth = await this.prisma.refAccessCode.findFirst({
         where: { compid: user.companyCode, isActive: 'Y' },
       });
-      if (companyAuth) isAllowed = true;
+      if (companyAuth) {
+        isAllowed = true;
+        
+        // [New] 회사명이 비어있거나 다르면 AD 정보로 업데이트
+        if (user.companyName && companyAuth.compName !== user.companyName) {
+           await this.prisma.refAccessCode.update({
+             where: { compid: companyAuth.compid },
+             data: { compName: user.companyName }
+           });
+           this.logger.log(`[AUTO UPDATE] AccessCode Company Name updated: ${user.companyName}`);
+        }
+      }
     }
 
+    // 2. 부서 코드로 확인
     if (!isAllowed && user.department) {
       const deptAuth = await this.prisma.refAccessCode.findFirst({
         where: { deptid: user.department, isActive: 'Y' },
       });
-      if (deptAuth) isAllowed = true;
+      if (deptAuth) {
+        isAllowed = true;
+
+        // [New] 부서명이 비어있거나 다르면 AD 정보로 업데이트
+        if (user.departmentName && deptAuth.deptName !== user.departmentName) {
+           await this.prisma.refAccessCode.update({
+             where: { compid: deptAuth.compid }, // PK 사용
+             data: { deptName: user.departmentName }
+           });
+           this.logger.log(`[AUTO UPDATE] AccessCode Dept Name updated: ${user.departmentName}`);
+        }
+      }
     }
 
     if (!isAllowed) {
@@ -88,7 +113,6 @@ export class AuthService {
     });
 
     if (adminUser) {
-      // [수정] DB에 'admin' 소문자로 저장되어 있어도 대문자로 변환하여 Frontend와 일치시킴
       role = adminUser.role.toUpperCase(); 
       this.logger.log(`   ✅ Admin Matched! Role set to: [${role}]`);
     } else {
@@ -100,7 +124,7 @@ export class AuthService {
         },
       });
       if (guestUser) {
-        role = guestUser.grantedRole.toUpperCase(); // [수정] 대문자 변환
+        role = guestUser.grantedRole.toUpperCase(); 
         this.logger.log(`   ✅ Guest Access Granted! Role set to: [${role}]`);
       } else {
         this.logger.warn(`   ❌ Admin Not Found in 'cfg_admin_user' for ID: '${dbLoginId}'. Defaulting to USER.`);
@@ -186,5 +210,12 @@ export class AuthService {
 
     this.logger.log(`[SAVE CONTEXT] Success for ${targetLoginId}`);
     return result;
+  }
+
+  // [New] 접근 제어 목록 조회 (Admin 화면용)
+  async getAccessCodes() {
+    return await this.prisma.refAccessCode.findMany({
+      orderBy: { updatedAt: 'desc' }
+    });
   }
 }
