@@ -12,6 +12,9 @@ import {
   UpdateSeverityDto,
   CreateMetricDto,
   UpdateMetricDto,
+  UpdateNewServerDto,
+  CreateCfgServerDto,
+  UpdateCfgServerDto,
 } from './dto/admin.dto';
 
 @Injectable()
@@ -173,11 +176,11 @@ export class AdminService {
   }
 
   // ==========================================
-  // [System Config] Error Severity Map
+  // [Infra Management] Error Severity Map
   // ==========================================
   async getSeverities() {
     return this.prisma.errSeverityMap.findMany({
-      orderBy: { errorId: 'asc' }, // [수정] errorId 기준 정렬
+      orderBy: { errorId: 'asc' },
     });
   }
 
@@ -190,7 +193,6 @@ export class AdminService {
     });
   }
 
-  // [수정] PK인 errorId를 기준으로 severity만 업데이트
   async updateSeverity(errorId: string, data: UpdateSeverityDto) {
     return this.prisma.errSeverityMap.update({
       where: { errorId },
@@ -200,7 +202,6 @@ export class AdminService {
     });
   }
 
-  // [수정] PK인 errorId로 삭제
   async deleteSeverity(errorId: string) {
     return this.prisma.errSeverityMap.delete({
       where: { errorId },
@@ -208,7 +209,7 @@ export class AdminService {
   }
 
   // ==========================================
-  // [System Config] Analysis Metrics
+  // [Infra Management] Analysis Metrics
   // ==========================================
   async getMetrics() {
     return this.prisma.cfgLotUniformityMetrics.findMany({
@@ -256,6 +257,78 @@ export class AdminService {
   async getRefEquipments() {
     return this.prisma.refEquipment.findMany({
       orderBy: { eqpid: 'asc' },
+    });
+  }
+
+  // ==========================================
+  // [System Config] Server Configuration
+  // ==========================================
+
+  // (1) New Server Config (Single Record)
+  async getNewServerConfig() {
+    const config = await this.prisma.cfgNewServer.findUnique({
+      where: { id: 1 },
+    });
+    
+    // 데이터가 없으면 기본값으로 생성 후 반환 (초기화)
+    if (!config) {
+      return this.prisma.cfgNewServer.create({
+        data: {
+          id: 1,
+          newDbHost: '',
+          newFtpHost: '',
+        },
+      });
+    }
+    return config;
+  }
+
+  async updateNewServerConfig(data: UpdateNewServerDto) {
+    // id=1인 레코드를 업데이트하거나 없으면 생성
+    return this.prisma.cfgNewServer.upsert({
+      where: { id: 1 },
+      update: {
+        ...data,
+      },
+      create: {
+        id: 1,
+        newDbHost: data.newDbHost || '',
+        newFtpHost: data.newFtpHost || '',
+        ...data,
+      },
+    });
+  }
+
+  // (2) Cfg Server List (Agent Servers)
+  async getCfgServers() {
+    return this.prisma.cfgServer.findMany({
+      orderBy: { eqpid: 'asc' },
+    });
+  }
+
+  async createCfgServer(data: CreateCfgServerDto) {
+    return this.prisma.cfgServer.create({
+      data: {
+        eqpid: data.eqpid,
+        serverUrl: data.serverUrl,
+        agentVer: data.agentVer,
+      },
+    });
+  }
+
+  async updateCfgServer(eqpid: string, data: UpdateCfgServerDto) {
+    return this.prisma.cfgServer.update({
+      where: { eqpid },
+      data: {
+        serverUrl: data.serverUrl,
+        agentVer: data.agentVer,
+      },
+    });
+  }
+
+  async deleteCfgServer(eqpid: string) {
+    return this.prisma.cfgServer.delete({
+      where: { eqpid },
     });
   }
 }
