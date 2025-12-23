@@ -24,7 +24,8 @@ model RefEquipment {
   model      String?   @db.VarChar(50)
   prcGroup   String?   @map("prc_group") @db.VarChar(50)
   bay        String?   @db.VarChar(50)
-  lastUpdate DateTime? @default(now()) @map("last_update") @db.Timestamp()
+  
+  lastUpdate DateTime? @default(now()) @map("last_update") @db.Timestamp(0)
 
   sdwtRel RefSdwt @relation(fields: [sdwt], references: [sdwt])
 
@@ -44,7 +45,8 @@ model RefSdwt {
   campus String?  @db.VarChar(50)
   desc   String?  @db.VarChar(50)
   isUse  String   @default("N") @map("is_use") @db.Char(1)
-  update DateTime @default(now()) @db.Timestamp()
+  
+  update DateTime @default(now()) @db.Timestamp(0)
 
   equipments RefEquipment[]
   userContexts SysUserContext[]
@@ -216,6 +218,14 @@ model CfgLotUniformityMetrics {
   @@map("cfg_lot_uniformity_metrics")
 }
 
+// [수정] 사용자 요청 테이블 스키마에 맞춤
+model ErrSeverityMap {
+  errorId  String @id @map("error_id")
+  severity String
+
+  @@map("err_severity_map")
+}
+
 // ==========================================
 // [New SSO / Auth] 신규 권한 및 메뉴 관리
 // ==========================================
@@ -227,7 +237,8 @@ model RefAccessCode {
   deptName    String?  @map("dept_name") @db.VarChar(100)
   description String?  @db.VarChar(100)
   isActive    String   @default("Y") @map("is_active") @db.Char(1)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
 
   @@map("ref_access_code")
 }
@@ -264,7 +275,8 @@ model CfgAdminUser {
   loginId    String   @id @map("login_id") @db.VarChar(50)
   role       String   @default("MANAGER") @db.VarChar(20)
   assignedBy String?  @map("assigned_by") @db.VarChar(50)
-  assignedAt DateTime @default(now()) @map("assigned_at")
+  
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamp(0)
 
   @@map("cfg_admin_user")
 }
@@ -275,30 +287,29 @@ model CfgGuestAccess {
   deptName    String?  @map("dept_name") @db.VarChar(100)
   
   grantedRole String   @default("GUEST") @map("granted_role") @db.VarChar(20)
-  validUntil  DateTime @map("valid_until")
   reason      String?  @db.VarChar(100)
-  createdAt   DateTime @default(now()) @map("created_at")
+
+  validUntil  DateTime @map("valid_until") @db.Timestamp(0)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
 
   @@map("cfg_guest_access")
 }
 
-// [수정] 게스트 접근 신청 이력 (부서 코드 추가)
 model CfgGuestRequest {
   reqId       Int      @id @default(autoincrement()) @map("req_id")
   loginId     String   @map("login_id") @db.VarChar(50)
   
-  deptCode    String?  @map("dept_code") @db.VarChar(50) // [추가]
+  deptCode    String?  @map("dept_code") @db.VarChar(50)
   deptName    String?  @map("dept_name") @db.VarChar(100)
   
   reason      String?  @db.VarChar(200)
   
-  // 상태: PENDING(대기), APPROVED(승인), REJECTED(반려)
   status      String   @default("PENDING") @db.VarChar(20) 
   
   processedBy String?  @map("processed_by") @db.VarChar(50)
-  processedAt DateTime? @map("processed_at")
   
-  createdAt   DateTime @default(now()) @map("created_at")
+  processedAt DateTime? @map("processed_at") @db.Timestamp(0)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
 
   @@map("cfg_guest_request")
 }
@@ -306,8 +317,9 @@ model CfgGuestRequest {
 model SysUser {
   loginId     String   @id @map("login_id") @db.VarChar(50)
   loginCount  Int      @default(1) @map("login_count")
-  lastLoginAt DateTime @default(now()) @map("last_login_at")
-  createdAt   DateTime @default(now()) @map("created_at")
+  
+  lastLoginAt DateTime @default(now()) @map("last_login_at") @db.Timestamp(0)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
 
   context SysUserContext?
   @@map("sys_user")
@@ -317,7 +329,8 @@ model SysUserContext {
   loginId String @id @map("login_id") @db.VarChar(50)
   lastSdwtId String  @map("last_sdwt_id") @db.Char(7)
   sdwtInfo   RefSdwt @relation(fields: [lastSdwtId], references: [id])
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
 
   user SysUser @relation(fields: [loginId], references: [loginId])
 
