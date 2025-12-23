@@ -36,6 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value?.name ? user.value.name.charAt(0).toUpperCase() : 'U';
   });
 
+  // [기존] Admin 또는 Manager (일반 관리자 포함)
   const isAdmin = computed(() => {
     if (user.value?.role === 'ADMIN' || user.value?.role === 'MANAGER') return true;
     if (!user.value?.groups) return false;
@@ -46,6 +47,15 @@ export const useAuthStore = defineStore('auth', () => {
     } else {
       return adminGroups.includes(userGroups);
     }
+  });
+
+  // [추가] Super Admin (최고 관리자 - ADMIN 역할만 해당)
+  const isSuperAdmin = computed(() => {
+    if (user.value?.role === 'ADMIN') return true;
+    if (Array.isArray(user.value?.groups)) {
+      return user.value.groups.includes('Administrators');
+    }
+    return user.value?.groups === 'Administrators';
   });
 
   const userDetailTooltip = computed(() => {
@@ -88,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
     userName,
     userInitial,
     isAdmin,
+    isSuperAdmin, // [추가] Export
     userDetailTooltip,
     setAuth,
     setToken,
