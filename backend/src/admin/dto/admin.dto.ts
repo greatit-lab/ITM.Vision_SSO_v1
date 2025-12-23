@@ -19,11 +19,10 @@ export class UpdateAccessCodeDto {
   isActive?: string;
 }
 
-// [수정] 수동 생성 시 부서명/코드 입력 가능
 export class CreateGuestDto {
   loginId: string;
-  deptName?: string; // [추가]
-  deptCode?: string; // [추가]
+  deptName?: string;
+  deptCode?: string;
   grantedRole?: string;
   validUntil: string | Date;
   reason?: string;
@@ -39,4 +38,24 @@ export class ApproveGuestRequestDto {
 export class RejectGuestRequestDto {
   reqId: number;
   approverId: string;
+}
+
+// [수정] 테이블 구조 변경 반영 (errorId, severity only)
+export class CreateSeverityDto {
+  errorId: string;
+  severity: string;
+}
+
+// [수정] Update 시에는 severity만 변경 가능 (PK인 errorId는 변경 불가)
+export class UpdateSeverityDto {
+  severity: string;
+}
+
+export class CreateMetricDto {
+  metricName: string;
+  isExcluded: boolean | string;
+}
+
+export class UpdateMetricDto {
+  isExcluded: boolean | string;
 }
