@@ -57,19 +57,20 @@
           </div>
         </button>
 
-        <div class="relative ml-2" ref="dropdownRef">
+        <div class="relative ml-2">
           <button
             @click="toggleDropdown"
             class="flex items-center gap-2.5 pl-2 pr-1 py-1 transition-all duration-200 rounded-full group hover:bg-slate-100 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
+            v-tooltip.bottom="authStore.user?.departmentName || 'No Department'"
           >
             <span class="hidden text-sm font-bold text-slate-700 dark:text-slate-200 sm:block">
               {{ authStore.userName }}
             </span>
             <div
               class="flex items-center justify-center w-7 h-7 text-xs font-bold text-white shadow-md rounded-full ring-2 ring-white dark:ring-zinc-900 transition-all"
-              :class="getAvatarColor(authStore.user?.role)"
+              :class="getUserAvatarColor(authStore.user?.userId)"
             >
-              {{ roleInitial }}
+              {{ userAvatarInitial }}
             </div>
             <i class="text-[10px] pi pi-chevron-down text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
           </button>
@@ -124,8 +125,8 @@
               <div class="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
                 <div class="flex items-center gap-4 mb-3">
                   <div class="w-12 h-12 flex items-center justify-center text-white rounded-full text-xl font-bold shadow-lg"
-                       :class="getAvatarColor(authStore.user?.role)">
-                     {{ roleInitial }}
+                       :class="getUserAvatarColor(authStore.user?.userId)">
+                     {{ userAvatarInitial }}
                   </div>
                   <div>
                     <p class="font-bold text-slate-900 dark:text-white text-lg">{{ authStore.userName }}</p>
@@ -176,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue"; // [수정] onUnmounted 제거
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useMenuStore } from "@/stores/menu"; 
@@ -189,7 +190,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const menuStore = useMenuStore(); 
-const dropdownRef = ref<HTMLElement | null>(null);
+// [수정] unused 'dropdownRef' 제거
 
 const isDropdownOpen = ref(false);
 const isDark = ref(false);
@@ -200,25 +201,33 @@ const sdwts = ref<string[]>([]);
 const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
-const notification = ref({ show: false, message: '' });
+// [수정] unused 'notification' 제거
 
-// [수정] 권한에 따른 이니셜 매핑 (Admin: A, Manager: M, User: U, Guest: G)
-const roleInitial = computed(() => {
-  const role = authStore.user?.role?.toUpperCase() || 'USER';
-  if (role === 'ADMIN' || role === 'SUPERADMIN') return 'A';
-  if (role === 'MANAGER') return 'M';
-  if (role === 'GUEST') return 'G';
-  return 'U';
+// UserId의 첫 글자(대문자) 반환
+const userAvatarInitial = computed(() => {
+  const userId = authStore.user?.userId;
+  return userId ? userId.charAt(0).toUpperCase() : 'U';
 });
 
-// [수정] 권한별 아바타 배경색 지정 (Access Roles와 일치)
-const getAvatarColor = (role?: string) => {
-  const r = role?.toUpperCase();
-  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
-  if (r === 'MANAGER') return 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30';
-  if (r === 'USER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
-  if (r === 'GUEST') return 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30';
-  return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
+// UserId의 알파벳에 따라 고유한 색상(Gradient) 반환
+const getUserAvatarColor = (userId?: string) => {
+  if (!userId) return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
+  
+  const charCode = userId.charAt(0).toUpperCase().charCodeAt(0);
+  const colorIndex = charCode % 8; // 8가지 색상 팔레트 순환
+
+  const gradients = [
+    'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30',      // 0: Red/Rose
+    'bg-gradient-to-br from-orange-500 to-orange-600 shadow-orange-500/30',// 1: Orange
+    'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30',   // 2: Amber/Yellow
+    'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30', // 3: Green
+    'bg-gradient-to-br from-teal-500 to-teal-600 shadow-teal-500/30',      // 4: Teal
+    'bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/30',      // 5: Blue
+    'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30', // 6: Indigo
+    'bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30', // 7: Purple
+  ];
+
+  return gradients[colorIndex];
 };
 
 // 권한별 텍스트 색상
@@ -231,7 +240,7 @@ const getRoleTextColor = (role?: string) => {
   return 'text-slate-600';
 }
 
-// [수정] 페이지 타이틀 분리 계산 (관리 페이지 정상화 적용)
+// 페이지 타이틀 분리 계산
 const pageTitleParts = computed(() => {
   const findBreadcrumb = (nodes: MenuNode[], targetPath: string, parents: string[]): string | null => {
     for (const node of nodes) {
@@ -251,7 +260,7 @@ const pageTitleParts = computed(() => {
   let fullTitle = "Overview";
   const path = route.path;
 
-  // 1. 관리자 페이지 매핑 (우선순위 1)
+  // 1. 관리자 페이지 매핑
   if (path.startsWith('/admin')) {
     if (path.includes('/menus')) fullTitle = "Management / Menus";
     else if (path.includes('/users')) fullTitle = "Management / Users";
@@ -259,7 +268,7 @@ const pageTitleParts = computed(() => {
     else if (path.includes('/system')) fullTitle = "Management / System";
     else fullTitle = "Management";
   } 
-  // 2. DB 메뉴 탐색 (우선순위 2)
+  // 2. DB 메뉴 탐색
   else if (menuStore.menus.length > 0) {
     const breadcrumb = findBreadcrumb(menuStore.menus, route.path, []);
     if (breadcrumb) fullTitle = breadcrumb;
