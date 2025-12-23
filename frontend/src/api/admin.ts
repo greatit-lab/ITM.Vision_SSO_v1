@@ -18,10 +18,17 @@ export const updateAccessCode = (id: string, data: any) =>
 export const deleteAccessCode = (id: string) =>
   http.delete(`/admin/access-codes/${id}`);
 
-// 4. Guests
+// 4. Guests (Active List & Manual)
 export const getGuests = () => http.get("/admin/guests");
 export const addGuest = (data: any) => http.post("/admin/guests", data);
 export const deleteGuest = (id: string) => http.delete(`/admin/guests/${id}`);
 
 // 5. Equipments (ref_equipment)
 export const getRefEquipments = () => http.get("/admin/equipments");
+
+// 6. Guest Requests (Workflow)
+export const getGuestRequests = () => http.get("/admin/guest-requests");
+export const approveGuestRequest = (data: any) =>
+  http.post("/admin/guest-requests/approve", data);
+export const rejectGuestRequest = (data: any) =>
+  http.post("/admin/guest-requests/reject", data);
