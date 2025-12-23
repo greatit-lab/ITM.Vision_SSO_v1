@@ -1,8 +1,9 @@
 // backend/src/admin/dto/admin.dto.ts
+
 export class CreateAdminDto {
   loginId: string;
   role: string;
-  assignedBy?: string; // [수정] Optional로 변경하여 안전성 확보
+  assignedBy?: string;
 }
 
 export class CreateAccessCodeDto {
@@ -18,10 +19,24 @@ export class UpdateAccessCodeDto {
   isActive?: string;
 }
 
+// [수정] 수동 생성 시 부서명/코드 입력 가능
 export class CreateGuestDto {
   loginId: string;
-  requester?: string;
+  deptName?: string; // [추가]
+  deptCode?: string; // [추가]
   grantedRole?: string;
   validUntil: string | Date;
   reason?: string;
+}
+
+export class ApproveGuestRequestDto {
+  reqId: number;
+  validUntil: string | Date;
+  grantedRole?: string;
+  approverId: string;
+}
+
+export class RejectGuestRequestDto {
+  reqId: number;
+  approverId: string;
 }
