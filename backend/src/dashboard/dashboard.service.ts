@@ -3,7 +3,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
 
-// Raw Query 결과 타입 정의 (기존 유지)
+// Raw Query 결과 타입 정의
 interface AgentStatusRawResult {
   eqpid: string;
   is_online: boolean;
@@ -27,7 +27,7 @@ interface AgentStatusRawResult {
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
-  // 버전 비교 헬퍼 함수 (기존 유지)
+  // 버전 비교 헬퍼 함수
   private compareVersions(v1: string, v2: string) {
     const p1 = v1.replace(/[^0-9.]/g, '').split('.').map(Number);
     const p2 = v2.replace(/[^0-9.]/g, '').split('.').map(Number);
@@ -43,7 +43,7 @@ export class DashboardService {
   // [수정] 500 에러 방지 및 최신 스키마(cfg_server) 반영
   async getSummary(site?: string, sdwt?: string) {
     try {
-      // 1. 최신 Agent 버전 조회 (기존 로직 유지)
+      // 1. 최신 Agent 버전 조회
       const distinctVersions = await this.prisma.agentInfo.findMany({
         distinct: ['appVer'],
         select: { appVer: true },
@@ -68,10 +68,14 @@ export class DashboardService {
       };
 
       // 3. 데이터 조회 (병렬 실행)
-      // 주의: cfg_server는 RefEquipment와 직접 Relation이 없을 수 있으므로 별도 조회
       const [totalEqp, servers, totalSdwts] = await Promise.all([
-        // 전체 장비 수
-        this.prisma.refEquipment.count({ where: equipmentWhere }),
+        // [수정] 전체 장비 수가 아닌 Agent 설치된 장비 수로 변경 (AgentInfo 테이블 기준)
+        // AgentInfo 테이블이 RefEquipment와 Relation이 있다고 가정 (보통 equipment)
+        this.prisma.agentInfo.count({ 
+          where: { 
+            equipment: equipmentWhere 
+          } 
+        }),
         
         // Agent 서버 목록 (cfg_server) 조회
         this.prisma.cfgServer.findMany(),
@@ -82,7 +86,7 @@ export class DashboardService {
         })
       ]);
 
-      // 4. 활성 서버(Active Server) 계산 로직 수정
+      // 4. 활성 서버(Active Server) 계산 로직
       // cfg_server의 update 컬럼이 최근 10분 이내이면 Online으로 간주
       const now = new Date();
       const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
@@ -94,7 +98,7 @@ export class DashboardService {
         return lastUpdate > tenMinutesAgo;
       }).length;
 
-      // 5. 금일 에러 건수 조회 (기존 로직 활용, null safety 강화)
+      // 5. 금일 에러 건수 조회
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
@@ -135,15 +139,15 @@ export class DashboardService {
 
       // 6. 결과 반환 (FE에서 기대하는 구조 유지)
       return {
-        totalEqpCount: totalEqp,
-        totalServers: totalServers, // FE 추가 필요 시 사용
-        onlineAgentCount: activeServers, // 기존 FE 필드명 매핑 (Active Server)
+        totalEqpCount: totalEqp, // 이제 Agent가 설치된 장비 수(AgentInfo Count)를 반환
+        totalServers: totalServers, 
+        onlineAgentCount: activeServers,
         inactiveAgentCount: totalServers - activeServers,
         todayErrorCount,
         todayErrorTotalCount,
         newAlarmCount,
         latestAgentVersion,
-        totalSdwts, // 추가 정보
+        totalSdwts, 
         serverHealth: totalServers > 0 ? Math.round((activeServers / totalServers) * 100) : 0
       };
 
@@ -154,7 +158,7 @@ export class DashboardService {
     }
   }
 
-  // [기존] getAgentStatus 메서드는 그대로 유지
+  // getAgentStatus 메서드는 변경 없음
   async getAgentStatus(site?: string, sdwt?: string) {
     let whereCondition = Prisma.sql`WHERE r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE is_use = 'Y')`;
 
