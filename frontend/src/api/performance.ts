@@ -1,5 +1,17 @@
 // frontend/src/api/performance.ts
+// frontend/src/api/performance.ts
 import http from "./http";
+
+// [추가] Performance Trend용 데이터 DTO (Export 필수)
+export interface PerformanceDataPointDto {
+  eqpId?: string;
+  timestamp?: string;
+  cpuUsage?: number;
+  memoryUsage?: number;
+  cpuTemp?: number;
+  gpuTemp?: number;
+  fanSpeed?: number;
+}
 
 export interface ProcessMemoryDataDto {
   timestamp: string;
@@ -7,7 +19,7 @@ export interface ProcessMemoryDataDto {
   memoryUsageMB: number;
 }
 
-// [추가] ITM Agent 데이터 DTO
+// ITM Agent 데이터 DTO
 export interface ItmAgentDataDto {
   timestamp: string;
   eqpId: string;
@@ -28,7 +40,8 @@ export const performanceApi = {
       eqpids: eqpids.join(","),
       interval: intervalSeconds,
     };
-    const { data } = await http.get("/Performance/history", { params });
+    // [수정] 반환 타입 명시 <PerformanceDataPointDto[]>
+    const { data } = await http.get<PerformanceDataPointDto[]>("/Performance/history", { params });
     return data;
   },
 
@@ -56,7 +69,6 @@ export const performanceApi = {
     endDate: string,
     intervalSeconds?: number
   ) => {
-    // eqpId는 선택값이므로 없으면 빈 문자열이나 null로 전달될 수 있음
     const params = { 
       site, 
       sdwt, 
