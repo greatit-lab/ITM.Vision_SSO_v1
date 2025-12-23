@@ -7,114 +7,160 @@
     </div>
 
     <div class="flex-1 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col min-h-0">
-      <div class="flex-1 overflow-auto p-6 space-y-8">
+      <div class="flex-1 flex flex-col p-4 gap-4 min-h-0 h-full">
         
-        <div class="bg-slate-50 dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 rounded-lg p-5">
-          <div class="flex justify-between items-center mb-4">
+        <div class="shrink-0 bg-slate-50 dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 rounded-lg p-4">
+          <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-200 dark:border-zinc-700">
             <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <i class="pi pi-database text-blue-500"></i>
               신규 서버 설정 (Migration Target)
             </h3>
-            <Button label="저장 (Save Config)" icon="pi pi-check" size="small" @click="saveNewServerConfig" :loading="savingNew" />
+            <Button label="저장 (Save Config)" icon="pi pi-check" size="small" class="!py-1 !text-xs" @click="saveNewServerConfig" :loading="savingNew" />
           </div>
           
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-3">
-              <h4 class="text-xs font-bold text-slate-500 uppercase">Database Connection</h4>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Host</label>
-                <InputText v-model="newServer.newDbHost" class="col-span-2 !text-xs !h-8" />
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="flex flex-col gap-2">
+              <div class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-1">
+                <i class="pi pi-server text-[10px]"></i> Database
               </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">User</label>
-                <InputText v-model="newServer.newDbUser" class="col-span-2 !text-xs !h-8" />
+              <div class="flex gap-2">
+                <div class="flex items-center gap-2" style="flex: 7;">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">Host</label>
+                  <InputText v-model="newServer.newDbHost" class="w-full !text-xs !py-1 !h-7" placeholder="DB Host IP" />
+                </div>
+                <div class="flex items-center gap-2" style="flex: 3;">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">Port</label>
+                  <InputNumber v-model="newServer.newDbPort" class="w-full !text-xs !h-7" :useGrouping="false" inputClass="!py-1 !text-xs !h-7" />
+                </div>
               </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Password</label>
-                <InputText v-model="newServer.newDbPw" type="password" class="col-span-2 !text-xs !h-8" />
-              </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Port</label>
-                <InputNumber v-model="newServer.newDbPort" class="col-span-2 !text-xs !h-8" :useGrouping="false" />
+              <div class="flex gap-2">
+                <div class="flex-1 flex items-center gap-2">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">User</label>
+                  <InputText v-model="newServer.newDbUser" class="w-full !text-xs !py-1 !h-7" />
+                </div>
+                <div class="flex-1 flex items-center gap-2">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">PW</label>
+                  <InputText v-model="newServer.newDbPw" type="password" class="w-full !text-xs !py-1 !h-7" />
+                </div>
               </div>
             </div>
 
-            <div class="space-y-3">
-              <h4 class="text-xs font-bold text-slate-500 uppercase">FTP Connection</h4>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Host</label>
-                <InputText v-model="newServer.newFtpHost" class="col-span-2 !text-xs !h-8" />
+            <div class="flex flex-col gap-2 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-zinc-700 pt-3 lg:pt-0 lg:pl-6">
+              <div class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-1">
+                <i class="pi pi-folder text-[10px]"></i> FTP
               </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">User</label>
-                <InputText v-model="newServer.newFtpUser" class="col-span-2 !text-xs !h-8" />
+              <div class="flex gap-2">
+                <div class="flex items-center gap-2" style="flex: 7;">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">Host</label>
+                  <InputText v-model="newServer.newFtpHost" class="w-full !text-xs !py-1 !h-7" placeholder="FTP Host IP" />
+                </div>
+                <div class="flex items-center gap-2" style="flex: 3;">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">Port</label>
+                  <InputNumber v-model="newServer.newFtpPort" class="w-full !text-xs !h-7" :useGrouping="false" inputClass="!py-1 !text-xs !h-7" />
+                </div>
               </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Password</label>
-                <InputText v-model="newServer.newFtpPw" type="password" class="col-span-2 !text-xs !h-8" />
-              </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Port</label>
-                <InputNumber v-model="newServer.newFtpPort" class="col-span-2 !text-xs !h-8" :useGrouping="false" />
+              <div class="flex gap-2">
+                <div class="flex-1 flex items-center gap-2">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">User</label>
+                  <InputText v-model="newServer.newFtpUser" class="w-full !text-xs !py-1 !h-7" />
+                </div>
+                <div class="flex-1 flex items-center gap-2">
+                  <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">PW</label>
+                  <InputText v-model="newServer.newFtpPw" type="password" class="w-full !text-xs !py-1 !h-7" />
+                </div>
               </div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-slate-200 dark:border-zinc-800">
-             <label class="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Description</label>
-             <InputText v-model="newServer.description" class="w-full !text-xs !h-8" placeholder="설명 입력..." />
+          
+          <div class="mt-3 pt-2 border-t border-slate-200 dark:border-zinc-800 flex items-center gap-2">
+             <label class="text-xs font-medium text-slate-600 dark:text-slate-400 w-8 text-right shrink-0">Memo</label>
+             <InputText v-model="newServer.description" class="flex-1 !text-xs !py-1 !h-7" placeholder="설명 입력..." />
           </div>
         </div>
 
-        <div>
-          <div class="flex justify-between items-center mb-3">
+        <div class="flex-1 flex flex-col min-h-0">
+          <div class="flex justify-between items-center mb-2 shrink-0">
             <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <i class="pi pi-server text-indigo-500"></i>
               Agent 서버 목록 (cfg_server)
             </h3>
-            <Button label="서버 추가" icon="pi pi-plus" size="small" outlined @click="openServerDialog()" />
+            <Button label="서버 추가" icon="pi pi-plus" size="small" outlined class="!py-1 !text-xs" @click="openServerDialog()" />
           </div>
           
-          <div class="border rounded-lg border-slate-200 dark:border-zinc-800 overflow-hidden">
-            <DataTable :value="cfgServers" class="text-xs p-datatable-sm" stripedRows :loading="loadingServers">
-              <Column field="eqpid" header="EQP ID" style="width: 20%; font-weight: bold"></Column>
-              <Column field="serverUrl" header="Server URL" style="width: 40%"></Column>
-              <Column field="agentVer" header="Agent Ver" style="width: 20%"></Column>
-              <Column field="lastCheck" header="Last Check" style="width: 20%">
-                <template #body="{ data }">
-                  {{ data.lastCheck ? new Date(data.lastCheck).toLocaleString() : '-' }}
+          <div class="flex-1 border rounded-lg border-slate-200 dark:border-zinc-800 overflow-hidden relative">
+            <div class="absolute inset-0">
+              <DataTable 
+                :value="cfgServers" 
+                class="h-full text-xs p-datatable-sm" 
+                scrollable 
+                scrollHeight="100%" 
+                stripedRows 
+                :loading="loadingServers"
+              >
+                <Column field="eqpid" header="EQP ID" sortable style="width: 20%; font-weight: bold"></Column>
+                
+                <Column field="agentDbHost" header="Agent DB Host" sortable style="width: 25%"></Column>
+                <Column field="agentFtpHost" header="Agent FTP Host" sortable style="width: 25%"></Column>
+                
+                <Column field="updateFlag" header="Update Flag" sortable style="width: 10%">
+                  <template #body="{ data }">
+                    <span :class="data.updateFlag === 'yes' ? 'text-green-600 font-bold' : 'text-slate-400'">
+                      {{ data.updateFlag }}
+                    </span>
+                  </template>
+                </Column>
+                
+                <Column field="update" header="Updated" sortable style="width: 10%">
+                  <template #body="{ data }">
+                    {{ data.update ? new Date(data.update).toLocaleString() : '-' }}
+                  </template>
+                </Column>
+                
+                <Column header="Action" style="width: 100px; min-width: 100px;" align="center">
+                  <template #body="{ data }">
+                    <div class="flex justify-center gap-2">
+                      <Button icon="pi pi-pencil" text rounded severity="info" size="small" class="!w-6 !h-6" @click="openServerDialog(data)" />
+                      <Button icon="pi pi-trash" text rounded severity="danger" size="small" class="!w-6 !h-6" @click="deleteServer(data.eqpid)" />
+                    </div>
+                  </template>
+                </Column>
+                <template #empty>
+                  <div class="p-4 text-center text-slate-400">등록된 서버가 없습니다.</div>
                 </template>
-              </Column>
-              <Column header="Action" style="width: 10%" align="center">
-                <template #body="{ data }">
-                  <div class="flex justify-center gap-2">
-                    <Button icon="pi pi-pencil" text rounded severity="info" size="small" @click="openServerDialog(data)" />
-                    <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="deleteServer(data.eqpid)" />
-                  </div>
-                </template>
-              </Column>
-              <template #empty>
-                <div class="p-4 text-center text-slate-400">등록된 서버가 없습니다.</div>
-              </template>
-            </DataTable>
+              </DataTable>
+            </div>
           </div>
         </div>
 
       </div>
     </div>
 
-    <Dialog v-model:visible="serverDialog.visible" modal :header="serverDialog.isEdit ? '서버 수정' : '서버 추가'" :style="{ width: '25rem' }">
+    <Dialog v-model:visible="serverDialog.visible" modal :header="serverDialog.isEdit ? '서버 수정' : '서버 추가'" :style="{ width: '30rem' }">
       <div class="flex flex-col gap-4 pt-2">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold">EQP ID</label>
           <InputText v-model="serverForm.eqpid" :disabled="serverDialog.isEdit" class="!text-sm" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="text-xs font-bold">Server URL</label>
-          <InputText v-model="serverForm.serverUrl" class="!text-sm" placeholder="http://..." />
+          <label class="text-xs font-bold">Agent DB Host</label>
+          <InputText v-model="serverForm.agentDbHost" class="!text-sm" placeholder="e.g. 192.168.x.x" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="text-xs font-bold">Agent Version</label>
-          <InputText v-model="serverForm.agentVer" class="!text-sm" />
+          <label class="text-xs font-bold">Agent FTP Host</label>
+          <InputText v-model="serverForm.agentFtpHost" class="!text-sm" placeholder="e.g. 192.168.x.x" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-bold">Update Flag</label>
+          <div class="flex gap-4 mt-1">
+            <div class="flex items-center">
+              <RadioButton v-model="serverForm.updateFlag" inputId="flagNo" name="flag" value="no" />
+              <label for="flagNo" class="ml-2 text-sm">no</label>
+            </div>
+            <div class="flex items-center">
+              <RadioButton v-model="serverForm.updateFlag" inputId="flagYes" name="flag" value="yes" />
+              <label for="flagYes" class="ml-2 text-sm">yes</label>
+            </div>
+          </div>
         </div>
       </div>
       <template #footer>
@@ -134,6 +180,7 @@ import InputNumber from 'primevue/inputnumber';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Dialog from 'primevue/dialog';
+import RadioButton from 'primevue/radiobutton'; // [추가]
 import * as AdminApi from '@/api/admin';
 
 // --- 1. New Server Config ---
@@ -163,7 +210,8 @@ const saveNewServerConfig = async () => {
 const cfgServers = ref([]);
 const loadingServers = ref(false);
 const serverDialog = reactive({ visible: false, isEdit: false });
-const serverForm = reactive({ eqpid: '', serverUrl: '', agentVer: '' });
+// [수정] 폼 데이터 구조 변경
+const serverForm = reactive({ eqpid: '', agentDbHost: '', agentFtpHost: '', updateFlag: 'no' });
 
 const loadCfgServers = async () => {
   loadingServers.value = true;
@@ -180,7 +228,8 @@ const openServerDialog = (item?: any) => {
   if(item) {
     Object.assign(serverForm, item);
   } else {
-    Object.assign(serverForm, { eqpid: '', serverUrl: '', agentVer: '' });
+    // 초기값
+    Object.assign(serverForm, { eqpid: '', agentDbHost: '', agentFtpHost: '', updateFlag: 'no' });
   }
 };
 
@@ -205,3 +254,20 @@ onMounted(() => {
   loadCfgServers();
 });
 </script>
+
+<style scoped>
+/* 테이블 스타일 */
+:deep(.p-datatable-sm .p-datatable-thead > tr > th) {
+  @apply bg-white dark:bg-[#111111] text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase border-b border-slate-100 dark:border-zinc-800;
+}
+:deep(.p-datatable-sm .p-datatable-tbody > tr > td) {
+  @apply py-1 text-[11px] border-b border-slate-50 dark:border-zinc-800/30;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* InputNumber 내부 input 높이 조절 */
+:deep(.p-inputnumber-input) {
+  @apply !py-1 !text-xs !h-7;
+}
+</style>
