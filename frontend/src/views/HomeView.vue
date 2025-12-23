@@ -190,7 +190,7 @@
                     : 'text-slate-500 dark:text-slate-400'
                 "
               >
-                Online
+                Server Health ({{ summary.serverHealth }}%)
               </p>
               <p
                 class="text-2xl font-black tracking-tight"
@@ -200,7 +200,7 @@
                     : 'text-slate-700 dark:text-white'
                 "
               >
-                {{ summary.onlineAgentCount }}
+                {{ summary.onlineAgentCount }} <span class="text-xs font-medium opacity-70">/ {{ summary.totalServers }}</span>
               </p>
             </div>
             <div
@@ -235,7 +235,7 @@
                     : 'text-slate-500 dark:text-slate-400'
                 "
               >
-                Offline
+                Offline Servers
               </p>
               <p
                 class="text-2xl font-black tracking-tight"
@@ -244,12 +244,12 @@
                     ? 'text-white'
                     : 'text-slate-700 dark:text-white',
                   activeFilter !== 'Offline' &&
-                  summary.totalEqpCount - summary.onlineAgentCount > 0
+                  summary.inactiveAgentCount > 0
                     ? '!text-rose-500'
                     : '',
                 ]"
               >
-                {{ summary.totalEqpCount - summary.onlineAgentCount }}
+                {{ summary.inactiveAgentCount }}
               </p>
             </div>
             <div
@@ -699,14 +699,27 @@ const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">(
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
-const summary = ref<DashboardSummaryDto>({
+
+// [수정] Summary 초기값 설정 및 인터페이스 확장
+// DashboardSummaryDto 타입에 맞는 필드와 함께, 화면 렌더링에 필요한 필드들을 초기화
+const summary = ref<DashboardSummaryDto & { 
+  totalServers: number; 
+  inactiveAgentCount: number; 
+  totalSdwts: number; 
+  serverHealth: number; 
+}>({
   totalEqpCount: 0,
   onlineAgentCount: 0,
   todayErrorCount: 0,
   todayErrorTotalCount: 0,
   newAlarmCount: 0,
   latestAgentVersion: "",
+  totalServers: 0,
+  inactiveAgentCount: 0,
+  totalSdwts: 0,
+  serverHealth: 0,
 });
+
 const agentList = ref<AgentStatusDto[]>([]);
 const showChart = ref(false);
 const selectedAgentId = ref<string | null>(null);
@@ -797,12 +810,22 @@ const loadData = async (showLoading = true) => {
   }
   hasSearched.value = true;
 
+  // [수정] API 호출 시 안전장치 및 방어 코드 추가
   dashboardApi
     .getSummary(filterStore.selectedSite, filterStore.selectedSdwt)
-    .then((data) => {
-      summary.value = data;
+    .then((res: any) => {
+      // 응답 구조가 res.data일 수도 있고 바로 데이터일 수도 있으므로 확인
+      // NestJS 표준 응답({ data: ... }) 대응
+      const data = res.data || res;
+      if (data) {
+        // 기존 값에 덮어쓰기 (화면 깜빡임 방지 및 부분 업데이트 지원)
+        summary.value = { ...summary.value, ...data };
+      }
     })
-    .catch((e) => console.error("Summary load failed", e))
+    .catch((e) => {
+      console.error("Summary load failed", e);
+      // 에러 시에도 기존 summary 값을 유지하거나 0으로 초기화된 상태를 유지하여 화면 깨짐 방지
+    })
     .finally(() => {
       isSummaryLoading.value = false;
     });
@@ -810,10 +833,13 @@ const loadData = async (showLoading = true) => {
   dashboardApi
     .getAgentStatus(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((data) => {
-      agentList.value = data;
+      agentList.value = data || [];
       startAutoRefresh();
     })
-    .catch((e) => console.error("Agent status load failed", e))
+    .catch((e) => {
+      console.error("Agent status load failed", e);
+      agentList.value = []; // 실패 시 리스트 초기화
+    })
     .finally(() => {
       isTableLoading.value = false;
     });
