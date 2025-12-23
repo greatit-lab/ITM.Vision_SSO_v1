@@ -6,6 +6,45 @@ import http from './http';
 // ==========================================
 export const getUsers = () => http.get('/admin/users');
 
+// [추가] 관리자(Manager) 목록 조회
+export const getAdmins = () => http.get('/admin/admins');
+
+// [추가] 관리자 추가
+export const addAdmin = (data: {
+  loginId: string;
+  role: string;
+  assignedBy?: string;
+}) => http.post('/admin/admins', data);
+
+// [추가] 관리자 삭제
+export const deleteAdmin = (loginId: string) => http.delete(`/admin/admins/${loginId}`);
+
+
+// ==========================================
+// [Access Codes] 접근 제어 (Whitelist)
+// ==========================================
+// [추가] 접근 허용 목록 조회
+export const getAccessCodes = () => http.get('/admin/access-codes');
+
+// [추가] 접근 허용 코드 생성
+export const createAccessCode = (data: {
+  compid: string;
+  deptid: string;
+  description?: string;
+  isActive?: string;
+}) => http.post('/admin/access-codes', data);
+
+// [추가] 접근 허용 코드 수정
+export const updateAccessCode = (compid: string, data: {
+  deptid: string;
+  description?: string;
+  isActive?: string;
+}) => http.put(`/admin/access-codes/${compid}`, data);
+
+// [추가] 접근 허용 코드 삭제
+export const deleteAccessCode = (compid: string) => http.delete(`/admin/access-codes/${compid}`);
+
+
 // ==========================================
 // [Guest Management] 게스트 관리
 // ==========================================
