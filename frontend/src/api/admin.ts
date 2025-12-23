@@ -1,34 +1,74 @@
 // frontend/src/api/admin.ts
-import http from "./http";
+import http from './http';
 
-// 1. Users
-export const getUsers = () => http.get("/admin/users");
+// ==========================================
+// [User Management] 시스템 사용자 관리
+// ==========================================
+export const getUsers = () => http.get('/admin/users');
 
-// 2. Admins
-export const getAdmins = () => http.get("/admin/admins");
-export const addAdmin = (data: any) => http.post("/admin/admins", data);
-export const deleteAdmin = (id: string) => http.delete(`/admin/admins/${id}`);
+// ==========================================
+// [Guest Management] 게스트 관리
+// ==========================================
+export const getGuests = () => http.get('/admin/guests');
 
-// 3. Access Codes
-export const getAccessCodes = () => http.get("/admin/access-codes");
-export const createAccessCode = (data: any) =>
-  http.post("/admin/access-codes", data);
-export const updateAccessCode = (id: string, data: any) =>
-  http.put(`/admin/access-codes/${id}`, data);
-export const deleteAccessCode = (id: string) =>
-  http.delete(`/admin/access-codes/${id}`);
+export const addGuest = (data: {
+  loginId: string;
+  deptCode?: string;
+  deptName?: string;
+  reason?: string;
+  validUntil: string | Date;
+}) => http.post('/admin/guests', data);
 
-// 4. Guests (Active List & Manual)
-export const getGuests = () => http.get("/admin/guests");
-export const addGuest = (data: any) => http.post("/admin/guests", data);
-export const deleteGuest = (id: string) => http.delete(`/admin/guests/${id}`);
+export const deleteGuest = (loginId: string) => http.delete(`/admin/guests/${loginId}`);
 
-// 5. Equipments (ref_equipment)
-export const getRefEquipments = () => http.get("/admin/equipments");
+// ==========================================
+// [Access Request] 접근 신청 관리
+// ==========================================
+export const getGuestRequests = () => http.get('/admin/requests');
 
-// 6. Guest Requests (Workflow)
-export const getGuestRequests = () => http.get("/admin/guest-requests");
-export const approveGuestRequest = (data: any) =>
-  http.post("/admin/guest-requests/approve", data);
-export const rejectGuestRequest = (data: any) =>
-  http.post("/admin/guest-requests/reject", data);
+export const approveGuestRequest = (data: { 
+  reqId: number; 
+  validUntil: string | Date; 
+  approverId: string 
+}) => http.post('/admin/requests/approve', data);
+
+export const rejectGuestRequest = (data: { 
+  reqId: number; 
+  approverId: string 
+}) => http.post('/admin/requests/reject', data);
+
+// ==========================================
+// [System Config] 1. 에러 심각도 (Error Severity)
+// ==========================================
+export const getSeverities = () => http.get('/admin/severity');
+
+export const addSeverity = (data: {
+  errorId: string;
+  severity: string;
+  description?: string;
+}) => http.post('/admin/severity', data);
+
+export const updateSeverity = (id: number, data: {
+  errorId: string;
+  severity: string;
+  description?: string;
+}) => http.put(`/admin/severity/${id}`, data);
+
+export const deleteSeverity = (id: number) => http.delete(`/admin/severity/${id}`);
+
+// ==========================================
+// [System Config] 2. 분석 지표 (Analysis Metrics)
+// ==========================================
+export const getMetrics = () => http.get('/admin/metrics');
+
+export const addMetric = (data: {
+  metricName: string;
+  isExcluded: boolean | string;
+}) => http.post('/admin/metrics', data);
+
+export const updateMetric = (name: string, data: {
+  metricName: string;
+  isExcluded: boolean | string;
+}) => http.put(`/admin/metrics/${name}`, data);
+
+export const deleteMetric = (name: string) => http.delete(`/admin/metrics/${name}`);
