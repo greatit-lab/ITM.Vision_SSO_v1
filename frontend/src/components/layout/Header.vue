@@ -27,7 +27,7 @@
           v-if="authStore.isAdmin"
           @click="handleAdminClick"
           class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-          v-tooltip.bottom="'Admin Settings'"
+          v-tooltip.bottom="'Management Settings'"
         >
            <i class="pi pi-cog text-lg"></i>
         </button>
@@ -222,7 +222,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard"; 
-import * as AdminApi from "@/api/admin"; // [추가] Admin API
+import * as AdminApi from "@/api/admin";
 import http from "@/api/http"; 
 
 const route = useRoute();
@@ -239,19 +239,32 @@ const sdwts = ref<string[]>([]);
 const selectedSite = ref("");
 const selectedSdwt = ref("");
 
-// Notification State
 const notification = ref({ show: false, message: '' });
-
-// [추가] 알림 카운트 (게스트 접근 신청 대기)
 const pendingRequestCount = ref(0);
 
+// [수정] 페이지 타이틀 로직 개선 (요청사항 반영)
 const pageTitle = computed(() => {
   const name = route.name?.toString();
   if (!name || name === "home") return "Overview";
-  return name.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+  // 관리자 페이지별 명칭 커스텀 (Management / ...)
+  switch (name) {
+    case "admin-menus":
+      return "Management / Menus";
+    case "admin-users":
+      return "Management / Users";
+    case "admin-infra":
+      return "Management / Infra";
+    case "admin-system":
+      return "Management / System";
+    default:
+      // 기본: 카멜/케밥 케이스를 공백으로 변환 및 첫 글자 대문자화
+      return name.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
 });
 
 const handleAdminClick = () => {
+  // 슈퍼 어드민 여부에 따라 초기 진입 페이지 분기
   if (authStore.isSuperAdmin) {
     router.push({ name: 'admin-menus' });
   } else {
@@ -345,13 +358,10 @@ const saveProfileSettings = async () => {
   }
 };
 
-// [추가] 게스트 신청 목록 조회 및 카운트 업데이트
 const fetchNotifications = async () => {
-  // 관리자(Admin/SuperAdmin)만 조회
   if (authStore.isAdmin) {
     try {
       const res = await AdminApi.getGuestRequests();
-      // PENDING 상태인 요청만 필터링하여 개수 저장
       pendingRequestCount.value = res.data.filter((req: any) => req.status === 'PENDING').length;
     } catch (e) {
       console.error("Failed to fetch guest requests", e);
@@ -364,7 +374,6 @@ onMounted(() => {
   if (document.documentElement.classList.contains("dark")) {
     isDark.value = true;
   }
-  // [추가] 마운트 시 알림 확인
   fetchNotifications();
 });
 onUnmounted(() => document.removeEventListener("click", closeDropdown));
