@@ -9,7 +9,7 @@
         </div>
         <div>
           <h1 class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-            Integrated Authority Management
+            Menu & Access Control
           </h1>
           <p class="text-slate-400 dark:text-slate-500 font-medium text-[10px]">
             시스템 메뉴 구조, 운영자 권한 및 보안 접근 제어(Whitelist) 통합 관리
@@ -159,36 +159,19 @@
                   
                   <Column field="compid" header="CompId" sortable style="width: 12%; font-weight: bold"></Column>
                   
-                  <Column field="compName" header="CompName" style="width: 15%">
-                     <template #body="slotProps">
-                         <span class="truncate block">{{ slotProps.data.compName || '-' }}</span>
-                     </template>
-                  </Column>
-
-                  <Column field="deptid" header="DeptId" style="width: 12%">
-                     <template #body="slotProps">
-                         <span class="font-mono text-slate-600 dark:text-slate-400">{{ slotProps.data.deptid || '-' }}</span>
-                     </template>
-                  </Column>
+                  <Column field="compName" header="CompName" style="width: 12%"></Column>
                   
-                  <Column field="deptName" header="DeptName" style="width: 15%">
-                     <template #body="slotProps">
-                         <span class="truncate block" :title="slotProps.data.deptName">{{ slotProps.data.deptName || '-' }}</span>
-                     </template>
-                  </Column>
+                  <Column field="deptid" header="DeptId" style="width: 12%"></Column>
                   
-                  <Column field="description" header="Description" style="width: 28%">
-                    <template #body="slotProps">
-                      <span class="truncate block text-slate-500" :title="slotProps.data.description">{{ slotProps.data.description }}</span>
-                    </template>
-                  </Column>
+                  <Column field="deptName" header="DeptName" style="width: 20%"></Column>
+                  
+                  <Column field="description" header="Description" style="width: 26%"></Column>
                   
                   <Column field="isActive" header="Status" align="center" style="width: 8%">
                     <template #body="slotProps">
                       <i class="pi" :class="slotProps.data.isActive === 'Y' ? 'pi-check-circle text-green-500' : 'pi-ban text-slate-300'"></i>
                     </template>
                   </Column>
-                  
                   <Column header="Action" style="width: 10%" align="center">
                     <template #body="slotProps">
                       <div class="flex justify-center gap-1">
@@ -253,7 +236,7 @@
                   </Column>
                   
                   <Column field="assignedAt" header="Assigned Date" sortable style="width: 30%">
-                    <template #body="slotProps">{{ formatDateShort(slotProps.data.assignedAt) }}</template>
+                    <template #body="slotProps">{{ formatDateTime(slotProps.data.assignedAt) }}</template>
                   </Column>
                   
                   <Column header="Action" style="width: 10%" align="center">
@@ -277,12 +260,10 @@
       :dismissableMask="true"
     >
       <div class="flex flex-col gap-4 mt-1">
-        
         <div class="flex flex-col gap-1">
            <label class="text-xs font-bold text-slate-500">Menu Name</label>
            <InputText v-model="menuForm.label" class="!text-sm" placeholder="e.g. Dashboard" />
         </div>
-
         <div class="grid grid-cols-2 gap-4">
            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-slate-500">Router Path</label>
@@ -301,7 +282,6 @@
               />
            </div>
         </div>
-
         <div class="flex flex-col gap-4">
            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-slate-500">Icon</label>
@@ -332,13 +312,11 @@
                   </template>
               </Select>
            </div>
-
            <div class="flex flex-row gap-4">
               <div class="flex-1 flex flex-col gap-1">
                   <label class="text-xs font-bold text-slate-500">Order</label>
                   <InputNumber v-model="menuForm.sortOrder" class="!text-sm" showButtons :min="0" />
               </div>
-
               <div class="flex-1 flex flex-col gap-1">
                   <label class="text-xs font-bold text-slate-500">Tag</label>
                   <Select 
@@ -356,7 +334,6 @@
               </div>
            </div>
         </div>
-
         <div class="p-4 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col gap-3">
             <div class="flex items-center justify-between">
                 <div class="flex flex-col">
@@ -370,9 +347,7 @@
                     <ToggleSwitch v-model="menuForm.isVisible" class="scale-75" />
                 </div>
             </div>
-            
             <div class="h-px bg-slate-200 dark:bg-zinc-700 w-full"></div>
-
             <div class="flex flex-col gap-2">
                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Access Permissions</span>
                 <div class="flex gap-3">
@@ -383,7 +358,6 @@
                 </div>
             </div>
         </div>
-
       </div>
       <template #footer>
         <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800 mt-2">
@@ -414,14 +388,14 @@
       <div class="flex flex-col gap-3 pt-2">
          <div>
             <label class="font-bold text-xs text-slate-500">Company Code (PK)</label>
-            <InputText v-model="newAccess.compid" class="w-full mt-1" :disabled="isAccessEditMode" />
+            <InputText v-model="newAccess.compid" class="w-full mt-1" :disabled="isAccessEditMode" placeholder="Unique Key" />
          </div>
          <div>
             <label class="font-bold text-xs text-slate-500">Dept Code</label>
             <InputText v-model="newAccess.deptid" class="w-full mt-1" />
          </div>
          <div>
-            <label class="font-bold text-xs text-slate-500">Comment</label>
+            <label class="font-bold text-xs text-slate-500">Description</label>
             <InputText v-model="newAccess.description" class="w-full mt-1" />
          </div>
          <div class="flex items-center gap-2 mt-2">
@@ -477,7 +451,6 @@ import ToggleSwitch from 'primevue/toggleswitch';
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
 
-// --- Stores & Hooks ---
 const menuStore = useMenuManagementStore();
 const authStore = useAuthStore();
 const confirm = useConfirm();
@@ -485,7 +458,6 @@ const toast = useToast();
 
 const currentUserId = computed(() => authStore.user?.userId || "Unknown");
 
-// --- State: Menu Management ---
 const menuNodes = ref<any[]>([]);
 const isLoadingMenu = ref(false);
 const isSaving = ref(false);
@@ -511,7 +483,6 @@ const menuForm = reactive({
 const availableRoles = ['MANAGER', 'USER', 'GUEST'];
 const statusTagOptions = ['NEW', 'BETA', 'UPD', 'HOT', 'DEPRECATED'];
 
-// Icon Options
 const iconOptions = [
   { label: 'Home', value: 'pi pi-home' },
   { label: 'Dashboard', value: 'pi pi-th-large' },
@@ -545,7 +516,6 @@ const iconOptions = [
   { label: 'Tags', value: 'pi pi-tags' },
 ];
 
-// --- State: Security Management ---
 const admins = ref<any[]>([]);
 const accessCodes = ref<any[]>([]);
 const isLoadingSecurity = ref(false);
@@ -557,7 +527,6 @@ const accessDialogVisible = ref(false);
 const isAccessEditMode = ref(false);
 const newAccess = ref({ compid: "", deptid: "", description: "", isActive: true });
 
-// --- Computed ---
 const totalMenus = computed(() => {
   const countNodes = (nodes: any[]): number => {
     let count = 0;
@@ -593,10 +562,18 @@ const filteredAdmins = computed(() => {
   return admins.value.filter((admin: any) => admin.role === "MANAGER");
 });
 
-// --- Methods: Common Helpers ---
-const formatDateShort = (dateStr: string) => {
+const formatDateTime = (dateStr: string) => {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString();
+  const date = new Date(dateStr);
+  const formatter = new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC'
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
 };
 
 const getBadgeSeverity = (tag: string) => {
@@ -623,7 +600,6 @@ const getSortedRoles = (roles: string[]) => {
   return [...roles].sort((a, b) => (order[a] || 99) - (order[b] || 99));
 };
 
-// --- Methods: Data Loading ---
 const loadMenuData = async () => {
   isLoadingMenu.value = true;
   try {
@@ -641,12 +617,13 @@ const loadSecurityData = async () => {
   try {
     const [a, ac] = await Promise.all([
       AdminApi.getAdmins(),
-      AdminApi.getAccessCodes()
+      AdminApi.getAccessCodes() 
     ]);
     admins.value = a.data;
-    accessCodes.value = ac.data;
+    accessCodes.value = ac.data; 
   } catch (e) {
     console.error("Failed to fetch security data", e);
+    toast.add({ severity: 'error', summary: 'Load Failed', detail: 'Security data failed to load.', life: 3000 });
   } finally {
     isLoadingSecurity.value = false;
   }
@@ -657,7 +634,6 @@ const refreshAllData = () => {
   loadSecurityData();
 };
 
-// --- Methods: Menu Actions ---
 const openNewMenuModal = () => {
   editMode.value = false;
   Object.assign(menuForm, { 
@@ -668,7 +644,7 @@ const openNewMenuModal = () => {
       icon: '', 
       sortOrder: 0, 
       statusTag: '', 
-      isVisible: true,
+      isVisible: true, 
       roles: [] 
   });
   selectedParentKey.value = null;
@@ -767,22 +743,26 @@ const saveBulkRoles = async () => {
   }
 };
 
-// --- Methods: Admin & Access ---
 const openAdminDialog = () => {
   newAdmin.value = { loginId: "", role: "MANAGER", assignedBy: currentUserId.value };
   adminDialogVisible.value = true;
 };
 
 const saveAdmin = async () => {
-  if (!newAdmin.value.loginId) return;
+  if (!newAdmin.value.loginId) {
+    toast.add({ severity: 'warn', summary: 'Validation', detail: 'User ID is required.', life: 3000 });
+    return;
+  }
   const payload = { ...newAdmin.value, role: "MANAGER", assignedBy: currentUserId.value || "System" };
   try {
     await AdminApi.addAdmin(payload);
     adminDialogVisible.value = false;
     loadSecurityData();
     toast.add({ severity: 'success', summary: 'Manager Added', life: 2000 });
-  } catch (e) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to add manager', life: 3000 });
+  } catch (e: any) {
+    console.error("Save Admin Error:", e);
+    const errMsg = e.response?.data?.message || 'Failed to add manager. ID may not exist or duplicate.';
+    toast.add({ severity: 'error', summary: 'Error', detail: errMsg, life: 3000 });
   }
 };
 
@@ -817,7 +797,10 @@ const editAccessCode = (data: any) => {
 };
 
 const saveAccessCode = async () => {
-  if (!newAccess.value.compid || !newAccess.value.deptid) return;
+  if (!newAccess.value.compid || !newAccess.value.deptid) {
+    toast.add({ severity: 'warn', summary: 'Validation', detail: 'CompId and DeptId are required.', life: 3000 });
+    return;
+  }
   const payload = { ...newAccess.value, isActive: newAccess.value.isActive ? "Y" : "N" };
   try {
     if (isAccessEditMode.value) {
@@ -869,5 +852,9 @@ onMounted(() => {
 }
 :deep(.p-datatable-sm .p-datatable-tbody > tr > td) {
   @apply py-1 text-[11px] border-b border-slate-50 dark:border-zinc-800/30;
+  /* 줄바꿈 방지 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
