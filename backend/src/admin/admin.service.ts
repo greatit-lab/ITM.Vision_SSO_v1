@@ -21,6 +21,16 @@ import {
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
+  // [Helper] 현재 시간을 KST(UTC+9)로 변환하고 밀리초 제거
+  // 모든 DB 저장 시 이 함수를 사용하여 한국 시간 숫자가 그대로 저장되도록 함
+  private getKstDate() {
+    const now = new Date();
+    // UTC 시간에 9시간(KST Offset)을 더함
+    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    kstDate.setMilliseconds(0);
+    return kstDate;
+  }
+
   // ==========================================
   // [User & Admin Management]
   // ==========================================
@@ -45,6 +55,7 @@ export class AdminService {
         loginId: data.loginId,
         role: data.role,
         assignedBy: data.assignedBy || 'System',
+        assignedAt: this.getKstDate(), // [KST 적용]
       },
     });
   }
@@ -71,6 +82,7 @@ export class AdminService {
         deptid: data.deptid,
         description: data.description,
         isActive: data.isActive || 'Y',
+        updatedAt: this.getKstDate(), // [KST 적용]
       },
     });
   }
@@ -82,6 +94,7 @@ export class AdminService {
         deptid: data.deptid,
         description: data.description,
         isActive: data.isActive,
+        updatedAt: this.getKstDate(), // [KST 적용]
       },
     });
   }
@@ -108,8 +121,9 @@ export class AdminService {
         deptName: data.deptName,
         deptCode: data.deptCode,
         grantedRole: data.grantedRole || 'GUEST',
-        validUntil: new Date(data.validUntil),
+        validUntil: new Date(data.validUntil), // 입력받은 날짜 유지
         reason: data.reason,
+        createdAt: this.getKstDate(), // [KST 적용]
       },
     });
   }
@@ -141,7 +155,7 @@ export class AdminService {
           deptName: req.deptName,
           deptCode: req.deptCode,
           reason: req.reason,
-          createdAt: new Date(),
+          createdAt: this.getKstDate(), // [KST 적용]
         },
         create: {
           loginId: req.loginId,
@@ -150,6 +164,7 @@ export class AdminService {
           reason: req.reason,
           validUntil: new Date(data.validUntil),
           grantedRole: data.grantedRole || 'GUEST',
+          createdAt: this.getKstDate(), // [KST 적용]
         },
       });
 
@@ -158,7 +173,7 @@ export class AdminService {
         data: {
           status: 'APPROVED',
           processedBy: data.approverId,
-          processedAt: new Date(),
+          processedAt: this.getKstDate(), // [KST 적용]
         },
       });
     });
@@ -170,7 +185,7 @@ export class AdminService {
       data: {
         status: 'REJECTED',
         processedBy: data.approverId,
-        processedAt: new Date(),
+        processedAt: this.getKstDate(), // [KST 적용]
       },
     });
   }
@@ -284,7 +299,6 @@ export class AdminService {
   }
 
   async updateNewServerConfig(data: UpdateNewServerDto) {
-    // id=1인 레코드를 업데이트하거나 없으면 생성
     return this.prisma.cfgNewServer.upsert({
       where: { id: 1 },
       update: {
@@ -301,9 +315,47 @@ export class AdminService {
 
   // (2) Cfg Server List (Agent Servers)
   async getCfgServers() {
-    return this.prisma.cfgServer.findMany({
-      orderBy: { eqpid: 'asc' },
+    const servers = await this.prisma.cfgServer.findMany();
+
+    const eqpIds = servers.map((s) => s.eqpid);
+    const equipments = await this.prisma.refEquipment.findMany({
+      where: {
+        eqpid: { in: eqpIds },
+      },
+      include: {
+        sdwtRel: true, // RefSdwt 관계 포함
+      },
     });
+
+    // Map 생성 (제네릭 타입 명시)
+    type EquipmentWithSdwt = (typeof equipments)[0];
+    const eqpMap = new Map<string, EquipmentWithSdwt>();
+    
+    equipments.forEach((eqp) => {
+      eqpMap.set(eqp.eqpid, eqp);
+    });
+
+    // 데이터 병합
+    const mergedData = servers.map((server) => {
+      const eqpInfo = eqpMap.get(server.eqpid);
+      return {
+        ...server,
+        sdwtId: eqpInfo?.sdwtRel?.id ?? '',
+        site: eqpInfo?.sdwtRel?.site ?? '',
+        sdwt: eqpInfo?.sdwtRel?.sdwt ?? '',
+      };
+    });
+
+    // 기본 정렬: 1순위 sdwtId(ASC), 2순위 eqpid(ASC)
+    mergedData.sort((a, b) => {
+      if (a.sdwtId < b.sdwtId) return -1;
+      if (a.sdwtId > b.sdwtId) return 1;
+      if (a.eqpid < b.eqpid) return -1;
+      if (a.eqpid > b.eqpid) return 1;
+      return 0;
+    });
+
+    return mergedData;
   }
 
   async createCfgServer(data: CreateCfgServerDto) {
@@ -313,7 +365,7 @@ export class AdminService {
         agentDbHost: data.agentDbHost,
         agentFtpHost: data.agentFtpHost,
         updateFlag: data.updateFlag || 'no',
-        update: new Date(),
+        update: this.getKstDate(), // [KST 적용]
       },
     });
   }
@@ -325,7 +377,7 @@ export class AdminService {
         agentDbHost: data.agentDbHost,
         agentFtpHost: data.agentFtpHost,
         updateFlag: data.updateFlag,
-        update: new Date(),
+        update: this.getKstDate(), // [KST 적용]
       },
     });
   }
