@@ -73,14 +73,16 @@ export class UpdateNewServerDto {
   description?: string;
 }
 
-// [추가] Cfg Server (Agent Server List)
+// [수정] CfgServer DTO (DB 구조 반영)
 export class CreateCfgServerDto {
   eqpid: string;
-  serverUrl?: string;
-  agentVer?: string;
+  agentDbHost?: string;
+  agentFtpHost?: string;
+  updateFlag?: string;
 }
 
 export class UpdateCfgServerDto {
-  serverUrl?: string;
-  agentVer?: string;
+  agentDbHost?: string;
+  agentFtpHost?: string;
+  updateFlag?: string;
 }
