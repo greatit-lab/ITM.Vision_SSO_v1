@@ -5,13 +5,16 @@
   >
     <div class="flex items-center justify-between h-full px-6">
       <div class="flex items-center gap-4">
-        <h2 class="text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
-          {{ pageTitle }}
+        <h2 class="text-base font-bold tracking-tight text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+          <template v-if="pageTitleParts.parent">
+            <span class="font-medium">{{ pageTitleParts.parent }}</span>
+            <span class="text-slate-300 dark:text-slate-600 font-light">/</span>
+          </template>
+          <span class="font-medium">{{ pageTitleParts.current }}</span>
         </h2>
       </div>
 
       <div class="flex items-center gap-3">
-        
         <button 
           class="relative p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
           v-tooltip.bottom="pendingRequestCount > 0 ? `${pendingRequestCount}건의 승인 대기 요청` : '알림 없음'"
@@ -37,18 +40,15 @@
         <button
           @click="toggleTheme"
           class="relative w-14 h-7 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden shadow-inner border border-slate-300 dark:border-zinc-700 transition-colors focus:outline-none"
-          title="Toggle Theme"
         >
           <div class="absolute top-1/2 left-2 transform -translate-y-1/2 transition-all duration-500"
                :class="isDark ? 'opacity-40 scale-75' : 'opacity-100 scale-100'">
             <i class="pi pi-sun text-amber-500 text-xs"></i>
           </div>
-
           <div class="absolute top-1/2 right-2 transform -translate-y-1/2 transition-all duration-500"
                :class="!isDark ? 'opacity-40 scale-75' : 'opacity-100 scale-100'">
             <i class="pi pi-moon text-indigo-400 text-xs"></i>
           </div>
-
           <div
             class="absolute top-0.5 left-0.5 w-6 h-6 bg-white dark:bg-zinc-900 rounded-full shadow-md transform transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-center z-10"
             :class="isDark ? 'translate-x-[28px]' : 'translate-x-0'"
@@ -66,9 +66,10 @@
               {{ authStore.userName }}
             </span>
             <div
-              class="flex items-center justify-center w-7 h-7 text-xs font-bold text-white shadow-md rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 ring-2 ring-white dark:ring-zinc-900 group-hover:ring-indigo-100 dark:group-hover:ring-indigo-900/30 transition-all"
+              class="flex items-center justify-center w-7 h-7 text-xs font-bold text-white shadow-md rounded-full ring-2 ring-white dark:ring-zinc-900 transition-all"
+              :class="getAvatarColor(authStore.user?.role)"
             >
-              {{ authStore.userInitial }}
+              {{ roleInitial }}
             </div>
             <i class="text-[10px] pi pi-chevron-down text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
           </button>
@@ -108,37 +109,13 @@
     </div>
 
     <Teleport to="body">
-      <transition
-        enter-active-class="transform ease-out duration-300 transition"
-        enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
-        enter-to-class="translate-y-0 opacity-100 sm:translate-x-0"
-        leave-active-class="transition ease-in duration-100"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div v-if="notification.show" class="fixed top-20 right-5 z-[10000] pointer-events-none">
-          <div class="flex items-center gap-3 px-4 py-3 bg-white border shadow-2xl dark:bg-zinc-900 rounded-xl border-emerald-500/50 dark:border-emerald-500/30 ring-1 ring-black/5">
-            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-              <i class="pi pi-check text-sm font-bold"></i>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-slate-800 dark:text-white">Saved Successfully</p>
-              <p class="text-xs text-slate-500 dark:text-slate-400">{{ notification.message }}</p>
-            </div>
-          </div>
-        </div>
-      </transition>
-    </Teleport>
-
-    <Teleport to="body">
       <transition name="fade">
         <div v-if="isProfileModalOpen" class="fixed inset-0 z-[9999] flex items-center justify-center">
-          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="closeProfileSettings"></div>
-          
+          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeProfileSettings"></div>
           <div class="relative w-full max-w-md p-6 bg-white dark:bg-[#121212] rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 transform transition-all scale-100">
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-lg font-bold text-slate-900 dark:text-white">Profile Settings</h3>
-              <button @click="closeProfileSettings" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <button @click="closeProfileSettings" class="text-slate-400 hover:text-slate-600 transition-colors">
                 <i class="pi pi-times"></i>
               </button>
             </div>
@@ -146,8 +123,9 @@
             <div class="mb-6 space-y-3">
               <div class="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
                 <div class="flex items-center gap-4 mb-3">
-                  <div class="w-12 h-12 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full text-xl font-bold shadow-lg">
-                     {{ authStore.userInitial }}
+                  <div class="w-12 h-12 flex items-center justify-center text-white rounded-full text-xl font-bold shadow-lg"
+                       :class="getAvatarColor(authStore.user?.role)">
+                     {{ roleInitial }}
                   </div>
                   <div>
                     <p class="font-bold text-slate-900 dark:text-white text-lg">{{ authStore.userName }}</p>
@@ -155,13 +133,13 @@
                   </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 text-xs">
-                  <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700">
+                  <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100">
                     <span class="block text-slate-400 font-semibold mb-0.5">Department</span>
                     <span class="text-slate-700 dark:text-slate-200 font-medium">{{ authStore.user?.departmentName || '-' }}</span>
                   </div>
-                   <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-700">
+                   <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100">
                     <span class="block text-slate-400 font-semibold mb-0.5">Role</span>
-                    <span class="text-indigo-600 dark:text-indigo-400 font-bold">{{ authStore.user?.role || 'User' }}</span>
+                    <span class="font-bold" :class="getRoleTextColor(authStore.user?.role)">{{ authStore.user?.role || 'User' }}</span>
                   </div>
                 </div>
               </div>
@@ -169,43 +147,23 @@
 
             <form @submit.prevent="saveProfileSettings" class="space-y-4">
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Default Site</label>
-                <select 
-                  v-model="selectedSite"
-                  @change="handleSiteChange"
-                  class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm appearance-none cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700"
-                >
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Default Site</label>
+                <select v-model="selectedSite" @change="handleSiteChange" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-sm appearance-none cursor-pointer">
                   <option value="" disabled>Select Site</option>
                   <option v-for="site in sites" :key="site" :value="site">{{ site }}</option>
                 </select>
               </div>
-
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Default SDWT</label>
-                <select 
-                  v-model="selectedSdwt"
-                  :disabled="!selectedSite"
-                  class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700"
-                >
-                  <option value="" disabled>Select SDWT</option>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Default SDWT</label>
+                <select v-model="selectedSdwt" :disabled="!selectedSite" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-sm appearance-none cursor-pointer disabled:opacity-50">
+                   <option value="" disabled>Select SDWT</option>
                    <option v-for="sdwt in sdwts" :key="sdwt" :value="sdwt">{{ sdwt }}</option>
                 </select>
               </div>
-
               <div class="pt-4 flex gap-3">
-                <button 
-                  type="button" 
-                  @click="closeProfileSettings"
-                  class="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 font-semibold text-sm transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  :disabled="isSaving || !selectedSite || !selectedSdwt"
-                  class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2 transform active:scale-95"
-                >
-                  <i v-if="isSaving" class="pi pi-spin pi-spinner"></i>
+                <button type="button" @click="closeProfileSettings" class="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all">Cancel</button>
+                <button type="submit" :disabled="isSaving || !selectedSite || !selectedSdwt" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/30 transition-all transform active:scale-95 disabled:opacity-70">
+                  <i v-if="isSaving" class="pi pi-spin pi-spinner mr-2"></i>
                   {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </button>
               </div>
@@ -221,16 +179,16 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useMenuStore } from "@/stores/menu"; // [추가] 메뉴 스토어
+import { useMenuStore } from "@/stores/menu"; 
 import { dashboardApi } from "@/api/dashboard"; 
 import * as AdminApi from "@/api/admin";
 import http from "@/api/http"; 
-import type { MenuNode } from "@/api/menu"; // [추가] 타입 정의
+import type { MenuNode } from "@/api/menu"; 
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const menuStore = useMenuStore(); // [추가]
+const menuStore = useMenuStore(); 
 const dropdownRef = ref<HTMLElement | null>(null);
 
 const isDropdownOpen = ref(false);
@@ -241,25 +199,47 @@ const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 const selectedSite = ref("");
 const selectedSdwt = ref("");
-
-const notification = ref({ show: false, message: '' });
 const pendingRequestCount = ref(0);
+const notification = ref({ show: false, message: '' });
 
-// [수정] 페이지 타이틀 로직 개선 (메뉴 트리 탐색 적용)
-const pageTitle = computed(() => {
-  // 1. 메뉴 트리에서 현재 경로와 매칭되는 항목 찾기 (Breadcrumb 구성)
+// [수정] 권한에 따른 이니셜 매핑 (Admin: A, Manager: M, User: U, Guest: G)
+const roleInitial = computed(() => {
+  const role = authStore.user?.role?.toUpperCase() || 'USER';
+  if (role === 'ADMIN' || role === 'SUPERADMIN') return 'A';
+  if (role === 'MANAGER') return 'M';
+  if (role === 'GUEST') return 'G';
+  return 'U';
+});
+
+// [수정] 권한별 아바타 배경색 지정 (Access Roles와 일치)
+const getAvatarColor = (role?: string) => {
+  const r = role?.toUpperCase();
+  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
+  if (r === 'MANAGER') return 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30';
+  if (r === 'USER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
+  if (r === 'GUEST') return 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30';
+  return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
+};
+
+// 권한별 텍스트 색상
+const getRoleTextColor = (role?: string) => {
+  const r = role?.toUpperCase();
+  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'text-rose-600 dark:text-rose-400';
+  if (r === 'MANAGER') return 'text-indigo-600 dark:text-indigo-400';
+  if (r === 'USER') return 'text-emerald-600 dark:text-emerald-400';
+  if (r === 'GUEST') return 'text-amber-600 dark:text-amber-400';
+  return 'text-slate-600';
+}
+
+// [수정] 페이지 타이틀 분리 계산 (관리 페이지 정상화 적용)
+const pageTitleParts = computed(() => {
   const findBreadcrumb = (nodes: MenuNode[], targetPath: string, parents: string[]): string | null => {
     for (const node of nodes) {
-      // 경로 비교 시 trailing slash 제거 및 null 체크
       const nodePath = (node.routerPath || '').replace(/\/$/, '');
       const target = targetPath.replace(/\/$/, '');
-      
-      // 정확히 매칭되면 Breadcrumb 반환 (예: Parent / Child)
       if (nodePath && nodePath === target) {
         return [...parents, node.label].join(' / ');
       }
-      
-      // 자식 노드가 있으면 재귀 탐색
       if (node.children && node.children.length > 0) {
         const found = findBreadcrumb(node.children, targetPath, [...parents, node.label]);
         if (found) return found;
@@ -268,122 +248,74 @@ const pageTitle = computed(() => {
     return null;
   };
 
-  // 메뉴 데이터가 로드된 경우 우선 탐색
-  if (menuStore.menus.length > 0) {
+  let fullTitle = "Overview";
+  const path = route.path;
+
+  // 1. 관리자 페이지 매핑 (우선순위 1)
+  if (path.startsWith('/admin')) {
+    if (path.includes('/menus')) fullTitle = "Management / Menus";
+    else if (path.includes('/users')) fullTitle = "Management / Users";
+    else if (path.includes('/infra')) fullTitle = "Management / Infra";
+    else if (path.includes('/system')) fullTitle = "Management / System";
+    else fullTitle = "Management";
+  } 
+  // 2. DB 메뉴 탐색 (우선순위 2)
+  else if (menuStore.menus.length > 0) {
     const breadcrumb = findBreadcrumb(menuStore.menus, route.path, []);
-    if (breadcrumb) return breadcrumb;
+    if (breadcrumb) fullTitle = breadcrumb;
   }
 
-  // 2. 메뉴에 없는 경우 기존 로직 (Admin 페이지 등)
-  const name = route.name?.toString();
-  if (!name || name === "home") return "Overview";
-
-  switch (name) {
-    case "admin-menus":
-      return "Management / Menus";
-    case "admin-users":
-      return "Management / Users";
-    case "admin-infra":
-      return "Management / Infra";
-    case "admin-system":
-      return "Management / System";
-    default:
-      return name.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  if (fullTitle.includes(" / ")) {
+    const parts = fullTitle.split(" / ");
+    const current = parts.pop();
+    return { parent: parts.join(" / "), current: current };
   }
+  return { parent: null, current: fullTitle };
 });
 
 const handleAdminClick = () => {
-  if (authStore.isSuperAdmin) {
-    router.push({ name: 'admin-menus' });
-  } else {
-    router.push({ name: 'admin-users' });
-  }
+  if (authStore.isSuperAdmin) router.push({ name: 'admin-menus' });
+  else router.push({ name: 'admin-users' });
 };
 
 const toggleTheme = () => {
   isDark.value = !isDark.value;
-  if (isDark.value) {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
+  document.documentElement.classList.toggle("dark", isDark.value);
 };
 
 const toggleDropdown = () => isDropdownOpen.value = !isDropdownOpen.value;
-const closeDropdown = (e: MouseEvent) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
-    isDropdownOpen.value = false;
-  }
-};
 const handleLogout = () => authStore.logout();
 
 const openProfileSettings = async () => {
   isDropdownOpen.value = false;
   isProfileModalOpen.value = true;
-  
   if (authStore.user?.site) selectedSite.value = authStore.user.site;
-  if (authStore.user?.sdwt) selectedSdwt.value = authStore.user.sdwt;
-
   try {
     if (sites.value.length === 0) sites.value = await dashboardApi.getSites();
-    if (selectedSite.value) {
-        await handleSiteChange(); 
-        if (authStore.user?.sdwt) selectedSdwt.value = authStore.user.sdwt;
-    }
-  } catch (e) {
-    console.error("Failed to load sites", e);
-  }
+    if (selectedSite.value) await handleSiteChange(); 
+    if (authStore.user?.sdwt) selectedSdwt.value = authStore.user.sdwt;
+  } catch (e) { console.error(e); }
 };
 
 const closeProfileSettings = () => isProfileModalOpen.value = false;
-
 const handleSiteChange = async () => {
   selectedSdwt.value = ""; 
   if (!selectedSite.value) return;
-  try {
-    sdwts.value = await dashboardApi.getSdwts(selectedSite.value);
-  } catch (e) {
-    console.error("Failed to load sdwts", e);
-  }
-};
-
-const showNotification = (msg: string) => {
-  notification.value = { show: true, message: msg };
-  setTimeout(() => {
-    notification.value.show = false;
-  }, 3000);
+  try { sdwts.value = await dashboardApi.getSdwts(selectedSite.value); } catch (e) { console.error(e); }
 };
 
 const saveProfileSettings = async () => {
   if (!selectedSite.value || !selectedSdwt.value) return;
   isSaving.value = true;
   try {
-    await http.post('/auth/context', {
-      site: selectedSite.value,
-      sdwt: selectedSdwt.value
-    });
-    
+    await http.post('/auth/context', { site: selectedSite.value, sdwt: selectedSdwt.value });
     if (authStore.user) {
-        const updatedUser = { 
-            ...authStore.user, 
-            site: selectedSite.value, 
-            sdwt: selectedSdwt.value 
-        };
-        authStore.setUser(updatedUser);
+      authStore.setUser({ ...authStore.user, site: selectedSite.value, sdwt: selectedSdwt.value });
     }
-    
     closeProfileSettings();
-    showNotification(`${selectedSite.value} / ${selectedSdwt.value}`);
-
-    if (route.name === 'home') {
-        window.location.reload();
-    }
-  } catch (e) {
-    console.error("Failed to save context", e);
-    alert("Failed to save settings.");
-  } finally {
-    isSaving.value = false;
-  }
+    if (route.name === 'home') window.location.reload();
+  } catch (e) { alert("Failed to save settings."); } 
+  finally { isSaving.value = false; }
 };
 
 const fetchNotifications = async () => {
@@ -391,20 +323,14 @@ const fetchNotifications = async () => {
     try {
       const res = await AdminApi.getGuestRequests();
       pendingRequestCount.value = res.data.filter((req: any) => req.status === 'PENDING').length;
-    } catch (e) {
-      console.error("Failed to fetch guest requests", e);
-    }
+    } catch (e) { console.error(e); }
   }
 };
 
 onMounted(() => {
-  document.addEventListener("click", closeDropdown);
-  if (document.documentElement.classList.contains("dark")) {
-    isDark.value = true;
-  }
+  if (document.documentElement.classList.contains("dark")) isDark.value = true;
   fetchNotifications();
 });
-onUnmounted(() => document.removeEventListener("click", closeDropdown));
 </script>
 
 <style scoped>
