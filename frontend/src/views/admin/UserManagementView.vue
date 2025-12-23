@@ -592,7 +592,14 @@ const rejectRequest = async (reqId: number) => {
 
 // Manual Add
 const manualDialogVisible = ref(false);
-const newManualGuest = ref({
+// [수정] validUntil 타입을 명시적으로 Date | null로 지정하여 TS 오류 해결
+const newManualGuest = ref<{
+  loginId: string;
+  deptName: string;
+  deptCode: string;
+  validUntil: Date | null;
+  reason: string;
+}>({
   loginId: "",
   deptName: "",
   deptCode: "",
@@ -610,17 +617,24 @@ const openManualGuestDialog = () => {
   };
   manualDialogVisible.value = true;
 };
+
 const saveManualGuest = async () => {
   if (!newManualGuest.value.loginId || !newManualGuest.value.validUntil)
     return alert("필수 입력 누락");
   try {
-    await AdminApi.addGuest(newManualGuest.value);
+    // [수정] validUntil이 null이 아님을 확신할 수 있으므로 강제 형변환이나 ! 연산자 사용
+    // 혹은 객체를 명시적으로 생성하여 전달
+    await AdminApi.addGuest({
+      ...newManualGuest.value,
+      validUntil: newManualGuest.value.validUntil! // Non-null assertion
+    });
     manualDialogVisible.value = false;
     fetchAllData();
   } catch (e) {
     alert("등록 실패");
   }
 };
+
 const removeGuest = async (id: string) => {
   if (confirm("정말 삭제(권한 해제) 하시겠습니까?")) {
     await AdminApi.deleteGuest(id);
