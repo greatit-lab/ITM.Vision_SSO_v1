@@ -40,10 +40,11 @@ export class DashboardService {
     return 0;
   }
 
-  // [수정] 500 에러 방지 및 최신 스키마(cfg_server) 반영
+  // [수정] 성능 최적화: 메모리 연산 제거 및 DB Aggregation 활용
   async getSummary(site?: string, sdwt?: string) {
     try {
       // 1. 최신 Agent 버전 조회
+      // distinct 쿼리는 인덱스를 타면 빠르므로 유지
       const distinctVersions = await this.prisma.agentInfo.findMany({
         distinct: ['appVer'],
         select: { appVer: true },
@@ -67,85 +68,82 @@ export class DashboardService {
         ...(sdwt ? { sdwt } : {}),
       };
 
-      // 3. 데이터 조회 (병렬 실행)
-      const [totalEqp, servers, totalSdwts] = await Promise.all([
-        // [수정] 전체 장비 수가 아닌 Agent 설치된 장비 수로 변경 (AgentInfo 테이블 기준)
-        // AgentInfo 테이블이 RefEquipment와 Relation이 있다고 가정 (보통 equipment)
+      // 기준 시간 계산
+      const now = new Date();
+      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000); // 10분 전
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+      // 3. 데이터 조회 (병렬 실행 최적화)
+      // 변경점: cfgServer 전체를 가져오지 않고 count만 수행
+      const [
+        totalEqp, 
+        totalServers, 
+        activeServers, 
+        totalSdwts,
+        errorStats // 에러 통계는 별도 그룹화
+      ] = await Promise.all([
+        // [수정] Agent가 설치된 장비 수 (AgentInfo 기준)
         this.prisma.agentInfo.count({ 
           where: { 
             equipment: equipmentWhere 
           } 
         }),
         
-        // Agent 서버 목록 (cfg_server) 조회
-        this.prisma.cfgServer.findMany(),
+        // [수정] 전체 서버 수 (단순 Count)
+        this.prisma.cfgServer.count(),
+
+        // [수정] 활성 서버 수 (DB Level Filtering)
+        // update 컬럼이 인덱싱되어 있다면 매우 빠름
+        this.prisma.cfgServer.count({
+          where: {
+            update: { gte: tenMinutesAgo }
+          }
+        }),
 
         // SDWT 구성 수
         this.prisma.refSdwt.count({
           where: { isUse: 'Y', ...(site ? { site } : {}) }
-        })
+        }),
+
+        // 에러 통계 (병렬 내부 처리)
+        (async () => {
+           try {
+             const [groupByEqp, total, recent] = await Promise.all([
+               this.prisma.plgError.groupBy({
+                 by: ['eqpid'],
+                 where: {
+                   timeStamp: { gte: startOfToday },
+                   equipment: equipmentWhere,
+                 },
+               }),
+               this.prisma.plgError.count({
+                 where: {
+                   timeStamp: { gte: startOfToday },
+                   equipment: equipmentWhere,
+                 },
+               }),
+               this.prisma.plgError.count({
+                 where: { timeStamp: { gte: oneHourAgo }, equipment: equipmentWhere },
+               }),
+             ]);
+             return { todayErrorCount: groupByEqp.length, todayErrorTotalCount: total, newAlarmCount: recent };
+           } catch (e) {
+             console.warn("[Dashboard] Error stats query failed:", e);
+             return { todayErrorCount: 0, todayErrorTotalCount: 0, newAlarmCount: 0 };
+           }
+        })()
       ]);
 
-      // 4. 활성 서버(Active Server) 계산 로직
-      // cfg_server의 update 컬럼이 최근 10분 이내이면 Online으로 간주
-      const now = new Date();
-      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-      const totalServers = servers.length;
-
-      const activeServers = servers.filter((server) => {
-        if (!server.update) return false;
-        const lastUpdate = new Date(server.update);
-        return lastUpdate > tenMinutesAgo;
-      }).length;
-
-      // 5. 금일 에러 건수 조회
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-
-      // 에러 테이블 조회는 별도로 수행 (실패해도 메인 통계는 나가도록)
-      let todayErrorCount = 0;
-      let todayErrorTotalCount = 0;
-      let newAlarmCount = 0;
-
-      try {
-        const errorStats = await Promise.all([
-          // 장비별 에러 발생 수 (GroupBy)
-          this.prisma.plgError.groupBy({
-            by: ['eqpid'],
-            where: {
-              timeStamp: { gte: startOfToday },
-              equipment: equipmentWhere,
-            },
-          }),
-          // 총 에러 발생 수
-          this.prisma.plgError.count({
-            where: {
-              timeStamp: { gte: startOfToday },
-              equipment: equipmentWhere,
-            },
-          }),
-          // 최근 1시간 에러
-          this.prisma.plgError.count({
-            where: { timeStamp: { gte: oneHourAgo }, equipment: equipmentWhere },
-          }),
-        ]);
-
-        todayErrorCount = errorStats[0].length;
-        todayErrorTotalCount = errorStats[1];
-        newAlarmCount = errorStats[2];
-      } catch (err) {
-        console.warn("[DashboardService] Error stats query failed, returning 0:", err);
-      }
-
-      // 6. 결과 반환 (FE에서 기대하는 구조 유지)
+      // 6. 결과 반환
       return {
-        totalEqpCount: totalEqp, // 이제 Agent가 설치된 장비 수(AgentInfo Count)를 반환
-        totalServers: totalServers, 
+        totalEqpCount: totalEqp,
+        totalServers: totalServers,
         onlineAgentCount: activeServers,
         inactiveAgentCount: totalServers - activeServers,
-        todayErrorCount,
-        todayErrorTotalCount,
-        newAlarmCount,
+        todayErrorCount: errorStats.todayErrorCount,
+        todayErrorTotalCount: errorStats.todayErrorTotalCount,
+        newAlarmCount: errorStats.newAlarmCount,
         latestAgentVersion,
         totalSdwts, 
         serverHealth: totalServers > 0 ? Math.round((activeServers / totalServers) * 100) : 0
@@ -153,12 +151,12 @@ export class DashboardService {
 
     } catch (error) {
       console.error("[DashboardService] getSummary Critical Error:", error);
-      // 500 에러를 던지지만, NestJS Exception Filter가 처리하도록 함
       throw new InternalServerErrorException("Failed to fetch dashboard summary");
     }
   }
 
-  // getAgentStatus 메서드는 변경 없음
+  // getAgentStatus 메서드는 쿼리 최적화 유지
+  // 참고: 데이터 양이 많아지면 이 부분은 '서버 사이드 페이지네이션'으로 변경하는 것을 강력 권장합니다.
   async getAgentStatus(site?: string, sdwt?: string) {
     let whereCondition = Prisma.sql`WHERE r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE is_use = 'Y')`;
 
@@ -168,6 +166,7 @@ export class DashboardService {
       whereCondition = Prisma.sql`${whereCondition} AND r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE site = ${site})`;
     }
 
+    // [Tip] public.eqp_perf 테이블의 (eqpid, serv_ts) 복합 인덱스가 있어야 이 쿼리가 빠릅니다.
     const results = await this.prisma.$queryRaw<AgentStatusRawResult[]>`
       SELECT 
           a.eqpid, 
