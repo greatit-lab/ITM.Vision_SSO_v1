@@ -10,9 +10,7 @@
     >
       <div class="flex items-center gap-3 overflow-hidden">
         <div class="relative group">
-          <div
-            class="absolute transition-opacity duration-500 rounded-full opacity-0 -inset-2 blur-lg group-hover:opacity-100"
-          ></div>
+          <div class="absolute transition-opacity duration-500 rounded-full opacity-0 -inset-2 blur-lg group-hover:opacity-100"></div>
           <img
             :src="logoUrl"
             alt="Logo"
@@ -22,18 +20,12 @@
 
         <div
           class="flex flex-col transition-all duration-300 origin-left"
-          :class="
-            isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-90 w-0 hidden'
-          "
+          :class="isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-90 w-0 hidden'"
         >
-          <span
-            class="font-sans text-lg font-black leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap"
-          >
+          <span class="font-sans text-lg font-black leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap">
             ITM Vision
           </span>
-          <span
-            class="text-[6px] font-bold tracking-[0.25em] text-indigo-500 uppercase mt-1 whitespace-nowrap"
-          >
+          <span class="text-[6px] font-bold tracking-[0.25em] text-indigo-500 uppercase mt-1 whitespace-nowrap">
             Smart Factory
           </span>
         </div>
@@ -41,22 +33,17 @@
 
       <button
         @click="toggleSidebar"
-        class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-7 h-7 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700 rounded-full shadow-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-100 dark:hover:border-indigo-500/50 transition-all duration-300 hover:scale-110 focus:outline-none group"
+        class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-7 h-7 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700 rounded-full shadow-lg text-slate-400 hover:text-indigo-600 transition-all duration-300 hover:scale-110 focus:outline-none group"
       >
-        <i
-          class="pi text-[10px] transition-transform duration-300 group-hover:text-indigo-500"
-          :class="isOpen ? 'pi-chevron-left' : 'pi-chevron-right'"
-        ></i>
+        <i class="pi text-[10px] transition-transform duration-300 group-hover:text-indigo-500"
+           :class="isOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
       </button>
     </div>
 
-    <nav
-      class="flex-1 px-2 py-2 space-y-6 overflow-x-hidden overflow-y-auto scrollbar-hide"
-    >
+    <nav class="flex-1 px-2 py-2 space-y-6 overflow-x-hidden overflow-y-auto scrollbar-hide">
       <div v-if="menuStore.isLoading" class="flex justify-center py-10">
         <i class="text-2xl text-indigo-500 pi pi-spin pi-spinner-dotted"></i>
       </div>
-
       <ul v-else class="space-y-1">
         <SidebarItem
           v-for="menu in visibleMenus"
@@ -72,36 +59,27 @@
       :class="isOpen ? '' : 'flex justify-center px-0'"
     >
       <div
-        class="flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-300 cursor-pointer group hover:bg-white dark:hover:bg-white/10 hover:shadow-md hover:shadow-slate-200/50 dark:hover:shadow-none border border-transparent hover:border-slate-100 dark:hover:border-white/5"
+        class="flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-300 cursor-pointer group hover:bg-white dark:hover:bg-white/10 hover:shadow-md border border-transparent hover:border-slate-100 dark:hover:border-white/5"
         :class="isOpen ? 'w-full' : 'justify-center w-auto aspect-square'"
       >
         <div
           class="relative flex items-center justify-center text-base font-bold text-white transition-transform duration-300 shadow-lg w-9 h-9 rounded-xl shrink-0 group-hover:scale-105 group-hover:rotate-3"
           :class="roleAvatarClass"
         >
-          <span
-            v-if="userRole === 'ADMIN'"
-            class="absolute -inset-1.5 rounded-xl bg-rose-500/60 blur-md animate-pulse"
-          ></span>
-
+          <span v-if="userRole === 'ADMIN' || userRole === 'SUPERADMIN'"
+                class="absolute -inset-1.5 rounded-xl bg-rose-500/40 blur-md animate-pulse"></span>
           <span class="relative z-10 drop-shadow-sm">{{ roleInitial }}</span>
         </div>
 
         <div
           class="flex flex-col min-w-0 overflow-hidden transition-all duration-300"
-          :class="
-            isOpen
-              ? 'opacity-100 translate-x-0'
-              : 'w-0 opacity-0 -translate-x-4 hidden'
-          "
+          :class="isOpen ? 'opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-4 hidden'"
         >
-          <p
-            class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
-          >
-            {{ contextInfo || userRole }}
+          <p class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+            {{ contextInfo || authStore.userName }}
           </p>
-          <p class="text-[11px] text-slate-400 font-medium truncate mt-0.5">
-            {{ hasContext ? userRole : "No Context" }}
+          <p class="text-[11px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
+            {{ userRole }}
           </p>
         </div>
       </div>
@@ -122,26 +100,43 @@ const authStore = useAuthStore();
 const isOpen = ref(true);
 
 const userRole = computed(() => authStore.user?.role || "USER");
-const roleInitial = computed(() => userRole.value.charAt(0).toUpperCase());
 
-const hasContext = computed(
-  () => !!authStore.user?.site && !!authStore.user?.sdwt
-);
+// [수정] 권한에 따른 이니셜 매핑 (A, M, U, G)
+const roleInitial = computed(() => {
+  const role = userRole.value.toUpperCase();
+  if (role === 'ADMIN' || role === 'SUPERADMIN') return 'A';
+  if (role === 'MANAGER') return 'M';
+  if (role === 'GUEST') return 'G';
+  return 'U';
+});
+
+const hasContext = computed(() => !!authStore.user?.site && !!authStore.user?.sdwt);
 
 const contextInfo = computed(() => {
-  if (hasContext.value) {
-    return `${authStore.user?.site} / ${authStore.user?.sdwt}`;
-  }
+  if (hasContext.value) return `${authStore.user?.site} / ${authStore.user?.sdwt}`;
   return "";
 });
 
+// [수정] 권한별 아바타 클래스 계산 (Header와 일치)
 const roleAvatarClass = computed(() => {
-  return userRole.value === "ADMIN" || userRole.value === "MANAGER"
-    ? "bg-gradient-to-br from-rose-500 to-pink-600 shadow-rose-500/30"
-    : "bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30";
+  const r = userRole.value.toUpperCase();
+  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
+  if (r === 'MANAGER') return 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30';
+  if (r === 'USER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
+  if (r === 'GUEST') return 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30';
+  return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
 });
 
-// [Core Logic] Flatten Menus for Collapsed State
+// 권한별 텍스트 색상 로직
+const getRoleTextColor = (role?: string) => {
+  const r = role?.toUpperCase();
+  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'text-rose-500 dark:text-rose-400';
+  if (r === 'MANAGER') return 'text-indigo-500 dark:text-indigo-400';
+  if (r === 'USER') return 'text-emerald-500 dark:text-emerald-400';
+  if (r === 'GUEST') return 'text-amber-500 dark:text-amber-400';
+  return 'text-slate-500';
+};
+
 const flattenMenus = (nodes: MenuNode[]): MenuNode[] => {
   let result: MenuNode[] = [];
   for (const node of nodes) {
@@ -154,20 +149,14 @@ const flattenMenus = (nodes: MenuNode[]): MenuNode[] => {
   return result;
 };
 
-// [Core Logic] Visible Menus Calculation
 const visibleMenus = computed(() => {
-  if (isOpen.value) {
-    return menuStore.menus;
-  } else {
-    return flattenMenus(menuStore.menus);
-  }
+  if (isOpen.value) return menuStore.menus;
+  return flattenMenus(menuStore.menus);
 });
 
 const toggleSidebar = () => {
   isOpen.value = !isOpen.value;
-  window.dispatchEvent(
-    new CustomEvent("sidebar-toggle", { detail: isOpen.value })
-  );
+  window.dispatchEvent(new CustomEvent("sidebar-toggle", { detail: isOpen.value }));
 };
 
 onMounted(async () => {
@@ -178,11 +167,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
