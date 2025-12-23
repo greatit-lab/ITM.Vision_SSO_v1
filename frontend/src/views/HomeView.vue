@@ -700,8 +700,7 @@ const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">(
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-// [수정] Summary 초기값 설정 및 인터페이스 확장
-// DashboardSummaryDto 타입에 맞는 필드와 함께, 화면 렌더링에 필요한 필드들을 초기화
+// Summary 초기값 설정
 const summary = ref<DashboardSummaryDto & { 
   totalServers: number; 
   inactiveAgentCount: number; 
@@ -810,21 +809,16 @@ const loadData = async (showLoading = true) => {
   }
   hasSearched.value = true;
 
-  // [수정] API 호출 시 안전장치 및 방어 코드 추가
   dashboardApi
     .getSummary(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((res: any) => {
-      // 응답 구조가 res.data일 수도 있고 바로 데이터일 수도 있으므로 확인
-      // NestJS 표준 응답({ data: ... }) 대응
       const data = res.data || res;
       if (data) {
-        // 기존 값에 덮어쓰기 (화면 깜빡임 방지 및 부분 업데이트 지원)
         summary.value = { ...summary.value, ...data };
       }
     })
     .catch((e) => {
       console.error("Summary load failed", e);
-      // 에러 시에도 기존 summary 값을 유지하거나 0으로 초기화된 상태를 유지하여 화면 깨짐 방지
     })
     .finally(() => {
       isSummaryLoading.value = false;
@@ -838,7 +832,7 @@ const loadData = async (showLoading = true) => {
     })
     .catch((e) => {
       console.error("Agent status load failed", e);
-      agentList.value = []; // 실패 시 리스트 초기화
+      agentList.value = [];
     })
     .finally(() => {
       isTableLoading.value = false;
@@ -879,10 +873,11 @@ const openChart = async (agent: AgentStatusDto) => {
   const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
   try {
+    // [수정] performanceApi.getHistory는 eqpids 배열을 받으므로 배열로 감싸서 전달
     const data = await performanceApi.getHistory(
       startDate.toISOString(),
       endDate.toISOString(),
-      agent.eqpId,
+      [agent.eqpId], 
       600
     );
     chartData.value = data;
