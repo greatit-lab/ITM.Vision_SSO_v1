@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  // ParseIntPipe, // [삭제] 사용하지 않음
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
@@ -20,6 +21,9 @@ import {
   UpdateSeverityDto,
   CreateMetricDto,
   UpdateMetricDto,
+  UpdateNewServerDto,
+  CreateCfgServerDto,
+  UpdateCfgServerDto,
 } from './dto/admin.dto';
 
 @Controller('admin')
@@ -109,7 +113,7 @@ export class AdminController {
   }
 
   // ==========================================
-  // [System Config] Error Severity Map
+  // [Infra Management] Error Severity Map
   // ==========================================
   @Get('severity')
   async getSeverities() {
@@ -121,7 +125,6 @@ export class AdminController {
     return this.adminService.createSeverity(body);
   }
 
-  // [수정] ID(int) 대신 ErrorID(string) 사용
   @Put('severity/:errorId')
   async updateSeverity(
     @Param('errorId') errorId: string,
@@ -130,14 +133,13 @@ export class AdminController {
     return this.adminService.updateSeverity(errorId, body);
   }
 
-  // [수정] ID(int) 대신 ErrorID(string) 사용
   @Delete('severity/:errorId')
   async deleteSeverity(@Param('errorId') errorId: string) {
     return this.adminService.deleteSeverity(errorId);
   }
 
   // ==========================================
-  // [System Config] Analysis Metrics
+  // [Infra Management] Analysis Metrics
   // ==========================================
   @Get('metrics')
   async getMetrics() {
@@ -163,10 +165,49 @@ export class AdminController {
   }
 
   // ==========================================
-  // [Equipments]
+  // [Equipments] Reference Data
   // ==========================================
   @Get('equipments')
   async getEquipments() {
     return this.adminService.getRefEquipments();
+  }
+
+  // ==========================================
+  // [System Config] Server Configuration
+  // ==========================================
+
+  // 1. New Server Config (Single Row)
+  @Get('new-server')
+  async getNewServerConfig() {
+    return this.adminService.getNewServerConfig();
+  }
+
+  @Put('new-server')
+  async updateNewServerConfig(@Body() body: UpdateNewServerDto) {
+    return this.adminService.updateNewServerConfig(body);
+  }
+
+  // 2. Cfg Server List (Agent Servers)
+  @Get('servers')
+  async getCfgServers() {
+    return this.adminService.getCfgServers();
+  }
+
+  @Post('servers')
+  async createCfgServer(@Body() body: CreateCfgServerDto) {
+    return this.adminService.createCfgServer(body);
+  }
+
+  @Put('servers/:eqpid')
+  async updateCfgServer(
+    @Param('eqpid') eqpid: string,
+    @Body() body: UpdateCfgServerDto,
+  ) {
+    return this.adminService.updateCfgServer(eqpid, body);
+  }
+
+  @Delete('servers/:eqpid')
+  async deleteCfgServer(@Param('eqpid') eqpid: string) {
+    return this.adminService.deleteCfgServer(eqpid);
   }
 }
