@@ -874,10 +874,10 @@ export class WaferService {
 
       const results = await this.prisma.$queryRawUnsafe<PdfResult[]>(
         `SELECT file_uri FROM public.plg_wf_map 
-         WHERE eqpid = $1 
-           AND datetime >= $2::timestamp - interval '24 hours'
-           AND datetime <= $2::timestamp + interval '24 hours'
-         ORDER BY datetime DESC`,
+          WHERE eqpid = $1 
+            AND datetime >= $2::timestamp - interval '24 hours'
+            AND datetime <= $2::timestamp + interval '24 hours'
+          ORDER BY datetime DESC`,
         eqpId,
         ts,
       );
@@ -926,19 +926,19 @@ export class WaferService {
 
     const rawData = await this.prisma.$queryRawUnsafe<ResidualRawResult[]>(
       `SELECT s.point, f.x, f.y, s.class, s.values 
-       FROM public.plg_onto_spectrum s
-       JOIN public.plg_wf_flat f 
-         ON s.eqpid = f.eqpid 
-         AND s.lotid = f.lotid 
-         AND s.waferid = f.waferid::varchar 
-         AND s.point = f.point
-       WHERE s.eqpid = $1 
-         AND s.ts >= $2::timestamp - interval '2 second'
-         AND s.ts <= $2::timestamp + interval '2 second'
-         AND f.serv_ts >= $2::timestamp - interval '5 second'
-         AND f.serv_ts <= $2::timestamp + interval '5 second'
-         AND s.lotid = $3 
-         AND s.waferid = $4`,
+        FROM public.plg_onto_spectrum s
+        JOIN public.plg_wf_flat f 
+          ON s.eqpid = f.eqpid 
+          AND s.lotid = f.lotid 
+          AND s.waferid = f.waferid::varchar 
+          AND s.point = f.point
+        WHERE s.eqpid = $1 
+          AND s.ts >= $2::timestamp - interval '2 second'
+          AND s.ts <= $2::timestamp + interval '2 second'
+          AND f.serv_ts >= $2::timestamp - interval '5 second'
+          AND f.serv_ts <= $2::timestamp + interval '5 second'
+          AND s.lotid = $3 
+          AND s.waferid = $4`,
       eqpId,
       tsRaw,
       lotId,
@@ -1369,6 +1369,66 @@ export class WaferService {
     } catch (e) {
       console.error('Error fetching comparison data:', e);
       return [];
+    }
+  }
+
+  /**
+   * [신규] Optical Trend Data 조회
+   * - 스펙트럼 데이터를 집계하여 Total Intensity(적분)와 Peak Intensity(최대) 추이를 반환
+   */
+  async getOpticalTrend(params: WaferQueryParams) {
+    const { eqpId, startDate, endDate } = params;
+    
+    // 필수 파라미터 체크
+    if (!eqpId || !startDate || !endDate) return [];
+
+    try {
+        // 1. 분석 대상 스펙트럼 조회 (class='RAW' or 'EXP' 등 정책에 따라 필터링)
+        // 여기서는 예시로 EXP 사용 (필요시 RAW로 변경)
+        const spectra = await this.prisma.plgOntoSpectrum.findMany({
+            where: {
+                eqpid: eqpId,
+                ts: {
+                    gte: new Date(startDate),
+                    lte: new Date(endDate),
+                },
+                // class: 'EXP', // 필요 시 활성화
+            },
+            select: {
+                ts: true,
+                lotid: true,
+                waferid: true,
+                point: true,
+                values: true,
+            },
+            orderBy: { ts: 'asc' },
+            take: 1000, // 데이터 과부하 방지
+        });
+
+        // 2. 데이터 정량화 (Quantification)
+        const trendData = spectra.map((item) => {
+            const intensities = item.values || [];
+            
+            // (A) Total Intensity: 적분 광량
+            const totalIntensity = intensities.reduce((acc, val) => acc + val, 0);
+            
+            // (B) Peak Intensity: 최대 광량
+            const peakIntensity = intensities.length > 0 ? Math.max(...intensities) : 0;
+
+            return {
+                ts: item.ts,
+                lotId: item.lotid,
+                waferId: item.waferid,
+                point: item.point,
+                totalIntensity,
+                peakIntensity,
+            };
+        });
+
+        return trendData;
+    } catch (e) {
+        console.error('Error in getOpticalTrend:', e);
+        return [];
     }
   }
 }
