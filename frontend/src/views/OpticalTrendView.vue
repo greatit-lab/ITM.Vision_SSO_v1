@@ -24,9 +24,11 @@
     </div>
 
     <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300"
+      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm shrink-0 transition-colors duration-300"
     >
-      <div class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1">
+      <div
+        class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
+      >
         <div class="min-w-[120px] shrink-0">
           <Select
             v-model="filter.site"
@@ -38,6 +40,7 @@
             @change="onSiteChange"
           />
         </div>
+
         <div class="min-w-[140px] shrink-0">
           <Select
             v-model="filter.sdwt"
@@ -50,10 +53,12 @@
             @change="onSdwtChange"
           />
         </div>
+
         <div class="min-w-[160px] shrink-0">
           <Select
             v-model="filter.eqpId"
             :options="eqpIds"
+            :loading="isEqpIdLoading"
             placeholder="EQP ID"
             :disabled="!filter.sdwt"
             showClear
@@ -61,27 +66,34 @@
             overlayClass="custom-dropdown-panel small"
           />
         </div>
+
         <div
-          class="flex items-center gap-2 px-2 py-1 ml-2 border-l border-slate-100 dark:border-zinc-800"
-        >
+          class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"
+        ></div>
+
+        <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="filter.startDate"
             showIcon
             dateFormat="yy-mm-dd"
-            class="!w-32 !h-7 !text-[12px]"
+            placeholder="Start Date"
+            class="w-full custom-dropdown small date-picker"
           />
-          <span class="text-slate-400">~</span>
+        </div>
+
+        <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="filter.endDate"
             showIcon
             dateFormat="yy-mm-dd"
-            class="!w-32 !h-7 !text-[12px]"
+            placeholder="End Date"
+            class="w-full custom-dropdown small date-picker"
           />
         </div>
       </div>
 
       <div
-        class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800"
+        class="flex items-center gap-2 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800"
       >
         <Button
           icon="pi pi-search"
@@ -90,6 +102,16 @@
           :loading="isLoading"
           :disabled="!filter.eqpId"
           @click="fetchData"
+        />
+
+        <Button
+          icon="pi pi-refresh"
+          text
+          rounded
+          severity="secondary"
+          v-tooltip.bottom="'Reset Filters'"
+          class="!w-8 !h-8 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
+          @click="resetFilter"
         />
       </div>
     </div>
@@ -100,156 +122,225 @@
     >
       <div class="grid grid-cols-1 gap-3 md:grid-cols-4 shrink-0">
         <div
-          class="relative p-4 overflow-hidden bg-white border shadow-sm rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
+          class="relative overflow-hidden bg-white border shadow-sm cursor-help rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
         >
-          <div class="flex items-start justify-between">
-            <div>
-              <p
-                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+          <div
+            class="p-4 transition-all duration-300 group-hover:blur-[2px] group-hover:opacity-50"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <p
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Avg Total Intensity
+                </p>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span
+                    class="text-2xl font-black text-slate-800 dark:text-white"
+                    >{{
+                      currentStats.avgTotal.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })
+                    }}</span
+                  >
+                  <span
+                    class="text-[10px] font-bold"
+                    :class="getDiffClass(currentStats.totalDiff)"
+                  >
+                    {{ currentStats.totalDiff > 0 ? "+" : ""
+                    }}{{ currentStats.totalDiff }}%
+                  </span>
+                </div>
+              </div>
+              <div
+                class="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-500"
               >
-                Avg Total Intensity
-              </p>
-              <div class="flex items-baseline gap-2 mt-1">
-                <span
-                  class="text-2xl font-black text-slate-800 dark:text-white"
-                  >{{
-                    currentStats.avgTotal.toLocaleString(undefined, {
-                      maximumFractionDigits: 0,
-                    })
-                  }}</span
-                >
-                <span
-                  class="text-[10px] font-bold"
-                  :class="getDiffClass(currentStats.totalDiff)"
-                >
-                  {{ currentStats.totalDiff > 0 ? "+" : ""
-                  }}{{ currentStats.totalDiff }}%
-                </span>
+                <i class="pi pi-sun"></i>
               </div>
             </div>
             <div
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-500"
+              class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
             >
-              <i class="pi pi-sun"></i>
+              <div
+                class="h-full transition-all duration-1000 bg-amber-500"
+                style="width: 75%"
+              ></div>
             </div>
           </div>
           <div
-            class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
           >
-            <div
-              class="h-full transition-all duration-1000 bg-amber-500"
-              style="width: 75%"
-            ></div>
+            <p
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+            >
+              전체 파장 대역에 대한<br />신호 강도의 평균 총합입니다.
+            </p>
           </div>
         </div>
 
         <div
-          class="relative p-4 overflow-hidden bg-white border shadow-sm rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
+          class="relative overflow-hidden bg-white border shadow-sm cursor-help rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
         >
-          <div class="flex items-start justify-between">
-            <div>
-              <p
-                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
-              >
-                Avg Peak Signal
-              </p>
-              <div class="flex items-baseline gap-2 mt-1">
-                <span
-                  class="text-2xl font-black text-slate-800 dark:text-white"
-                  >{{ currentStats.avgPeak.toFixed(1) }}</span
+          <div
+            class="p-4 transition-all duration-300 group-hover:blur-[2px] group-hover:opacity-50"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <p
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
                 >
-                <span class="text-[10px] text-slate-400">counts</span>
+                  Avg Peak Signal
+                </p>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span
+                    class="text-2xl font-black text-slate-800 dark:text-white"
+                    >{{ currentStats.avgPeak.toFixed(1) }}</span
+                  >
+                  <span class="text-[10px] text-slate-400">counts</span>
+                </div>
+              </div>
+              <div
+                class="flex items-center justify-center w-8 h-8 text-indigo-500 rounded-lg bg-indigo-50 dark:bg-indigo-900/30"
+              >
+                <i class="pi pi-chart-line"></i>
               </div>
             </div>
             <div
-              class="flex items-center justify-center w-8 h-8 text-indigo-500 rounded-lg bg-indigo-50 dark:bg-indigo-900/30"
+              class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
             >
-              <i class="pi pi-chart-line"></i>
+              <div
+                class="h-full transition-all duration-1000 bg-indigo-500"
+                style="width: 60%"
+              ></div>
             </div>
           </div>
           <div
-            class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
           >
-            <div
-              class="h-full transition-all duration-1000 bg-indigo-500"
-              style="width: 60%"
-            ></div>
+            <p
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+            >
+              각 스캔에서 측정된<br />최대 신호값(Peak)들의 평균입니다.
+            </p>
           </div>
         </div>
 
         <div
-          class="relative p-4 overflow-hidden bg-white border shadow-sm rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
+          class="relative overflow-hidden bg-white border shadow-sm cursor-help rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
         >
-          <div class="flex items-start justify-between">
-            <div>
-              <p
-                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+          <div
+            class="p-4 transition-all duration-300 group-hover:blur-[2px] group-hover:opacity-50"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <p
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Signal Stability
+                </p>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="text-2xl font-black text-emerald-500">{{
+                    currentStats.stabilityScore
+                  }}</span>
+                  <span class="text-[10px] font-bold text-slate-400"
+                    >/ 100</span
+                  >
+                </div>
+              </div>
+              <div
+                class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500"
               >
-                Signal Stability
-              </p>
-              <div class="flex items-baseline gap-2 mt-1">
-                <span class="text-2xl font-black text-emerald-500">{{
-                  currentStats.stabilityScore
-                }}</span>
-                <span class="text-[10px] font-bold text-slate-400">/ 100</span>
+                <i class="pi pi-shield"></i>
               </div>
             </div>
             <div
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500"
+              class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
             >
-              <i class="pi pi-shield"></i>
+              <div
+                class="h-full transition-all duration-1000 bg-emerald-500"
+                :style="{ width: currentStats.stabilityScore + '%' }"
+              ></div>
             </div>
           </div>
           <div
-            class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
           >
-            <div
-              class="h-full transition-all duration-1000 bg-emerald-500"
-              :style="{ width: currentStats.stabilityScore + '%' }"
-            ></div>
+            <p
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+            >
+              신호 변동 계수(CV)를 기반으로<br />산출된 안정성 점수입니다.
+            </p>
           </div>
         </div>
 
         <div
-          class="relative p-4 overflow-hidden bg-white border shadow-sm rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
+          class="relative overflow-hidden bg-white border shadow-sm cursor-help rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 group"
         >
-          <div class="flex items-start justify-between">
-            <div>
-              <p
-                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
-              >
-                Optical Health
-              </p>
-              <div class="flex items-baseline gap-2 mt-1">
-                <span
-                  class="text-xl font-black"
-                  :class="currentStats.healthColor"
-                  >{{ currentStats.healthStatus }}</span
+          <div
+            class="p-4 transition-all duration-300 group-hover:blur-[2px] group-hover:opacity-50"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <p
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
                 >
+                  Optical Health
+                </p>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span
+                    class="text-xl font-black"
+                    :class="currentStats.healthColor"
+                    >{{ currentStats.healthStatus }}</span
+                  >
+                </div>
+              </div>
+              <div
+                class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 animate-pulse"
+              >
+                <i class="pi pi-check-circle"></i>
               </div>
             </div>
-            <div
-              class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 animate-pulse"
-            >
-              <i class="pi pi-check-circle"></i>
-            </div>
+            <p class="mt-3 text-[10px] text-slate-400">
+              Calculated based on intensity trends
+            </p>
           </div>
-          <p class="mt-3 text-[10px] text-slate-400">
-            Calculated based on intensity trends
-          </p>
+          <div
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+          >
+            <p
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+            >
+              신호 강도 및 안정성을 종합한<br />최종 건강 상태입니다.
+            </p>
+          </div>
         </div>
       </div>
 
       <div
-        class="flex flex-1 min-h-0 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 relative flex-col"
+        class="flex flex-1 min-h-0 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 pb-6 relative flex-col group/chart"
       >
-        <div class="flex items-center justify-between mb-2">
-          <h3
-            class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
-          >
-            <i class="pi pi-chart-bar text-amber-500"></i> Intensity Trend
-            Monitoring
-          </h3>
+        <div class="flex items-center justify-between mb-2 shrink-0">
+          <div class="flex items-center gap-2">
+            <h3
+              class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
+            >
+              <i class="pi pi-chart-bar text-amber-500"></i> Intensity Trend
+              Monitoring
+            </h3>
+            <button
+              class="px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors flex items-center gap-1 cursor-pointer"
+              :class="
+                showChartGuide
+                  ? 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700'
+              "
+              @click="showChartGuide = !showChartGuide"
+            >
+              <i class="pi pi-info-circle text-[9px]"></i>
+              Guide
+            </button>
+          </div>
+
           <div class="flex gap-2">
             <span class="flex items-center gap-1 text-[10px] text-slate-500"
               ><div class="w-2 h-2 rounded-full bg-amber-500"></div>
@@ -261,8 +352,84 @@
             >
           </div>
         </div>
+
         <div class="relative flex-1 w-full min-h-0">
-          <EChart :option="chartOption" class="w-full h-full" />
+          <div
+            class="w-full h-full transition-all duration-300"
+            :class="{ 'blur-[2px] opacity-60': showChartGuide }"
+          >
+            <EChart :option="chartOption" class="w-full h-full" />
+          </div>
+
+          <div
+            v-if="showChartGuide"
+            class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 cursor-pointer animate-fade-in"
+            @click="showChartGuide = false"
+          >
+            <div
+              class="max-w-md p-5 bg-white border shadow-lg dark:bg-zinc-900 rounded-xl border-slate-100 dark:border-zinc-700 cursor-default"
+              @click.stop
+            >
+              <div class="flex items-center justify-between mb-3">
+                <h4
+                  class="text-sm font-extrabold text-center text-slate-800 dark:text-white"
+                >
+                  차트 가이드
+                </h4>
+                <button
+                  @click="showChartGuide = false"
+                  class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <i class="pi pi-times text-xs"></i>
+                </button>
+              </div>
+
+              <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                  <div
+                    class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-amber-50 dark:bg-amber-900/20"
+                  >
+                    <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                  </div>
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-700 dark:text-slate-200"
+                    >
+                      Total Intensity (전체 광량)
+                    </p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                      전 파장 대역의 광량을 합산한 값입니다. 광원(Lamp)의
+                      전반적인 노후화 상태나 오염 여부를 판단하는 핵심
+                      지표입니다.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div
+                    class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-indigo-50 dark:bg-indigo-900/20"
+                  >
+                    <div class="w-3 h-3 bg-indigo-500 rounded-full"></div>
+                  </div>
+                  <div>
+                    <p
+                      class="text-xs font-bold text-slate-700 dark:text-slate-200"
+                    >
+                      Peak Intensity (피크 신호)
+                    </p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                      특정 파장에서 측정된 가장 높은 신호값입니다. 순간적인 신호
+                      튐(Spike) 현상이나 센서 감도 변화를 감지할 때 사용합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p
+              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-black/50 px-2 py-1 rounded-full"
+            >
+              화면을 클릭하면 닫힙니다
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -317,8 +484,10 @@ import DatePicker from "primevue/datepicker";
 // State
 const authStore = useAuthStore();
 const isLoading = ref(false);
+const isEqpIdLoading = ref(false); // [추가] EQP ID 로딩 상태
 const hasSearched = ref(false);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
+const showChartGuide = ref(false);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -374,21 +543,61 @@ const onSiteChange = async () => {
   } else {
     sdwts.value = [];
   }
-  filter.sdwt = "";
-  filter.eqpId = "";
+  // If we are just refreshing and site didn't change, we might want to keep sdwt
+  // But for simple change logic, we clear child selections
+  if (!sdwts.value.includes(filter.sdwt)) {
+    filter.sdwt = "";
+    filter.eqpId = "";
+    eqpIds.value = [];
+  }
 };
 
 const onSdwtChange = async () => {
   if (filter.sdwt) {
-    eqpIds.value = await equipmentApi.getEqpIds(
-      undefined,
-      filter.sdwt,
-      "wafer"
-    );
+    isEqpIdLoading.value = true; // [추가] 로딩 시작
+    try {
+      eqpIds.value = await equipmentApi.getEqpIds(
+        undefined,
+        filter.sdwt,
+        "wafer"
+      );
+    } finally {
+      isEqpIdLoading.value = false; // [추가] 로딩 종료
+    }
   } else {
     eqpIds.value = [];
   }
-  filter.eqpId = "";
+  if (!eqpIds.value.includes(filter.eqpId)) {
+    filter.eqpId = "";
+  }
+};
+
+const resetFilter = async () => {
+  // Reset to user defaults or empty
+  if (authStore.user?.site && sites.value.includes(authStore.user.site)) {
+    filter.site = authStore.user.site;
+    await onSiteChange();
+    // Try to restore user sdwt if available
+    if (authStore.user?.sdwt && sdwts.value.includes(authStore.user.sdwt)) {
+      filter.sdwt = authStore.user.sdwt;
+      await onSdwtChange();
+    } else {
+      filter.sdwt = "";
+      filter.eqpId = "";
+    }
+  } else {
+    filter.site = "";
+    filter.sdwt = "";
+    filter.eqpId = "";
+    sdwts.value = [];
+    eqpIds.value = [];
+  }
+
+  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  filter.endDate = new Date();
+  trendData.value = [];
+  hasSearched.value = false;
+  showChartGuide.value = false;
 };
 
 const fetchData = async () => {
@@ -396,6 +605,7 @@ const fetchData = async () => {
   isLoading.value = true;
   hasSearched.value = true;
   trendData.value = []; // Reset previous data
+  showChartGuide.value = false; // Reset guide on search
 
   try {
     trendData.value = await waferApi.getOpticalTrend({
@@ -576,7 +786,7 @@ const chartOption = computed(() => {
         showSymbol: false,
         yAxisIndex: 1,
         itemStyle: { color: "#6366f1" }, // Indigo
-        lineStyle: { type: "dashed" },
+        lineStyle: { type: "solid" }, // Solid Line
       },
     ],
   };
@@ -600,6 +810,9 @@ const chartOption = computed(() => {
 /* Datepicker Customization */
 :deep(.p-datepicker-input) {
   @apply !text-[12px] !py-1 !px-2;
+}
+:deep(.date-picker .p-inputtext) {
+  @apply !h-7;
 }
 
 .animate-fade-in {
