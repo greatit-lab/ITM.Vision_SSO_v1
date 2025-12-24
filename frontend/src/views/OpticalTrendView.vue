@@ -315,9 +315,9 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-[360px] shrink-0">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-[315px] shrink-0">
         <div
-          class="col-span-1 lg:col-span-2 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 pb-6 relative flex flex-col group/chart overflow-hidden"
+          class="col-span-1 lg:col-span-2 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 relative flex flex-col group/chart overflow-hidden"
         >
           <div class="flex items-center justify-between mb-2 shrink-0">
             <div class="flex items-center gap-2">
