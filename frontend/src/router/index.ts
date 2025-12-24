@@ -19,7 +19,7 @@ import LotUniformityTrendView from "../views/LotUniformityTrendView.vue";
 import EquipmentHealthView from "../views/EquipmentHealthView.vue";
 import ProcessMatchingAnalyticsView from "../views/ProcessMatchingAnalyticsView.vue";
 import ItmAgentMemoryView from "../views/ItmAgentMemoryView.vue";
-import OpticalTrendView from "../views/OpticalTrendView.vue"; // [신규]
+import OpticalTrendView from "../views/OpticalTrendView.vue";
 
 // Admin Components
 import AdminLayout from "../views/admin/AdminLayout.vue";
@@ -91,7 +91,7 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true },
   },
   {
-    path: "/optical-trend", // [신규] 라우트
+    path: "/optical-trend",
     name: "optical-trend",
     component: OpticalTrendView,
     meta: { requiresAuth: true },
@@ -121,44 +121,38 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true },
   },
   
-  // [관리자 섹션] AdminLayout 적용 및 권한 기반 접근 제어
+  // [관리자 섹션]
   {
     path: "/admin",
     component: AdminLayout,
-    meta: { requiresAuth: true }, // 기본 로그인 필요
+    meta: { requiresAuth: true },
     children: [
       {
         path: "",
-        // [수정] 권한에 따라 리다이렉트 분기
         redirect: () => {
           const authStore = useAuthStore();
-          // ADMIN은 메뉴 관리로, MANAGER는 사용자 관리로 이동
           if (authStore.user?.role === 'ADMIN') return { name: "admin-menus" };
           return { name: "admin-users" };
         }, 
       },
-      // 1. 메뉴 및 권한 (Menu & Roles) - Admin Only
       {
         path: "menus",
         name: "admin-menus",
         component: MenuManagementView,
         meta: { roles: ['ADMIN'] }, 
       },
-      // 2. 사용자 및 보안 (User & Security) - Admin, Manager
       {
         path: "users",
         name: "admin-users",
         component: UserManagementView, 
         meta: { roles: ['ADMIN', 'MANAGER'] },
       },
-      // 3. 인프라 관리 (Infrastructure) - Admin, Manager (탭 내부에서 세부 제어)
       {
         path: "infra",
         name: "admin-infra",
         component: InfraManagementView,
         meta: { roles: ['ADMIN', 'MANAGER'] },
       },
-      // 4. 시스템 설정 (System Config) - Admin Only
       {
         path: "system",
         name: "admin-system",
@@ -180,9 +174,6 @@ const router = createRouter({
   routes,
 });
 
-/**
- * [Helper] 재귀적으로 메뉴 트리에서 경로 권한을 확인하는 함수
- */
 function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
   const normalizedTarget = targetPath.endsWith('/') && targetPath.length > 1 
     ? targetPath.slice(0, -1) 
@@ -212,6 +203,13 @@ router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   const menuStore = useMenuStore();
 
+  // [수정] 0. Demo Mode Check (환경변수 기반 자동 로그인 처리)
+  // .env에 VITE_AUTH_SKIP=true 설정 시 작동
+  if (import.meta.env.VITE_AUTH_SKIP === 'true' && !authStore.isAuthenticated) {
+    console.log("[Router] Demo Mode Activated: Logging in as Demo User.");
+    authStore.loginAsDemoUser();
+  }
+
   const isAuthenticated = authStore.isAuthenticated;
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
@@ -220,7 +218,7 @@ router.beforeEach(async (to, _from, next) => {
     return next({ name: "login", query: { redirect: to.fullPath } });
   }
 
-  // 2. 로그인 상태에서 로그인 페이지 접근 시 홈으로
+  // 2. 로그인 상태에서 로그인 페이지 접근 시 홈으로 (데모 모드 포함)
   if (to.path === "/login" && isAuthenticated) {
     return next({ name: "home" });
   }
@@ -228,18 +226,17 @@ router.beforeEach(async (to, _from, next) => {
   // 3. 권한 체크
   if (isAuthenticated) {
     // 3-1. RBAC (Role Based Access Control) 체크
-    // 라우트에 roles 메타 데이터가 있으면 체크
     if (to.meta.roles) {
       const allowedRoles = to.meta.roles as string[];
       const userRole = authStore.user?.role || 'GUEST';
 
       if (!allowedRoles.includes(userRole)) {
-        alert("접근 권한이 없습니다."); // 사용자 알림
-        return next({ name: "home" }); // 권한 없으면 홈으로 리다이렉트
+        alert("접근 권한이 없습니다.");
+        return next({ name: "home" });
       }
     }
 
-    // 3-2. 동적 메뉴 권한 체크 (일반 페이지 대상)
+    // 3-2. 동적 메뉴 권한 체크
     if (menuStore.menus.length === 0) {
       try {
         await menuStore.loadMenus();
@@ -255,7 +252,6 @@ router.beforeEach(async (to, _from, next) => {
 
     if (!isExceptionPath) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
-
       if (!hasPermission) {
         console.warn(`[Router Guard] Unauthorized access or menu not linked: ${to.path}`);
         return next({ name: "home" });
