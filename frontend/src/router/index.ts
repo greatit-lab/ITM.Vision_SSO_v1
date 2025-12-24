@@ -19,6 +19,7 @@ import LotUniformityTrendView from "../views/LotUniformityTrendView.vue";
 import EquipmentHealthView from "../views/EquipmentHealthView.vue";
 import ProcessMatchingAnalyticsView from "../views/ProcessMatchingAnalyticsView.vue";
 import ItmAgentMemoryView from "../views/ItmAgentMemoryView.vue";
+import OpticalTrendView from "../views/OpticalTrendView.vue"; // [신규]
 
 // Admin Components
 import AdminLayout from "../views/admin/AdminLayout.vue";
@@ -87,6 +88,12 @@ const routes: Array<RouteRecordRaw> = [
     path: "/spectrum-analytics",
     name: "spectrum",
     component: SpectrumAnalysisView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/optical-trend", // [신규] 라우트
+    name: "optical-trend",
+    component: OpticalTrendView,
     meta: { requiresAuth: true },
   },
   {
