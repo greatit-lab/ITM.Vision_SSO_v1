@@ -18,13 +18,13 @@
         <span
           class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
         >
-          Spectrum quantification & intensity trend monitoring.
+          Real-time Spectrum quantification & intensity trend monitoring.
         </span>
       </div>
     </div>
 
     <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm shrink-0 transition-colors duration-300"
+      class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm shrink-0 transition-colors duration-300"
     >
       <div
         class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
@@ -118,7 +118,7 @@
 
     <div
       v-if="hasSearched && trendData.length > 0"
-      class="flex flex-col flex-1 gap-4 overflow-hidden animate-fade-in"
+      class="flex flex-col flex-1 gap-4 overflow-y-auto custom-scrollbar pr-1 pb-4"
     >
       <div class="grid grid-cols-1 gap-3 md:grid-cols-4 shrink-0">
         <div
@@ -236,29 +236,27 @@
                 <p
                   class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
                 >
-                  Signal Stability
+                  Wavelength Shift
                 </p>
                 <div class="flex items-baseline gap-2 mt-1">
-                  <span class="text-2xl font-black text-emerald-500">{{
-                    currentStats.stabilityScore
+                  <span class="text-2xl font-black text-purple-500">{{
+                    currentStats.avgWavelength.toFixed(1)
                   }}</span>
-                  <span class="text-[10px] font-bold text-slate-400"
-                    >/ 100</span
-                  >
+                  <span class="text-[10px] font-bold text-slate-400">nm</span>
                 </div>
               </div>
               <div
-                class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500"
+                class="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-500"
               >
-                <i class="pi pi-shield"></i>
+                <i class="pi pi-wave-pulse"></i>
               </div>
             </div>
             <div
               class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
             >
               <div
-                class="h-full transition-all duration-1000 bg-emerald-500"
-                :style="{ width: currentStats.stabilityScore + '%' }"
+                class="h-full transition-all duration-1000 bg-purple-500"
+                style="width: 85%"
               ></div>
             </div>
           </div>
@@ -268,7 +266,7 @@
             <p
               class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
             >
-              신호 변동 계수(CV)를 기반으로<br />산출된 안정성 점수입니다.
+              광원의 중심 파장(Color)이<br />이동했는지 감시합니다.
             </p>
           </div>
         </div>
@@ -284,14 +282,15 @@
                 <p
                   class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
                 >
-                  Optical Health
+                  Avg SNR
                 </p>
                 <div class="flex items-baseline gap-2 mt-1">
                   <span
                     class="text-xl font-black"
                     :class="currentStats.healthColor"
-                    >{{ currentStats.healthStatus }}</span
+                    >{{ currentStats.avgSnr.toFixed(1) }}</span
                   >
+                  <span class="text-[10px] font-bold text-slate-400">dB</span>
                 </div>
               </div>
               <div
@@ -301,7 +300,7 @@
               </div>
             </div>
             <p class="mt-3 text-[10px] text-slate-400">
-              Calculated based on intensity trends
+              Calculated from Real Data
             </p>
           </div>
           <div
@@ -310,125 +309,350 @@
             <p
               class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
             >
-              신호 강도 및 안정성을 종합한<br />최종 건강 상태입니다.
+              신호 대 잡음비(SNR)를 통한<br />신호 순도 및 건강 상태입니다.
             </p>
           </div>
         </div>
       </div>
 
-      <div
-        class="flex flex-1 min-h-0 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 pb-6 relative flex-col group/chart"
-      >
-        <div class="flex items-center justify-between mb-2 shrink-0">
-          <div class="flex items-center gap-2">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-[360px] shrink-0">
+        <div
+          class="col-span-1 lg:col-span-2 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 pb-6 relative flex flex-col group/chart overflow-hidden"
+        >
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <div class="flex items-center gap-2">
+              <h3
+                class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
+              >
+                <i class="pi pi-chart-bar text-amber-500"></i> Intensity Trend
+                Monitoring
+              </h3>
+              <button
+                class="px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors flex items-center gap-1 cursor-pointer"
+                :class="
+                  showMainGuide
+                    ? 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                    : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                "
+                @click="showMainGuide = !showMainGuide"
+              >
+                <i class="pi pi-info-circle text-[9px]"></i>
+                Guide
+              </button>
+            </div>
+
+            <div class="flex gap-2">
+              <span class="flex items-center gap-1 text-[10px] text-slate-500"
+                ><div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                Total Intensity</span
+              >
+              <span class="flex items-center gap-1 text-[10px] text-slate-500"
+                ><div class="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                Peak Intensity</span
+              >
+            </div>
+          </div>
+
+          <div class="relative flex-1 w-full min-h-0">
+            <div
+              class="w-full h-full transition-all duration-300"
+              :class="{ 'blur-[2px] opacity-60': showMainGuide }"
+            >
+              <EChart :option="chartOption" class="w-full h-full" />
+            </div>
+
+            <div
+              v-if="showMainGuide"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 cursor-pointer animate-fade-in"
+              @click="showMainGuide = false"
+            >
+              <div
+                class="max-w-md p-5 bg-white border shadow-lg dark:bg-zinc-900 rounded-xl border-slate-100 dark:border-zinc-700 cursor-default"
+                @click.stop
+              >
+                <div class="flex items-center justify-between mb-3">
+                  <h4
+                    class="text-sm font-extrabold text-center text-slate-800 dark:text-white"
+                  >
+                    차트 가이드
+                  </h4>
+                  <button
+                    @click="showMainGuide = false"
+                    class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <i class="pi pi-times text-xs"></i>
+                  </button>
+                </div>
+
+                <div class="space-y-4">
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-amber-50 dark:bg-amber-900/20"
+                    >
+                      <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                    </div>
+                    <div>
+                      <p
+                        class="text-xs font-bold text-slate-700 dark:text-slate-200"
+                      >
+                        Total Intensity (전체 광량)
+                      </p>
+                      <p
+                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                      >
+                        전 파장 대역의 광량을 합산한 값입니다. 광원(Lamp)의
+                        전반적인 노후화 상태나 오염 여부를 판단하는 핵심
+                        지표입니다.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-indigo-50 dark:bg-indigo-900/20"
+                    >
+                      <div class="w-3 h-3 bg-indigo-500 rounded-full"></div>
+                    </div>
+                    <div>
+                      <p
+                        class="text-xs font-bold text-slate-700 dark:text-slate-200"
+                      >
+                        Peak Intensity (피크 신호)
+                      </p>
+                      <p
+                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                      >
+                        특정 파장에서 측정된 가장 높은 신호값입니다. 순간적인
+                        신호 튐(Spike) 현상이나 센서 감도 변화를 감지할 때
+                        사용합니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p
+                class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-black/50 px-2 py-1 rounded-full"
+              >
+                화면을 클릭하면 닫힙니다
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="col-span-1 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-4 flex flex-col"
+        >
+          <div class="flex items-center gap-2 mb-4">
+            <i class="text-emerald-500 pi pi-sparkles"></i>
+            <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+              Intelligent Diagnostics
+            </h3>
+          </div>
+
+          <div class="flex-1 space-y-3">
+            <div
+              class="p-3 border rounded-lg bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-bold uppercase text-slate-400"
+                  >Trend Analysis</span
+                >
+                <span
+                  class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                  :class="diagnostics.trendColor"
+                  >{{ diagnostics.trendStatus }}</span
+                >
+              </div>
+              <p
+                class="text-xs font-medium text-slate-600 dark:text-slate-300"
+              >
+                {{ diagnostics.trendMessage }}
+              </p>
+            </div>
+
+            <div
+              class="p-3 border rounded-lg bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-bold uppercase text-slate-400"
+                  >Signal Quality (SNR)</span
+                >
+                <div class="flex items-center gap-1">
+                  <span class="text-[10px] font-bold text-indigo-500"
+                    >{{ diagnostics.snrValue }} dB</span
+                  >
+                </div>
+              </div>
+              <div
+                class="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full mt-1"
+              >
+                <div
+                  class="h-1.5 bg-indigo-500 rounded-full"
+                  :style="{
+                    width: Math.min(diagnostics.snrValue, 100) + '%',
+                  }"
+                ></div>
+              </div>
+              <p class="mt-1 text-[10px] text-slate-500">
+                Noise Floor 대비 신호 강도 비율
+              </p>
+            </div>
+
+            <div
+              class="p-3 mt-auto border rounded-lg bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-800/30"
+            >
+              <div class="flex items-start gap-2">
+                <i class="mt-0.5 text-xs pi pi-wrench text-amber-500"></i>
+                <div>
+                  <span
+                    class="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400"
+                    >Action Guide</span
+                  >
+                  <p
+                    class="text-xs font-bold text-slate-700 dark:text-slate-200"
+                  >
+                    {{ diagnostics.actionGuide }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 min-h-[300px] shrink-0">
+        <div
+          class="p-4 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden relative group/shift"
+        >
+          <div class="flex items-center justify-between mb-2 shrink-0">
             <h3
               class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
             >
-              <i class="pi pi-chart-bar text-amber-500"></i> Intensity Trend
-              Monitoring
+              <i class="text-purple-500 pi pi-wave-pulse"></i> Spectrum Shift
+              (Peak Wavelength)
             </h3>
             <button
               class="px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors flex items-center gap-1 cursor-pointer"
               :class="
-                showChartGuide
-                  ? 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                showShiftGuide
+                  ? 'bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800'
                   : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700'
               "
-              @click="showChartGuide = !showChartGuide"
+              @click="showShiftGuide = !showShiftGuide"
             >
               <i class="pi pi-info-circle text-[9px]"></i>
               Guide
             </button>
           </div>
+          <div class="flex-1 w-full min-h-0 relative">
+            <div
+              class="w-full h-full transition-all duration-300"
+              :class="{ 'blur-[2px] opacity-60': showShiftGuide }"
+            >
+              <EChart :option="wavelengthChartOption" class="w-full h-full" />
+            </div>
 
-          <div class="flex gap-2">
-            <span class="flex items-center gap-1 text-[10px] text-slate-500"
-              ><div class="w-2 h-2 rounded-full bg-amber-500"></div>
-              Total Intensity</span
+            <div
+              v-if="showShiftGuide"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 cursor-pointer animate-fade-in"
+              @click="showShiftGuide = false"
             >
-            <span class="flex items-center gap-1 text-[10px] text-slate-500"
-              ><div class="w-2 h-2 bg-indigo-500 rounded-full"></div>
-              Peak Intensity</span
-            >
+              <div
+                class="max-w-xs p-4 bg-white border shadow-lg dark:bg-zinc-900 rounded-xl border-slate-100 dark:border-zinc-700 cursor-default"
+                @click.stop
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <h4
+                    class="text-xs font-extrabold text-center text-slate-800 dark:text-white"
+                  >
+                    파장 이동 (Shift)
+                  </h4>
+                  <button
+                    @click="showShiftGuide = false"
+                    class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <i class="pi pi-times text-[10px]"></i>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300">
+                  중심 파장(Peak Wavelength)의 변화 추이를 보여줍니다. 설정된
+                  기준 파장에서 벗어나는 경우(Shift), 광학계의 색상 틀어짐이나
+                  필터 변형을 의심할 수 있습니다.
+                </p>
+              </div>
+              <p
+                class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-black/50 px-2 py-1 rounded-full"
+              >
+                화면을 클릭하면 닫힙니다
+              </p>
+            </div>
           </div>
         </div>
 
-        <div class="relative flex-1 w-full min-h-0">
-          <div
-            class="w-full h-full transition-all duration-300"
-            :class="{ 'blur-[2px] opacity-60': showChartGuide }"
-          >
-            <EChart :option="chartOption" class="w-full h-full" />
+        <div
+          class="p-4 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden relative group/corr"
+        >
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <h3
+              class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
+            >
+              <i class="text-teal-500 pi pi-sliders-h"></i> Intensity vs SNR
+              Correlation
+            </h3>
+            <button
+              class="px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors flex items-center gap-1 cursor-pointer"
+              :class="
+                showCorrGuide
+                  ? 'bg-teal-100 text-teal-600 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700'
+              "
+              @click="showCorrGuide = !showCorrGuide"
+            >
+              <i class="pi pi-info-circle text-[9px]"></i>
+              Guide
+            </button>
           </div>
-
-          <div
-            v-if="showChartGuide"
-            class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 cursor-pointer animate-fade-in"
-            @click="showChartGuide = false"
-          >
+          <div class="flex-1 w-full min-h-0 relative">
             <div
-              class="max-w-md p-5 bg-white border shadow-lg dark:bg-zinc-900 rounded-xl border-slate-100 dark:border-zinc-700 cursor-default"
-              @click.stop
+              class="w-full h-full transition-all duration-300"
+              :class="{ 'blur-[2px] opacity-60': showCorrGuide }"
             >
-              <div class="flex items-center justify-between mb-3">
-                <h4
-                  class="text-sm font-extrabold text-center text-slate-800 dark:text-white"
-                >
-                  차트 가이드
-                </h4>
-                <button
-                  @click="showChartGuide = false"
-                  class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  <i class="pi pi-times text-xs"></i>
-                </button>
-              </div>
-
-              <div class="space-y-4">
-                <div class="flex items-start gap-3">
-                  <div
-                    class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-amber-50 dark:bg-amber-900/20"
-                  >
-                    <div class="w-3 h-3 rounded-full bg-amber-500"></div>
-                  </div>
-                  <div>
-                    <p
-                      class="text-xs font-bold text-slate-700 dark:text-slate-200"
-                    >
-                      Total Intensity (전체 광량)
-                    </p>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
-                      전 파장 대역의 광량을 합산한 값입니다. 광원(Lamp)의
-                      전반적인 노후화 상태나 오염 여부를 판단하는 핵심
-                      지표입니다.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start gap-3">
-                  <div
-                    class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-indigo-50 dark:bg-indigo-900/20"
-                  >
-                    <div class="w-3 h-3 bg-indigo-500 rounded-full"></div>
-                  </div>
-                  <div>
-                    <p
-                      class="text-xs font-bold text-slate-700 dark:text-slate-200"
-                    >
-                      Peak Intensity (피크 신호)
-                    </p>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
-                      특정 파장에서 측정된 가장 높은 신호값입니다. 순간적인 신호
-                      튐(Spike) 현상이나 센서 감도 변화를 감지할 때 사용합니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <EChart :option="correlationChartOption" class="w-full h-full" />
             </div>
-            <p
-              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-black/50 px-2 py-1 rounded-full"
+
+            <div
+              v-if="showCorrGuide"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 cursor-pointer animate-fade-in"
+              @click="showCorrGuide = false"
             >
-              화면을 클릭하면 닫힙니다
-            </p>
+              <div
+                class="max-w-xs p-4 bg-white border shadow-lg dark:bg-zinc-900 rounded-xl border-slate-100 dark:border-zinc-700 cursor-default"
+                @click.stop
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <h4
+                    class="text-xs font-extrabold text-center text-slate-800 dark:text-white"
+                  >
+                    상관 관계 분석
+                  </h4>
+                  <button
+                    @click="showCorrGuide = false"
+                    class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <i class="pi pi-times text-[10px]"></i>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300">
+                  광량(Intensity)과 신호대잡음비(SNR)의 관계를 분석합니다.
+                  일반적으로 광량이 높으면 SNR도 좋아야 합니다. 분포가 선형성을
+                  벗어나면 센서 노이즈가 증가했음을 의미합니다.
+                </p>
+              </div>
+              <p
+                class="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-black/50 px-2 py-1 rounded-full"
+              >
+                화면을 클릭하면 닫힙니다
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -464,7 +688,7 @@
         ></div>
       </div>
       <p class="text-xs font-bold text-slate-400 animate-pulse">
-        Quantifying Spectrum Data...
+        Calculating Spectrum Data...
       </p>
     </div>
   </div>
@@ -481,13 +705,24 @@ import Select from "primevue/select";
 import Button from "primevue/button";
 import DatePicker from "primevue/datepicker";
 
+// Extended DTO: 백엔드에서 이제 이 필드들을 진짜로 계산해서 보내줍니다.
+// frontend/src/api/wafer.ts 에 정의되지 않았을 수 있으므로 여기서 확장 정의합니다.
+interface ExtendedOpticalTrendDto extends OpticalTrendDto {
+  peakWavelength: number; // nm (Real Calculated from Backend)
+  darkNoise: number; // counts (Real Calculated from Backend)
+}
+
 // State
 const authStore = useAuthStore();
 const isLoading = ref(false);
-const isEqpIdLoading = ref(false); // [추가] EQP ID 로딩 상태
+const isEqpIdLoading = ref(false);
 const hasSearched = ref(false);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
-const showChartGuide = ref(false);
+
+// Guide State
+const showMainGuide = ref(false);
+const showShiftGuide = ref(false);
+const showCorrGuide = ref(false);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -501,7 +736,7 @@ const filter = reactive({
   endDate: new Date(),
 });
 
-const trendData = ref<OpticalTrendDto[]>([]);
+const trendData = ref<ExtendedOpticalTrendDto[]>([]);
 
 // Lifecycle
 let themeObserver: MutationObserver;
@@ -543,8 +778,6 @@ const onSiteChange = async () => {
   } else {
     sdwts.value = [];
   }
-  // If we are just refreshing and site didn't change, we might want to keep sdwt
-  // But for simple change logic, we clear child selections
   if (!sdwts.value.includes(filter.sdwt)) {
     filter.sdwt = "";
     filter.eqpId = "";
@@ -554,7 +787,7 @@ const onSiteChange = async () => {
 
 const onSdwtChange = async () => {
   if (filter.sdwt) {
-    isEqpIdLoading.value = true; // [추가] 로딩 시작
+    isEqpIdLoading.value = true;
     try {
       eqpIds.value = await equipmentApi.getEqpIds(
         undefined,
@@ -562,7 +795,7 @@ const onSdwtChange = async () => {
         "wafer"
       );
     } finally {
-      isEqpIdLoading.value = false; // [추가] 로딩 종료
+      isEqpIdLoading.value = false;
     }
   } else {
     eqpIds.value = [];
@@ -573,11 +806,9 @@ const onSdwtChange = async () => {
 };
 
 const resetFilter = async () => {
-  // Reset to user defaults or empty
   if (authStore.user?.site && sites.value.includes(authStore.user.site)) {
     filter.site = authStore.user.site;
     await onSiteChange();
-    // Try to restore user sdwt if available
     if (authStore.user?.sdwt && sdwts.value.includes(authStore.user.sdwt)) {
       filter.sdwt = authStore.user.sdwt;
       await onSdwtChange();
@@ -597,7 +828,9 @@ const resetFilter = async () => {
   filter.endDate = new Date();
   trendData.value = [];
   hasSearched.value = false;
-  showChartGuide.value = false;
+  showMainGuide.value = false;
+  showShiftGuide.value = false;
+  showCorrGuide.value = false;
 };
 
 const fetchData = async () => {
@@ -605,14 +838,23 @@ const fetchData = async () => {
   isLoading.value = true;
   hasSearched.value = true;
   trendData.value = []; // Reset previous data
-  showChartGuide.value = false; // Reset guide on search
+  showMainGuide.value = false;
+  showShiftGuide.value = false;
+  showCorrGuide.value = false;
 
   try {
-    trendData.value = await waferApi.getOpticalTrend({
+    // [REAL DATA] 백엔드에서 계산된 Real Data를 가져옵니다.
+    // .map()으로 Mock Data를 주입하던 로직을 제거했습니다.
+    const rawData = await waferApi.getOpticalTrend({
       eqpId: filter.eqpId,
       startDate: filter.startDate.toISOString(),
       endDate: filter.endDate.toISOString(),
     });
+
+    // 받은 데이터를 날짜순으로 정렬하여 차트에 표시합니다.
+    trendData.value = (rawData as ExtendedOpticalTrendDto[]).sort(
+      (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime()
+    );
   } catch (e) {
     console.error("Failed to fetch optical trend:", e);
   } finally {
@@ -620,12 +862,73 @@ const fetchData = async () => {
   }
 };
 
+// --- Statistics & Diagnostics Logic ---
+const diagnostics = computed(() => {
+  if (trendData.value.length < 2) {
+    return {
+      trendStatus: "N/A",
+      trendColor: "bg-slate-100 text-slate-500",
+      trendMessage: "분석할 데이터가 부족합니다.",
+      snrValue: 0,
+      actionGuide: "데이터를 더 수집하세요.",
+    };
+  }
+
+  // [안전한 접근] Optional Chaining 및 Null Check
+  const firstItem = trendData.value[0];
+  const lastItem = trendData.value[trendData.value.length - 1];
+
+  const start = firstItem?.totalIntensity ?? 0;
+  const end = lastItem?.totalIntensity ?? 0;
+
+  const slope = (end - start) / trendData.value.length; // Simple linear slope
+
+  // 1. Aging vs Failure Logic (한글화)
+  let trendStatus = "안정적 (Stable)";
+  let trendColor = "bg-emerald-100 text-emerald-600";
+  let trendMessage = "광량 수준이 안정적입니다.";
+  let actionGuide = "정기적인 모니터링으로 충분합니다.";
+
+  if (slope < -50) {
+    // 급격한 하락 (Failure)
+    trendStatus = "장애 감지 (Failure)";
+    trendColor = "bg-rose-100 text-rose-600";
+    trendMessage = "광량의 급격한 하락이 감지되었습니다.";
+    actionGuide = "즉시 램프 전원 및 케이블을 점검하세요.";
+  } else if (slope < -10) {
+    // 완만한 하락 (Aging)
+    trendStatus = "노후화 (Aging)";
+    trendColor = "bg-amber-100 text-amber-600";
+    trendMessage = "점진적인 광량 감소 (정상 노화)입니다.";
+    actionGuide = "조만간 램프 교체를 계획하세요.";
+  }
+
+  // 2. SNR Logic (Real Data Based)
+  const signal = lastItem?.peakIntensity ?? 0;
+  const noise = lastItem?.darkNoise || 1; // 0 방지
+  const snr = noise > 0 && signal > 0 ? 20 * Math.log10(signal / noise) : 0;
+
+  if (snr < 20) {
+    actionGuide += " 센서/필터 점검 필요 (낮은 신호대잡음비).";
+  }
+
+  return {
+    trendStatus,
+    trendColor,
+    trendMessage,
+    snrValue: Math.round(snr * 10) / 10,
+    actionGuide,
+  };
+});
+
 // Computed Logic for KPI
 const currentStats = computed(() => {
   if (trendData.value.length === 0) {
     return {
       avgTotal: 0,
       avgPeak: 0,
+      avgWavelength: 0,
+      avgSnr: 0,
       totalDiff: 0,
       stabilityScore: 0,
       healthStatus: "UNKNOWN",
@@ -633,17 +936,33 @@ const currentStats = computed(() => {
     };
   }
 
+  const len = trendData.value.length;
+
   // 1. Averages
   const sumTotal = trendData.value.reduce(
     (acc, v) => acc + v.totalIntensity,
     0
   );
   const sumPeak = trendData.value.reduce((acc, v) => acc + v.peakIntensity, 0);
-  const avgTotal = sumTotal / trendData.value.length;
-  const avgPeak = sumPeak / trendData.value.length;
+  const sumWave = trendData.value.reduce(
+    (acc, v) => acc + (v.peakWavelength || 0),
+    0
+  );
+
+  // SNR Average
+  const sumSnr = trendData.value.reduce((acc, v) => {
+    const s = v.peakIntensity;
+    const n = v.darkNoise || 1;
+    return acc + (n > 0 && s > 0 ? 20 * Math.log10(s / n) : 0);
+  }, 0);
+
+  const avgTotal = sumTotal / len;
+  const avgPeak = sumPeak / len;
+  const avgWavelength = sumWave / len;
+  const avgSnr = sumSnr / len;
 
   // 2. Diff from simulated baseline (using the first 10% of data as baseline if no other source)
-  const baselineCount = Math.max(1, Math.floor(trendData.value.length * 0.1));
+  const baselineCount = Math.max(1, Math.floor(len * 0.1));
   const baselineData = trendData.value.slice(0, baselineCount);
   const baselineAvg =
     baselineData.reduce((acc, v) => acc + v.totalIntensity, 0) / baselineCount;
@@ -660,7 +979,7 @@ const currentStats = computed(() => {
     trendData.value.reduce(
       (acc, v) => acc + Math.pow(v.totalIntensity - avgTotal, 2),
       0
-    ) / trendData.value.length;
+    ) / len;
   const stdDev = Math.sqrt(variance);
   const cv = avgTotal !== 0 ? stdDev / avgTotal : 0;
 
@@ -673,10 +992,11 @@ const currentStats = computed(() => {
   let healthStatus = "HEALTHY";
   let healthColor = "text-emerald-500";
 
-  if (totalDiff < -20 || stabilityScore < 70) {
+  // SNR이 20dB 미만이면 신호 품질 나쁨
+  if (totalDiff < -20 || stabilityScore < 70 || avgSnr < 20) {
     healthStatus = "CRITICAL";
     healthColor = "text-rose-500";
-  } else if (totalDiff < -10 || stabilityScore < 85) {
+  } else if (totalDiff < -10 || stabilityScore < 85 || avgSnr < 40) {
     healthStatus = "WARNING";
     healthColor = "text-amber-500";
   }
@@ -684,6 +1004,8 @@ const currentStats = computed(() => {
   return {
     avgTotal,
     avgPeak,
+    avgWavelength,
+    avgSnr,
     totalDiff,
     stabilityScore,
     healthStatus,
@@ -788,6 +1110,130 @@ const chartOption = computed(() => {
         itemStyle: { color: "#6366f1" }, // Indigo
         lineStyle: { type: "solid" }, // Solid Line
       },
+    ],
+  };
+});
+
+// Wavelength Shift Chart (Real Data)
+const wavelengthChartOption = computed(() => {
+  if (trendData.value.length === 0) return {};
+
+  const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
+  const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
+
+  const dates = trendData.value.map((d) => {
+    const date = new Date(d.ts);
+    return `${
+      date.getMonth() + 1
+    }/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(
+      2,
+      "0"
+    )}`;
+  });
+  const waveVals = trendData.value.map((d) => d.peakWavelength);
+
+  return {
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: isDarkMode.value
+        ? "rgba(24, 24, 27, 0.9)"
+        : "rgba(255, 255, 255, 0.9)",
+      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
+      textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
+    },
+    grid: { left: 40, right: 20, top: 20, bottom: 20, containLabel: true },
+    xAxis: { type: "category", data: dates, show: false }, // Hide labels to reuse space
+    yAxis: {
+      type: "value",
+      name: "nm",
+      scale: true,
+      splitLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor },
+    },
+    series: [
+      {
+        name: "Peak Wavelength",
+        type: "line",
+        data: waveVals,
+        smooth: true,
+        showSymbol: false,
+        itemStyle: { color: "#a855f7" }, // Purple
+      },
+    ],
+  };
+});
+
+// Correlation Chart (Intensity vs SNR - Real Data)
+const correlationChartOption = computed(() => {
+  if (trendData.value.length === 0) return {};
+
+  const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
+  const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
+
+  const dates = trendData.value.map((d) => {
+    const date = new Date(d.ts);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  });
+
+  const intensityVals = trendData.value.map((d) => d.totalIntensity);
+  // Calculate SNR on the fly for correlation view
+  const snrVals = trendData.value.map((d) => {
+    const s = d.peakIntensity;
+    const n = d.darkNoise || 1;
+    return n > 0 && s > 0 ? 20 * Math.log10(s / n) : 0;
+  });
+
+  return {
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: isDarkMode.value
+        ? "rgba(24, 24, 27, 0.9)"
+        : "rgba(255, 255, 255, 0.9)",
+      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
+      textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
+    },
+    grid: { left: 40, right: 40, top: 30, bottom: 20, containLabel: true },
+    legend: { textStyle: { color: textColor } },
+    xAxis: {
+      type: "category",
+      data: dates,
+      axisLine: { lineStyle: { color: gridColor } },
+      axisLabel: { show: false },
+    },
+    yAxis: [
+      {
+        type: "value",
+        name: "Intensity",
+        splitLine: { show: false },
+        axisLabel: { show: false },
+      },
+      {
+        type: "value",
+        name: "SNR (dB)",
+        position: "right",
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor },
+      },
+    ],
+    series: [
+      {
+        name: "Intensity",
+        type: "line",
+        data: intensityVals,
+        smooth: true,
+        showSymbol: false,
+        itemStyle: { color: "#f59e0b" },
+        yAxisIndex: 0,
+      },
+      {
+        name: "SNR",
+        type: "line",
+        data: snrVals,
+        smooth: true,
+        showSymbol: false,
+        itemStyle: { color: "#14b8a6" },
+        yAxisIndex: 1,
+      }, // Teal
     ],
   };
 });
