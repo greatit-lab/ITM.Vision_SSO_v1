@@ -82,4 +82,10 @@ export class WaferController {
   getComparisonData(@Query() query: WaferQueryParams & { targetEqps: string }) {
     return this.waferService.getComparisonData(query);
   }
+
+  // [신규] Optical Trend Data 엔드포인트
+  @Get('optical-trend')
+  getOpticalTrend(@Query() query: WaferQueryParams) {
+    return this.waferService.getOpticalTrend(query);
+  }
 }
