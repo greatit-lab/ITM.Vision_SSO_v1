@@ -906,38 +906,58 @@ onMounted(async () => {
   // 1. Site 목록 로드
   sites.value = await dashboardApi.getSites();
 
-  // 2. 기본 필터 결정 (우선순위: DB 사용자 설정 -> 로컬 스토리지)
-  let defaultSite = authStore.user?.site;
-  let defaultSdwt = authStore.user?.sdwt;
+  // 2. 초기 필터 값 결정 (우선순위: 1.현재 Store 상태 -> 2.로컬 스토리지 -> 3.DB/Demo 사용자 설정)
+  let targetSite = filterStore.selectedSite;
+  let targetSdwt = filterStore.selectedSdwt;
 
-  // DB에 없으면 로컬 스토리지 확인 (페이지 전용 키 사용: wafer_site, wafer_sdwt)
-  if (!defaultSite) {
-    defaultSite = localStorage.getItem("wafer_site") || undefined;
-    if (defaultSite) {
-      defaultSdwt = localStorage.getItem("wafer_sdwt") || undefined;
+  // 2-1. Store에 값이 없으면 로컬 스토리지 확인 (새로고침 시 복원)
+  if (!targetSite) {
+    targetSite = localStorage.getItem("wafer_site") || "";
+    // 로컬 스토리지에서 복원 시, SDWT도 같이 복원 시도
+    if (targetSite) {
+      targetSdwt = localStorage.getItem("wafer_sdwt") || "";
     }
   }
 
-  // 3. 결정된 Site가 유효하면 적용 및 SDWT 로드
-  if (defaultSite && sites.value.includes(defaultSite)) {
-    filterStore.selectedSite = defaultSite;
-    sdwts.value = await dashboardApi.getSdwts(defaultSite);
+  // 2-2. 로컬 스토리지도 없으면 Auth/Demo 기본값 사용
+  if (!targetSite) {
+    targetSite = authStore.user?.site || "";
+    targetSdwt = authStore.user?.sdwt || "";
+  }
 
-    // 4. SDWT 적용 및 EqpID 로드
-    if (defaultSdwt) {
-      filterStore.selectedSdwt = defaultSdwt;
+  // 3. 결정된 Site 적용 및 하위 데이터(SDWT) 로드
+  if (targetSite && sites.value.includes(targetSite)) {
+    filterStore.selectedSite = targetSite;
+    
+    // [중요] 선택된 Site에 맞는 SDWT 목록을 즉시 로드해야 함
+    sdwts.value = await dashboardApi.getSdwts(targetSite);
+
+    // 4. SDWT 적용 및 하위 데이터(EQP) 로드
+    // 로드된 SDWT 목록에 targetSdwt가 유효한지 확인 후 적용
+    if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+      filterStore.selectedSdwt = targetSdwt;
+      
+      // SDWT가 선택되었으므로 EQP ID 목록 로드
       await loadEqpIds();
 
-      // 5. EqpID 복원 (마지막 선택 장비)
+      // 5. EQP ID 및 나머지 필터 복원 (localStorage 사용)
       const savedEqpId = localStorage.getItem("wafer_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         filters.eqpId = savedEqpId;
-        await loadFilterOptions();
+        await loadFilterOptions(); // 하위 옵션(Lot, Wafer 등) 로드
       }
+    } else {
+      // Site는 선택되었으나 SDWT가 유효하지 않으면 하위 필터 초기화
+      filterStore.selectedSdwt = "";
+      filters.eqpId = "";
     }
+  } else {
+     // Site가 유효하지 않으면 전체 초기화
+     filterStore.selectedSite = "";
+     filterStore.selectedSdwt = "";
   }
 
-  // Theme Observer (Dark Mode)
+  // Theme Observer (Dark Mode) - 기존 코드 유지
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "class") {
@@ -1561,3 +1581,4 @@ table td {
   font-size: 11px !important;
 }
 </style>
+
