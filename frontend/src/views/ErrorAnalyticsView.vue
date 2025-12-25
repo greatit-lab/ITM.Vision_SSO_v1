@@ -513,48 +513,47 @@ const themeObserver = new MutationObserver((mutations) => {
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // [Logic] Initialize Filters with Priority: Auth Store > LocalStorage > Default
-  let initSite =
-    authStore.user?.site || localStorage.getItem(LS_KEYS.SITE) || "";
+  // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth)
+  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSdwt = "";
 
-  // Validate site
-  if (initSite && !sites.value.includes(initSite)) {
-    initSite = "";
+  if (targetSite) {
+     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  } else {
+     targetSite = authStore.user?.site || "";
+     targetSdwt = authStore.user?.sdwt || "";
   }
 
-  if (initSite) {
-    filter.site = initSite;
-    // Load SDWTS
+  // 3. Site 적용 및 SDWT 로드
+  if (targetSite && sites.value.includes(targetSite)) {
+    filter.site = targetSite;
+    
     try {
-      sdwts.value = await dashboardApi.getSdwts(initSite);
+      sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-      let initSdwt =
-        authStore.user?.sdwt || localStorage.getItem(LS_KEYS.SDWT) || "";
-
-      // Validate SDWT
-      if (initSdwt && !sdwts.value.includes(initSdwt)) {
-        initSdwt = "";
-      }
-
-      if (initSdwt) {
-        filter.sdwt = initSdwt;
-        // Load EqpIds
+      // 4. SDWT 적용 및 Eqp 로드
+      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+        filter.sdwt = targetSdwt;
+        
         eqpIds.value = await equipmentApi.getEqpIds(
           undefined,
-          initSdwt,
+          targetSdwt,
           "error"
         );
 
-        // Restore EqpID (Page Specific)
+        // 5. EQP ID 복원
         const initEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
         if (initEqpId && eqpIds.value.includes(initEqpId)) {
           filter.eqpId = initEqpId;
         }
 
-        // Auto Search if mandatory filters (Site, SDWT) are set
+        // 필수 조건 충족 시 자동 검색
         if (filter.sdwt) {
           search();
         }
+      } else {
+        filter.sdwt = "";
+        filter.eqpId = "";
       }
     } catch (e) {
       console.error("Failed to restore filter state:", e);
@@ -962,3 +961,4 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
   }
 }
 </style>
+
