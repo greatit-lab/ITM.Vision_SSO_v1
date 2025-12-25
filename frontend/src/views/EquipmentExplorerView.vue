@@ -516,41 +516,42 @@ onMounted(async () => {
     // 1. Site 목록 로드
     sites.value = await dashboardApi.getSites();
 
-    // 2. 기본 필터 결정 (우선순위: DB 사용자 설정 -> 페이지 전용 로컬 스토리지)
-    let defaultSite = authStore.user?.site;
-    let defaultSdwt = authStore.user?.sdwt;
+    // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth/Demo)
+    // * 이 페이지는 전역 Store를 쓰지 않으므로 LocalStorage가 1순위입니다.
+    let targetSite = localStorage.getItem("explorer_site") || "";
+    let targetSdwt = "";
 
-    // DB에 없으면 로컬 스토리지 확인 (페이지 전용 키: explorer_site, explorer_sdwt)
-    if (!defaultSite) {
-      defaultSite = localStorage.getItem("explorer_site") || undefined;
-      if (defaultSite) {
-        defaultSdwt = localStorage.getItem("explorer_sdwt") || undefined;
-      }
+    if (targetSite) {
+      targetSdwt = localStorage.getItem("explorer_sdwt") || "";
+    } else {
+      // LocalStorage 없으면 Auth 기본값
+      targetSite = authStore.user?.site || "";
+      targetSdwt = authStore.user?.sdwt || "";
     }
 
-    // 3. 결정된 Site가 유효하면 적용 및 SDWT 로드
-    if (defaultSite && sites.value.includes(defaultSite)) {
-      selectedSite.value = defaultSite;
-      sdwts.value = await dashboardApi.getSdwts(defaultSite);
+    // 3. Site 적용 및 SDWT 로드
+    if (targetSite && sites.value.includes(targetSite)) {
+      selectedSite.value = targetSite;
+      sdwts.value = await dashboardApi.getSdwts(targetSite);
 
       // 4. SDWT 적용 및 데이터 로드
-      if (defaultSdwt) {
-        selectedSdwt.value = defaultSdwt;
-        await loadEquipmentData(); // 데이터 로드
+      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+        selectedSdwt.value = targetSdwt;
+        await loadEquipmentData(); // 장비 리스트 로드
 
-        // 5. EQP ID 복원 (마지막 선택 장비, 페이지 전용 키: explorer_eqpid)
+        // 5. EQP ID 복원 (필터링용)
         const savedEqpId = localStorage.getItem("explorer_eqpid");
         if (savedEqpId) {
-          // 로드된 리스트에 해당 ID가 있는지 확인
-          const exists = equipmentList.value.some(
-            (e) => e.eqpId === savedEqpId
-          );
+          const exists = equipmentList.value.some((e) => e.eqpId === savedEqpId);
           if (exists) {
             selectedEqpId.value = savedEqpId;
           } else {
-            localStorage.removeItem("explorer_eqpid"); // 유효하지 않으면 삭제
+            localStorage.removeItem("explorer_eqpid");
           }
         }
+      } else {
+         selectedSdwt.value = "";
+         selectedEqpId.value = "";
       }
     }
   } catch (e) {
@@ -797,3 +798,4 @@ const copyToClipboard = async (text: string) => {
   @apply w-3 h-3;
 }
 </style>
+
