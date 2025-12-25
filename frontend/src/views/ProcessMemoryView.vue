@@ -388,34 +388,44 @@ onMounted(async () => {
   // 1. Site 목록 로드
   sites.value = await dashboardApi.getSites();
 
-  // 2. 기본 필터 결정 (우선순위: DB 사용자 설정 -> 페이지 전용 로컬 스토리지)
-  let defaultSite = authStore.user?.site;
-  let defaultSdwt = authStore.user?.sdwt;
+  // 2. 초기 필터 값 결정 (우선순위: Store > LocalStorage > Auth)
+  let targetSite = filterStore.selectedSite;
+  let targetSdwt = filterStore.selectedSdwt;
 
-  // DB에 없으면 로컬 스토리지 확인 (페이지 전용 키: process_site, process_sdwt)
-  if (!defaultSite) {
-    defaultSite = localStorage.getItem("process_site") || undefined;
-    if (defaultSite) {
-      defaultSdwt = localStorage.getItem("process_sdwt") || undefined;
+  if (!targetSite) {
+    targetSite = localStorage.getItem("process_site") || "";
+    if (targetSite) {
+      targetSdwt = localStorage.getItem("process_sdwt") || "";
     }
   }
 
-  // 3. 결정된 Site가 유효하면 적용 및 SDWT 로드
-  if (defaultSite && sites.value.includes(defaultSite)) {
-    filterStore.selectedSite = defaultSite;
-    sdwts.value = await dashboardApi.getSdwts(defaultSite);
+  if (!targetSite) {
+    targetSite = authStore.user?.site || "";
+    targetSdwt = authStore.user?.sdwt || "";
+  }
 
-    // 4. SDWT 적용 및 EqpID 로드
-    if (defaultSdwt) {
-      filterStore.selectedSdwt = defaultSdwt;
+  // 3. Site 적용 및 SDWT 로드
+  if (targetSite && sites.value.includes(targetSite)) {
+    filterStore.selectedSite = targetSite;
+    sdwts.value = await dashboardApi.getSdwts(targetSite);
+
+    // 4. SDWT 적용 및 EQP 로드
+    if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+      filterStore.selectedSdwt = targetSdwt;
       await loadEqpIds();
 
-      // 5. EqpID 복원 (마지막 선택 장비, 페이지 전용 키: process_eqpid)
+      // 5. EQP ID 복원
       const savedEqpId = localStorage.getItem("process_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
       }
+    } else {
+      filterStore.selectedSdwt = "";
+      selectedEqpId.value = "";
     }
+  } else {
+    filterStore.selectedSite = "";
+    filterStore.selectedSdwt = "";
   }
 
   themeObserver = new MutationObserver((mutations) => {
@@ -831,3 +841,4 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
+
