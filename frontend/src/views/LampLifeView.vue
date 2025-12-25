@@ -411,38 +411,36 @@ let themeObserver: MutationObserver | null = null;
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // [Logic] Initialize Filters with Priority: Auth Store > LocalStorage > Default
-  let initSite =
-    authStore.user?.site || localStorage.getItem(LS_KEYS.SITE) || "";
+  // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth)
+  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSdwt = "";
 
-  // Validate existence (optional, but prevents stuck on invalid values)
-  if (initSite && !sites.value.includes(initSite)) {
-    initSite = "";
+  if (targetSite) {
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  } else {
+    targetSite = authStore.user?.site || "";
+    targetSdwt = authStore.user?.sdwt || "";
   }
 
-  if (initSite) {
-    filter.site = initSite;
-    // Immediate fetch for SDWTs dependent on Site
+  // 3. Site 적용 및 SDWT 로드
+  if (targetSite && sites.value.includes(targetSite)) {
+    filter.site = targetSite;
+
     try {
-      sdwts.value = await dashboardApi.getSdwts(initSite);
+      sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-      // Resolve SDWT
-      const initSdwt =
-        authStore.user?.sdwt || localStorage.getItem(LS_KEYS.SDWT) || "";
-
-      // Only set SDWT if it belongs to the loaded Site
-      if (initSdwt && sdwts.value.includes(initSdwt)) {
-        filter.sdwt = initSdwt;
-
-        // [New] Auto-Search if both filters are ready
-        fetchData();
+      // 4. SDWT 적용 및 데이터 로드
+      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+        filter.sdwt = targetSdwt;
+        fetchData(); // 데이터 조회
+      } else {
+        filter.sdwt = "";
       }
     } catch (e) {
       console.error("Failed to load SDWTs during init:", e);
     }
   }
 
-  // Theme observer setup
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "class") {
@@ -712,3 +710,4 @@ const getStatusBadgeClass = (status: string) => {
   }
 }
 </style>
+
