@@ -168,12 +168,14 @@
             </div>
           </div>
           <div
-            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm"
           >
             <p
-              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100"
             >
-              전체 파장 대역에 대한<br />신호 강도의 평균 총합입니다.
+              <span class="block mb-1 text-amber-600 dark:text-amber-400">램프 전체 밝기 변화율</span>
+              조회 시작일 대비 <span :class="getDiffClass(currentStats.totalDiff)">{{ currentStats.totalDiff }}%</span> 변화했습니다.<br/>
+              -10% 이상 급락 시 점검하세요.
             </p>
           </div>
         </div>
@@ -196,7 +198,13 @@
                     class="text-2xl font-black text-slate-800 dark:text-white"
                     >{{ currentStats.avgPeak.toFixed(1) }}</span
                   >
-                  <span class="text-[10px] text-slate-400">counts</span>
+                  <span
+                    class="text-[10px] font-bold"
+                    :class="getDiffClass(currentStats.peakDiff)"
+                  >
+                    {{ currentStats.peakDiff > 0 ? "+" : ""
+                    }}{{ currentStats.peakDiff }}%
+                  </span>
                 </div>
               </div>
               <div
@@ -215,12 +223,14 @@
             </div>
           </div>
           <div
-            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm"
           >
             <p
-              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100"
             >
-              각 스캔에서 측정된<br />최대 신호값(Peak)들의 평균입니다.
+              <span class="block mb-1 text-indigo-600 dark:text-indigo-400">최대 신호 세기 변화율</span>
+              조회 시작일 대비 <span :class="getDiffClass(currentStats.peakDiff)">{{ currentStats.peakDiff }}%</span> 변화했습니다.<br/>
+              현재 값({{ currentStats.avgPeak.toFixed(1) }})이 너무 낮으면(< 10) 신호가 약한 상태입니다.
             </p>
           </div>
         </div>
@@ -239,11 +249,15 @@
                   Wavelength Shift
                 </p>
                 <div class="flex items-baseline gap-2 mt-1">
-                  <span class="text-2xl font-black text-purple-500">{{
-                    currentStats.avgWavelength.toFixed(1)
-                  }}</span>
+                  <span 
+                    class="text-2xl font-black"
+                    :class="Math.abs(currentStats.waveShift) > 1.0 ? 'text-rose-500' : 'text-purple-500'"
+                  >
+                    {{ currentStats.waveShift > 0 ? '+' : '' }}{{ currentStats.waveShift.toFixed(2) }}
+                  </span>
                   <span class="text-[10px] font-bold text-slate-400">nm</span>
                 </div>
+                <p class="text-[9px] text-slate-400 mt-0.5">Avg: {{ currentStats.avgWavelength.toFixed(1) }} nm</p>
               </div>
               <div
                 class="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-500"
@@ -252,7 +266,7 @@
               </div>
             </div>
             <div
-              class="w-full h-1 mt-3 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
+              class="w-full h-1 mt-1 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800"
             >
               <div
                 class="h-full transition-all duration-1000 bg-purple-500"
@@ -261,12 +275,14 @@
             </div>
           </div>
           <div
-            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm"
           >
             <p
-              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100"
             >
-              광원의 중심 파장(Color)이<br />이동했는지 감시합니다.
+              <span class="block mb-1 text-purple-600 dark:text-purple-400">파장(Color) 이동량</span>
+              기준 파장 대비 <strong class="text-slate-800 dark:text-white">{{ Math.abs(currentStats.waveShift).toFixed(2) }}nm</strong> 이동했습니다.<br/>
+              <span class="text-emerald-600 dark:text-emerald-400">0.0에 가까울수록</span> 정상입니다.
             </p>
           </div>
         </div>
@@ -282,7 +298,7 @@
                 <p
                   class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
                 >
-                  Avg SNR
+                  Avg SNR (Quality)
                 </p>
                 <div class="flex items-baseline gap-2 mt-1">
                   <span
@@ -300,16 +316,18 @@
               </div>
             </div>
             <p class="mt-3 text-[10px] text-slate-400">
-              Calculated from Real Data
+              Signal Purity (> 20dB Good)
             </p>
           </div>
           <div
-            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+            class="absolute inset-0 z-10 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm"
           >
             <p
-              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100 drop-shadow-sm"
+              class="text-xs font-bold leading-relaxed text-center text-slate-700 dark:text-slate-100"
             >
-              신호 대 잡음비(SNR)를 통한<br />신호 순도 및 건강 상태입니다.
+              <span class="block mb-1 text-emerald-600 dark:text-emerald-400">신호 대 잡음비(품질)</span>
+              현재 <strong :class="currentStats.healthColor">{{ currentStats.avgSnr.toFixed(1) }} dB</strong> 입니다.<br/>
+              <span class="text-rose-500">20dB 미만</span>은 노이즈가 심해<br/>데이터 신뢰도가 낮습니다.
             </p>
           </div>
         </div>
@@ -374,7 +392,7 @@
                   <h4
                     class="text-sm font-extrabold text-center text-slate-800 dark:text-white"
                   >
-                    차트 가이드
+                    광량 변화 추이 분석 가이드
                   </h4>
                   <button
                     @click="showMainGuide = false"
@@ -395,14 +413,15 @@
                       <p
                         class="text-xs font-bold text-slate-700 dark:text-slate-200"
                       >
-                        Total Intensity (전체 광량)
+                        Total Intensity (전체 밝기)
                       </p>
                       <p
-                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                        class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed"
                       >
-                        전 파장 대역의 광량을 합산한 값입니다. 광원(Lamp)의
-                        전반적인 노후화 상태나 오염 여부를 판단하는 핵심
-                        지표입니다.
+                        램프의 전체적인 밝기 추세입니다.
+                        <strong class="text-emerald-600 dark:text-emerald-400">높을수록 좋으며</strong>, 
+                        시간이 지남에 따라 완만하게 내려가는 것은 램프 수명이 줄어드는 자연스러운 현상입니다.
+                        <strong class="text-rose-500">급격히 떨어지면</strong> 장애입니다.
                       </p>
                     </div>
                   </div>
@@ -416,14 +435,13 @@
                       <p
                         class="text-xs font-bold text-slate-700 dark:text-slate-200"
                       >
-                        Peak Intensity (피크 신호)
+                        Peak Intensity (최대 신호값)
                       </p>
                       <p
-                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                        class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed"
                       >
-                        특정 파장에서 측정된 가장 높은 신호값입니다. 순간적인
-                        신호 튐(Spike) 현상이나 센서 감도 변화를 감지할 때
-                        사용합니다.
+                        가장 강하게 감지된 빛의 세기입니다.
+                        갑자기 튀거나 떨어지지 않고 <strong class="text-emerald-600 dark:text-emerald-400">일정하게 유지</strong>되는 것이 가장 이상적입니다.
                       </p>
                     </div>
                   </div>
@@ -454,7 +472,7 @@
             >
               <div class="flex items-center justify-between mb-1">
                 <span class="text-[10px] font-bold uppercase text-slate-400"
-                  >Trend Analysis</span
+                  >Overall Status</span
                 >
                 <span
                   class="text-[10px] font-bold px-1.5 py-0.5 rounded"
@@ -477,23 +495,28 @@
                   >Signal Quality (SNR)</span
                 >
                 <div class="flex items-center gap-1">
-                  <span class="text-[10px] font-bold text-indigo-500"
-                    >{{ diagnostics.snrValue }} dB</span
+                  <span 
+                    class="text-[10px] font-bold"
+                    :class="diagnostics.snrValue < 20 ? 'text-rose-500' : 'text-indigo-500'"
                   >
+                    {{ diagnostics.snrValue }} dB
+                  </span>
                 </div>
               </div>
               <div
                 class="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full mt-1"
               >
                 <div
-                  class="h-1.5 bg-indigo-500 rounded-full"
+                  class="h-1.5 rounded-full transition-all duration-500"
+                  :class="diagnostics.snrValue < 20 ? 'bg-rose-500' : 'bg-indigo-500'"
                   :style="{
                     width: Math.min(diagnostics.snrValue, 100) + '%',
                   }"
                 ></div>
               </div>
               <p class="mt-1 text-[10px] text-slate-500">
-                Noise Floor 대비 신호 강도 비율
+                <span v-if="diagnostics.snrValue < 20" class="text-rose-500 font-bold">잡음이 심합니다. (Low Quality)</span>
+                <span v-else>신호 품질이 양호합니다.</span>
               </p>
             </div>
 
@@ -564,7 +587,7 @@
                   <h4
                     class="text-xs font-extrabold text-center text-slate-800 dark:text-white"
                   >
-                    파장 이동 (Shift)
+                    파장 이동 (Shift) 분석
                   </h4>
                   <button
                     @click="showShiftGuide = false"
@@ -573,10 +596,10 @@
                     <i class="pi pi-times text-[10px]"></i>
                   </button>
                 </div>
-                <p class="text-[11px] text-slate-600 dark:text-slate-300">
-                  중심 파장(Peak Wavelength)의 변화 추이를 보여줍니다. 설정된
-                  기준 파장에서 벗어나는 경우(Shift), 광학계의 색상 틀어짐이나
-                  필터 변형을 의심할 수 있습니다.
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  빛의 중심 파장 위치가 흔들리는지 봅니다.
+                  <strong class="text-emerald-600 dark:text-emerald-400">일직선(변화 없음)</strong>이 가장 이상적입니다.<br/><br/>
+                  위아래로 크게 흔들리거나 한쪽으로 계속 치우친다면 하드웨어(고정 장치)가 틀어졌을 수 있습니다.
                 </p>
               </div>
               <p
@@ -632,7 +655,7 @@
                   <h4
                     class="text-xs font-extrabold text-center text-slate-800 dark:text-white"
                   >
-                    상관 관계 분석
+                    상관 관계 (품질 vs 밝기)
                   </h4>
                   <button
                     @click="showCorrGuide = false"
@@ -641,10 +664,10 @@
                     <i class="pi pi-times text-[10px]"></i>
                   </button>
                 </div>
-                <p class="text-[11px] text-slate-600 dark:text-slate-300">
-                  광량(Intensity)과 신호대잡음비(SNR)의 관계를 분석합니다.
-                  일반적으로 광량이 높으면 SNR도 좋아야 합니다. 분포가 선형성을
-                  벗어나면 센서 노이즈가 증가했음을 의미합니다.
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  밝기(Intensity)와 신호 품질(SNR)의 관계입니다.<br/><br/>
+                  점들이 <strong class="text-emerald-600 dark:text-emerald-400">우상향(밝을수록 품질 좋음)</strong> 대각선에 모여 있어야 정상입니다.<br/>
+                  점들이 아래로 처져 있다면 센서 노이즈가 증가했음을 의미합니다.
                 </p>
               </div>
               <p
@@ -711,7 +734,6 @@ interface ExtendedOpticalTrendDto extends OpticalTrendDto {
 }
 
 const authStore = useAuthStore();
-// [추가] LocalStorage 키 정의
 const LS_KEYS = {
   SITE: "optical_site",
   SDWT: "optical_sdwt",
@@ -746,7 +768,6 @@ let themeObserver: MutationObserver;
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // 1. 초기 필터 결정 (우선순위: LocalStorage > Auth)
   let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
   let targetSdwt = "";
 
@@ -757,14 +778,12 @@ onMounted(async () => {
      targetSdwt = authStore.user?.sdwt || "";
   }
 
-  // 2. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filter.site = targetSite;
     
     try {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
       
-      // 3. SDWT 적용 및 EQP 로드
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
         isEqpIdLoading.value = true;
@@ -778,11 +797,9 @@ onMounted(async () => {
           isEqpIdLoading.value = false;
         }
 
-        // 4. EQP ID 복원
         const savedEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
         if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
           filter.eqpId = savedEqpId;
-          // 필요 시 fetchData();
         }
       } else {
         filter.sdwt = "";
@@ -809,13 +826,11 @@ onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
 });
 
-// [추가] EQP ID 변경 감지 및 저장
 watch(() => filter.eqpId, (newVal) => {
   if (newVal) localStorage.setItem(LS_KEYS.EQPID, newVal);
   else localStorage.removeItem(LS_KEYS.EQPID);
 });
 
-// Handlers with LocalStorage Logic
 const onSiteChange = async () => {
   if (filter.site) {
     localStorage.setItem(LS_KEYS.SITE, filter.site);
@@ -825,7 +840,6 @@ const onSiteChange = async () => {
     sdwts.value = [];
   }
   
-  // 하위 필터 초기화
   filter.sdwt = "";
   localStorage.removeItem(LS_KEYS.SDWT);
   
@@ -853,7 +867,6 @@ const onSdwtChange = async () => {
     eqpIds.value = [];
   }
   
-  // 하위 필터 초기화
   filter.eqpId = "";
   localStorage.removeItem(LS_KEYS.EQPID);
 };
@@ -863,7 +876,6 @@ const resetFilter = async () => {
   localStorage.removeItem(LS_KEYS.SDWT);
   localStorage.removeItem(LS_KEYS.EQPID);
 
-  // 완전 초기화
   filter.site = "";
   filter.sdwt = "";
   filter.eqpId = "";
@@ -905,6 +917,7 @@ const fetchData = async () => {
   }
 };
 
+// [수정] 통합 진단 로직 (SNR 반영)
 const diagnostics = computed(() => {
   if (trendData.value.length < 2) {
     return {
@@ -919,17 +932,30 @@ const diagnostics = computed(() => {
   const firstItem = trendData.value[0];
   const lastItem = trendData.value[trendData.value.length - 1];
 
+  // Trend Slope calculation
   const start = firstItem?.totalIntensity ?? 0;
   const end = lastItem?.totalIntensity ?? 0;
-
   const slope = (end - start) / trendData.value.length; 
 
+  // SNR Calculation
+  const signal = lastItem?.peakIntensity ?? 0;
+  const noise = lastItem?.darkNoise || 1; 
+  const snr = noise > 0 && signal > 0 ? 20 * Math.log10(signal / noise) : 0;
+  const snrValue = Math.round(snr * 10) / 10;
+
+  // Integrated Status Logic
   let trendStatus = "안정적 (Stable)";
   let trendColor = "bg-emerald-100 text-emerald-600";
-  let trendMessage = "광량 수준이 안정적입니다.";
+  let trendMessage = "광량 및 신호 품질이 안정적입니다.";
   let actionGuide = "정기적인 모니터링으로 충분합니다.";
 
-  if (slope < -50) {
+  if (snr < 20) {
+    // Low SNR takes priority
+    trendStatus = "신호 불량 (Poor Signal)";
+    trendColor = "bg-rose-100 text-rose-600";
+    trendMessage = "노이즈가 심하여 신뢰할 수 없는 상태입니다.";
+    actionGuide = "센서 클리닝 또는 광학계 정렬 상태를 점검하세요.";
+  } else if (slope < -50) {
     trendStatus = "장애 감지 (Failure)";
     trendColor = "bg-rose-100 text-rose-600";
     trendMessage = "광량의 급격한 하락이 감지되었습니다.";
@@ -941,19 +967,11 @@ const diagnostics = computed(() => {
     actionGuide = "조만간 램프 교체를 계획하세요.";
   }
 
-  const signal = lastItem?.peakIntensity ?? 0;
-  const noise = lastItem?.darkNoise || 1; 
-  const snr = noise > 0 && signal > 0 ? 20 * Math.log10(signal / noise) : 0;
-
-  if (snr < 20) {
-    actionGuide += " 센서/필터 점검 필요 (낮은 신호대잡음비).";
-  }
-
   return {
     trendStatus,
     trendColor,
     trendMessage,
-    snrValue: Math.round(snr * 10) / 10,
+    snrValue,
     actionGuide,
   };
 });
@@ -966,6 +984,8 @@ const currentStats = computed(() => {
       avgWavelength: 0,
       avgSnr: 0,
       totalDiff: 0,
+      peakDiff: 0, // [추가]
+      waveShift: 0, // [추가]
       stabilityScore: 0,
       healthStatus: "UNKNOWN",
       healthColor: "text-slate-400",
@@ -995,15 +1015,24 @@ const currentStats = computed(() => {
   const avgWavelength = sumWave / len;
   const avgSnr = sumSnr / len;
 
+  // Baseline Comparison (First 10% or 1 item)
   const baselineCount = Math.max(1, Math.floor(len * 0.1));
   const baselineData = trendData.value.slice(0, baselineCount);
-  const baselineAvg =
-    baselineData.reduce((acc, v) => acc + v.totalIntensity, 0) / baselineCount;
+  
+  const baselineTotal = baselineData.reduce((acc, v) => acc + v.totalIntensity, 0) / baselineCount;
+  const baselinePeak = baselineData.reduce((acc, v) => acc + v.peakIntensity, 0) / baselineCount;
+  const baselineWave = baselineData.reduce((acc, v) => acc + v.peakWavelength, 0) / baselineCount;
 
-  const totalDiff =
-    baselineAvg !== 0
-      ? Math.round(((avgTotal - baselineAvg) / baselineAvg) * 100)
+  const totalDiff = baselineTotal !== 0
+      ? Math.round(((avgTotal - baselineTotal) / baselineTotal) * 100)
       : 0;
+  
+  // [추가] Peak Diff & Wave Shift Calculation
+  const peakDiff = baselinePeak !== 0
+      ? Math.round(((avgPeak - baselinePeak) / baselinePeak) * 100)
+      : 0;
+  
+  const waveShift = avgWavelength - baselineWave;
 
   const variance =
     trendData.value.reduce(
@@ -1020,6 +1049,7 @@ const currentStats = computed(() => {
   let healthStatus = "HEALTHY";
   let healthColor = "text-emerald-500";
 
+  // Health logic update: check SNR as critical factor
   if (totalDiff < -20 || stabilityScore < 70 || avgSnr < 20) {
     healthStatus = "CRITICAL";
     healthColor = "text-rose-500";
@@ -1034,6 +1064,8 @@ const currentStats = computed(() => {
     avgWavelength,
     avgSnr,
     totalDiff,
+    peakDiff, // Return calculated values
+    waveShift,
     stabilityScore,
     healthStatus,
     healthColor,
