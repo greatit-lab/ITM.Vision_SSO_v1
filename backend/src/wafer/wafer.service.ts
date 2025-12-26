@@ -1134,22 +1134,19 @@ export class WaferService {
     // SQL Injection 방지
     const metricCol = `"${metric}"`;
 
-    // [수정 포인트] 
-    // JOIN 조건에서 f.waferid(Integer)를 ::varchar로 캐스팅하여 s.waferid(String)와 비교하도록 수정
+    // [수정 사항]
+    // 1. s.x, s.y -> f.x, f.y로 변경 (좌표는 Flat 테이블에 있음)
+    // 2. 불필요한 plg_onto_spectrum (s) 조인 제거 (성능 최적화)
     const sql = `
       SELECT 
         f.waferid,
         f.point,
         f.${metricCol} as value,
-        s.x, 
-        s.y,
+        f.x, 
+        f.y,
         f.dierow, 
         f.diecol
       FROM public.plg_wf_flat f
-      LEFT JOIN public.plg_onto_spectrum s
-        ON f.lotid = s.lotid 
-        AND f.waferid::varchar = s.waferid 
-        AND f.point = s.point
       WHERE f.lotid = $1
         AND f.cassettercp = $2
         AND f.stagegroup = $3
