@@ -378,24 +378,46 @@ const colorPalette = [
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // Restore Filters
-  let defaultSite = authStore.user?.site || localStorage.getItem("agent_site") || undefined;
-  
-  if (defaultSite && sites.value.includes(defaultSite)) {
-    filterStore.selectedSite = defaultSite;
-    sdwts.value = await dashboardApi.getSdwts(defaultSite);
+  // 2. 초기 필터 값 결정
+  let targetSite = filterStore.selectedSite;
+  let targetSdwt = filterStore.selectedSdwt;
 
-    let defaultSdwt = authStore.user?.sdwt || localStorage.getItem("agent_sdwt") || undefined;
-    
-    if (defaultSdwt) {
-      filterStore.selectedSdwt = defaultSdwt;
+  if (!targetSite) {
+    targetSite = localStorage.getItem("agent_site") || "";
+    if (targetSite) {
+      targetSdwt = localStorage.getItem("agent_sdwt") || "";
+    }
+  }
+
+  if (!targetSite) {
+    targetSite = authStore.user?.site || "";
+    targetSdwt = authStore.user?.sdwt || "";
+  }
+
+  // 3. Site 적용 및 SDWT 로드
+  if (targetSite && sites.value.includes(targetSite)) {
+    filterStore.selectedSite = targetSite;
+    sdwts.value = await dashboardApi.getSdwts(targetSite);
+
+    // 4. SDWT 적용 및 EQP 로드
+    if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+      filterStore.selectedSdwt = targetSdwt;
       await loadEqpIds();
 
+      // 5. EQP ID 복원
       const savedEqpId = localStorage.getItem("agent_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
       }
+      
+      // 6. 데이터 자동 검색 (SDWT만 있어도 검색 가능)
+      searchData();
+    } else {
+      filterStore.selectedSdwt = "";
+      selectedEqpId.value = "";
     }
+  } else {
+     filterStore.selectedSite = "";
   }
 
   themeObserver = new MutationObserver((mutations) => {
