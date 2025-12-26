@@ -962,7 +962,6 @@ const lineChartOption = computed(() => {
 
   const series = chartSeries.value.map((s) => {
     const isSelected = selectedWaferId.value === s.waferId;
-    const isAnySelected = selectedWaferId.value !== null;
     
     // [유지] 타입 명시로 data 변수 선언
     let data: LineChartPoint[];
