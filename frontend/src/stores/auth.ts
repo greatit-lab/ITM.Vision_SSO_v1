@@ -130,8 +130,8 @@ export const useAuthStore = defineStore("auth", () => {
       role: "USER",      
       
       // 초기 데이터 자동 조회를 위한 기본값 설정
-      site: "Hanam",     
-      sdwt: "WHT"        
+      site: "Demo",     
+      sdwt: "User"        
     };
     
     setAuth("demo-mode-dummy-token", demoUser);
