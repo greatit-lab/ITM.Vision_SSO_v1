@@ -18,7 +18,7 @@
           Lot Uniformity
         </h1>
         <span class="text-slate-400 dark:text-slate-500 font-medium text-xs">
-          Intra-wafer uniformity trend analysis.
+          Intra-wafer uniformity trend analysis (Balanced Spectrum).
         </span>
       </div>
     </div>
@@ -379,7 +379,7 @@
                   : 'text-slate-400 hover:text-slate-600'
               "
             >
-              Heatmap
+              Contour
             </button>
           </div>
         </div>
@@ -492,7 +492,6 @@ import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 
-// [유지] 차트 데이터 타입 명시 (TS2532 해결)
 type LineChartPoint = [number, number, number];
 
 const filterStore = useFilterStore();
@@ -507,7 +506,7 @@ const selectedWaferId = ref<number | null>(null);
 
 // Spatial Analysis States
 const isSpatialView = ref(false);
-const viewAngle = ref(0); // 0 = Bottom (Looking Up)
+const viewAngle = ref(0);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -875,17 +874,32 @@ const onLineChartClick = (params: any) => {
   }
 };
 
+// [수정] 붉은색 비중을 줄이고 전체 스펙트럼(Indigo -> Cyan -> Green -> Yellow -> Red)을 균형있게 배치
 const getHeatmapColor = (value: number, min: number, max: number) => {
   if (isNaN(value)) return `rgba(0,0,0,0)`;
+  
   let ratio = (value - min) / (max - min);
   ratio = Math.max(0, Math.min(1, ratio));
+
+  // [등고선 효과] 40단계로 세분화 (High Resolution Contour)
+  const levels = 40;
+  ratio = Math.floor(ratio * levels) / levels;
+
+  // [새로운 팔레트 - Balanced Rainbow/Jet]
+  // 0.0 ~ 0.3: Deep Blue to Cyan (차가움)
+  // 0.3 ~ 0.6: Cyan to Green (안정)
+  // 0.6 ~ 0.8: Green to Yellow (경고 전 단계)
+  // 0.8 ~ 1.0: Orange to Red (위험)
   const stops = [
-    { pos: 0.0, r: 59, g: 130, b: 246 },
-    { pos: 0.25, r: 6, g: 182, b: 212 },
-    { pos: 0.5, r: 34, g: 197, b: 94 },
-    { pos: 0.75, r: 234, g: 179, b: 8 },
-    { pos: 1.0, r: 239, g: 68, b: 68 },
+    { pos: 0.0,  r: 49,  g: 46,  b: 129 }, // Indigo-900 (#312e81) - 아주 낮음
+    { pos: 0.15, r: 59,  g: 130, b: 246 }, // Blue-500 (#3b82f6)
+    { pos: 0.3,  r: 6,   g: 182, b: 212 }, // Cyan-500 (#06b6d4)
+    { pos: 0.5,  r: 34,  g: 197, b: 94 },  // Green-500 (#22c55e) - 중간값(Median)
+    { pos: 0.7,  r: 234, g: 179, b: 8 },   // Yellow-500 (#eab308)
+    { pos: 0.85, r: 249, g: 115, b: 22 },  // Orange-500 (#f97316)
+    { pos: 1.0,  r: 239, g: 68,  b: 68 },  // Red-500 (#ef4444) - 아주 높음
   ];
+
   let lowerIndex = 0;
   for (let i = 0; i < stops.length - 1; i++) {
     const nextStop = stops[i + 1];
@@ -898,6 +912,7 @@ const getHeatmapColor = (value: number, min: number, max: number) => {
   const s1 = stops[lowerIndex];
   const s2 = stops[lowerIndex + 1] || stops[stops.length - 1];
   if (!s1 || !s2) return `rgb(59, 130, 246)`;
+
   const t = (ratio - s1.pos) / (s2.pos - s1.pos);
   const r = Math.round(s1.r + (s2.r - s1.r) * t);
   const g = Math.round(s1.g + (s2.g - s1.g) * t);
@@ -936,17 +951,14 @@ const interpolateData = (
   return result;
 };
 
-// Chart Option with Continuous Distance Axis
 const lineChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
   
-  // -- Spatial Calculation --
   const rad = (-viewAngle.value * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
 
-  // Determine X-Axis Range
   let minX = 0, maxX = 20;
   if (!isSpatialView.value) {
     const allPoints = chartSeries.value.flatMap(s => s.dataPoints.map(p => p.point));
@@ -955,24 +967,19 @@ const lineChartOption = computed(() => {
       maxX = Math.max(...allPoints) + 1;
     }
   } else {
-    // For Spatial, range is approx -150 to +150 mm
     minX = -155;
     maxX = 155;
   }
 
   const series = chartSeries.value.map((s) => {
     const isSelected = selectedWaferId.value === s.waferId;
-    
-    // [유지] 타입 명시로 data 변수 선언
     let data: LineChartPoint[];
 
     if (isSpatialView.value) {
-       // Project points onto the viewing plane
        data = s.dataPoints.map((p): LineChartPoint => {
           const projectedX = p.x * cos - p.y * sin;
           return [projectedX, p.value, p.point]; 
        });
-       // Sort by X for correct line drawing
        data.sort((a, b) => a[0] - b[0]);
     } else {
        data = s.dataPoints.map((p): LineChartPoint => [p.point, p.value, p.point]);
@@ -984,27 +991,21 @@ const lineChartOption = computed(() => {
       showSymbol: true,
       symbolSize: isSelected ? 6 : 4,
       data: data,
-      // [수정] Smooth curve to reduce noise visualization
       smooth: isSpatialView.value ? 0.3 : true,
-      
-      // [수정] "Focus on Hover" Strategy
       lineStyle: {
-        width: isSelected ? 3 : 1, // Default to thin lines
-        opacity: isSelected ? 1 : 0.5, // Default to semi-transparent
+        width: isSelected ? 3 : 1,
+        opacity: isSelected ? 1 : 0.5,
         type: 'solid'
       },
       itemStyle: { 
         opacity: isSelected ? 1 : 0.8 
       },
-      
-      // [핵심] Highlight on hover, blur others
       emphasis: {
         focus: 'series',
         blurScope: 'coordinateSystem',
         lineStyle: { width: 3, opacity: 1 },
         itemStyle: { opacity: 1 }
       },
-      
       z: isSelected ? 10 : 1,
       triggerLineEvent: true,
     };
@@ -1018,7 +1019,6 @@ const lineChartOption = computed(() => {
       backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)",
       textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b", fontSize: 11 },
       formatter: (params: any) => {
-        // Tooltip Label based on mode
         let header = '';
         if (isSpatialView.value) {
            const xVal = params[0].value[0];
@@ -1030,7 +1030,7 @@ const lineChartOption = computed(() => {
         let html = `<div class="font-bold mb-1 border-b pb-1 text-xs">${header}</div>`;
         html += `<div style="max-height: 200px; overflow-y: auto;">`;
         params.forEach((p: any) => {
-          const pointId = p.value[2]; // Extra data
+          const pointId = p.value[2];
           html += `<div class="flex justify-between items-center gap-3 text-xs mb-0.5">
                     <span>${p.marker} ${p.seriesName} <span class="text-[9px] text-slate-400">(Pt.${pointId})</span></span>
                     <span class="font-mono font-bold">${p.value[1].toFixed(3)}</span>
@@ -1052,12 +1052,11 @@ const lineChartOption = computed(() => {
       { type: "inside", xAxisIndex: 0 },
       { type: "slider", xAxisIndex: 0, bottom: 0, height: 16 },
     ],
-    // Unified Value Axis for X
     xAxis: {
       type: "value",
       min: minX,
       max: maxX,
-      interval: isSpatialView.value ? 25 : 1, // Grid interval
+      interval: isSpatialView.value ? 25 : 1,
       axisLabel: { color: textColor, fontSize: 10 },
       splitLine: { show: true, lineStyle: { color: gridColor, type: "dashed" } },
       name: isSpatialView.value ? '(mm)' : '',
@@ -1094,6 +1093,7 @@ const mapChartOption = computed(() => {
       const minVal = globalStats.value.min;
       const maxVal = globalStats.value.max;
 
+      // [수정] VisualMap 범례 색상도 새로운 스펙트럼에 맞게 조정
       visualMapOption = {
         show: true,
         min: minVal,
@@ -1105,7 +1105,15 @@ const mapChartOption = computed(() => {
         itemWidth: 15,
         itemHeight: 200,
         inRange: {
-          color: ["#3b82f6", "#06b6d4", "#22c55e", "#eab308", "#ef4444"],
+          color: [
+            "#312e81", // Indigo
+            "#3b82f6", // Blue
+            "#06b6d4", // Cyan
+            "#22c55e", // Green
+            "#eab308", // Yellow
+            "#f97316", // Orange
+            "#ef4444"  // Red
+          ],
         },
         textStyle: { color: axisColor, fontSize: 10 },
       };
