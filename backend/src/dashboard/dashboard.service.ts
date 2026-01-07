@@ -40,7 +40,7 @@ export class DashboardService {
     return 0;
   }
 
-  // [수정] 성능 최적화: 에러 통계 쿼리 경량화 (Raw Query 사용) 및 로직 분리
+  // [수정] 성능 최적화: 에러 통계 쿼리 경량화 및 DB 연결 안정성 강화 (순차 실행 적용)
   async getSummary(site?: string, sdwt?: string) {
     try {
       // 1. 최신 Agent 버전 조회
@@ -73,42 +73,38 @@ export class DashboardService {
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-      // 3. 주요 통계 조회 (가볍고 빠른 쿼리)
-      // AgentInfo가 있는 장비만 카운트하기 위해 RefEquipment 기준으로 조회 (인덱스 활용)
-      const [
-        totalEqp, 
-        totalServers, 
-        activeServers, 
-        totalSdwts
-      ] = await Promise.all([
-        this.prisma.refEquipment.count({ 
-          where: { 
-            ...equipmentWhere,
-            agentInfo: { isNot: null } 
-          } 
-        }),
-        this.prisma.cfgServer.count(),
-        this.prisma.cfgServer.count({
-          where: { update: { gte: tenMinutesAgo } }
-        }),
-        this.prisma.refSdwt.count({
-          where: { isUse: 'Y', ...(site ? { site } : {}) }
-        }),
-      ]);
+      // 3. 주요 통계 조회 (안정성을 위해 순차 실행으로 변경)
+      // Promise.all 사용 시 DB Connection Pool 한계로 "Can't reach database" 오류가 발생할 수 있음
+      
+      // (1) 전체 장비 수 (AgentInfo가 있는 장비만)
+      const totalEqp = await this.prisma.refEquipment.count({ 
+        where: { 
+          ...equipmentWhere,
+          agentInfo: { isNot: null } 
+        } 
+      });
+
+      // (2) 전체 서버(Agent) 설정 수
+      const totalServers = await this.prisma.cfgServer.count();
+
+      // (3) 온라인 상태인 서버 수 (최근 10분 내 업데이트)
+      const activeServers = await this.prisma.cfgServer.count({
+        where: { update: { gte: tenMinutesAgo } }
+      });
+
+      // (4) 전체 SDWT(공정) 수
+      const totalSdwts = await this.prisma.refSdwt.count({
+        where: { isUse: 'Y', ...(site ? { site } : {}) }
+      });
 
       // 4. 에러 통계 조회 (무거운 쿼리 분리 및 최적화)
-      // GroupBy 대신 COUNT(DISTINCT) Raw Query 사용으로 메모리/DB 부하 감소
       let todayErrorCount = 0;
       let todayErrorTotalCount = 0;
       let newAlarmCount = 0;
 
       try {
-        // Prisma WhereInput을 SQL 조건으로 변환하기 까다로우므로, 
-        // 여기서는 가장 무거운 '장비별 에러 카운트'만 Raw Query로 대체하거나 
-        // 성능을 위해 간단한 count로 처리합니다.
-        
-        // 장비 필터링을 위한 서브쿼리 조건 생성 (필요 시)
-        // 복잡성을 피하기 위해 여기서는 Prisma 로직을 유지하되, 병렬 처리 부하를 줄임
+        // [병렬 실행 유지] 에러 카운트는 상대적으로 가벼운 인덱스 스캔이므로 병렬 처리 시도
+        // 문제 발생 시 catch로 넘어가 메인 통계에는 영향 없도록 처리
         const [totalError, recentError] = await Promise.all([
           this.prisma.plgError.count({
             where: {
@@ -125,8 +121,6 @@ export class DashboardService {
         newAlarmCount = recentError;
 
         // [최적화] 장비별 에러 발생 장비 수 (Distinct Count)
-        // GroupBy는 데이터가 많으면 느리므로 findMany distinct로 키만 가져와서 길이 체크
-        // 혹은 데이터가 너무 많을 경우 이 부분을 생략하거나 캐싱 고려
         if (todayErrorTotalCount > 0) {
            const errorEqps = await this.prisma.plgError.findMany({
              where: {
@@ -144,12 +138,18 @@ export class DashboardService {
         // 에러 통계 실패 시 0으로 반환하여 전체 페이지 로딩 실패 방지
       }
 
+      // [수정] Offline 계산 로직 변경
+      // 기존: totalServers(18) - activeServers(1) = 17 (화면상 Total은 17이라 불일치 발생)
+      // 변경: totalEqp(17) - activeServers(1) = 16 (화면상 Total과 일치)
+      // 단, activeServers가 totalEqp보다 클 경우를 대비해 Math.max(0, ...) 처리
+      const inactiveAgentCount = Math.max(0, totalEqp - activeServers);
+
       // 5. 결과 반환
       return {
         totalEqpCount: totalEqp,
         totalServers: totalServers,
         onlineAgentCount: activeServers,
-        inactiveAgentCount: totalServers - activeServers,
+        inactiveAgentCount: inactiveAgentCount, // 수정된 계산 로직 적용
         todayErrorCount,
         todayErrorTotalCount,
         newAlarmCount,
