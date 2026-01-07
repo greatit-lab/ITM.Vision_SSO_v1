@@ -190,9 +190,9 @@
           @change="onAdvancedFilterChange"
         />
         <Select
-          v-model="filters.film"
-          :options="films"
-          placeholder="Film"
+          v-model="filters."
+          :options="s"
+          placeholder=""
           showClear
           class="w-full custom-dropdown small"
           overlayClass="custom-dropdown-panel small"
@@ -342,7 +342,7 @@
               <Column field="film" header="FILM" style="min-width: 80px">
                 <template #body="{ data }">
                   <span
-                    class="text-slate-600 dark:text-slate-300 whitespace-nowrap"
+                    class="text-slate-600 dark:text-slate-300"
                     >{{ data.film }}</span
                   >
                 </template>
@@ -1574,4 +1574,5 @@ table td {
   font-size: 11px !important;
 }
 </style>
+
 
