@@ -339,7 +339,7 @@
                 style="min-width: 120px"
               ></Column>
 
-              <Column field="film" header="FILM" style="min-width: 250px">
+              <Column field="film" header="FILM" style="min-width: 80px">
                 <template #body="{ data }">
                   <span
                     class="text-slate-600 dark:text-slate-300 whitespace-nowrap"
@@ -1574,3 +1574,4 @@ table td {
   font-size: 11px !important;
 }
 </style>
+
