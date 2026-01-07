@@ -71,7 +71,7 @@ export interface SpectrumSeriesDto {
   name: string;
   waferId: number;
   pointId: number;
-  data: [number, number][]; 
+  data: [number, number][];
   meta?: {
     t1: number;
     gof: number;
@@ -109,10 +109,9 @@ export const waferApi = {
   },
 
   getStatistics: async (params: any) => {
-    const { data } = await http.get<StatisticsDto>(
-      "/WaferData/statistics",
-      { params }
-    );
+    const { data } = await http.get<StatisticsDto>("/WaferData/statistics", {
+      params,
+    });
     return data;
   },
 
@@ -130,7 +129,10 @@ export const waferApi = {
     waferId: number,
     servTs: string
   ) => {
-    const dt = typeof servTs === "string" ? servTs : (servTs as unknown as Date).toISOString();
+    const dt =
+      typeof servTs === "string"
+        ? servTs
+        : (servTs as unknown as Date).toISOString();
     const { data } = await http.get<{ exists: boolean }>(
       "/WaferData/checkpdf",
       { params: { eqpId, lotId, waferId, servTs: dt } }
@@ -145,7 +147,10 @@ export const waferApi = {
     dateTime: string,
     pointNumber: number
   ) => {
-    const dt = typeof dateTime === "string" ? dateTime : (dateTime as unknown as Date).toISOString();
+    const dt =
+      typeof dateTime === "string"
+        ? dateTime
+        : (dateTime as unknown as Date).toISOString();
     const params = {
       eqpId,
       lotId,
@@ -211,14 +216,16 @@ export const waferApi = {
     );
     return data;
   },
-  
+
   getSpectrumGen: async (params: any) => {
     const { data } = await http.get<any>("/WaferData/spectrum-gen", { params });
     return data;
   },
 
   getMatchingEquipments: async (params: any) => {
-    const { data } = await http.get<string[]>("/WaferData/matching-eqps", { params });
+    const { data } = await http.get<string[]>("/WaferData/matching-eqps", {
+      params,
+    });
     return data;
   },
 
@@ -229,9 +236,12 @@ export const waferApi = {
 
   // [신규] Optical Trend 데이터 조회
   getOpticalTrend: async (params: any) => {
-    const { data } = await http.get<OpticalTrendDto[]>("/WaferData/optical-trend", {
-      params,
-    });
+    const { data } = await http.get<OpticalTrendDto[]>(
+      "/WaferData/optical-trend",
+      {
+        params,
+      }
+    );
     return data;
   },
 };
