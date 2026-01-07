@@ -124,7 +124,7 @@ export class WaferService {
   constructor(private readonly httpService: HttpService) {}
 
   /**
-   * [Core] ESLint 오류 해결 및 404 방지 로직 (Proxy 우회 포함)
+   * [Core] ESLint 오류 해결 및 404 방지 로직
    */
   private async fetchFromApi<T>(
     endpoint: string,
@@ -135,7 +135,6 @@ export class WaferService {
     try {
       const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
 
-      // [ESLint 해결] Record<string, unknown>을 사용하여 타입 안정성 확보
       const cleanParams: Record<string, string | number> = {};
       const rawEntries = Object.entries(
         params as unknown as Record<string, unknown>,
@@ -145,13 +144,20 @@ export class WaferService {
         if (value !== undefined && value !== null && value !== '') {
           if (value instanceof Date) {
             cleanParams[key] = value.toISOString();
-          } else {
+          } else if (
+            typeof value === 'string' ||
+            typeof value === 'number' ||
+            typeof value === 'boolean'
+          ) {
+            // [ESLint 해결] 명시적인 기본 타입 체크로 String() 변환 시 경고 방지
             cleanParams[key] = String(value);
+          } else {
+            // [ESLint 해결] 그 외의 객체 타입은 JSON 문자열로 안전하게 변환
+            cleanParams[key] = JSON.stringify(value);
           }
         }
       });
 
-      // 404 디버깅을 위해 Axios가 생성할 실제 URL을 미리 파악
       const dummyConfig: InternalAxiosRequestConfig = {
         params: cleanParams,
         url: targetPath,
@@ -163,7 +169,6 @@ export class WaferService {
       const response: AxiosResponse<T> = await firstValueFrom(
         this.httpService.get<T>(targetPath, {
           params: cleanParams,
-          // [중요] 시스템 프록시 설정을 무시하고 직접 연결 (404 해결 핵심)
           proxy: false,
           headers: {
             Accept: 'application/json',
@@ -183,7 +188,6 @@ export class WaferService {
         const axiosError = error as AxiosError;
         statusCode = axiosError.response?.status || 500;
 
-        // [ESLint 해결] any 데이터 캐스팅 및 문자열 처리
         const errorData = axiosError.response?.data;
         errorMessage = errorData
           ? JSON.stringify(errorData)
@@ -207,7 +211,7 @@ export class WaferService {
     }
   }
 
-  // --- API Methods (전체 코드 유지) ---
+  // --- API Methods ---
 
   async getFlatData(params: WaferQueryParams): Promise<FlatDataResponse> {
     return this.fetchFromApi<FlatDataResponse>('flat-data', params);
@@ -217,7 +221,6 @@ export class WaferService {
     column: string,
     params: WaferQueryParams,
   ): Promise<string[]> {
-    // 린트 준수를 위한 타입 단언 사용
     const query = { ...params, field: column } as unknown as WaferQueryParams;
     return this.fetchFromApi<string[]>('distinct-values', query);
   }
