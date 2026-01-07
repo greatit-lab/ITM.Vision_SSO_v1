@@ -1,10 +1,18 @@
 // backend/src/wafer/wafer.service.ts
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError } from 'axios';
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 
-// [중요] Controller 및 프론트엔드 연동을 위한 타입 정의
+// --- DTO & Interfaces ---
 export class WaferQueryParams {
   eqpId?: string;
   lotId?: string;
@@ -35,7 +43,6 @@ export interface ResidualMapItem {
   y: number;
   residual: number;
 }
-
 export interface ComparisonRawResult {
   eqpid: string;
   lotid: string;
@@ -43,8 +50,6 @@ export interface ComparisonRawResult {
   point: number;
   [key: string]: string | number | null;
 }
-
-// [신규] API 응답용 인터페이스 정의 (any 대체)
 export interface SpectrumTrendSeries {
   name: string;
   waferId: number;
@@ -52,7 +57,6 @@ export interface SpectrumTrendSeries {
   meta: Record<string, unknown>;
   data: number[][];
 }
-
 export interface SpectrumGenResponse {
   name: string;
   type: string;
@@ -60,7 +64,6 @@ export interface SpectrumGenResponse {
   data: number[][];
   symbol: string;
 }
-
 export interface FlatDataResponse {
   totalItems: number;
   items: Array<{
@@ -75,21 +78,17 @@ export interface FlatDataResponse {
     film: string;
   }>;
 }
-
 export interface PdfCheckResponse {
   exists: boolean;
   url: string | null;
 }
-
 export interface PdfImageResponse {
   image: string;
 }
-
 export interface GoldenSpectrumResponse {
   wavelengths: number[];
   values: number[];
 }
-
 export interface LotUniformityTrendSeries {
   waferId: number;
   dataPoints: {
@@ -101,7 +100,6 @@ export interface LotUniformityTrendSeries {
     dieCol: number | null;
   }[];
 }
-
 export interface OpticalTrendResponse {
   ts: string;
   lotId: string;
@@ -112,7 +110,6 @@ export interface OpticalTrendResponse {
   peakWavelength: number;
   darkNoise: number;
 }
-
 export interface SpectrumRawResult {
   class: string;
   wavelengths: number[];
@@ -121,108 +118,144 @@ export interface SpectrumRawResult {
 
 @Injectable()
 export class WaferService {
-  // [설정] Data API 주소
-  private readonly DATA_API_URL = 'http://10.135.77.71:8081/api/wafer';
+  private readonly logger = new Logger(WaferService.name);
+  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/wafer';
 
   constructor(private readonly httpService: HttpService) {}
 
-  // 공통 API 호출 메서드 (타입 안전성 확보)
+  /**
+   * [Core] ESLint 오류 해결 및 404 방지 로직 (Proxy 우회 포함)
+   */
   private async fetchFromApi<T>(
     endpoint: string,
-    params: Record<string, unknown>,
+    params: WaferQueryParams,
   ): Promise<T> {
-    try {
-      const url = `${this.DATA_API_URL}/${endpoint}`;
+    let finalUrl = 'URL_NOT_GENERATED';
 
-      const response = await firstValueFrom(
-        this.httpService.get<T>(url, { params }),
+    try {
+      const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+
+      // [ESLint 해결] Record<string, unknown>을 사용하여 타입 안정성 확보
+      const cleanParams: Record<string, string | number> = {};
+      const rawEntries = Object.entries(
+        params as unknown as Record<string, unknown>,
+      );
+
+      rawEntries.forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (value instanceof Date) {
+            cleanParams[key] = value.toISOString();
+          } else {
+            cleanParams[key] = String(value);
+          }
+        }
+      });
+
+      // 404 디버깅을 위해 Axios가 생성할 실제 URL을 미리 파악
+      const dummyConfig: InternalAxiosRequestConfig = {
+        params: cleanParams,
+        url: targetPath,
+      } as InternalAxiosRequestConfig;
+      finalUrl = axios.getUri(dummyConfig);
+
+      this.logger.debug(`[Requesting] ${finalUrl}`);
+
+      const response: AxiosResponse<T> = await firstValueFrom(
+        this.httpService.get<T>(targetPath, {
+          params: cleanParams,
+          // [중요] 시스템 프록시 설정을 무시하고 직접 연결 (404 해결 핵심)
+          proxy: false,
+          headers: {
+            Accept: 'application/json',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          timeout: 10000,
+        }),
       );
 
       return response.data;
     } catch (error: unknown) {
-      // Error Handling: unknown 타입으로 받아 안전하게 캐스팅
       let errorMessage = 'Unknown Error';
+      let statusCode = 500;
 
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError;
-        errorMessage = axiosError.response?.data
-          ? JSON.stringify(axiosError.response.data)
+        statusCode = axiosError.response?.status || 500;
+
+        // [ESLint 해결] any 데이터 캐스팅 및 문자열 처리
+        const errorData = axiosError.response?.data;
+        errorMessage = errorData
+          ? JSON.stringify(errorData)
           : axiosError.message;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
+
+        this.logger.error(
+          `[Data API Error] ${statusCode} - Failed URL: ${finalUrl}`,
+        );
       }
 
-      console.error(
-        `[WaferService Proxy Error] Failed to fetch ${endpoint}:`,
-        errorMessage,
-      );
-
-      // 빈 배열 반환이 필요한 경우 (타입 캐스팅)
-      if (endpoint === 'distinct-values' || endpoint === 'available-metrics') {
+      if (
+        statusCode === 404 &&
+        ['distinct-values', 'available-metrics', 'points'].includes(endpoint)
+      ) {
         return [] as unknown as T;
       }
 
-      throw new InternalServerErrorException(`Data API Error: ${errorMessage}`);
+      throw new InternalServerErrorException(
+        `Data API Proxy Error: ${errorMessage}`,
+      );
     }
   }
 
-  // --- API 호출 메서드 ---
+  // --- API Methods (전체 코드 유지) ---
+
+  async getFlatData(params: WaferQueryParams): Promise<FlatDataResponse> {
+    return this.fetchFromApi<FlatDataResponse>('flat-data', params);
+  }
 
   async getDistinctValues(
     column: string,
     params: WaferQueryParams,
   ): Promise<string[]> {
-    return this.fetchFromApi<string[]>('distinct-values', {
-      ...params,
-      field: column,
-    });
+    // 린트 준수를 위한 타입 단언 사용
+    const query = { ...params, field: column } as unknown as WaferQueryParams;
+    return this.fetchFromApi<string[]>('distinct-values', query);
   }
 
   async getDistinctPoints(params: WaferQueryParams): Promise<string[]> {
-    return this.fetchFromApi<string[]>('distinct-points', { ...params });
+    return this.fetchFromApi<string[]>('distinct-points', params);
   }
 
   async getSpectrumTrend(
     params: WaferQueryParams,
   ): Promise<SpectrumTrendSeries[]> {
-    return this.fetchFromApi<SpectrumTrendSeries[]>('spectrum-trend', {
-      ...params,
-    });
+    return this.fetchFromApi<SpectrumTrendSeries[]>('spectrum-trend', params);
   }
 
   async getSpectrumGen(
     params: WaferQueryParams,
   ): Promise<SpectrumGenResponse | null> {
-    return this.fetchFromApi<SpectrumGenResponse | null>('spectrum-gen', {
-      ...params,
-    });
-  }
-
-  async getFlatData(params: WaferQueryParams): Promise<FlatDataResponse> {
-    return this.fetchFromApi<FlatDataResponse>('flat-data', { ...params });
+    return this.fetchFromApi<SpectrumGenResponse | null>(
+      'spectrum-gen',
+      params,
+    );
   }
 
   async getPdfImage(params: WaferQueryParams): Promise<string> {
-    const res = await this.fetchFromApi<PdfImageResponse>('pdf-image', {
-      ...params,
-    });
+    const res = await this.fetchFromApi<PdfImageResponse>('pdf-image', params);
     return res.image;
   }
 
   async checkPdf(params: WaferQueryParams): Promise<PdfCheckResponse> {
-    return this.fetchFromApi<PdfCheckResponse>('check-pdf', { ...params });
+    return this.fetchFromApi<PdfCheckResponse>('check-pdf', params);
   }
 
   async getSpectrum(params: WaferQueryParams): Promise<SpectrumRawResult[]> {
-    return this.fetchFromApi<SpectrumRawResult[]>('spectrum', { ...params });
+    return this.fetchFromApi<SpectrumRawResult[]>('spectrum', params);
   }
 
-  // Statistics는 동적 키를 가질 수 있으므로 Record 사용 혹은 구체적 인터페이스 사용
-  // 기존 로직 참고하여 구체적 타입 정의
   async getStatistics(params: WaferQueryParams): Promise<any> {
-    // any 허용: Statistics 구조가 복잡하거나 프론트엔드에서 유연하게 처리됨
-    // 필요 시 구체적 인터페이스(StatisticsDto)로 교체 가능
-    return this.fetchFromApi<any>('statistics', { ...params });
+    return this.fetchFromApi<any>('statistics', params);
   }
 
   async getPointData(
@@ -230,24 +263,25 @@ export class WaferService {
   ): Promise<{ headers: string[]; data: unknown[][] }> {
     return this.fetchFromApi<{ headers: string[]; data: unknown[][] }>(
       'point-data',
-      { ...params },
+      params,
     );
   }
 
   async getResidualMap(params: WaferQueryParams): Promise<ResidualMapItem[]> {
-    return this.fetchFromApi<ResidualMapItem[]>('residual-map', { ...params });
+    return this.fetchFromApi<ResidualMapItem[]>('residual-map', params);
   }
 
   async getGoldenSpectrum(
     params: WaferQueryParams,
   ): Promise<GoldenSpectrumResponse | null> {
-    return this.fetchFromApi<GoldenSpectrumResponse | null>('golden-spectrum', {
-      ...params,
-    });
+    return this.fetchFromApi<GoldenSpectrumResponse | null>(
+      'golden-spectrum',
+      params,
+    );
   }
 
   async getAvailableMetrics(params: WaferQueryParams): Promise<string[]> {
-    return this.fetchFromApi<string[]>('available-metrics', { ...params });
+    return this.fetchFromApi<string[]>('available-metrics', params);
   }
 
   async getLotUniformityTrend(
@@ -255,27 +289,23 @@ export class WaferService {
   ): Promise<LotUniformityTrendSeries[]> {
     return this.fetchFromApi<LotUniformityTrendSeries[]>(
       'lot-uniformity-trend',
-      { ...params },
+      params,
     );
   }
 
   async getMatchingEquipments(params: WaferQueryParams): Promise<string[]> {
-    return this.fetchFromApi<string[]>('matching-equipments', { ...params });
+    return this.fetchFromApi<string[]>('matching-equipments', params);
   }
 
   async getComparisonData(
     params: WaferQueryParams,
   ): Promise<ComparisonRawResult[]> {
-    return this.fetchFromApi<ComparisonRawResult[]>('comparison-data', {
-      ...params,
-    });
+    return this.fetchFromApi<ComparisonRawResult[]>('comparison-data', params);
   }
 
   async getOpticalTrend(
     params: WaferQueryParams,
   ): Promise<OpticalTrendResponse[]> {
-    return this.fetchFromApi<OpticalTrendResponse[]>('optical-trend', {
-      ...params,
-    });
+    return this.fetchFromApi<OpticalTrendResponse[]>('optical-trend', params);
   }
 }
