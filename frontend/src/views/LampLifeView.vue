@@ -369,7 +369,8 @@
 import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
-import { lampApi, type LampLifeDto } from "@/api/lamp";
+// [변경] API 함수 import
+import { getLampLifeStatus, type LampLife } from "@/api/lamp";
 import EChart from "@/components/common/EChart.vue";
 
 // Components
@@ -378,20 +379,18 @@ import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 
-interface LampDisplay extends LampLifeDto {
+interface LampDisplay extends LampLife {
   usageRatio: number;
   status: string;
 }
 
-// --- Store & Constants ---
+// Store & Constants
 const authStore = useAuthStore();
-// [New] Page-specific LocalStorage Keys
 const LS_KEYS = {
   SITE: "lamplife-view-site",
   SDWT: "lamplife-view-sdwt",
 };
 
-// --- State ---
 const filter = reactive({
   site: "",
   sdwt: "",
@@ -407,11 +406,9 @@ const hasSearched = ref(false);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth)
   let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
   let targetSdwt = "";
 
@@ -422,17 +419,13 @@ onMounted(async () => {
     targetSdwt = authStore.user?.sdwt || "";
   }
 
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filter.site = targetSite;
-
     try {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
-
-      // 4. SDWT 적용 및 데이터 로드
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
-        fetchData(); // 데이터 조회
+        fetchData();
       } else {
         filter.sdwt = "";
       }
@@ -448,63 +441,40 @@ onMounted(async () => {
       }
     });
   });
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 });
 
-onUnmounted(() => {
-  if (themeObserver) themeObserver.disconnect();
-});
+onUnmounted(() => { if (themeObserver) themeObserver.disconnect(); });
 
-// --- Watchers for Persistence ---
-watch(
-  () => filter.site,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
-    else localStorage.removeItem(LS_KEYS.SITE);
-  }
-);
+// Watchers
+watch(() => filter.site, (newVal) => { if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal); else localStorage.removeItem(LS_KEYS.SITE); });
+watch(() => filter.sdwt, (newVal) => { if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal); else localStorage.removeItem(LS_KEYS.SDWT); });
 
-watch(
-  () => filter.sdwt,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
-    else localStorage.removeItem(LS_KEYS.SDWT);
-  }
-);
-
-// --- Handlers ---
+// Handlers
 const onSiteChange = async () => {
   if (filter.site) {
     sdwts.value = await dashboardApi.getSdwts(filter.site);
   } else {
     sdwts.value = [];
   }
-  // Reset child filter when parent changes
   filter.sdwt = "";
 };
 
-const onSdwtChange = () => {
-  // Watcher handles persistence
-};
+const onSdwtChange = () => { /* Persistence handled by watcher */ };
 
 const setStatusFilter = (status: string | null) => {
-  if (filter.status === status) {
-    filter.status = null;
-  } else {
-    filter.status = status;
-  }
+  filter.status = filter.status === status ? null : status;
 };
 
+// [중요] API 호출 부분 수정
 const fetchData = async () => {
   isLoading.value = true;
   hasSearched.value = true;
   try {
-    const res = await lampApi.getData(filter.site, filter.sdwt);
+    const res = await getLampLifeStatus({ site: filter.site, sdwt: filter.sdwt }); // API 호출 변경
+    const rawData = res.data || [];
 
-    allLamps.value = res.map((l: LampLifeDto) => ({
+    allLamps.value = rawData.map((l: LampLife) => ({
       ...l,
       usageRatio: l.lifespanHour > 0 ? (l.ageHour / l.lifespanHour) * 100 : 0,
       status: getStatus(l.ageHour, l.lifespanHour),
@@ -523,10 +493,9 @@ const reset = () => {
   filter.sdwt = "";
   filter.status = null;
   allLamps.value = [];
-  // Persistence cleared by watchers
 };
 
-// --- Logic ---
+// Logic
 const getStatus = (age: number, lifespan: number) => {
   const ratio = lifespan > 0 ? age / lifespan : 0;
   if (ratio >= 1.0) return "Critical";
@@ -553,161 +522,40 @@ const kpi = computed(() => {
 });
 
 const chartData = computed(() => {
-  return [...allLamps.value]
-    .sort((a, b) => b.usageRatio - a.usageRatio)
-    .slice(0, 10);
+  return [...allLamps.value].sort((a, b) => b.usageRatio - a.usageRatio).slice(0, 10);
 });
 
 const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const data = chartData.value;
-
   const categories = data.map((d) => `${d.eqpId} (${d.lampId})`);
   const values = data.map((d) => d.usageRatio);
 
   return {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
-      formatter: (params: any) => {
-        if (!params || !params[0]) return "";
-        const i = params[0].dataIndex;
-        const item = data[i];
-        if (!item) return "";
-
-        return `
-                    <div class="font-bold mb-1">${
-                      item.eqpId
-                    } <span style="font-weight:normal; opacity:0.7">(${
-          item.lampId
-        })</span></div>
-                    <div class="text-xs">Age: ${item.ageHour} / ${
-          item.lifespanHour
-        } hrs</div>
-                    <div class="text-xs font-bold mt-1">Ratio: ${item.usageRatio.toFixed(
-                      2
-                    )}%</div>
-                `;
-      },
-    },
-    grid: {
-      containLabel: true,
-      left: "2%",
-      right: "5%",
-      top: 10,
-      bottom: 10,
-    },
-    xAxis: {
-      type: "value",
-      min: (value: any) => Math.max(0, Math.floor(value.min - 5)),
-      axisLabel: { color: textColor, fontSize: 10, formatter: "{value}%" },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: "category",
-      data: categories,
-      axisLabel: {
-        color: textColor,
-        fontSize: 10,
-        align: "right",
-        margin: 10,
-      },
-      inverse: true,
-      axisLine: { show: false },
-      axisTick: { show: false },
-    },
-    series: [
-      {
-        type: "bar",
-        data: values,
-        barWidth: 20,
-        itemStyle: {
-          borderRadius: [0, 4, 4, 0],
-          color: (params: any) => {
-            const val = params.value;
-            if (val >= 95) return "#f43f5e";
-            if (val >= 80) return "#f59e0b";
-            return "#10b981";
-          },
-        },
-        label: {
-          show: true,
-          position: "insideRight",
-          formatter: (params: any) => `${params.value.toFixed(2)}%`,
-          fontSize: 10,
-          color: "#fff",
-          fontWeight: "bold",
-          padding: [0, 5, 0, 0],
-        },
-      },
-    ],
+    tooltip: { trigger: "axis", formatter: (params: any) => { if (!params || !params[0]) return ""; const i = params[0].dataIndex; const item = data[i]; if (!item) return ""; return `<div class="font-bold mb-1">${item.eqpId} <span style="font-weight:normal; opacity:0.7">(${item.lampId})</span></div><div class="text-xs">Age: ${item.ageHour} / ${item.lifespanHour} hrs</div><div class="text-xs font-bold mt-1">Ratio: ${item.usageRatio.toFixed(2)}%</div>`; } },
+    grid: { containLabel: true, left: "2%", right: "5%", top: 10, bottom: 10 },
+    xAxis: { type: "value", min: (value: any) => Math.max(0, Math.floor(value.min - 5)), axisLabel: { color: textColor, fontSize: 10, formatter: "{value}%" }, splitLine: { show: false } },
+    yAxis: { type: "category", data: categories, axisLabel: { color: textColor, fontSize: 10, align: "right", margin: 10 }, inverse: true, axisLine: { show: false }, axisTick: { show: false } },
+    series: [{ type: "bar", data: values, barWidth: 20, itemStyle: { borderRadius: [0, 4, 4, 0], color: (params: any) => { const val = params.value; if (val >= 95) return "#f43f5e"; if (val >= 80) return "#f59e0b"; return "#10b981"; } }, label: { show: true, position: "insideRight", formatter: (params: any) => `${params.value.toFixed(2)}%`, fontSize: 10, color: "#fff", fontWeight: "bold", padding: [0, 5, 0, 0] } }]
   };
 });
 
-// --- UI Helpers ---
-const getProgressColor = (ratio: number) => {
-  if (ratio >= 95) return "bg-rose-500";
-  if (ratio >= 80) return "bg-amber-500";
-  return "bg-emerald-500";
-};
-
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case "Critical":
-      return "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-900/30";
-    case "Warning":
-      return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30";
-    case "Good":
-      return "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30";
-    default:
-      return "bg-slate-100 text-slate-500 border-slate-200";
-  }
-};
+const getProgressColor = (ratio: number) => { if (ratio >= 95) return "bg-rose-500"; if (ratio >= 80) return "bg-amber-500"; return "bg-emerald-500"; };
+const getStatusBadgeClass = (status: string) => { switch (status) { case "Critical": return "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-900/30"; case "Warning": return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30"; case "Good": return "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30"; default: return "bg-slate-100 text-slate-500 border-slate-200"; } };
 </script>
 
 <style scoped>
-:deep(.p-datatable-thead > tr > th) {
-  @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0;
-}
-:deep(.p-datatable-tbody > tr > td) {
-  @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50;
-}
-:deep(.dark .p-datatable-tbody > tr:hover) {
-  @apply !bg-[#27272a] !text-white;
-}
-
-:deep(.p-select),
-:deep(.custom-dropdown) {
-  @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
-}
-:deep(.custom-dropdown .p-select-label) {
-  @apply text-[13px] py-[5px] px-3;
-}
-:deep(.custom-dropdown.small) {
-  @apply h-7;
-}
-:deep(.custom-dropdown:hover) {
-  @apply !bg-slate-200 dark:!bg-zinc-800;
-}
-:deep(.p-select-dropdown) {
-  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
-}
-:deep(.p-select-dropdown svg) {
-  @apply w-3 h-3;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Style unchanged */
+:deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0; }
+:deep(.p-datatable-tbody > tr > td) { @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
+:deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
+:deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
+:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
+:deep(.custom-dropdown.small) { @apply h-7; }
+:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
+:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
+:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
