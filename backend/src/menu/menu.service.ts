@@ -16,7 +16,6 @@ export interface MenuNode {
   roles?: string[];
 }
 
-// (DTO 정의 부분은 기존과 동일하므로 생략 가능하나, 전체 코드 제공 원칙에 따라 포함)
 export interface CreateMenuDto {
   label: string;
   routerPath?: string;
@@ -52,7 +51,6 @@ export class MenuService {
     });
 
     // [수정] 데모 모드이거나 ADMIN 권한이면 전체 메뉴 반환 (권한 테이블 조회 패스)
-    // 이렇게 하면 DB에 USER 권한 매핑이 없어도 메뉴가 보입니다.
     if (process.env.ENABLE_DEMO_MODE === 'true' || role === 'ADMIN') {
       return this.buildMenuTree(allMenus);
     }
@@ -152,6 +150,14 @@ export class MenuService {
   }
 
   async deleteMenu(id: number) {
+    // 하위 메뉴 확인
+    const children = await this.prisma.refMenu.count({
+      where: { parentId: id },
+    });
+    if (children > 0) {
+      throw new Error('하위 메뉴가 존재하여 삭제할 수 없습니다.');
+    }
+
     await this.prisma.cfgMenuRole.deleteMany({ where: { menuId: id } });
     return this.prisma.refMenu.delete({ where: { menuId: id } });
   }
