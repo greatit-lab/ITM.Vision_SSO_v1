@@ -606,7 +606,21 @@ const loadGridData = async () => {
   }
 };
 
-const onTrendChartInit = (inst: any) => inst.on("click", async (p: any) => { if (p.dataIndex !== undefined && trendData.value[p.dataIndex]) { gridFilter.date = trendData.value[p.dataIndex].date; first.value = 0; await updateSummaryData(); loadGridData(); } });
+const onTrendChartInit = (inst: any) =>
+  inst.on("click", async (p: any) => {
+    const idx = p.dataIndex;
+
+    if (typeof idx !== "number") return;
+
+    const item = trendData.value[idx];
+    if (!item) return;
+
+    gridFilter.date = item.date;
+    first.value = 0;
+    await updateSummaryData();
+    loadGridData();
+  });
+
 const onEqpChartInit = (inst: any) => inst.on("click", async (p: any) => { if (p.name) { gridFilter.eqpId = p.name; first.value = 0; await updateTrendData(); loadGridData(); } });
 const clearGridDateFilter = async () => { gridFilter.date = null; await updateSummaryData(); first.value = 0; loadGridData(); };
 const clearGridEqpFilter = async () => { gridFilter.eqpId = null; await updateTrendData(); first.value = 0; loadGridData(); };
@@ -674,3 +688,4 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
