@@ -1,16 +1,16 @@
 <!-- frontend/src/components/layout/Header.vue -->
 <template>
   <header
-    class="sticky top-0 z-40 w-full h-9 transition-all duration-300 border-b shadow-sm bg-white/80 dark:bg-[#09090b]/90 backdrop-blur-xl border-slate-200 dark:border-zinc-800"
+    class="sticky top-0 z-40 w-full h-12 transition-all duration-300 border-b shadow-sm bg-white/80 dark:bg-[#09090b]/90 backdrop-blur-xl border-slate-200 dark:border-zinc-800"
   >
     <div class="flex items-center justify-between h-full px-6">
       <div class="flex items-center gap-4">
-        <h2 class="text-base font-bold tracking-tight text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+        <h2 class="text-sm font-bold tracking-tight text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
           <template v-if="pageTitleParts.parent">
-            <span class="font-medium">{{ pageTitleParts.parent }}</span>
+            <span class="font-medium hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-default">{{ pageTitleParts.parent }}</span>
             <span class="text-slate-300 dark:text-slate-600 font-light">/</span>
           </template>
-          <span class="font-medium">{{ pageTitleParts.current }}</span>
+          <span class="font-bold text-slate-700 dark:text-slate-200">{{ pageTitleParts.current }}</span>
         </h2>
       </div>
 
@@ -27,10 +27,10 @@
         </button>
 
         <button 
-          v-if="authStore.isAdmin"
+          v-if="authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER'"
           @click="handleAdminClick"
           class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-          v-tooltip.bottom="'Management Settings'"
+          v-tooltip.bottom="'Admin Management'"
         >
            <i class="pi pi-cog text-lg"></i>
         </button>
@@ -39,21 +39,21 @@
 
         <button
           @click="toggleTheme"
-          class="relative w-14 h-7 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden shadow-inner border border-slate-300 dark:border-zinc-700 transition-colors focus:outline-none"
+          class="relative w-12 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden shadow-inner border border-slate-300 dark:border-zinc-700 transition-colors focus:outline-none"
         >
-          <div class="absolute top-1/2 left-2 transform -translate-y-1/2 transition-all duration-500"
+          <div class="absolute top-1/2 left-1.5 transform -translate-y-1/2 transition-all duration-500"
                :class="isDark ? 'opacity-40 scale-75' : 'opacity-100 scale-100'">
-            <i class="pi pi-sun text-amber-500 text-xs"></i>
+            <i class="pi pi-sun text-amber-500 text-[10px]"></i>
           </div>
-          <div class="absolute top-1/2 right-2 transform -translate-y-1/2 transition-all duration-500"
+          <div class="absolute top-1/2 right-1.5 transform -translate-y-1/2 transition-all duration-500"
                :class="!isDark ? 'opacity-40 scale-75' : 'opacity-100 scale-100'">
-            <i class="pi pi-moon text-indigo-400 text-xs"></i>
+            <i class="pi pi-moon text-indigo-400 text-[10px]"></i>
           </div>
           <div
-            class="absolute top-0.5 left-0.5 w-6 h-6 bg-white dark:bg-zinc-900 rounded-full shadow-md transform transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-center z-10"
-            :class="isDark ? 'translate-x-[28px]' : 'translate-x-0'"
+            class="absolute top-0.5 left-0.5 w-5 h-5 bg-white dark:bg-zinc-900 rounded-full shadow-md transform transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-center z-10"
+            :class="isDark ? 'translate-x-[24px]' : 'translate-x-0'"
           >
-             <i class="pi text-[10px]" :class="isDark ? 'pi-moon text-indigo-500' : 'pi-sun text-amber-500'"></i>
+             <i class="pi text-[8px]" :class="isDark ? 'pi-moon text-indigo-500' : 'pi-sun text-amber-500'"></i>
           </div>
         </button>
 
@@ -63,7 +63,7 @@
             class="flex items-center gap-2.5 pl-2 pr-1 py-1 transition-all duration-200 rounded-full group hover:bg-slate-100 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
             v-tooltip.bottom="authStore.user?.departmentName || 'No Department'"
           >
-            <span class="hidden text-sm font-bold text-slate-700 dark:text-slate-200 sm:block">
+            <span class="hidden text-xs font-bold text-slate-700 dark:text-slate-200 sm:block">
               {{ authStore.userName }}
             </span>
             <div
@@ -87,22 +87,19 @@
               v-if="isDropdownOpen"
               class="absolute right-0 w-52 mt-2 origin-top-right bg-white border shadow-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none z-50 overflow-hidden"
             >
-              <div class="py-1" v-if="!authStore.isDemo">
+              <div class="py-1">
                 <button
                   @click="openProfileSettings"
-                  class="flex items-center w-full px-4 py-2.5 text-sm text-slate-700 transition-colors dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-zinc-800/80"
+                  class="flex items-center w-full px-4 py-2.5 text-xs text-slate-700 transition-colors dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-zinc-800/80"
                 >
                   <i class="mr-3 text-slate-400 pi pi-user"></i> Profile Settings
                 </button>
               </div>
               
-              <div 
-                class="py-1" 
-                :class="{ 'border-t border-slate-100 dark:border-zinc-800': !authStore.isDemo }"
-              >
+              <div class="py-1 border-t border-slate-100 dark:border-zinc-800">
                 <button
                   @click="handleLogout"
-                  class="flex items-center w-full px-4 py-2.5 text-sm font-medium text-rose-600 dark:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                  class="flex items-center w-full px-4 py-2.5 text-xs font-medium text-rose-600 dark:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                 >
                   <i class="mr-3 pi pi-sign-out"></i> Sign out
                 </button>
@@ -138,11 +135,11 @@
                   </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 text-xs">
-                  <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100">
+                  <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-800">
                     <span class="block text-slate-400 font-semibold mb-0.5">Department</span>
                     <span class="text-slate-700 dark:text-slate-200 font-medium">{{ authStore.user?.departmentName || '-' }}</span>
                   </div>
-                   <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100">
+                   <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-800">
                     <span class="block text-slate-400 font-semibold mb-0.5">Role</span>
                     <span class="font-bold" :class="getRoleTextColor(authStore.user?.role)">{{ authStore.user?.role || 'User' }}</span>
                   </div>
@@ -153,21 +150,21 @@
             <form @submit.prevent="saveProfileSettings" class="space-y-4">
               <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Default Site</label>
-                <select v-model="selectedSite" @change="handleSiteChange" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-sm appearance-none cursor-pointer">
+                <select v-model="selectedSite" @change="handleSiteChange" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-medium appearance-none cursor-pointer">
                   <option value="" disabled>Select Site</option>
                   <option v-for="site in sites" :key="site" :value="site">{{ site }}</option>
                 </select>
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Default SDWT</label>
-                <select v-model="selectedSdwt" :disabled="!selectedSite" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-sm appearance-none cursor-pointer disabled:opacity-50">
+                <select v-model="selectedSdwt" :disabled="!selectedSite" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-medium appearance-none cursor-pointer disabled:opacity-50">
                    <option value="" disabled>Select SDWT</option>
                    <option v-for="sdwt in sdwts" :key="sdwt" :value="sdwt">{{ sdwt }}</option>
                 </select>
               </div>
               <div class="pt-4 flex gap-3">
-                <button type="button" @click="closeProfileSettings" class="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all">Cancel</button>
-                <button type="submit" :disabled="isSaving || !selectedSite || !selectedSdwt" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/30 transition-all transform active:scale-95 disabled:opacity-70">
+                <button type="button" @click="closeProfileSettings" class="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all">Cancel</button>
+                <button type="submit" :disabled="isSaving || !selectedSite || !selectedSdwt" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-500/30 transition-all transform active:scale-95 disabled:opacity-70">
                   <i v-if="isSaving" class="pi pi-spin pi-spinner mr-2"></i>
                   {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </button>
@@ -205,49 +202,45 @@ const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
 
-// UserId의 첫 글자(대문자) 반환
+// UserId의 첫 글자(대문자)
 const userAvatarInitial = computed(() => {
   const userId = authStore.user?.userId;
   return userId ? userId.charAt(0).toUpperCase() : 'U';
 });
 
-// UserId의 알파벳에 따라 고유한 색상(Gradient) 반환
+// UserId에 따른 색상 생성
 const getUserAvatarColor = (userId?: string) => {
   if (!userId) return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
-  
   const charCode = userId.charAt(0).toUpperCase().charCodeAt(0);
-  const colorIndex = charCode % 8; // 8가지 색상 팔레트 순환
-
+  const colorIndex = charCode % 8;
   const gradients = [
-    'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30',      // 0: Red/Rose
-    'bg-gradient-to-br from-orange-500 to-orange-600 shadow-orange-500/30',// 1: Orange
-    'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30',   // 2: Amber/Yellow
-    'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30', // 3: Green
-    'bg-gradient-to-br from-teal-500 to-teal-600 shadow-teal-500/30',      // 4: Teal
-    'bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/30',      // 5: Blue
-    'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30', // 6: Indigo
-    'bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30', // 7: Purple
+    'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30',
+    'bg-gradient-to-br from-orange-500 to-orange-600 shadow-orange-500/30',
+    'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30',
+    'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30',
+    'bg-gradient-to-br from-teal-500 to-teal-600 shadow-teal-500/30',
+    'bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/30',
+    'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30',
+    'bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30',
   ];
-
   return gradients[colorIndex];
 };
 
-// 권한별 텍스트 색상
 const getRoleTextColor = (role?: string) => {
   const r = role?.toUpperCase();
-  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'text-rose-600 dark:text-rose-400';
+  if (r === 'ADMIN') return 'text-rose-600 dark:text-rose-400';
   if (r === 'MANAGER') return 'text-indigo-600 dark:text-indigo-400';
   if (r === 'USER') return 'text-emerald-600 dark:text-emerald-400';
-  if (r === 'GUEST') return 'text-amber-600 dark:text-amber-400';
   return 'text-slate-600';
 }
 
-// 페이지 타이틀 분리 계산
+// Breadcrumb Logic
 const pageTitleParts = computed(() => {
   const findBreadcrumb = (nodes: MenuNode[], targetPath: string, parents: string[]): string | null => {
     for (const node of nodes) {
       const nodePath = (node.routerPath || '').replace(/\/$/, '');
       const target = targetPath.replace(/\/$/, '');
+      
       if (nodePath && nodePath === target) {
         return [...parents, node.label].join(' / ');
       }
@@ -262,7 +255,6 @@ const pageTitleParts = computed(() => {
   let fullTitle = "Overview";
   const path = route.path;
 
-  // 1. 관리자 페이지 매핑
   if (path.startsWith('/admin')) {
     if (path.includes('/menus')) fullTitle = "Management / Menus";
     else if (path.includes('/users')) fullTitle = "Management / Users";
@@ -270,7 +262,6 @@ const pageTitleParts = computed(() => {
     else if (path.includes('/system')) fullTitle = "Management / System";
     else fullTitle = "Management";
   } 
-  // 2. DB 메뉴 탐색
   else if (menuStore.menus.length > 0) {
     const breadcrumb = findBreadcrumb(menuStore.menus, route.path, []);
     if (breadcrumb) fullTitle = breadcrumb;
@@ -285,7 +276,7 @@ const pageTitleParts = computed(() => {
 });
 
 const handleAdminClick = () => {
-  if (authStore.isSuperAdmin) router.push({ name: 'admin-menus' });
+  if (authStore.user?.role === 'ADMIN') router.push({ name: 'admin-menus' });
   else router.push({ name: 'admin-users' });
 };
 
@@ -302,6 +293,7 @@ const openProfileSettings = async () => {
   isProfileModalOpen.value = true;
   if (authStore.user?.site) selectedSite.value = authStore.user.site;
   try {
+    // API Check
     if (sites.value.length === 0) sites.value = await dashboardApi.getSites();
     if (selectedSite.value) await handleSiteChange(); 
     if (authStore.user?.sdwt) selectedSdwt.value = authStore.user.sdwt;
@@ -330,7 +322,7 @@ const saveProfileSettings = async () => {
 };
 
 const fetchNotifications = async () => {
-  if (authStore.isAdmin) {
+  if (authStore.user?.role === 'ADMIN') {
     try {
       const res = await AdminApi.getGuestRequests();
       pendingRequestCount.value = res.data.filter((req: any) => req.status === 'PENDING').length;
