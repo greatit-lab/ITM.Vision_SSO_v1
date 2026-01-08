@@ -8,18 +8,18 @@
       class="relative flex items-center h-16 transition-all duration-300 border-b border-slate-100 dark:border-slate-800/50"
       :class="isOpen ? 'px-5 justify-start' : 'px-0 justify-center'"
     >
-      <div class="flex items-center gap-3 overflow-hidden">
-        <div class="relative group">
+      <div class="flex items-center gap-3 overflow-hidden" @click="$router.push('/')">
+        <div class="relative group cursor-pointer">
           <div class="absolute transition-opacity duration-500 rounded-full opacity-0 -inset-2 blur-lg group-hover:opacity-100"></div>
           <img
             :src="logoUrl"
             alt="Logo"
-            class="object-contain w-auto transition-all duration-300 h-9 drop-shadow-md filter hover:scale-110"
+            class="object-contain w-auto transition-all duration-300 h-8 drop-shadow-md filter hover:scale-110"
           />
         </div>
 
         <div
-          class="flex flex-col transition-all duration-300 origin-left"
+          class="flex flex-col transition-all duration-300 origin-left cursor-pointer"
           :class="isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-90 w-0 hidden'"
         >
           <span class="font-sans text-lg font-black leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap">
@@ -66,7 +66,7 @@
           class="relative flex items-center justify-center text-base font-bold text-white transition-transform duration-300 shadow-lg w-9 h-9 rounded-xl shrink-0 group-hover:scale-105 group-hover:rotate-3"
           :class="roleAvatarClass"
         >
-          <span v-if="userRole === 'ADMIN' || userRole === 'SUPERADMIN'"
+          <span v-if="userRole === 'ADMIN'"
                 class="absolute -inset-1.5 rounded-xl bg-rose-500/40 blur-md animate-pulse"></span>
           <span class="relative z-10 drop-shadow-sm">{{ roleInitial }}</span>
         </div>
@@ -75,10 +75,10 @@
           class="flex flex-col min-w-0 overflow-hidden transition-all duration-300"
           :class="isOpen ? 'opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-4 hidden'"
         >
-          <p class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+          <p class="text-xs font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
             {{ contextInfo || authStore.userName }}
           </p>
-          <p class="text-[11px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
+          <p class="text-[10px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
             {{ userRole }}
           </p>
         </div>
@@ -101,10 +101,9 @@ const isOpen = ref(true);
 
 const userRole = computed(() => authStore.user?.role || "USER");
 
-// [수정] 권한에 따른 이니셜 매핑 (A, M, U, G)
 const roleInitial = computed(() => {
   const role = userRole.value.toUpperCase();
-  if (role === 'ADMIN' || role === 'SUPERADMIN') return 'A';
+  if (role === 'ADMIN') return 'A';
   if (role === 'MANAGER') return 'M';
   if (role === 'GUEST') return 'G';
   return 'U';
@@ -117,23 +116,20 @@ const contextInfo = computed(() => {
   return "";
 });
 
-// [수정] 권한별 아바타 클래스 계산 (Header와 일치)
 const roleAvatarClass = computed(() => {
   const r = userRole.value.toUpperCase();
-  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
+  if (r === 'ADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
   if (r === 'MANAGER') return 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30';
   if (r === 'USER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
   if (r === 'GUEST') return 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30';
   return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
 });
 
-// 권한별 텍스트 색상 로직
 const getRoleTextColor = (role?: string) => {
   const r = role?.toUpperCase();
-  if (r === 'ADMIN' || r === 'SUPERADMIN') return 'text-rose-500 dark:text-rose-400';
+  if (r === 'ADMIN') return 'text-rose-500 dark:text-rose-400';
   if (r === 'MANAGER') return 'text-indigo-500 dark:text-indigo-400';
   if (r === 'USER') return 'text-emerald-500 dark:text-emerald-400';
-  if (r === 'GUEST') return 'text-amber-500 dark:text-amber-400';
   return 'text-slate-500';
 };
 
@@ -149,6 +145,7 @@ const flattenMenus = (nodes: MenuNode[]): MenuNode[] => {
   return result;
 };
 
+// 사이드바가 닫혔을 때는 계층 구조 없이 플랫하게 아이콘만 보여줌
 const visibleMenus = computed(() => {
   if (isOpen.value) return menuStore.menus;
   return flattenMenus(menuStore.menus);
