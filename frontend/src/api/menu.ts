@@ -10,6 +10,8 @@ export interface MenuNode {
   parentId: number | null;
   children: MenuNode[];
   statusTag?: string | null;
+  roles?: string[];
+  isVisible?: boolean;
 }
 
 // [UI 표시용] TreeTable 호환 모델 (null 불가, undefined 사용)
@@ -30,11 +32,16 @@ export interface RolePermission {
   menuId: number;
 }
 
-// 기존 내 메뉴 조회
+// 1. 내 메뉴 조회
 export const fetchMyMenus = () => http.get<MenuNode[]>('/menu/my');
 
-// [관리자용] 전체 메뉴 및 권한 관리
+// 2. [관리자용] 전체 메뉴 및 권한 관리
 export const fetchAllMenus = () => http.get<MenuNode[]>('/menu/all');
 export const fetchPermissions = () => http.get<RolePermission[]>('/menu/permissions');
 export const saveRolePermissions = (role: string, menuIds: number[]) => 
   http.post(`/menu/permissions/${role}`, { menuIds });
+
+// 3. [관리자용] 메뉴 CRUD (Store에서 사용)
+export const createMenu = (data: Partial<MenuNode>) => http.post('/menu', data);
+export const updateMenu = (id: number, data: Partial<MenuNode>) => http.put(`/menu/${id}`, data);
+export const deleteMenu = (id: number) => http.delete(`/menu/${id}`);
