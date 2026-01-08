@@ -9,29 +9,29 @@
           class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
         >
           <i
-            class="text-lg text-teal-600 pi pi-desktop dark:text-teal-400"
+            class="text-lg text-violet-500 pi pi-server dark:text-violet-400"
           ></i>
         </div>
         <div class="flex items-baseline gap-2">
           <h1
             class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white"
           >
-            ITM Equip Specs
+            Equipment Explorer
           </h1>
           <span
             class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
           >
-            Equipment specification registry & version control.
+            Real-time equipment monitoring & specs.
           </span>
         </div>
       </div>
     </div>
 
     <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300"
+      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0"
     >
       <div
-        class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
+        class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1"
       >
         <div class="min-w-[140px] shrink-0">
           <Select
@@ -464,9 +464,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { useAuthStore } from "@/stores/auth"; // [추가] Auth Store
+import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
-import { equipmentApi, type EquipmentSpecDto } from "@/api/equipment";
+// [수정] 올바른 함수 및 타입 import
+import { getEquipmentDetails, type EquipmentDto } from "@/api/equipment";
 
 // Components
 import Select from "primevue/select";
@@ -478,7 +479,7 @@ import Button from "primevue/button";
 import ProgressSpinner from "primevue/progressspinner";
 
 // State
-const authStore = useAuthStore(); // [추가]
+const authStore = useAuthStore();
 const selectedSite = ref("");
 const selectedSdwt = ref("");
 const selectedEqpId = ref("");
@@ -486,7 +487,8 @@ const isLoading = ref(false);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
-const equipmentList = ref<EquipmentSpecDto[]>([]);
+// [수정] 타입 지정 EquipmentDto[]
+const equipmentList = ref<EquipmentDto[]>([]);
 
 // Manual Pagination State
 const first = ref(0);
@@ -517,7 +519,6 @@ onMounted(async () => {
     sites.value = await dashboardApi.getSites();
 
     // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth/Demo)
-    // * 이 페이지는 전역 Store를 쓰지 않으므로 LocalStorage가 1순위입니다.
     let targetSite = localStorage.getItem("explorer_site") || "";
     let targetSdwt = "";
 
@@ -562,7 +563,7 @@ onMounted(async () => {
 // Handlers
 const onSiteChange = async () => {
   if (selectedSite.value) {
-    localStorage.setItem("explorer_site", selectedSite.value); // [추가] 저장
+    localStorage.setItem("explorer_site", selectedSite.value);
     isLoading.value = true;
     try {
       sdwts.value = await dashboardApi.getSdwts(selectedSite.value);
@@ -585,7 +586,7 @@ const onSiteChange = async () => {
 
 const onSdwtChange = async () => {
   if (selectedSite.value && selectedSdwt.value) {
-    localStorage.setItem("explorer_sdwt", selectedSdwt.value); // [추가] 저장
+    localStorage.setItem("explorer_sdwt", selectedSdwt.value);
     await loadEquipmentData();
   } else {
     localStorage.removeItem("explorer_sdwt");
@@ -598,7 +599,6 @@ const onSdwtChange = async () => {
   first.value = 0;
 };
 
-// [추가] EqpId 변경 시 저장 핸들러
 const onEqpIdChange = () => {
   if (selectedEqpId.value) {
     localStorage.setItem("explorer_eqpid", selectedEqpId.value);
@@ -608,14 +608,14 @@ const onEqpIdChange = () => {
   first.value = 0;
 };
 
-// [추가] 데이터 로드 로직 분리 (재사용을 위해)
 const loadEquipmentData = async () => {
   isLoading.value = true;
   try {
-    equipmentList.value = await equipmentApi.getDetails(
-      undefined,
-      selectedSdwt.value
-    );
+    // [수정] getEquipmentDetails 함수 호출
+    equipmentList.value = await getEquipmentDetails({
+      site: selectedSite.value,
+      sdwt: selectedSdwt.value
+    });
   } catch (e) {
     console.error(e);
     equipmentList.value = [];
@@ -629,7 +629,6 @@ const resetFilters = () => {
   selectedSdwt.value = "";
   selectedEqpId.value = "";
 
-  // [추가] 저장소 초기화
   localStorage.removeItem("explorer_site");
   localStorage.removeItem("explorer_sdwt");
   localStorage.removeItem("explorer_eqpid");
@@ -798,4 +797,3 @@ const copyToClipboard = async (text: string) => {
   @apply w-3 h-3;
 }
 </style>
-
