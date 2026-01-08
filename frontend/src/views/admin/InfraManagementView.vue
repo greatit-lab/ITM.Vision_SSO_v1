@@ -41,8 +41,9 @@
                     <Button icon="pi pi-filter-slash" severity="secondary" outlined size="small" class="!py-1.5 !px-3" @click="resetFilter" />
                   </div>
                   <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                     </div>
+                      </div>
                 </div>
+
                 <div class="flex-1 overflow-hidden border rounded-lg border-slate-200 dark:border-zinc-800 min-h-0 relative">
                   <div class="absolute inset-0">
                     <DataTable :value="filteredEquipments" paginator :rows="eqpRows" v-model:first="eqpFirst" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm [&_.p-paginator]:hidden" stripedRows :loading="loading" tableStyle="min-width: 80rem" removableSort sortField="eqpid" :sortOrder="1">
@@ -56,6 +57,17 @@
                       <Column field="lastUpdate" header="Last Update" style="min-width: 130px">
                         <template #body="{ data }">{{ formatDateTime(data.lastUpdate) }}</template>
                       </Column>
+                      <Column header="Action" align="center" style="width: 80px; min-width: 80px;">
+                        <template #body="{ data }">
+                           <Button 
+                             icon="pi pi-trash" 
+                             text rounded severity="danger" 
+                             size="small" 
+                             class="!w-6 !h-6" 
+                             @click="removeEquipment(data.eqpid)" 
+                           />
+                        </template>
+                      </Column>
                     </DataTable>
                   </div>
                 </div>
@@ -66,7 +78,7 @@
              <div class="flex flex-col h-full gap-3 p-4 min-h-0">
                <div class="flex flex-wrap items-center justify-between gap-3 p-2 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-[#111111] shrink-0">
                   <Button label="SDWT 추가" icon="pi pi-plus" size="small" class="!py-1.5 !text-xs" @click="openSdwtDialog" />
-                  </div>
+               </div>
                <div class="flex-1 overflow-hidden border rounded-lg border-slate-200 dark:border-zinc-800 min-h-0 relative">
                   <div class="absolute inset-0">
                     <DataTable :value="sdwts" paginator :rows="sdwtRows" v-model:first="sdwtFirst" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm compact-table [&_.p-paginator]:hidden" stripedRows :loading="loading" removableSort sortField="id" :sortOrder="1">
@@ -103,22 +115,23 @@
                   <div class="flex-1 min-h-0 overflow-hidden relative">
                     <div class="absolute inset-0">
                       <DataTable :value="severities" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm" stripedRows :loading="loading" sortField="errorId" :sortOrder="1">
-                         <Column field="errorId" header="Error ID" sortable style="width: 40%; font-weight:bold"></Column>
-                         <Column field="severity" header="Severity" sortable style="width: 40%">
-                           <template #body="{ data }"><span :class="getSeverityClass(data.severity)">{{ data.severity }}</span></template>
-                         </Column>
-                         <Column header="Action" align="center" style="width: 20%; min-width: 100px;">
-                           <template #body="{ data }">
-                             <div class="flex items-center justify-center gap-2 flex-nowrap w-full">
-                               <Button icon="pi pi-pencil" text rounded severity="info" size="small" class="!w-6 !h-6" @click="openSeverityDialog(data)" />
-                               <Button icon="pi pi-trash" text rounded severity="danger" size="small" class="!w-6 !h-6" @click="removeSeverity(data.errorId)" />
-                             </div>
-                           </template>
-                         </Column>
+                          <Column field="errorId" header="Error ID" sortable style="width: 40%; font-weight:bold"></Column>
+                          <Column field="severity" header="Severity" sortable style="width: 40%">
+                            <template #body="{ data }"><span :class="getSeverityClass(data.severity)">{{ data.severity }}</span></template>
+                          </Column>
+                          <Column header="Action" align="center" style="width: 20%; min-width: 100px;">
+                            <template #body="{ data }">
+                              <div class="flex items-center justify-center gap-2 flex-nowrap w-full">
+                                <Button icon="pi pi-pencil" text rounded severity="info" size="small" class="!w-6 !h-6" @click="openSeverityDialog(data)" />
+                                <Button icon="pi pi-trash" text rounded severity="danger" size="small" class="!w-6 !h-6" @click="removeSeverity(data.errorId)" />
+                              </div>
+                            </template>
+                          </Column>
                       </DataTable>
                     </div>
                   </div>
                </div>
+               
                <div class="flex flex-col flex-1 h-full min-h-0 overflow-hidden bg-white border rounded-lg shadow-sm border-slate-200 dark:border-zinc-800">
                   <div class="flex items-center justify-between p-3 border-b shrink-0 border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900">
                     <div class="font-bold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2"><i class="pi pi-chart-bar text-blue-500"></i> 분석 지표</div>
@@ -200,7 +213,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
-import { useAuthStore } from "@/stores/auth"; // [추가]
+import { useAuthStore } from "@/stores/auth";
 import Tabs from "primevue/tabs";
 import TabList from "primevue/tablist";
 import Tab from "primevue/tab";
@@ -213,11 +226,15 @@ import InputText from "primevue/inputtext";
 import Dialog from "primevue/dialog";
 import Checkbox from "primevue/checkbox";
 import Dropdown from "primevue/dropdown";
+
+// [변경] 기존 InfraApi 대신 새로 만든 equipment API 사용 (Tab 0 용)
+import * as EquipmentApi from "@/api/equipment"; 
+
+// 기존 API 유지 (Tab 1, 2 용)
 import * as InfraApi from "@/api/infra";
 import * as AdminApi from "@/api/admin";
 
 const authStore = useAuthStore();
-// [추가] Admin 여부 확인
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 
 const activeTab = ref("0");
@@ -239,7 +256,7 @@ const metricsMultiSortMeta = ref([
   { field: 'metricName', order: 1 as const }
 ]);
 
-// --- Tab 0: Equipment Logic ---
+// --- Tab 0: Equipment Logic (새 API 적용) ---
 const filters = reactive({ eqpId: "", indexLine: "", sdwt: "" });
 const filteredEquipments = computed(() => {
   if (!equipments.value) return [];
@@ -247,12 +264,34 @@ const filteredEquipments = computed(() => {
     const fEqp = filters.eqpId.toLowerCase();
     const fIdx = filters.indexLine.toLowerCase();
     const fSdwt = filters.sdwt.toLowerCase();
+    
+    // DB에서 가져온 데이터 필드명에 맞춤 (API 응답이 snake_case일 수 있으므로 매핑 필요 시 주의)
+    // RefEquipment 모델: eqpid, indexLine, sdwt 필드 존재함
     return (!fEqp || item.eqpid?.toLowerCase().includes(fEqp)) &&
            (!fIdx || item.indexLine?.toLowerCase().includes(fIdx)) &&
            (!fSdwt || item.sdwt?.toLowerCase().includes(fSdwt));
   });
 });
+
 const resetFilter = () => { filters.eqpId = ""; filters.indexLine = ""; filters.sdwt = ""; };
+
+// [추가] 장비 삭제 기능
+const removeEquipment = async (eqpId: string) => {
+  if (!confirm(`정말로 장비 [${eqpId}]를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+    return;
+  }
+  try {
+    loading.value = true;
+    await EquipmentApi.deleteEquipment(eqpId); // 신규 API 호출
+    alert('삭제되었습니다.');
+    await loadEquipments(); // 목록 갱신
+  } catch (error) {
+    console.error('Failed to delete equipment:', error);
+    alert('삭제 중 오류가 발생했습니다.');
+  } finally {
+    loading.value = false;
+  }
+};
 
 // --- Tab 1: SDWT Logic ---
 const sdwtDialogVisible = ref(false);
@@ -345,7 +384,19 @@ const removeMetric = async (name: string) => {
 };
 
 // --- Data Fetching ---
-const loadEquipments = async () => { equipments.value = (await InfraApi.getInfraEquipment()).data; };
+// [변경] Tab 0: 장비 목록 조회를 신규 API (getInfraList)로 교체
+const loadEquipments = async () => { 
+  try {
+    // getInfraList는 배열을 직접 반환하도록 수정되었으므로 .data 없이 받을 수 있음 (api/equipment.ts 확인 필요)
+    // 만약 axios response 그대로라면 .data가 맞음. 여기선 안전하게 처리.
+    const response = await EquipmentApi.getInfraList();
+    equipments.value = Array.isArray(response) ? response : (response as any).data || [];
+  } catch (e) {
+    console.error("Equipment load failed", e);
+    equipments.value = [];
+  }
+};
+
 const loadSdwts = async () => { if (isAdmin.value) sdwts.value = (await InfraApi.getInfraSdwt()).data; };
 const loadSeverities = async () => { severities.value = (await AdminApi.getSeverities()).data; };
 const loadMetrics = async () => { metrics.value = (await AdminApi.getMetrics()).data; };
@@ -364,7 +415,6 @@ const formatDateTime = (dateStr: string) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-// [추가] 탭 접근 권한 체크 (비관리자가 SDWT 탭 접근 시 0번으로 이동)
 watch(activeTab, (newVal) => {
   if (newVal === '1' && !isAdmin.value) {
     activeTab.value = '0';
