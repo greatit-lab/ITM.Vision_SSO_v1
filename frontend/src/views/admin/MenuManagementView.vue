@@ -119,7 +119,7 @@
             <Column field="isVisible" header="Visibility" style="width: 10%; text-align: center;">
               <template #body="slotProps">
                  <i class="pi text-[10px]" 
-                    :class="slotProps.node.data.isVisible ? 'pi-eye text-emerald-500' : 'pi-eye-slash text-slate-300'">
+                   :class="slotProps.node.data.isVisible ? 'pi-eye text-emerald-500' : 'pi-eye-slash text-slate-300'">
                  </i>
               </template>
             </Column>
@@ -149,40 +149,40 @@
 
            <div class="flex-1 min-h-0 relative w-full overflow-hidden">
                <DataTable
-                  :value="accessCodes"
-                  :loading="isLoadingSecurity"
-                  scrollable
-                  scrollHeight="flex"
-                  class="h-full w-full text-xs p-datatable-sm border-none absolute inset-0"
-                  stripedRows
-                >
-                  <template #empty>
-                    <div class="p-4 text-center text-slate-400">화이트리스트 데이터가 없습니다.</div>
-                  </template>
-                  
-                  <Column field="compid" header="CompId" sortable style="width: 12%; font-weight: bold"></Column>
-                  
-                  <Column field="compName" header="CompName" style="width: 12%"></Column>
-                  
-                  <Column field="deptid" header="DeptId" style="width: 12%"></Column>
-                  
-                  <Column field="deptName" header="DeptName" style="width: 20%"></Column>
-                  
-                  <Column field="description" header="Description" style="width: 26%"></Column>
-                  
-                  <Column field="isActive" header="Status" align="center" style="width: 8%">
-                    <template #body="slotProps">
-                      <i class="pi" :class="slotProps.data.isActive === 'Y' ? 'pi-check-circle text-green-500' : 'pi-ban text-slate-300'"></i>
-                    </template>
-                  </Column>
-                  <Column header="Action" style="width: 10%" align="center">
-                    <template #body="slotProps">
-                      <div class="flex justify-center gap-1">
-                        <i class="pi pi-pencil text-slate-300 hover:text-blue-500 cursor-pointer text-[10px]" @click="editAccessCode(slotProps.data)"></i>
-                        <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAccessCode(slotProps.data.compid)"></i>
-                      </div>
-                    </template>
-                  </Column>
+                 :value="accessCodes"
+                 :loading="isLoadingSecurity"
+                 scrollable
+                 scrollHeight="flex"
+                 class="h-full w-full text-xs p-datatable-sm border-none absolute inset-0"
+                 stripedRows
+               >
+                 <template #empty>
+                   <div class="p-4 text-center text-slate-400">화이트리스트 데이터가 없습니다.</div>
+                 </template>
+                 
+                 <Column field="compid" header="CompId" sortable style="width: 12%; font-weight: bold"></Column>
+                 
+                 <Column field="compName" header="CompName" style="width: 12%"></Column>
+                 
+                 <Column field="deptid" header="DeptId" style="width: 12%"></Column>
+                 
+                 <Column field="deptName" header="DeptName" style="width: 20%"></Column>
+                 
+                 <Column field="description" header="Description" style="width: 26%"></Column>
+                 
+                 <Column field="isActive" header="Status" align="center" style="width: 8%">
+                   <template #body="slotProps">
+                     <i class="pi" :class="slotProps.data.isActive === 'Y' ? 'pi-check-circle text-green-500' : 'pi-ban text-slate-300'"></i>
+                   </template>
+                 </Column>
+                 <Column header="Action" style="width: 10%" align="center">
+                   <template #body="slotProps">
+                     <div class="flex justify-center gap-1">
+                       <i class="pi pi-pencil text-slate-300 hover:text-blue-500 cursor-pointer text-[10px]" @click="editAccessCode(slotProps.data)"></i>
+                       <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAccessCode(slotProps.data.compid)"></i>
+                     </div>
+                   </template>
+                 </Column>
                </DataTable>
            </div>
         </div>
@@ -204,28 +204,28 @@
 
            <div class="flex-1 min-h-0 relative w-full overflow-hidden">
                <DataTable
-                  :value="filteredAdmins"
-                  :loading="isLoadingSecurity"
-                  scrollable
-                  scrollHeight="flex"
-                  class="h-full w-full text-xs p-datatable-sm border-none absolute inset-0"
-                  stripedRows
-                >
-                  <template #empty>
-                    <div class="p-4 text-center text-slate-400">등록된 운영자가 없습니다.</div>
-                  </template>
-                  
-                  <Column field="loginId" header="User ID" sortable style="width: 30%">
-                    <template #body="slotProps">
-                      <div class="flex items-center gap-2">
-                        <Avatar :label="slotProps.data.loginId.charAt(0).toUpperCase()" shape="circle" class="!w-6 !h-6 !text-[10px] !bg-slate-100 dark:!bg-zinc-800 !font-bold" />
-                        <span class="font-bold text-slate-700 dark:text-slate-200">{{ slotProps.data.loginId }}</span>
-                      </div>
-                    </template>
-                  </Column>
-                  
-                  <Column field="role" header="Role" sortable style="width: 30%">
-                    <template #body="slotProps">
+                 :value="filteredAdmins"
+                 :loading="isLoadingSecurity"
+                 scrollable
+                 scrollHeight="flex"
+                 class="h-full w-full text-xs p-datatable-sm border-none absolute inset-0"
+                 stripedRows
+               >
+                 <template #empty>
+                   <div class="p-4 text-center text-slate-400">등록된 운영자가 없습니다.</div>
+                 </template>
+                 
+                 <Column field="loginId" header="User ID" sortable style="width: 30%">
+                   <template #body="slotProps">
+                     <div class="flex items-center gap-2">
+                       <Avatar :label="slotProps.data.loginId.charAt(0).toUpperCase()" shape="circle" class="!w-6 !h-6 !text-[10px] !bg-slate-100 dark:!bg-zinc-800 !font-bold" />
+                       <span class="font-bold text-slate-700 dark:text-slate-200">{{ slotProps.data.loginId }}</span>
+                     </div>
+                   </template>
+                 </Column>
+                 
+                 <Column field="role" header="Role" sortable style="width: 30%">
+                   <template #body="slotProps">
                        <div class="flex items-center">
                          <span 
                            class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white border-2 border-white dark:border-zinc-900 shadow-sm cursor-help"
@@ -235,20 +235,20 @@
                            {{ slotProps.data.role.charAt(0) }}
                          </span>
                        </div>
-                    </template>
-                  </Column>
-                  
-                  <Column field="assignedAt" header="Assigned Date" sortable style="width: 30%">
-                    <template #body="slotProps">{{ formatDateTime(slotProps.data.assignedAt) }}</template>
-                  </Column>
-                  
-                  <Column header="Action" style="width: 10%" align="center">
-                    <template #body="slotProps">
-                      <div class="flex justify-center">
-                        <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAdmin(slotProps.data.loginId)"></i>
-                      </div>
-                    </template>
-                  </Column>
+                   </template>
+                 </Column>
+                 
+                 <Column field="assignedAt" header="Assigned Date" sortable style="width: 30%">
+                   <template #body="slotProps">{{ formatDateTime(slotProps.data.assignedAt) }}</template>
+                 </Column>
+                 
+                 <Column header="Action" style="width: 10%" align="center">
+                   <template #body="slotProps">
+                     <div class="flex justify-center">
+                       <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAdmin(slotProps.data.loginId)"></i>
+                     </div>
+                   </template>
+                 </Column>
                </DataTable>
            </div>
         </div>
@@ -475,8 +475,8 @@ const menuForm = reactive({
   id: null as number | null,
   label: '',
   routerPath: '',
+  icon: '',
   parentId: null as number | null,
-  icon: '', 
   sortOrder: 0,
   statusTag: '',
   isVisible: true,
