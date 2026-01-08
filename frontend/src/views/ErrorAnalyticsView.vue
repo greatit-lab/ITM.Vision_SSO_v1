@@ -128,7 +128,7 @@
           </p>
           <div class="flex items-end gap-2 mt-1">
             <span class="text-3xl font-black text-rose-500">{{
-              summary.totalErrorCount.toLocaleString()
+              summary.totalErrorCount?.toLocaleString() ?? 0
             }}</span>
             <span class="mb-1 text-xs font-medium text-slate-400">events</span>
           </div>
@@ -147,7 +147,7 @@
           </p>
           <div class="flex items-end gap-2 mt-1">
             <span class="text-3xl font-black text-slate-800 dark:text-white">{{
-              summary.errorEqpCount.toLocaleString()
+              summary.errorEqpCount?.toLocaleString() ?? 0
             }}</span>
             <span class="mb-1 text-xs font-medium text-slate-400"
               >machines</span
@@ -175,7 +175,7 @@
                 {{ summary.topErrorId || "-" }}
               </span>
               <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
-                >{{ summary.topErrorCount.toLocaleString() }} times</span
+                >{{ summary.topErrorCount?.toLocaleString() ?? 0 }} times</span
               >
             </div>
             <p
@@ -423,7 +423,9 @@
       <div
         class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
       >
-        <i class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-search"></i>
+        <i
+          class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-search"
+        ></i>
       </div>
       <p class="text-sm font-bold text-slate-500">Ready to Search</p>
       <p class="mt-1 text-xs text-slate-400">
@@ -435,13 +437,16 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from "vue";
-import { useAuthStore } from "@/stores/auth"; // [Add] Auth Store import
+import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
-import { equipmentApi } from "@/api/equipment";
+import { getEqpIds } from "@/api/equipment";
 import {
-  errorApi,
-  type ErrorAnalyticsSummaryDto,
-  type ErrorLogDto,
+  getErrorSummary,
+  getErrorTrend,
+  getErrorLogs,
+  type ErrorSummary,
+  type ErrorLogItem,
+  type ErrorTrendItem
 } from "@/api/error";
 import EChart from "@/components/common/EChart.vue";
 
@@ -452,29 +457,11 @@ import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 
-// --- Store & Constants ---
 const authStore = useAuthStore();
-// [New] Page-specific LocalStorage Keys
-const LS_KEYS = {
-  SITE: "error-view-site",
-  SDWT: "error-view-sdwt",
-  EQPID: "error-view-eqpid",
-};
+const LS_KEYS = { SITE: "error-view-site", SDWT: "error-view-sdwt", EQPID: "error-view-eqpid" };
 
-// --- State ---
-const filter = reactive({
-  site: "",
-  sdwt: "",
-  eqpId: "",
-  startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  endDate: new Date(),
-});
-
-// 차트 인터랙션용 필터
-const gridFilter = reactive({
-  date: null as string | null,
-  eqpId: null as string | null,
-});
+const filter = reactive({ site: "", sdwt: "", eqpId: "", startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date() });
+const gridFilter = reactive({ date: null as string | null, eqpId: null as string | null });
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -484,22 +471,13 @@ const isLoading = ref(false);
 const isGridLoading = ref(false);
 const hasSearched = ref(false);
 
-// Data
-const summary = ref<ErrorAnalyticsSummaryDto>({
-  totalErrorCount: 0,
-  errorEqpCount: 0,
-  topErrorId: "",
-  topErrorCount: 0,
-  topErrorLabel: "",
-  errorCountByEqp: [],
-});
-const trendData = ref<any[]>([]);
-const logs = ref<ErrorLogDto[]>([]);
+const summary = ref<ErrorSummary>({ totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] });
+const trendData = ref<ErrorTrendItem[]>([]);
+const logs = ref<ErrorLogItem[]>([]);
 const totalRecords = ref(0);
 const rowsPerPage = ref(10);
 const first = ref(0);
 
-// Theme
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 const themeObserver = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -509,456 +487,190 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
+  let targetSite = localStorage.getItem(LS_KEYS.SITE) || authStore.user?.site || "";
+  let targetSdwt = targetSite ? (localStorage.getItem(LS_KEYS.SDWT) || "") : (authStore.user?.sdwt || "");
 
-  // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth)
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
-  let targetSdwt = "";
-
-  if (targetSite) {
-     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
-  } else {
-     targetSite = authStore.user?.site || "";
-     targetSdwt = authStore.user?.sdwt || "";
-  }
-
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filter.site = targetSite;
-    
     try {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
-
-      // 4. SDWT 적용 및 Eqp 로드
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
+        // [수정] 인자 형태 수정: getEqpIds({ sdwt, type })
+        eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "error" });
         
-        eqpIds.value = await equipmentApi.getEqpIds(
-          undefined,
-          targetSdwt,
-          "error"
-        );
-
-        // 5. EQP ID 복원
         const initEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
         if (initEqpId && eqpIds.value.includes(initEqpId)) {
           filter.eqpId = initEqpId;
         }
-
-        // 필수 조건 충족 시 자동 검색
-        if (filter.sdwt) {
-          search();
-        }
-      } else {
-        filter.sdwt = "";
-        filter.eqpId = "";
+        if (filter.sdwt) search();
       }
     } catch (e) {
       console.error("Failed to restore filter state:", e);
     }
   }
-
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 });
 
-// --- Watchers for Persistence ---
-watch(
-  () => filter.site,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
-    else localStorage.removeItem(LS_KEYS.SITE);
-  }
-);
+watch(() => filter.site, (n) => n ? localStorage.setItem(LS_KEYS.SITE, n) : localStorage.removeItem(LS_KEYS.SITE));
+watch(() => filter.sdwt, (n) => n ? localStorage.setItem(LS_KEYS.SDWT, n) : localStorage.removeItem(LS_KEYS.SDWT));
+watch(() => filter.eqpId, (n) => n ? localStorage.setItem(LS_KEYS.EQPID, n) : localStorage.removeItem(LS_KEYS.EQPID));
 
-watch(
-  () => filter.sdwt,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
-    else localStorage.removeItem(LS_KEYS.SDWT);
-  }
-);
-
-watch(
-  () => filter.eqpId,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.EQPID, newVal);
-    else localStorage.removeItem(LS_KEYS.EQPID);
-  }
-);
-
-// --- Handlers ---
 const onSiteChange = async () => {
-  if (filter.site) {
-    sdwts.value = await dashboardApi.getSdwts(filter.site);
-  } else {
-    sdwts.value = [];
-  }
-
-  // Reset child filters
-  filter.sdwt = "";
-  filter.eqpId = "";
-  eqpIds.value = [];
-  // Persistence handled by watchers
+  if (filter.site) sdwts.value = await dashboardApi.getSdwts(filter.site);
+  else sdwts.value = [];
+  filter.sdwt = ""; filter.eqpId = ""; eqpIds.value = [];
 };
 
 const onSdwtChange = async () => {
   if (filter.sdwt) {
-    eqpIds.value = await equipmentApi.getEqpIds(
-      undefined,
-      filter.sdwt,
-      "error"
-    );
+    // [수정] 인자 형태 수정
+    eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "error" });
   } else {
     eqpIds.value = [];
   }
-
-  // Reset child filter
   filter.eqpId = "";
-  // Persistence handled by watchers
 };
 
 const getEffectiveParams = () => {
   let start = filter.startDate;
   let end = filter.endDate;
   let eqps = filter.eqpId;
-
   if (gridFilter.date) {
-    start = new Date(gridFilter.date);
-    start.setHours(0, 0, 0, 0);
-    end = new Date(gridFilter.date);
-    end.setHours(23, 59, 59, 999);
+    start = new Date(gridFilter.date); start.setHours(0, 0, 0, 0);
+    end = new Date(gridFilter.date); end.setHours(23, 59, 59, 999);
   }
-
-  if (gridFilter.eqpId) {
-    eqps = gridFilter.eqpId;
-  }
-
-  return {
-    site: filter.site,
-    sdwt: filter.sdwt,
-    eqpids: eqps,
-    startDate: start ? start.toISOString() : "",
-    endDate: end ? end.toISOString() : "",
-  };
+  if (gridFilter.eqpId) eqps = gridFilter.eqpId;
+  return { site: filter.site, sdwt: filter.sdwt, eqpids: eqps, startDate: start ? start.toISOString() : "", endDate: end ? end.toISOString() : "" };
 };
 
 const search = async () => {
   if (!filter.startDate || !filter.endDate) return;
-
-  gridFilter.date = null;
-  gridFilter.eqpId = null;
-
-  isLoading.value = true;
-  hasSearched.value = true;
-  first.value = 0;
-
+  gridFilter.date = null; gridFilter.eqpId = null;
+  isLoading.value = true; hasSearched.value = true; first.value = 0;
   try {
     await Promise.all([updateSummaryData(), updateTrendData()]);
     await loadGridData();
-  } catch (e) {
-    console.error(e);
-  } finally {
-    isLoading.value = false;
-  }
+  } catch (e) { console.error(e); } finally { isLoading.value = false; }
 };
 
 const updateSummaryData = async () => {
-  const params = getEffectiveParams();
-  summary.value = await errorApi.getSummary(params);
+  try {
+    const res = await getErrorSummary(getEffectiveParams());
+    // [수정] res && res.data 체크
+    if (res && res.data) {
+      summary.value = res.data;
+    } else {
+      summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
+    }
+  } catch {
+    summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
+  }
 };
 
 const updateTrendData = async () => {
-  const params = getEffectiveParams();
-  trendData.value = await errorApi.getTrend(params);
+  try {
+    const res = await getErrorTrend(getEffectiveParams());
+    // [수정] res && res.data 체크
+    if (res && res.data) {
+      trendData.value = res.data;
+    } else {
+      trendData.value = [];
+    }
+  } catch {
+    trendData.value = [];
+  }
 };
 
 const loadGridData = async () => {
   isGridLoading.value = true;
   try {
-    const params = {
-      ...getEffectiveParams(),
-      page: Math.floor(first.value / rowsPerPage.value),
-      pageSize: rowsPerPage.value,
-    };
-    const res = await errorApi.getLogs(params);
-    logs.value = res.items;
-    totalRecords.value = res.totalItems;
-  } finally {
-    isGridLoading.value = false;
-  }
-};
-
-const onTrendChartInit = (instance: any) => {
-  instance.on("click", async (params: any) => {
-    if (params.dataIndex !== undefined && trendData.value[params.dataIndex]) {
-      gridFilter.date = trendData.value[params.dataIndex].date;
-      first.value = 0;
-      await updateSummaryData();
-      loadGridData();
+    const params = { ...getEffectiveParams(), page: Math.floor(first.value / rowsPerPage.value) + 1, limit: rowsPerPage.value };
+    const res = await getErrorLogs(params);
+    
+    // [수정] res && res.data 체크 (TS2532 해결)
+    if (res && res.data) {
+      logs.value = res.data.items || [];
+      totalRecords.value = res.data.totalItems || 0;
+    } else {
+      logs.value = [];
+      totalRecords.value = 0;
     }
-  });
-};
-
-const onEqpChartInit = (instance: any) => {
-  instance.on("click", async (params: any) => {
-    if (params.name) {
-      gridFilter.eqpId = params.name;
-      first.value = 0;
-      await updateTrendData();
-      loadGridData();
-    }
-  });
-};
-
-const clearGridDateFilter = async () => {
-  gridFilter.date = null;
-  await updateSummaryData();
-  first.value = 0;
-  loadGridData();
-};
-
-const clearGridEqpFilter = async () => {
-  gridFilter.eqpId = null;
-  await updateTrendData();
-  first.value = 0;
-  loadGridData();
-};
-
-const prevPage = () => {
-  if (first.value > 0) {
-    first.value -= rowsPerPage.value;
-    loadGridData();
+  } catch (e) {
+    logs.value = [];
+    totalRecords.value = 0;
+  } finally { 
+    isGridLoading.value = false; 
   }
 };
-const nextPage = () => {
-  if (first.value + rowsPerPage.value < totalRecords.value) {
-    first.value += rowsPerPage.value;
-    loadGridData();
-  }
-};
-const lastPage = () => {
-  first.value =
-    Math.floor(Math.max(totalRecords.value - 1, 0) / rowsPerPage.value) *
-    rowsPerPage.value;
-  loadGridData();
-};
 
+const onTrendChartInit = (inst: any) => inst.on("click", async (p: any) => { if (p.dataIndex !== undefined && trendData.value[p.dataIndex]) { gridFilter.date = trendData.value[p.dataIndex].date; first.value = 0; await updateSummaryData(); loadGridData(); } });
+const onEqpChartInit = (inst: any) => inst.on("click", async (p: any) => { if (p.name) { gridFilter.eqpId = p.name; first.value = 0; await updateTrendData(); loadGridData(); } });
+const clearGridDateFilter = async () => { gridFilter.date = null; await updateSummaryData(); first.value = 0; loadGridData(); };
+const clearGridEqpFilter = async () => { gridFilter.eqpId = null; await updateTrendData(); first.value = 0; loadGridData(); };
+const prevPage = () => { if (first.value > 0) { first.value -= rowsPerPage.value; loadGridData(); } };
+const nextPage = () => { if (first.value + rowsPerPage.value < totalRecords.value) { first.value += rowsPerPage.value; loadGridData(); } };
+const lastPage = () => { first.value = Math.floor(Math.max(totalRecords.value - 1, 0) / rowsPerPage.value) * rowsPerPage.value; loadGridData(); };
 const reset = () => {
-  hasSearched.value = false;
-  filter.site = "";
-  filter.sdwt = "";
-  filter.eqpId = "";
-  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  filter.endDate = new Date();
-
-  gridFilter.date = null;
-  gridFilter.eqpId = null;
-
-  sdwts.value = [];
-  eqpIds.value = [];
-
-  // Note: Persistence is cleared by watchers automatically
-  summary.value = {
-    totalErrorCount: 0,
-    errorEqpCount: 0,
-    topErrorId: "",
-    topErrorCount: 0,
-    topErrorLabel: "",
-    errorCountByEqp: [],
-  };
-  trendData.value = [];
-  logs.value = [];
+  hasSearched.value = false; filter.site = ""; filter.sdwt = ""; filter.eqpId = ""; filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); filter.endDate = new Date();
+  gridFilter.date = null; gridFilter.eqpId = null; sdwts.value = []; eqpIds.value = [];
+  summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
+  trendData.value = []; logs.value = [];
 };
 
-// ... (ECharts Options는 기존과 동일) ...
 const trendOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value
-    ? "rgba(255, 255, 255, 0.1)"
-    : "rgba(0, 0, 0, 0.1)";
-
+  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
   return {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: isDarkMode.value
-        ? "rgba(24, 24, 27, 0.9)"
-        : "rgba(255, 255, 255, 0.95)",
-      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
-      textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" },
-    },
+    tooltip: { trigger: "axis", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" } },
     grid: { left: 40, right: 20, top: 30, bottom: 20, containLabel: true },
-    xAxis: {
-      type: "category",
-      data: trendData.value.map((d) => formatDate(d.date, true)),
-      axisLabel: { color: textColor, fontSize: 10 },
-      axisLine: { lineStyle: { color: gridColor } },
-    },
-    yAxis: {
-      type: "value",
-      axisLabel: { color: textColor, fontSize: 10 },
-      splitLine: { lineStyle: { color: gridColor } },
-    },
-    series: [
-      {
-        name: "Alerts",
-        type: "bar",
-        data: trendData.value.map((d) => d.count),
-        itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] },
-        barMaxWidth: 50,
-        cursor: "pointer",
-        label: {
-          show: true,
-          position: "top",
-          color: textColor,
-          fontSize: 10,
-          formatter: "{c} 건",
-        },
-      },
-    ],
+    xAxis: { type: "category", data: trendData.value.map((d) => formatDate(d.date, true)), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
+    yAxis: { type: "value", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
+    series: [{ name: "Alerts", type: "bar", data: trendData.value.map((d) => d.count), itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 50, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
   };
 });
 
 const byEqpOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value
-    ? "rgba(255, 255, 255, 0.1)"
-    : "rgba(0, 0, 0, 0.1)";
-  const data = summary.value.errorCountByEqp.slice(0, 10);
-  const colors = [
-    "#f97316",
-    "#ef4444",
-    "#f59e0b",
-    "#84cc16",
-    "#10b981",
-    "#06b6d4",
-    "#3b82f6",
-    "#6366f1",
-    "#8b5cf6",
-    "#ec4899",
-  ];
-
+  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+  const data = (summary.value.errorCountByEqp || []).slice(0, 10);
+  const colors = ["#f97316", "#ef4444", "#f59e0b", "#84cc16", "#10b981", "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#ec4899"];
   return {
     backgroundColor: "transparent",
-    tooltip: {
-      trigger: "item",
-      backgroundColor: isDarkMode.value
-        ? "rgba(24, 24, 27, 0.9)"
-        : "rgba(255, 255, 255, 0.95)",
-      textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" },
-    },
+    tooltip: { trigger: "item", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" } },
     grid: { left: 40, right: 20, top: 30, bottom: 30, containLabel: true },
-    xAxis: {
-      type: "category",
-      data: data.map((d) => d.label),
-      axisLabel: { color: textColor, fontSize: 10, interval: 0, rotate: 30 },
-      axisLine: { lineStyle: { color: gridColor } },
-    },
-    yAxis: {
-      type: "value",
-      axisLabel: { color: textColor, fontSize: 10 },
-      splitLine: { lineStyle: { color: gridColor } },
-    },
-    series: [
-      {
-        name: "Count",
-        type: "bar",
-        data: data.map((d, index) => ({
-          value: d.value,
-          itemStyle: {
-            color: colors[index % colors.length],
-            borderRadius: [4, 4, 0, 0],
-          },
-        })),
-        barMaxWidth: 30,
-        cursor: "pointer",
-        label: {
-          show: true,
-          position: "top",
-          color: textColor,
-          fontSize: 10,
-          formatter: "{c} 건",
-        },
-      },
-    ],
+    xAxis: { type: "category", data: data.map((d) => d.label), axisLabel: { color: textColor, fontSize: 10, interval: 0, rotate: 30 }, axisLine: { lineStyle: { color: gridColor } } },
+    yAxis: { type: "value", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
+    series: [{ name: "Count", type: "bar", data: data.map((d, index) => ({ value: d.value, itemStyle: { color: colors[index % colors.length], borderRadius: [4, 4, 0, 0] } })), barMaxWidth: 30, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
   };
 });
 
 const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
-  const yy = d.getFullYear();
-  const yy2 = String(yy).slice(2);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const yy = d.getFullYear(); const yy2 = String(yy).slice(2); const mm = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0");
   if (short) return `${mm}-${dd}`;
-  if (twoDigitYear) {
-    return `${yy2}-${mm}-${dd} ${String(d.getHours()).padStart(
-      2,
-      "0"
-    )}:${String(d.getMinutes()).padStart(2, "0")}:${String(
-      d.getSeconds()
-    ).padStart(2, "0")}`;
-  }
-  return `${yy}-${mm}-${dd} ${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  if (twoDigitYear) return `${yy2}-${mm}-${dd} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  return `${yy}-${mm}-${dd} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 };
 </script>
 
 <style scoped>
-/* Style unchanged */
-:deep(.p-datatable-thead > tr > th) {
-  @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0;
-}
-:deep(.p-datatable-tbody > tr > td) {
-  @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50;
-}
-:deep(.dark .p-datatable-tbody > tr:hover) {
-  @apply !bg-[#27272a] !text-white;
-}
-:deep(.p-select),
-:deep(.custom-dropdown) {
-  @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
-}
-:deep(.custom-dropdown .p-select-label) {
-  @apply text-[13px] py-[5px] px-3;
-}
-:deep(.custom-input-text.small) {
-  @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0;
-}
-:deep(.date-picker .p-inputtext) {
-  @apply !text-[13px] !py-1 !px-2 !h-7;
-}
-:deep(.custom-dropdown.small) {
-  @apply h-7;
-}
-:deep(.custom-dropdown:hover) {
-  @apply !bg-slate-200 dark:!bg-zinc-800;
-}
-:deep(.p-select-dropdown) {
-  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
-}
-:deep(.p-select-dropdown svg) {
-  @apply w-3 h-3;
-}
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Styles retained */
+:deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0; }
+:deep(.p-datatable-tbody > tr > td) { @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
+:deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
+:deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
+:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
+:deep(.custom-input-text.small) { @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0; }
+:deep(.date-picker .p-inputtext) { @apply !text-[13px] !py-1 !px-2 !h-7; }
+:deep(.custom-dropdown.small) { @apply h-7; }
+:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
+:deep(.p-select-dropdown), :deep(.p-autocomplete-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
+:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
