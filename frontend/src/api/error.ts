@@ -1,7 +1,7 @@
 // frontend/src/api/error.ts
-import http from "./http";
+import httpData from './http-data'; // [변경] 8081 포트 사용
 
-export interface ErrorAnalyticsSummaryDto {
+export interface ErrorSummary {
   totalErrorCount: number;
   errorEqpCount: number;
   topErrorId: string;
@@ -10,44 +10,29 @@ export interface ErrorAnalyticsSummaryDto {
   errorCountByEqp: { label: string; value: number }[];
 }
 
-export interface ErrorTrendDataPointDto {
+export interface ErrorTrendItem {
   date: string;
   count: number;
 }
 
-export interface ErrorLogDto {
+export interface ErrorLogItem {
   timeStamp: string;
   eqpId: string;
   errorId: string;
   errorLabel: string;
   errorDesc: string;
-  extraMessage1: string;
-  extraMessage2: string;
+  extraMessage1?: string;
+  extraMessage2?: string;
 }
 
-export const errorApi = {
-  getSummary: async (params: any) => {
-    // [수정] apiClient -> http
-    const { data } = await http.get<ErrorAnalyticsSummaryDto>(
-      "/ErrorAnalytics/summary",
-      { params }
-    );
-    return data;
-  },
-  getTrend: async (params: any) => {
-    // [수정] apiClient -> http
-    const { data } = await http.get<ErrorTrendDataPointDto[]>(
-      "/ErrorAnalytics/trend",
-      { params }
-    );
-    return data;
-  },
-  getLogs: async (params: any) => {
-    // [수정] apiClient -> http
-    const { data } = await http.get<{
-      items: ErrorLogDto[];
-      totalItems: number;
-    }>("/ErrorAnalytics/logs", { params });
-    return data;
-  },
-};
+// 1. 에러 요약 정보 조회
+export const getErrorSummary = (params: any) => 
+  httpData.get<ErrorSummary>('/error/summary', { params });
+
+// 2. 일별 에러 발생 추이 조회
+export const getErrorTrend = (params: any) => 
+  httpData.get<ErrorTrendItem[]>('/error/trend', { params });
+
+// 3. 에러 로그 목록 조회 (페이징)
+export const getErrorLogs = (params: any) => 
+  httpData.get<{ items: ErrorLogItem[]; totalItems: number }>('/error/logs', { params });
