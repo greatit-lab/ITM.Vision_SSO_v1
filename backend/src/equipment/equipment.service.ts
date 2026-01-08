@@ -1,38 +1,25 @@
 // backend/src/equipment/equipment.service.ts
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 import { RefEquipment, Prisma } from '@prisma/client';
 
-// [DTO 정의 복구] - 다른 페이지(Equipment Explorer 등)에서 사용
-export interface EquipmentRaw {
-  eqpid: string;
-  pc_name: string;
-  is_online: boolean;
-  ip_address: string;
-  last_perf_update: Date | null;
-  os: string;
-  system_type: string;
-  timezone: string;
-  mac_address: string;
-  cpu: string;
-  memory: string;
-  disk: string;
-  vga: string;
-  type: string;
-  locale: string;
-  system_model: string;
-  serial_num: string;
-  application: string;
-  version: string;
-  db_version: string;
-}
-
+// DTO 정의
 export interface EquipmentDto {
   eqpId: string;
   pcName: string;
   isOnline: boolean;
   ipAddress: string;
-  lastContact: Date | null;
+  lastContact: Date | string | null;
   os: string;
   systemType: string;
   timezone: string;
@@ -50,91 +37,141 @@ export interface EquipmentDto {
   dbVersion: string;
 }
 
+export interface EquipmentQueryParams {
+  site?: string;
+  sdwt?: string;
+  eqpId?: string;
+  type?: string;
+}
+
 @Injectable()
 export class EquipmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(EquipmentService.name);
+  // Data API의 Equipment 엔드포인트 베이스 URL
+  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/equipment';
 
-  // =================================================================
-  // 1. [Infra Management] 인프라 관리용 단순 조회 (수정 요청 사항 반영)
-  // =================================================================
+  constructor(private readonly httpService: HttpService) {}
+
   /**
-   * 인프라 관리 화면용 목록 조회
-   * - agent_info, agent_status 등 다른 테이블과 연관시키지 않음
-   * - 오직 ref_equipment 테이블의 데이터만 조회
+   * [Core] GET 요청용 공통 Fetcher
    */
-  async getInfraList(): Promise<RefEquipment[]> {
-    return await this.prisma.refEquipment.findMany({
-      orderBy: {
-        eqpid: 'asc',
-      },
-      // include 옵션 없음 (순수 ref_equipment 데이터만 조회)
-    });
+  private async fetchFromApi<T>(
+    endpoint: string,
+    params: EquipmentQueryParams = {},
+  ): Promise<T> {
+    let finalUrl = 'URL_NOT_GENERATED';
+
+    try {
+      const targetPath = endpoint
+        ? `${this.DATA_API_BASE}/${endpoint}`
+        : this.DATA_API_BASE;
+
+      const cleanParams: Record<string, string> = {};
+      
+      // [ESLint 수정] 값의 타입을 명확히 확인하여 변환
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          return;
+        }
+        if (typeof value === 'string') {
+          cleanParams[key] = value;
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          cleanParams[key] = String(value);
+        } else if (value instanceof Date) {
+          cleanParams[key] = value.toISOString();
+        } else {
+          // 그 외 객체 타입 등은 JSON 문자열로 변환
+          cleanParams[key] = JSON.stringify(value);
+        }
+      });
+
+      const dummyConfig = {
+        params: cleanParams,
+        url: targetPath,
+      } as InternalAxiosRequestConfig;
+      finalUrl = axios.getUri(dummyConfig);
+
+      this.logger.debug(`[Requesting GET] ${finalUrl}`);
+
+      const response: AxiosResponse<T> = await firstValueFrom(
+        this.httpService.get<T>(targetPath, {
+          params: cleanParams,
+        }),
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error, finalUrl);
+      return [] as unknown as T;
+    }
+  }
+
+  /**
+   * [Core] Mutation (POST, PATCH, DELETE) 요청용 공통 Method
+   * [ESLint 수정] data 타입을 any -> unknown으로 변경하여 unsafe assignment 방지
+   */
+  private async mutateApi<T>(
+    method: 'post' | 'patch' | 'delete',
+    endpoint: string,
+    data?: unknown, 
+  ): Promise<T> {
+    const targetPath = endpoint
+      ? `${this.DATA_API_BASE}/${endpoint}`
+      : this.DATA_API_BASE;
+
+    try {
+      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
+
+      const response: AxiosResponse<T> = await firstValueFrom(
+        this.httpService.request<T>({
+          method,
+          url: targetPath,
+          data, 
+        }),
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error, targetPath);
+      throw error;
+    }
+  }
+
+  private handleError(error: unknown, url: string): void {
+    let errorMessage = 'Unknown Error';
+    let statusCode = 500;
+
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError;
+      statusCode = axiosError.response?.status || 500;
+      const errorData = axiosError.response?.data;
+      errorMessage = errorData
+        ? JSON.stringify(errorData)
+        : axiosError.message;
+
+      this.logger.error(
+        `[Data API Error] ${statusCode} - Failed URL: ${url} / Msg: ${errorMessage}`,
+      );
+    }
+    throw new InternalServerErrorException(
+      `Data API Proxy Error: ${errorMessage}`,
+    );
   }
 
   // =================================================================
-  // 2. [Equipment Explorer] 장비 탐색기/상세용 복잡한 조회 (기존 복구)
+  // 1. [Infra Management] 인프라 관리용 단순 조회
+  // =================================================================
+  async getInfraList(): Promise<RefEquipment[]> {
+    return this.fetchFromApi<RefEquipment[]>('infra');
+  }
+
+  // =================================================================
+  // 2. [Equipment Explorer] 장비 탐색기/상세용 복잡한 조회
   // =================================================================
   async getDetails(
     site?: string,
     sdwt?: string,
     eqpId?: string,
   ): Promise<EquipmentDto[]> {
-    let sql = `
-      SELECT
-          a.eqpid, a.pc_name, COALESCE(s.status, 'OFFLINE') = 'ONLINE' AS is_online,
-          a.ip_address, s.last_perf_update, a.os, a.system_type, a.timezone,
-          a.mac_address, a.cpu, a.memory, a.disk, a.vga, a.type, a.locale,
-          i.system_model, i.serial_num, i.application, i.version, i.db_version
-      FROM public.agent_info a
-      JOIN public.ref_equipment r ON a.eqpid = r.eqpid
-      LEFT JOIN public.agent_status s ON a.eqpid = s.eqpid
-      LEFT JOIN public.itm_info i ON a.eqpid = i.eqpid
-      WHERE 1=1
-    `;
-
-    const params: string[] = [];
-    let paramIndex = 1;
-
-    if (eqpId) {
-      sql += ` AND r.eqpid = $${paramIndex++}`;
-      params.push(eqpId);
-    } else if (sdwt) {
-      sql += ` AND r.sdwt = $${paramIndex++}`;
-      params.push(sdwt);
-    } else if (site) {
-      sql += ` AND r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE site = $${paramIndex++})`;
-      params.push(site);
-    }
-
-    sql += ' ORDER BY a.eqpid';
-
-    const rawData = await this.prisma.$queryRawUnsafe<EquipmentRaw[]>(
-      sql,
-      ...params,
-    );
-
-    return rawData.map((r) => ({
-      eqpId: r.eqpid,
-      pcName: r.pc_name || 'N/A',
-      isOnline: r.is_online,
-      ipAddress: r.ip_address || '',
-      lastContact: r.last_perf_update,
-      os: r.os || '',
-      systemType: r.system_type || '',
-      timezone: r.timezone || '',
-      macAddress: r.mac_address || '',
-      cpu: r.cpu || '',
-      memory: r.memory || '',
-      disk: r.disk || '',
-      vga: r.vga || '',
-      type: r.type || '',
-      locale: r.locale || '',
-      systemModel: r.system_model || '',
-      serialNum: r.serial_num || '',
-      application: r.application || '',
-      version: r.version || '',
-      dbVersion: r.db_version || '',
-    }));
+    return this.fetchFromApi<EquipmentDto[]>('details', { site, sdwt, eqpId });
   }
 
   async getEqpIds(
@@ -142,70 +179,28 @@ export class EquipmentService {
     sdwt?: string,
     type?: string,
   ): Promise<string[]> {
-    if (!site && !sdwt) {
-      return [];
-    }
-
-    let sql = 'SELECT r.eqpid FROM public.ref_equipment r';
-    const params: string[] = [];
-    let paramIndex = 1;
-    const whereClauses: string[] = [];
-
-    if (type) {
-      if (type.toLowerCase() === 'agent') {
-        sql += ' JOIN public.agent_info a ON r.eqpid = a.eqpid';
-      }
-    }
-
-    if (sdwt) {
-      whereClauses.push(`r.sdwt = $${paramIndex++}`);
-      params.push(sdwt);
-    } else if (site) {
-      whereClauses.push(
-        `r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE site = $${paramIndex++})`,
-      );
-      params.push(site);
-    }
-
-    if (whereClauses.length > 0) {
-      sql += ' WHERE ' + whereClauses.join(' AND ');
-    }
-    sql += ' ORDER BY r.eqpid';
-
-    const rawData = await this.prisma.$queryRawUnsafe<{ eqpid: string }[]>(
-      sql,
-      ...params,
-    );
-
-    return rawData.map((r) => r.eqpid);
+    return this.fetchFromApi<string[]>('ids', { site, sdwt, type });
   }
 
   // =================================================================
-  // 3. [Basic CRUD] 기본 기능
+  // 3. [Basic CRUD] 기본 기능 (Data API로 위임)
   // =================================================================
   async create(data: Prisma.RefEquipmentCreateInput): Promise<RefEquipment> {
-    return await this.prisma.refEquipment.create({ data });
+    return this.mutateApi<RefEquipment>('post', '', data);
   }
 
   async findOne(eqpid: string): Promise<RefEquipment | null> {
-    return await this.prisma.refEquipment.findUnique({
-      where: { eqpid },
-    });
+    return this.fetchFromApi<RefEquipment | null>(eqpid);
   }
 
   async update(
     eqpid: string,
     data: Prisma.RefEquipmentUpdateInput,
   ): Promise<RefEquipment> {
-    return await this.prisma.refEquipment.update({
-      where: { eqpid },
-      data,
-    });
+    return this.mutateApi<RefEquipment>('patch', eqpid, data);
   }
 
   async remove(eqpid: string): Promise<RefEquipment> {
-    return await this.prisma.refEquipment.delete({
-      where: { eqpid },
-    });
+    return this.mutateApi<RefEquipment>('delete', eqpid);
   }
 }
