@@ -5,16 +5,9 @@
       @click="handleClick"
       class="relative flex items-center transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer select-none rounded-xl my-1 overflow-hidden border border-transparent"
       :class="[
-        // 높이 설정
         'min-h-[36px]',
-
-        // [수정 포인트] 마진/패딩 축소
-        // mx-1.5 -> mx-1 (외부 여백 축소)
-        // px-3 -> px-2 (내부 패딩 축소)
         'mx-1',
         isSidebarOpen ? 'px-2' : 'justify-center px-0',
-
-        // 활성화 상태 디자인
         isActive
           ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 shadow-sm shadow-indigo-100/40 dark:shadow-none border-indigo-100/50 dark:border-indigo-500/20'
           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50/80 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200',
@@ -23,9 +16,7 @@
       <div
         v-if="isActive"
         class="absolute left-0 top-1/2 -translate-y-1/2 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-r-full shadow-[2px_0_8px_rgba(99,102,241,0.4)] transition-all duration-300"
-        :class="
-          isSidebarOpen ? 'w-[3px] h-[20px]' : 'w-[3px] h-[20px] left-0.5'
-        "
+        :class="isSidebarOpen ? 'w-[3px] h-[20px]' : 'w-[3px] h-[20px] left-0.5'"
       ></div>
 
       <div class="z-10 flex items-center min-w-0 gap-3">
@@ -43,11 +34,7 @@
           <span
             v-else
             class="w-1.5 h-1.5 rounded-full transition-all duration-300 ring-2 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900"
-            :class="
-              isActive
-                ? 'bg-indigo-500 ring-indigo-200'
-                : 'bg-slate-300 ring-transparent'
-            "
+            :class="isActive ? 'bg-indigo-500 ring-indigo-200' : 'bg-slate-300 ring-transparent'"
           ></span>
 
           <span
@@ -65,12 +52,9 @@
           </span>
         </div>
 
-        <div
-          v-if="isSidebarOpen"
-          class="flex items-center justify-between flex-1 min-w-0"
-        >
+        <div v-if="isSidebarOpen" class="flex items-center justify-between flex-1 min-w-0">
           <span
-            class="text-[13.5px] tracking-tight truncate transition-colors duration-300 ml-0"
+            class="text-[13px] tracking-tight truncate transition-colors duration-300 ml-0"
             :class="isActive ? 'font-bold' : 'font-medium'"
           >
             {{ item.label }}
@@ -86,16 +70,11 @@
         </div>
       </div>
 
-      <div
-        v-if="hasChildren && isSidebarOpen"
-        class="flex items-center pl-2 ml-auto"
-      >
+      <div v-if="hasChildren && isSidebarOpen" class="flex items-center pl-2 ml-auto">
         <i
           class="pi pi-chevron-right text-[9px] transition-all duration-300"
           :class="[
-            isExpanded
-              ? 'rotate-90 text-indigo-500 font-bold'
-              : 'text-slate-400',
+            isExpanded ? 'rotate-90 text-indigo-500 font-bold' : 'text-slate-400',
             isActive ? 'text-indigo-400' : 'group-hover/item:text-slate-500',
           ]"
         ></i>
@@ -106,13 +85,8 @@
         class="absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-800 dark:bg-zinc-700 text-white text-[12px] font-medium rounded-md opacity-0 invisible group-hover/item:opacity-100 group-hover/item:visible transition-all duration-200 cubic-bezier(0.2,0,0.2,1) whitespace-nowrap z-[100] shadow-[4px_0_15px_-3px_rgba(0,0,0,0.1)] pointer-events-none translate-x-[-8px] group-hover/item:translate-x-0"
       >
         {{ item.label }}
-        <div
-          class="absolute left-0 w-2 h-2 rotate-45 -translate-x-1 -translate-y-1/2 top-1/2 bg-slate-800 dark:bg-zinc-700"
-        ></div>
-        <span
-          v-if="item.statusTag"
-          class="ml-1.5 px-1 py-[0.5px] rounded text-[8px] font-bold uppercase tracking-wider bg-white/20 text-white"
-        >
+        <div class="absolute left-0 w-2 h-2 rotate-45 -translate-x-1 -translate-y-1/2 top-1/2 bg-slate-800 dark:bg-zinc-700"></div>
+        <span v-if="item.statusTag" class="ml-1.5 px-1 py-[0.5px] rounded text-[8px] font-bold uppercase tracking-wider bg-white/20 text-white">
           {{ item.statusTag }}
         </span>
       </div>
@@ -121,14 +95,9 @@
     <div
       v-if="hasChildren && isSidebarOpen"
       class="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
-      :style="{
-        maxHeight: isExpanded ? '600px' : '0px',
-        opacity: isExpanded ? '1' : '0',
-      }"
+      :style="{ maxHeight: isExpanded ? '600px' : '0px', opacity: isExpanded ? '1' : '0' }"
     >
-      <ul
-        class="relative mt-0.5 space-y-0.5 before:absolute before:left-[27px] before:top-0 before:bottom-3 before:w-[1px] before:bg-slate-200/60 dark:before:bg-slate-800"
-      >
+      <ul class="relative mt-0.5 space-y-0.5 before:absolute before:left-[27px] before:top-0 before:bottom-3 before:w-[1px] before:bg-slate-200/60 dark:before:bg-slate-800">
         <SidebarItem
           v-for="child in item.children"
           :key="child.menuId"
@@ -162,10 +131,9 @@ const { item, isSidebarOpen } = toRefs(props);
 const route = useRoute();
 const router = useRouter();
 
-const hasChildren = computed(
-  () => !!item.value.children && item.value.children.length > 0
-);
+const hasChildren = computed(() => !!item.value.children && item.value.children.length > 0);
 
+// 현재 경로가 이 메뉴(혹은 자식 메뉴)에 해당하는지 체크
 const isActive = computed(() => {
   if (item.value.routerPath === route.path) return true;
   if (hasChildren.value) {
@@ -206,30 +174,21 @@ const autoExpand = () => {
 const getBadgeStyle = (tag: string) => {
   const t = tag.toUpperCase();
   switch (t) {
-    case "NEW":
-      return "bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30";
-    case "BETA":
-      return "bg-violet-50 text-violet-600 border border-violet-100 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30";
-    case "HOT":
-      return "bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30";
-    case "UPD":
-      return "bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30";
-    default:
-      return "bg-slate-100 text-slate-500 border border-slate-200 dark:bg-white/10 dark:text-slate-400";
+    case "NEW": return "bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30";
+    case "BETA": return "bg-violet-50 text-violet-600 border border-violet-100 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30";
+    case "HOT": return "bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30";
+    case "UPD": return "bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30";
+    default: return "bg-slate-100 text-slate-500 border border-slate-200 dark:bg-white/10 dark:text-slate-400";
   }
 };
 
 const getBadgeDotColor = (tag: string) => {
   const t = tag.toUpperCase();
   switch (t) {
-    case "NEW":
-      return "bg-rose-500";
-    case "BETA":
-      return "bg-violet-500";
-    case "HOT":
-      return "bg-amber-500";
-    default:
-      return "bg-slate-500";
+    case "NEW": return "bg-rose-500";
+    case "BETA": return "bg-violet-500";
+    case "HOT": return "bg-amber-500";
+    default: return "bg-slate-500";
   }
 };
 
