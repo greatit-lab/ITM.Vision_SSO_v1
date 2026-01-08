@@ -1,21 +1,16 @@
 // frontend/src/api/prealign.ts
-import http from "./http";
+import httpData from './http-data'; // [변경] 8081 포트 사용
 
-export interface PreAlignDataDto {
+export interface PreAlignData {
   timestamp: string;
   xmm: number;
   ymm: number;
   notch: number;
 }
 
-export const preAlignApi = {
-  getData: async (eqpId: string, startDate: string, endDate: string) => {
-    const params = { eqpid: eqpId, startDate, endDate };
-    // [수정] apiClient -> http
-    const { data } = await http.get<PreAlignDataDto[]>(
-      "/PreAlignAnalytics/data",
-      { params }
-    );
-    return data;
-  },
-};
+// PreAlign 데이터 조회
+export const getPreAlignData = (params: {
+  eqpId: string;
+  startDate: string;
+  endDate: string;
+}) => httpData.get<PreAlignData[]>('/prealign', { params });
