@@ -2,31 +2,56 @@
 import http from './http';
 
 // ==========================================
+// [Interfaces] 데이터 타입 정의 (View에서 사용)
+// ==========================================
+
+export interface NewServerConfig {
+  id: number;
+  newDbHost: string;
+  newDbUser?: string;
+  newDbPw?: string;
+  newDbPort: number;
+  newFtpHost: string;
+  newFtpUser?: string;
+  newFtpPw?: string;
+  newFtpPort: number;
+  description?: string;
+}
+
+export interface AgentServerConfig {
+  eqpid: string;
+  agentDbHost?: string;
+  agentFtpHost?: string;
+  updateFlag: string; // 'yes' | 'no'
+  update?: string;
+}
+
+// ==========================================
 // [User Management] 시스템 사용자 관리
 // ==========================================
 export const getUsers = () => http.get('/admin/users');
 
-// [추가] 관리자(Manager) 목록 조회
+// 관리자(Manager) 목록 조회
 export const getAdmins = () => http.get('/admin/admins');
 
-// [추가] 관리자 추가
+// 관리자 추가
 export const addAdmin = (data: {
   loginId: string;
   role: string;
   assignedBy?: string;
 }) => http.post('/admin/admins', data);
 
-// [추가] 관리자 삭제
+// 관리자 삭제
 export const deleteAdmin = (loginId: string) => http.delete(`/admin/admins/${loginId}`);
 
 
 // ==========================================
 // [Access Codes] 접근 제어 (Whitelist)
 // ==========================================
-// [추가] 접근 허용 목록 조회
+// 접근 허용 목록 조회
 export const getAccessCodes = () => http.get('/admin/access-codes');
 
-// [추가] 접근 허용 코드 생성
+// 접근 허용 코드 생성
 export const createAccessCode = (data: {
   compid: string;
   deptid: string;
@@ -34,14 +59,14 @@ export const createAccessCode = (data: {
   isActive?: string;
 }) => http.post('/admin/access-codes', data);
 
-// [추가] 접근 허용 코드 수정
+// 접근 허용 코드 수정
 export const updateAccessCode = (compid: string, data: {
   deptid: string;
   description?: string;
   isActive?: string;
 }) => http.put(`/admin/access-codes/${compid}`, data);
 
-// [추가] 접근 허용 코드 삭제
+// 접근 허용 코드 삭제
 export const deleteAccessCode = (compid: string) => http.delete(`/admin/access-codes/${compid}`);
 
 
@@ -112,28 +137,40 @@ export const updateMetric = (name: string, data: {
 export const deleteMetric = (name: string) => http.delete(`/admin/metrics/${name}`);
 
 // ==========================================
-// [System Config] 1. 신규 서버 설정 (New Server Config)
+// [System Config] Server Configuration
 // ==========================================
-export const getNewServerConfig = () => http.get('/admin/new-server');
 
-export const updateNewServerConfig = (data: any) => http.put('/admin/new-server', data);
+// 1. 공통(신규) 서버 설정 조회
+export async function getNewServerConfig(): Promise<NewServerConfig> {
+  const response = await http.get('/admin/new-server');
+  return response.data;
+}
 
-// ==========================================
-// [System Config] 2. Agent 서버 목록 (Server List)
-// ==========================================
-export const getCfgServers = () => http.get('/admin/servers');
+// 2. 공통(신규) 서버 설정 수정
+export async function updateNewServerConfig(data: Partial<NewServerConfig>): Promise<NewServerConfig> {
+  const response = await http.put('/admin/new-server', data);
+  return response.data;
+}
 
-export const addCfgServer = (data: {
-  eqpid: string;
-  agentDbHost?: string;
-  agentFtpHost?: string;
-  updateFlag?: string;
-}) => http.post('/admin/servers', data);
+// 3. 장비별 에이전트 서버 목록 조회
+export async function getAgentServers(): Promise<AgentServerConfig[]> {
+  const response = await http.get('/admin/servers');
+  return response.data;
+}
 
-export const updateCfgServer = (eqpid: string, data: {
-  agentDbHost?: string;
-  agentFtpHost?: string;
-  updateFlag?: string;
-}) => http.put(`/admin/servers/${eqpid}`, data);
+// 4. 장비별 에이전트 서버 추가
+export async function createAgentServer(data: AgentServerConfig): Promise<AgentServerConfig> {
+  const response = await http.post('/admin/servers', data);
+  return response.data;
+}
 
-export const deleteCfgServer = (eqpid: string) => http.delete(`/admin/servers/${eqpid}`);
+// 5. 장비별 에이전트 서버 수정
+export async function updateAgentServer(eqpId: string, data: Partial<AgentServerConfig>): Promise<AgentServerConfig> {
+  const response = await http.put(`/admin/servers/${eqpId}`, data);
+  return response.data;
+}
+
+// 6. 장비별 에이전트 서버 삭제
+export async function deleteAgentServer(eqpId: string): Promise<void> {
+  await http.delete(`/admin/servers/${eqpId}`);
+}
