@@ -1,7 +1,9 @@
 // frontend/src/api/wafer.ts
-import http from "./http";
 
-// --- DTO 정의 (기존 유지) ---
+// [핵심 변경] 기존 http 대신, 8081 포트용 httpData를 import
+import httpData from "./http-data";
+
+// --- DTO 정의 (기존 코드 100% 유지) ---
 
 export interface WaferFlatDataDto {
   eqpId: string;
@@ -90,18 +92,19 @@ export interface OpticalTrendDto {
   peakIntensity: number;
 }
 
-// --- API 함수 (apiClient -> http로 변경) ---
+// --- API 함수 (http -> httpData로 변경하여 8081 포트로 요청) ---
 
 export const waferApi = {
   getDistinctValues: async (field: string, params: any) => {
-    const { data } = await http.get<string[]>(`/Filters/${field}`, {
+    // [변경] httpData 사용
+    const { data } = await httpData.get<string[]>(`/Filters/${field}`, {
       params,
     });
     return data;
   },
 
   getFlatData: async (params: any) => {
-    const { data } = await http.get<{
+    const { data } = await httpData.get<{
       items: WaferFlatDataDto[];
       totalItems: number;
     }>("/WaferData/flatdata", { params });
@@ -109,14 +112,17 @@ export const waferApi = {
   },
 
   getStatistics: async (params: any) => {
-    const { data } = await http.get<StatisticsDto>("/WaferData/statistics", {
-      params,
-    });
+    const { data } = await httpData.get<StatisticsDto>(
+      "/WaferData/statistics",
+      {
+        params,
+      }
+    );
     return data;
   },
 
   getPointData: async (params: any) => {
-    const { data } = await http.get<PointDataResponseDto>(
+    const { data } = await httpData.get<PointDataResponseDto>(
       "/WaferData/pointdata",
       { params }
     );
@@ -133,7 +139,7 @@ export const waferApi = {
       typeof servTs === "string"
         ? servTs
         : (servTs as unknown as Date).toISOString();
-    const { data } = await http.get<{ exists: boolean }>(
+    const { data } = await httpData.get<{ exists: boolean }>(
       "/WaferData/checkpdf",
       { params: { eqpId, lotId, waferId, servTs: dt } }
     );
@@ -158,21 +164,21 @@ export const waferApi = {
       dateTime: dt,
       pointNumber,
     };
-    const { data } = await http.get<string>("/WaferData/pdfimage", {
+    const { data } = await httpData.get<string>("/WaferData/pdfimage", {
       params,
     });
     return data;
   },
 
   getSpectrum: async (params: any) => {
-    const { data } = await http.get<SpectrumDto[]>("/WaferData/spectrum", {
+    const { data } = await httpData.get<SpectrumDto[]>("/WaferData/spectrum", {
       params,
     });
     return data;
   },
 
   getResidualMap: async (params: any) => {
-    const { data } = await http.get<ResidualMapDto[]>(
+    const { data } = await httpData.get<ResidualMapDto[]>(
       "/WaferData/residual-map",
       { params }
     );
@@ -180,7 +186,7 @@ export const waferApi = {
   },
 
   getGoldenSpectrum: async (params: any) => {
-    const { data } = await http.get<GoldenSpectrumDto | null>(
+    const { data } = await httpData.get<GoldenSpectrumDto | null>(
       "/WaferData/golden-spectrum",
       { params }
     );
@@ -188,14 +194,14 @@ export const waferApi = {
   },
 
   getAvailableMetrics: async (params: any) => {
-    const { data } = await http.get<string[]>("/WaferData/metrics", {
+    const { data } = await httpData.get<string[]>("/WaferData/metrics", {
       params,
     });
     return data;
   },
 
   getLotUniformityTrend: async (params: any) => {
-    const { data } = await http.get<LotUniformitySeriesDto[]>(
+    const { data } = await httpData.get<LotUniformitySeriesDto[]>(
       "/WaferData/trend",
       { params }
     );
@@ -203,14 +209,14 @@ export const waferApi = {
   },
 
   getPoints: async (params: any) => {
-    const { data } = await http.get<string[]>("/WaferData/points", {
+    const { data } = await httpData.get<string[]>("/WaferData/points", {
       params,
     });
     return data;
   },
 
   getSpectrumTrend: async (params: any) => {
-    const { data } = await http.get<SpectrumSeriesDto[]>(
+    const { data } = await httpData.get<SpectrumSeriesDto[]>(
       "/WaferData/trend/spectrum",
       { params }
     );
@@ -218,25 +224,29 @@ export const waferApi = {
   },
 
   getSpectrumGen: async (params: any) => {
-    const { data } = await http.get<any>("/WaferData/spectrum-gen", { params });
+    const { data } = await httpData.get<any>("/WaferData/spectrum-gen", {
+      params,
+    });
     return data;
   },
 
   getMatchingEquipments: async (params: any) => {
-    const { data } = await http.get<string[]>("/WaferData/matching-eqps", {
+    const { data } = await httpData.get<string[]>("/WaferData/matching-eqps", {
       params,
     });
     return data;
   },
 
   getComparisonData: async (params: any) => {
-    const { data } = await http.get<any[]>("/WaferData/comparison", { params });
+    const { data } = await httpData.get<any[]>("/WaferData/comparison", {
+      params,
+    });
     return data;
   },
 
   // [신규] Optical Trend 데이터 조회
   getOpticalTrend: async (params: any) => {
-    const { data } = await http.get<OpticalTrendDto[]>(
+    const { data } = await httpData.get<OpticalTrendDto[]>(
       "/WaferData/optical-trend",
       {
         params,
