@@ -7,7 +7,7 @@
           v-for="tab in visibleTabs"
           :key="tab.name"
           :to="{ name: tab.routeName }"
-          class="flex items-center gap-2 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap"
+          class="flex items-center gap-2 py-3 text-xs font-bold transition-colors border-b-2 whitespace-nowrap"
           :class="[
             isActive(tab.routeName)
               ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
@@ -30,43 +30,45 @@ import { useAuthStore } from '@/stores/auth';
 const route = useRoute();
 const authStore = useAuthStore();
 
+// 라우터 설정(router/index.ts)과 일치하는 routeName 사용
 const allTabs = [
-  {
-    name: 'menu',
-    label: '메뉴 및 권한 (Menu & Roles)',
-    routeName: 'admin-menus',
-    icon: 'pi pi-sitemap',
-    requiresSuperAdmin: true // [추가] Super Admin 전용 플래그
-  },
   {
     name: 'users',
     label: '사용자 및 보안 (User & Security)',
     routeName: 'admin-users',
-    icon: 'pi pi-users'
+    icon: 'pi pi-users',
+    requiredRole: ['ADMIN', 'MANAGER']
   },
   {
     name: 'infra',
     label: '인프라 관리 (Infrastructure)',
     routeName: 'admin-infra',
-    icon: 'pi pi-server'
+    icon: 'pi pi-server',
+    requiredRole: ['ADMIN', 'MANAGER', 'ENGINEER']
+  },
+  {
+    name: 'menu',
+    label: '메뉴 및 권한 (Menu & Roles)',
+    routeName: 'admin-menus',
+    icon: 'pi pi-sitemap',
+    requiredRole: ['ADMIN'] // ADMIN 전용
   },
   {
     name: 'system',
     label: '시스템 설정 (System Config)',
     routeName: 'admin-system',
-    icon: 'pi pi-cog'
+    icon: 'pi pi-cog',
+    requiredRole: ['ADMIN'] // ADMIN 전용
   }
 ];
 
-// [수정] 권한에 따라 탭 필터링
+// 권한에 따라 탭 필터링
 const visibleTabs = computed(() => {
-  if (authStore.isSuperAdmin) {
-    return allTabs;
-  }
-  return allTabs.filter(tab => !tab.requiresSuperAdmin);
+  const userRole = authStore.user?.role || 'GUEST';
+  return allTabs.filter(tab => tab.requiredRole.includes(userRole));
 });
 
 const isActive = (routeName: string) => {
-  return route.name === routeName || (route.meta as any)?.parent === routeName;
+  return route.name === routeName;
 };
 </script>
