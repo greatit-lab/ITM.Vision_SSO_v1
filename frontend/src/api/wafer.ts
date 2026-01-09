@@ -1,257 +1,149 @@
 // frontend/src/api/wafer.ts
+import http from "./http";
 
-// [핵심 변경] 기존 http 대신, 8081 포트용 httpData를 import
-import httpData from "./http-data";
-
-// --- DTO 정의 (기존 코드 100% 유지) ---
-
-export interface WaferFlatDataDto {
-  eqpId: string;
-  lotId: string;
-  waferId: number;
-  servTs: string;
-  dateTime: string;
-  cassetteRcp: string;
-  stageRcp: string;
-  stageGroup: string;
-  film: string;
+export interface WaferQueryParams {
+  eqpId?: string;
+  lotId?: string;
+  waferId?: string | number;
+  startDate?: string | Date;
+  endDate?: string | Date;
+  cassetteRcp?: string;
+  stageRcp?: string;
+  stageGroup?: string;
+  film?: string;
+  page?: number;
+  pageSize?: number;
+  servTs?: string | Date;
+  ts?: string | Date;
+  dateTime?: string | Date;
+  pointNumber?: string | number;
+  pointId?: string;
+  waferIds?: string;
+  metric?: string;
+  site?: string;
+  sdwt?: string;
+  targetEqps?: string;
 }
-
-export interface StatisticsDto {
-  t1: StatisticItem;
-  gof: StatisticItem;
-  z: StatisticItem;
-  srvisz: StatisticItem;
-}
-
-export interface StatisticItem {
-  max: number;
-  min: number;
-  range: number;
-  mean: number;
-  stdDev: number;
-  percentStdDev: number;
-  percentNonU: number;
-}
-
-export interface PointDataResponseDto {
-  headers: string[];
-  data: any[][];
-}
-
-export interface SpectrumDto {
-  class: string;
-  wavelengths: number[];
-  values: number[];
-}
-
-export interface ResidualMapDto {
-  point: number;
-  x: number;
-  y: number;
-  residual: number;
-}
-
-export interface GoldenSpectrumDto {
-  wavelengths: number[];
-  values: number[];
-}
-
-export interface LotUniformitySeriesDto {
-  waferId: number;
-  dataPoints: {
-    point: number;
-    value: number;
-    x: number;
-    y: number;
-    dieRow?: number;
-    dieCol?: number;
-  }[];
-}
-
-export interface SpectrumSeriesDto {
-  name: string;
-  waferId: number;
-  pointId: number;
-  data: [number, number][];
-  meta?: {
-    t1: number;
-    gof: number;
-    mse: number;
-    timestamp: string;
-  };
-}
-
-// [신규] Optical Trend DTO
-export interface OpticalTrendDto {
-  ts: string;
-  lotId: string;
-  waferId: string;
-  point: number;
-  totalIntensity: number;
-  peakIntensity: number;
-}
-
-// --- API 함수 (http -> httpData로 변경하여 8081 포트로 요청) ---
 
 export const waferApi = {
-  getDistinctValues: async (field: string, params: any) => {
-    // [변경] httpData 사용
-    const { data } = await httpData.get<string[]>(`/Filters/${field}`, {
+  getDistinctValues: async (field: string, params: WaferQueryParams) => {
+    const { data } = await http.get<string[]>("/wafer/distinct-values", {
+      params: { ...params, field },
+    });
+    return data;
+  },
+
+  getDistinctPoints: async (params: WaferQueryParams) => {
+    const { data } = await http.get<string[]>("/wafer/distinct-points", {
       params,
     });
     return data;
   },
 
-  getFlatData: async (params: any) => {
-    const { data } = await httpData.get<{
-      items: WaferFlatDataDto[];
-      totalItems: number;
-    }>("/WaferData/flatdata", { params });
+  getSpectrumTrend: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/spectrum-trend", { params });
     return data;
   },
 
-  getStatistics: async (params: any) => {
-    const { data } = await httpData.get<StatisticsDto>(
-      "/WaferData/statistics",
-      {
-        params,
-      }
-    );
+  getSpectrumGen: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/spectrum-gen", { params });
     return data;
   },
 
-  getPointData: async (params: any) => {
-    const { data } = await httpData.get<PointDataResponseDto>(
-      "/WaferData/pointdata",
-      { params }
-    );
+  getFlatData: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/flat-data", { params });
     return data;
   },
 
-  checkPdf: async (
-    eqpId: string,
-    lotId: string,
-    waferId: number,
-    servTs: string
-  ) => {
-    const dt =
-      typeof servTs === "string"
-        ? servTs
-        : (servTs as unknown as Date).toISOString();
-    const { data } = await httpData.get<{ exists: boolean }>(
-      "/WaferData/checkpdf",
-      { params: { eqpId, lotId, waferId, servTs: dt } }
-    );
-    return data.exists;
+  getPdfImage: async (params: WaferQueryParams) => {
+    const { data } = await http.get<{ image: string }>("/wafer/pdf-image", {
+      params,
+    });
+    return data;
   },
 
-  getPdfImageBase64: async (
-    eqpId: string,
-    lotId: string,
-    waferId: number,
-    dateTime: string,
-    pointNumber: number
-  ) => {
-    const dt =
-      typeof dateTime === "string"
-        ? dateTime
-        : (dateTime as unknown as Date).toISOString();
-    const params = {
-      eqpId,
-      lotId,
-      waferId,
-      dateTime: dt,
-      pointNumber,
+  checkPdf: async (params: WaferQueryParams) => {
+    // [수정] Proxy 객체를 제거하고 필요한 필드만 순수 객체로 추출하여 전달 (오류 해결)
+    const cleanParams = {
+      eqpId: params.eqpId,
+      lotId: params.lotId,
+      waferId: params.waferId,
+      servTs: params.servTs,
+      dateTime: params.dateTime,
     };
-    const { data } = await httpData.get<string>("/WaferData/pdfimage", {
-      params,
-    });
-    return data;
-  },
-
-  getSpectrum: async (params: any) => {
-    const { data } = await httpData.get<SpectrumDto[]>("/WaferData/spectrum", {
-      params,
-    });
-    return data;
-  },
-
-  getResidualMap: async (params: any) => {
-    const { data } = await httpData.get<ResidualMapDto[]>(
-      "/WaferData/residual-map",
-      { params }
+    const { data } = await http.get<{ exists: boolean; url: string | null }>(
+      "/wafer/check-pdf",
+      { params: cleanParams }
     );
     return data;
   },
 
-  getGoldenSpectrum: async (params: any) => {
-    const { data } = await httpData.get<GoldenSpectrumDto | null>(
-      "/WaferData/golden-spectrum",
-      { params }
-    );
+  getSpectrum: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/spectrum", { params });
     return data;
   },
 
-  getAvailableMetrics: async (params: any) => {
-    const { data } = await httpData.get<string[]>("/WaferData/metrics", {
+  getStatistics: async (params: WaferQueryParams) => {
+    // [수정] 통계 API 호출 시에도 안전하게 파라미터 전달
+    const cleanParams = {
+      eqpId: params.eqpId,
+      lotId: params.lotId,
+      waferId: params.waferId,
+      servTs: params.servTs,
+      cassettercp: params.cassetteRcp,
+      stagercp: params.stageRcp,
+      stagegroup: params.stageGroup,
+      film: params.film,
+    };
+    const { data } = await http.get("/wafer/statistics", {
+      params: cleanParams,
+    });
+    return data;
+  },
+
+  getPointData: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/point-data", { params });
+    return data;
+  },
+
+  getResidualMap: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/residual-map", { params });
+    return data;
+  },
+
+  getGoldenSpectrum: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/golden-spectrum", { params });
+    return data;
+  },
+
+  getAvailableMetrics: async (params: WaferQueryParams) => {
+    const { data } = await http.get<string[]>("/wafer/available-metrics", {
       params,
     });
     return data;
   },
 
-  getLotUniformityTrend: async (params: any) => {
-    const { data } = await httpData.get<LotUniformitySeriesDto[]>(
-      "/WaferData/trend",
-      { params }
-    );
+  getLotUniformityTrend: async (metric: string, params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/lot-uniformity-trend", {
+      params: { ...params, metric },
+    });
     return data;
   },
 
-  getPoints: async (params: any) => {
-    const { data } = await httpData.get<string[]>("/WaferData/points", {
+  getMatchingEquipments: async (params: WaferQueryParams) => {
+    const { data } = await http.get<string[]>("/wafer/matching-equipments", {
       params,
     });
     return data;
   },
 
-  getSpectrumTrend: async (params: any) => {
-    const { data } = await httpData.get<SpectrumSeriesDto[]>(
-      "/WaferData/trend/spectrum",
-      { params }
-    );
+  getComparisonData: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/comparison-data", { params });
     return data;
   },
 
-  getSpectrumGen: async (params: any) => {
-    const { data } = await httpData.get<any>("/WaferData/spectrum-gen", {
-      params,
-    });
-    return data;
-  },
-
-  getMatchingEquipments: async (params: any) => {
-    const { data } = await httpData.get<string[]>("/WaferData/matching-eqps", {
-      params,
-    });
-    return data;
-  },
-
-  getComparisonData: async (params: any) => {
-    const { data } = await httpData.get<any[]>("/WaferData/comparison", {
-      params,
-    });
-    return data;
-  },
-
-  // [신규] Optical Trend 데이터 조회
-  getOpticalTrend: async (params: any) => {
-    const { data } = await httpData.get<OpticalTrendDto[]>(
-      "/WaferData/optical-trend",
-      {
-        params,
-      }
-    );
+  getOpticalTrend: async (params: WaferQueryParams) => {
+    const { data } = await http.get("/wafer/optical-trend", { params });
     return data;
   },
 };
