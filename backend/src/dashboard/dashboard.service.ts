@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
-// 응답 타입 정의
 export interface DashboardSummaryResponse {
   totalEqpCount: number;
   totalServers: number;
@@ -50,10 +49,7 @@ export class DashboardService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const apiHost = this.configService.get<string>(
-      'DATA_API_HOST',
-      'http://10.135.77.71:8081',
-    );
+    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
     this.baseUrl = `${apiHost}/api/dashboard`;
   }
 
