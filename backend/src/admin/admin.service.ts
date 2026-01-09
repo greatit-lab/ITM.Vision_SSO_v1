@@ -1,6 +1,14 @@
 // backend/src/admin/admin.service.ts
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
+import axios, { AxiosError, AxiosResponse } from 'axios';
+
 import {
   CreateAdminDto,
   CreateAccessCodeDto,
@@ -19,372 +27,225 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AdminService.name);
+  private readonly baseUrl: string;
 
-  // [Helper] 현재 시간을 KST(UTC+9)로 변환하고 밀리초 제거
-  // 모든 DB 저장 시 이 함수를 사용하여 한국 시간 숫자가 그대로 저장되도록 함
-  private getKstDate() {
-    const now = new Date();
-    // UTC 시간에 9시간(KST Offset)을 더함
-    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    kstDate.setMilliseconds(0);
-    return kstDate;
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost =
+      this.configService.get<string>('DATA_API_HOST') ??
+      'http://10.135.77.71:8081';
+
+    this.baseUrl = `${apiHost}/api/admin`;
+  }
+
+  // ==========================
+  // 공통 유틸
+  // ==========================
+  private stringifyErrorData(data: unknown): string {
+    if (typeof data === 'string') return data;
+    if (data instanceof Object) return JSON.stringify(data);
+    return 'Unknown Error';
+  }
+
+  /**
+   * [Core] 공통 API 요청 처리
+   * - any 제거
+   * - unsafe-assignment 완전 제거
+   */
+  private async requestApi<T>(
+    method: 'get' | 'post' | 'patch' | 'delete' | 'put',
+    endpoint: string,
+    data?: unknown,
+    params?: unknown,
+  ): Promise<T> {
+    const targetPath = `${this.baseUrl}/${endpoint}`;
+
+    try {
+      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
+
+      const response: AxiosResponse<T> = await firstValueFrom(
+        this.httpService.request<T>({
+          method,
+          url: targetPath,
+          data,
+          params,
+        }),
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      let errorMessage = 'Unknown Error';
+      let statusCode = 500;
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<unknown>;
+        statusCode = axiosError.response?.status ?? 500;
+        errorMessage = this.stringifyErrorData(
+          axiosError.response?.data,
+        );
+
+        this.logger.error(
+          `[Data API Error] ${statusCode} - ${targetPath} / ${errorMessage}`,
+        );
+      }
+
+      throw new InternalServerErrorException(
+        `Data API Proxy Error: ${errorMessage}`,
+      );
+    }
   }
 
   // ==========================================
   // [User & Admin Management]
   // ==========================================
   async getAllUsers() {
-    return this.prisma.sysUser.findMany({
-      include: {
-        context: { include: { sdwtInfo: true } },
-      },
-      orderBy: { lastLoginAt: 'desc' },
-    });
+    return this.requestApi('get', 'users');
   }
 
   async getAllAdmins() {
-    return this.prisma.cfgAdminUser.findMany({
-      orderBy: { assignedAt: 'desc' },
-    });
+    return this.requestApi('get', 'admins');
   }
 
   async addAdmin(data: CreateAdminDto) {
-    return this.prisma.cfgAdminUser.create({
-      data: {
-        loginId: data.loginId,
-        role: data.role,
-        assignedBy: data.assignedBy || 'System',
-        assignedAt: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('post', 'admins', data);
   }
 
   async deleteAdmin(loginId: string) {
-    return this.prisma.cfgAdminUser.delete({
-      where: { loginId },
-    });
+    return this.requestApi('delete', `admins/${loginId}`);
   }
 
   // ==========================================
   // [Access Codes]
   // ==========================================
   async getAllAccessCodes() {
-    return this.prisma.refAccessCode.findMany({
-      orderBy: { updatedAt: 'desc' },
-    });
+    return this.requestApi('get', 'access-codes');
   }
 
   async createAccessCode(data: CreateAccessCodeDto) {
-    return this.prisma.refAccessCode.create({
-      data: {
-        compid: data.compid,
-        deptid: data.deptid,
-        description: data.description,
-        isActive: data.isActive || 'Y',
-        updatedAt: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('post', 'access-codes', data);
   }
 
   async updateAccessCode(compid: string, data: UpdateAccessCodeDto) {
-    return this.prisma.refAccessCode.update({
-      where: { compid },
-      data: {
-        deptid: data.deptid,
-        description: data.description,
-        isActive: data.isActive,
-        updatedAt: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('patch', `access-codes/${compid}`, data);
   }
 
   async deleteAccessCode(compid: string) {
-    return this.prisma.refAccessCode.delete({
-      where: { compid },
-    });
+    return this.requestApi('delete', `access-codes/${compid}`);
   }
 
   // ==========================================
   // [Guest Management]
   // ==========================================
   async getAllGuests() {
-    return this.prisma.cfgGuestAccess.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.requestApi('get', 'guests');
   }
 
   async addGuest(data: CreateGuestDto) {
-    return this.prisma.cfgGuestAccess.create({
-      data: {
-        loginId: data.loginId,
-        deptName: data.deptName,
-        deptCode: data.deptCode,
-        grantedRole: data.grantedRole || 'GUEST',
-        validUntil: new Date(data.validUntil), // 입력받은 날짜 유지
-        reason: data.reason,
-        createdAt: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('post', 'guests', data);
   }
 
   async deleteGuest(loginId: string) {
-    return this.prisma.cfgGuestAccess.delete({
-      where: { loginId },
-    });
+    return this.requestApi('delete', `guests/${loginId}`);
   }
 
   async getGuestRequests() {
-    return this.prisma.cfgGuestRequest.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.requestApi('get', 'guest-requests');
   }
 
   async approveGuestRequest(data: ApproveGuestRequestDto) {
-    return this.prisma.$transaction(async (tx) => {
-      const req = await tx.cfgGuestRequest.findUnique({
-        where: { reqId: data.reqId },
-      });
-      if (!req) throw new Error('Request not found');
-
-      await tx.cfgGuestAccess.upsert({
-        where: { loginId: req.loginId },
-        update: {
-          validUntil: new Date(data.validUntil),
-          grantedRole: data.grantedRole || 'GUEST',
-          deptName: req.deptName,
-          deptCode: req.deptCode,
-          reason: req.reason,
-          createdAt: this.getKstDate(), // [KST 적용]
-        },
-        create: {
-          loginId: req.loginId,
-          deptName: req.deptName,
-          deptCode: req.deptCode,
-          reason: req.reason,
-          validUntil: new Date(data.validUntil),
-          grantedRole: data.grantedRole || 'GUEST',
-          createdAt: this.getKstDate(), // [KST 적용]
-        },
-      });
-
-      return tx.cfgGuestRequest.update({
-        where: { reqId: data.reqId },
-        data: {
-          status: 'APPROVED',
-          processedBy: data.approverId,
-          processedAt: this.getKstDate(), // [KST 적용]
-        },
-      });
-    });
+    return this.requestApi('post', 'guest-requests/approve', data);
   }
 
   async rejectGuestRequest(data: RejectGuestRequestDto) {
-    return this.prisma.cfgGuestRequest.update({
-      where: { reqId: data.reqId },
-      data: {
-        status: 'REJECTED',
-        processedBy: data.approverId,
-        processedAt: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('post', 'guest-requests/reject', data);
   }
 
   // ==========================================
-  // [Infra Management] Error Severity Map
+  // [Infra] Error Severity
   // ==========================================
   async getSeverities() {
-    return this.prisma.errSeverityMap.findMany({
-      orderBy: { errorId: 'asc' },
-    });
+    return this.requestApi('get', 'severities');
   }
 
   async createSeverity(data: CreateSeverityDto) {
-    return this.prisma.errSeverityMap.create({
-      data: {
-        errorId: data.errorId,
-        severity: data.severity,
-      },
-    });
+    return this.requestApi('post', 'severities', data);
   }
 
   async updateSeverity(errorId: string, data: UpdateSeverityDto) {
-    return this.prisma.errSeverityMap.update({
-      where: { errorId },
-      data: {
-        severity: data.severity,
-      },
-    });
+    return this.requestApi(
+      'patch',
+      `severities/${encodeURIComponent(errorId)}`,
+      data,
+    );
   }
 
   async deleteSeverity(errorId: string) {
-    return this.prisma.errSeverityMap.delete({
-      where: { errorId },
-    });
+    return this.requestApi(
+      'delete',
+      `severities/${encodeURIComponent(errorId)}`,
+    );
   }
 
   // ==========================================
-  // [Infra Management] Analysis Metrics
+  // [Infra] Metrics
   // ==========================================
   async getMetrics() {
-    return this.prisma.cfgLotUniformityMetrics.findMany({
-      orderBy: { metricName: 'asc' },
-    });
+    return this.requestApi('get', 'metrics');
   }
 
   async createMetric(data: CreateMetricDto) {
-    return this.prisma.cfgLotUniformityMetrics.create({
-      data: {
-        metricName: data.metricName,
-        isExcluded:
-          typeof data.isExcluded === 'boolean'
-            ? data.isExcluded
-              ? 'Y'
-              : 'N'
-            : data.isExcluded,
-      },
-    });
+    return this.requestApi('post', 'metrics', data);
   }
 
   async updateMetric(metricName: string, data: UpdateMetricDto) {
-    return this.prisma.cfgLotUniformityMetrics.update({
-      where: { metricName },
-      data: {
-        isExcluded:
-          typeof data.isExcluded === 'boolean'
-            ? data.isExcluded
-              ? 'Y'
-              : 'N'
-            : data.isExcluded,
-      },
-    });
+    return this.requestApi(
+      'patch',
+      `metrics/${encodeURIComponent(metricName)}`,
+      data,
+    );
   }
 
   async deleteMetric(metricName: string) {
-    return this.prisma.cfgLotUniformityMetrics.delete({
-      where: { metricName },
-    });
+    return this.requestApi(
+      'delete',
+      `metrics/${encodeURIComponent(metricName)}`,
+    );
   }
 
   // ==========================================
   // [Equipments]
   // ==========================================
   async getRefEquipments() {
-    return this.prisma.refEquipment.findMany({
-      orderBy: { eqpid: 'asc' },
-    });
+    return this.requestApi('get', 'ref-equipments');
   }
 
   // ==========================================
-  // [System Config] Server Configuration
+  // [System Config]
   // ==========================================
-
-  // (1) New Server Config (Single Record)
   async getNewServerConfig() {
-    const config = await this.prisma.cfgNewServer.findUnique({
-      where: { id: 1 },
-    });
-    
-    // 데이터가 없으면 기본값으로 생성 후 반환 (초기화)
-    if (!config) {
-      return this.prisma.cfgNewServer.create({
-        data: {
-          id: 1,
-          newDbHost: '',
-          newFtpHost: '',
-        },
-      });
-    }
-    return config;
+    return this.requestApi('get', 'new-server');
   }
 
   async updateNewServerConfig(data: UpdateNewServerDto) {
-    return this.prisma.cfgNewServer.upsert({
-      where: { id: 1 },
-      update: {
-        ...data,
-      },
-      create: {
-        id: 1,
-        newDbHost: data.newDbHost || '',
-        newFtpHost: data.newFtpHost || '',
-        ...data,
-      },
-    });
+    return this.requestApi('patch', 'new-server', data);
   }
 
-  // (2) Cfg Server List (Agent Servers)
   async getCfgServers() {
-    const servers = await this.prisma.cfgServer.findMany();
-
-    const eqpIds = servers.map((s) => s.eqpid);
-    const equipments = await this.prisma.refEquipment.findMany({
-      where: {
-        eqpid: { in: eqpIds },
-      },
-      include: {
-        sdwtRel: true, // RefSdwt 관계 포함
-      },
-    });
-
-    // Map 생성 (제네릭 타입 명시)
-    type EquipmentWithSdwt = (typeof equipments)[0];
-    const eqpMap = new Map<string, EquipmentWithSdwt>();
-    
-    equipments.forEach((eqp) => {
-      eqpMap.set(eqp.eqpid, eqp);
-    });
-
-    // 데이터 병합
-    const mergedData = servers.map((server) => {
-      const eqpInfo = eqpMap.get(server.eqpid);
-      return {
-        ...server,
-        sdwtId: eqpInfo?.sdwtRel?.id ?? '',
-        site: eqpInfo?.sdwtRel?.site ?? '',
-        sdwt: eqpInfo?.sdwtRel?.sdwt ?? '',
-      };
-    });
-
-    // 기본 정렬: 1순위 sdwtId(ASC), 2순위 eqpid(ASC)
-    mergedData.sort((a, b) => {
-      if (a.sdwtId < b.sdwtId) return -1;
-      if (a.sdwtId > b.sdwtId) return 1;
-      if (a.eqpid < b.eqpid) return -1;
-      if (a.eqpid > b.eqpid) return 1;
-      return 0;
-    });
-
-    return mergedData;
+    return this.requestApi('get', 'cfg-servers');
   }
 
   async createCfgServer(data: CreateCfgServerDto) {
-    return this.prisma.cfgServer.create({
-      data: {
-        eqpid: data.eqpid,
-        agentDbHost: data.agentDbHost,
-        agentFtpHost: data.agentFtpHost,
-        updateFlag: data.updateFlag || 'no',
-        update: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('post', 'cfg-servers', data);
   }
 
   async updateCfgServer(eqpid: string, data: UpdateCfgServerDto) {
-    return this.prisma.cfgServer.update({
-      where: { eqpid },
-      data: {
-        agentDbHost: data.agentDbHost,
-        agentFtpHost: data.agentFtpHost,
-        updateFlag: data.updateFlag,
-        update: this.getKstDate(), // [KST 적용]
-      },
-    });
+    return this.requestApi('patch', `cfg-servers/${eqpid}`, data);
   }
 
   async deleteCfgServer(eqpid: string) {
-    return this.prisma.cfgServer.delete({
-      where: { eqpid },
-    });
+    return this.requestApi('delete', `cfg-servers/${eqpid}`);
   }
 }
