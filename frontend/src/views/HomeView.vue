@@ -678,7 +678,8 @@ import {
   type DashboardSummaryDto,
   type AgentStatusDto,
 } from "@/api/dashboard";
-import { performanceApi } from "@/api/performance";
+// Namespace Import를 사용하여 모든 개별 export를 performanceDataApi 객체로 묶음
+import * as performanceDataApi from "@/api/performance"; 
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
@@ -701,12 +702,14 @@ const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
 // Summary 초기값 설정
-const summary = ref<DashboardSummaryDto & { 
-  totalServers: number; 
-  inactiveAgentCount: number; 
-  totalSdwts: number; 
-  serverHealth: number; 
-}>({
+const summary = ref<
+  DashboardSummaryDto & {
+    totalServers: number;
+    inactiveAgentCount: number;
+    totalSdwts: number;
+    serverHealth: number;
+  }
+>({
   totalEqpCount: 0,
   onlineAgentCount: 0,
   todayErrorCount: 0,
@@ -725,12 +728,12 @@ const selectedAgentId = ref<string | null>(null);
 const chartData = ref<any[]>([]);
 
 const refreshCount = ref(30);
-let refreshTimer: number | null = null;
+let refreshTimer: any = null;
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-// [수정] onMounted 로직 교체
+// onMounted 로직 (기존 코드 100% 보존)
 onMounted(async () => {
   try {
     // 1. Site 목록 로드
@@ -765,8 +768,8 @@ onMounted(async () => {
         filterStore.selectedSdwt = "";
       }
     } else {
-       filterStore.selectedSite = "";
-       filterStore.selectedSdwt = "";
+      filterStore.selectedSite = "";
+      filterStore.selectedSdwt = "";
     }
 
     themeObserver = new MutationObserver((mutations) => {
@@ -888,14 +891,14 @@ const openChart = async (agent: AgentStatusDto) => {
   const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
   try {
-    // [수정] performanceApi.getHistory는 eqpids 배열을 받으므로 배열로 감싸서 전달
-    const data = await performanceApi.getHistory(
-      startDate.toISOString(),
-      endDate.toISOString(),
-      [agent.eqpId], 
-      600
-    );
-    chartData.value = data;
+    // performance.ts의 개별 export 함수인 getPerformanceHistory 호출
+    const response = await performanceDataApi.getPerformanceHistory({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      eqpids: agent.eqpId
+    });
+    // Axios 응답 객체에서 data 필드를 추출하여 대입
+    chartData.value = response.data; 
   } catch (e) {
     console.error("Failed to load chart data", e);
     chartData.value = [];
