@@ -642,12 +642,12 @@
         </div>
 
         <EChart
-          v-if="!isChartLoading && chartData.length > 0"
+          v-if="!isChartLoading && chartData && chartData.length > 0"
           :option="chartOption"
         />
 
         <div
-          v-else-if="!isChartLoading && chartData.length === 0"
+          v-else-if="!isChartLoading && (!chartData || chartData.length === 0)"
           class="flex flex-col items-center justify-center h-full select-none text-slate-400"
         >
           <div
@@ -678,8 +678,7 @@ import {
   type DashboardSummaryDto,
   type AgentStatusDto,
 } from "@/api/dashboard";
-// Namespace Import를 사용하여 모든 개별 export를 performanceDataApi 객체로 묶음
-import * as performanceDataApi from "@/api/performance"; 
+import { performanceApi } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
@@ -728,7 +727,7 @@ const selectedAgentId = ref<string | null>(null);
 const chartData = ref<any[]>([]);
 
 const refreshCount = ref(30);
-let refreshTimer: any = null;
+let refreshTimer: number | null = null;
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
@@ -891,14 +890,13 @@ const openChart = async (agent: AgentStatusDto) => {
   const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
   try {
-    // performance.ts의 개별 export 함수인 getPerformanceHistory 호출
-    const response = await performanceDataApi.getPerformanceHistory({
+    const data = await performanceDataApi.getPerformanceHistory({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      eqpids: agent.eqpId
+      [agent.eqpId],
+      600
     });
-    // Axios 응답 객체에서 data 필드를 추출하여 대입
-    chartData.value = response.data; 
+    chartData.value = data || []; 
   } catch (e) {
     console.error("Failed to load chart data", e);
     chartData.value = [];
@@ -935,12 +933,13 @@ const chartOption = computed(() => {
       },
       axisPointer: { type: "cross", label: { backgroundColor: "#6b7280" } },
       formatter: (params: any) => {
+        if (!params || !params[0]) return "";
         let html = `<div class="font-bold mb-1" style="color:${tooltipText}">${params[0].axisValueLabel}</div>`;
         params.forEach((p: any) => {
           const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
-          html += `<div style="color:${tooltipText}">${colorDot} ${
-            p.seriesName
-          }: ${p.value.toFixed(2)}%</div>`;
+          // [수정] undefined check
+          const val = typeof p.value === "number" ? p.value.toFixed(2) : "-";
+          html += `<div style="color:${tooltipText}">${colorDot} ${p.seriesName}: ${val}%</div>`;
         });
         return html;
       },
@@ -960,8 +959,10 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
+      // [수정] 명시적 데이터 할당
       data: timestamps.map((t: string) => {
         const d = new Date(t);
+        if (isNaN(d.getTime())) return t;
         return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
           d.getDate()
         ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
@@ -1272,3 +1273,4 @@ body .p-tooltip .p-tooltip-arrow {
   font-size: 12px !important;
 }
 </style>
+
