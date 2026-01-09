@@ -1,30 +1,51 @@
 // frontend/src/api/http.ts
-import axios from "axios";
+import axios from 'axios';
 
-// [수정] 배포 시 Nginx Proxy를 타도록 상대 경로 혹은 환경변수 사용
-const baseURL = (import.meta.env.VITE_API_BASE_URL || "") + "/api";
+const getBaseUrl = () => {
+  // 1. 환경 변수 우선 (.env.development의 '/api' 또는 .env.production의 주소)
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
 
-const http = axios.create({
-  baseURL,
+  // 2. 환경 변수가 없을 경우 (Fallback)
+  // 현재는 개발 환경에서 .env.development를 사용하므로 이 로직은 주로 배포 시 비상용
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:8081/api`;
+};
+
+const instance = axios.create({
+  baseURL: getBaseUrl(),
+  timeout: 10000,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
-// [추가] 요청 인터셉터: 모든 API 요청 헤더에 토큰 자동 주입
-http.interceptors.request.use(
+instance.interceptors.request.use(
   (config) => {
-    // localStorage에서 토큰을 가져옴 (AuthStore에서 관리하는 키 이름과 일치해야 함)
-    const token = localStorage.getItem("jwt_token");
-    
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+instance.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.code === 'ERR_NETWORK') {
+      console.error('[API Error] 네트워크 연결 실패. 백엔드 서버 상태를 확인하세요.');
+    } else if (error.response) {
+      console.error(
+        `[API Error] ${error.response.status} ${error.response.config.url}`,
+        error.response.data
+      );
+    }
     return Promise.reject(error);
   }
 );
 
-export default http;
+export default instance;
