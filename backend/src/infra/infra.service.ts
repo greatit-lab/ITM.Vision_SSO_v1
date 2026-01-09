@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { RefSdwt, CfgServer, Prisma } from '@prisma/client';
@@ -12,21 +13,23 @@ import { RefSdwt, CfgServer, Prisma } from '@prisma/client';
 @Injectable()
 export class InfraService {
   private readonly logger = new Logger(InfraService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/infra';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/infra`;
+  }
 
-  /**
-   * [Core] 공통 HTTP 요청 처리 메서드
-   * [ESLint 수정] params, data 타입을 any -> unknown으로 변경하여 unsafe assignment 방지
-   */
   private async requestApi<T>(
     method: 'get' | 'post' | 'patch' | 'delete',
     endpoint: string,
     params?: unknown,
     data?: unknown,
   ): Promise<T> {
-    const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+    const targetPath = `${this.baseUrl}/${endpoint}`;
     
     try {
       this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
