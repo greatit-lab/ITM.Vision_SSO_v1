@@ -1,81 +1,60 @@
 // backend/src/lamplife/lamplife.service.ts
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import {
+  Injectable,
+  Logger,
+  // [ESLint 수정] 사용하지 않는 InternalServerErrorException 제거
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import axios, { AxiosError, AxiosResponse } from 'axios';
 import { LampLifeDto } from '../models/LampLifeDto';
-
-// DB 조회 결과 매핑용 인터페이스
-interface LampLifeRaw {
-  eqpid: string;
-  lamp_id: string;
-  lamp_no: number | string; // [수정] lamp_no 추가
-  age_hour: number;
-  lifespan_hour: number;
-  last_changed: Date | null;
-}
 
 @Injectable()
 export class LampLifeService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(LampLifeService.name);
+  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/lamplife';
+
+  constructor(private readonly httpService: HttpService) {}
 
   async getLampStatus(site: string, sdwt?: string): Promise<LampLifeDto[]> {
-    // [수정] 테이블명 변경: public.lamp_life -> public.eqp_lamp_life
-    let sql = `
-      SELECT
-        l.eqpid,
-        l.lamp_name as lamp_id,
-        l.lamp_no,
-        l.age_hour,
-        l.lifespan_hour,
-        l.last_changed
-      FROM public.eqp_lamp_life l
-      JOIN public.ref_equipment r ON l.eqpid = r.eqpid
-      WHERE 1=1
-    `;
-
-    const params: (string | number)[] = [];
-    let paramIndex = 1;
-
-    // Site 필터
-    if (site) {
-      sql += ` AND r.sdwt IN (SELECT sdwt FROM public.ref_sdwt WHERE site = $${paramIndex++})`;
-      params.push(site);
-    }
-
-    // SDWT 필터
-    if (sdwt) {
-      sql += ` AND r.sdwt = $${paramIndex++}`;
-      params.push(sdwt);
-    }
-
-    // [수정] 정렬 기준 변경: eqpid 오름차순, lamp_no 오름차순
-    sql += ` ORDER BY l.eqpid ASC, l.lamp_no ASC`;
+    let finalUrl = 'URL_NOT_GENERATED';
 
     try {
-      const rawData = await this.prisma.$queryRawUnsafe<LampLifeRaw[]>(
-        sql,
-        ...params,
+      const targetPath = `${this.DATA_API_BASE}/status`;
+      const params: Record<string, string> = { site };
+      if (sdwt) params.sdwt = sdwt;
+
+      finalUrl = `${targetPath}?${new URLSearchParams(params).toString()}`;
+      this.logger.debug(`[Requesting] ${finalUrl}`);
+
+      const response: AxiosResponse<LampLifeDto[]> = await firstValueFrom(
+        this.httpService.get<LampLifeDto[]>(targetPath, { params }),
       );
 
-      return rawData.map((r) => ({
-        eqpId: r.eqpid,
-        lampId: r.lamp_id,
-        // [수정] lampNo 필드 추가 (DTO에 정의되어 있지 않더라도 JS 객체로 전달됨)
-        lampNo: r.lamp_no, 
-        // 숫자가 아닐 경우 0으로 처리
-        ageHour: Number(r.age_hour) || 0,
-        lifespanHour: Number(r.lifespan_hour) || 0,
-        // Date -> YYYY-MM-DD 문자열 변환
-        lastChanged: r.last_changed
-          ? new Date(r.last_changed).toISOString().split('T')[0]
-          : null,
-        // 필수 필드 servTs 채우기 (데이터가 없으면 현재 시간)
-        servTs: r.last_changed
-          ? new Date(r.last_changed).toISOString()
-          : new Date().toISOString(),
-      }));
-    } catch (error) {
-      // 에러 로그 출력 후 빈 배열 반환하여 프론트엔드 크래시 방지
-      console.error('LampLife SQL Error:', error);
+      return response.data;
+    } catch (error: unknown) {
+      // [ESLint 수정] errorMessage 변수 활용 및 로깅 로직 개선
+      let errorMessage = 'Unknown Error';
+      let statusCode = 500;
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        statusCode = axiosError.response?.status || 500;
+        const errorData = axiosError.response?.data;
+        errorMessage = errorData
+          ? JSON.stringify(errorData)
+          : axiosError.message;
+
+        this.logger.error(
+          `[Data API Error] ${statusCode} - Failed URL: ${finalUrl} / Msg: ${errorMessage}`,
+        );
+      } else {
+        this.logger.error(
+          `[Data API Error] Unknown error occurred - Failed URL: ${finalUrl}`,
+        );
+      }
+      
+      // 실패 시 빈 배열 반환하여 대시보드 중단 방지
       return [];
     }
   }
