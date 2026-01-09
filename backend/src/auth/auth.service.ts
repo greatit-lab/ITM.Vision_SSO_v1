@@ -24,9 +24,8 @@ export class AuthService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const apiHost =
-      this.configService.get<string>('DATA_API_HOST') ??
-      'http://10.135.77.71:8081';
+    // 환경 변수 필수 체크 (누락 시 에러 발생)
+    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
     this.baseUrl = `${apiHost}/api/auth`;
   }
 
