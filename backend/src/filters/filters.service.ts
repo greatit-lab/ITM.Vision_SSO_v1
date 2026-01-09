@@ -1,10 +1,7 @@
 // backend/src/filters/filters.service.ts
-import {
-  Injectable,
-  Logger,
-  // [ESLint 수정] 사용하지 않는 Exception 제거
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
@@ -23,16 +20,19 @@ export class FilterQueryDto {
 @Injectable()
 export class FiltersService {
   private readonly logger = new Logger(FiltersService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/filters';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/filters`;
+  }
 
-  /**
-   * [Core] 공통 GET 요청 핸들러
-   */
   private async fetchApi<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
     let finalUrl = 'URL_NOT_GENERATED';
-    const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+    const targetPath = `${this.baseUrl}/${endpoint}`;
 
     try {
       const queryString = new URLSearchParams(params).toString();
@@ -45,7 +45,7 @@ export class FiltersService {
       return response.data;
     } catch (error: unknown) {
       this.handleError(error, finalUrl);
-      return [] as unknown as T; // Default return to prevent crash
+      return [] as unknown as T;
     }
   }
 
