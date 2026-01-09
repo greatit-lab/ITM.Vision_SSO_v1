@@ -1,190 +1,178 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+// backend/src/performance/performance.service.ts
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 
-// Raw Query 결과 타입 정의
-interface PerformanceRawResult {
-  eqpid: string;
-  Timestamp: Date;
-  CpuUsage: number | null;
-  MemoryUsage: number | null;
-  CpuTemp: number | null;
-  GpuTemp: number | null;
-  FanSpeed: number | null;
+export interface PerformanceTrendResponse {
+  eqpId: string;
+  timestamp: string | Date;
+  cpuUsage: number;
+  memoryUsage: number;
+  cpuTemp: number;
+  gpuTemp: number;
+  fanSpeed: number;
 }
 
-interface ProcessMemoryRawResult {
-  Timestamp: Date;
-  ProcessName: string;
-  MemoryUsageMB: number | null;
+export interface ProcessMemoryResponse {
+  timestamp: string | Date;
+  processName: string;
+  memoryUsageMB: number;
 }
 
-// ITM Agent Trend 결과 타입
-interface ItmAgentTrendRawResult {
-  Timestamp: Date;
-  EqpId: string;
-  MemoryUsageMB: number | null;
+export interface ItmAgentTrendResponse {
+  timestamp: string | Date;
+  eqpId: string;
+  memoryUsageMB: number;
+}
+
+export interface PerformanceQueryParams {
+  startDate?: string | Date;
+  endDate?: string | Date;
+  eqpids?: string;
+  eqpId?: string;
+  intervalSeconds?: number;
+  site?: string;
+  sdwt?: string;
 }
 
 @Injectable()
 export class PerformanceService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(PerformanceService.name);
+  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/performance';
 
-  // [기존] 장비 성능 이력 조회 (Time Bucket)
+  constructor(private readonly httpService: HttpService) {}
+
+  private async fetchFromApi<T>(
+    endpoint: string,
+    params: PerformanceQueryParams,
+  ): Promise<T> {
+    let finalUrl = 'URL_NOT_GENERATED';
+
+    try {
+      const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+      const cleanParams: Record<string, string> = {};
+
+      const rawEntries = Object.entries(
+        params as unknown as Record<string, unknown>,
+      );
+
+      // [ESLint 수정] no-base-to-string 오류 해결을 위한 타입 체크 강화
+      rawEntries.forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          return;
+        }
+
+        if (typeof value === 'string') {
+          cleanParams[key] = value;
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          cleanParams[key] = String(value);
+        } else if (value instanceof Date) {
+          cleanParams[key] = value.toISOString();
+        } else {
+          // 객체 타입인 경우(배열 포함) JSON 문자열로 명시적 변환
+          cleanParams[key] = JSON.stringify(value);
+        }
+      });
+
+      const dummyConfig: InternalAxiosRequestConfig = {
+        params: cleanParams,
+        url: targetPath,
+      } as InternalAxiosRequestConfig;
+      finalUrl = axios.getUri(dummyConfig);
+
+      this.logger.debug(`[Requesting] ${finalUrl}`);
+
+      const response: AxiosResponse<T> = await firstValueFrom(
+        this.httpService.get<T>(targetPath, {
+          params: cleanParams,
+          headers: {
+            Accept: 'application/json',
+          },
+        }),
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      let errorMessage = 'Unknown Error';
+      let statusCode = 500;
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        statusCode = axiosError.response?.status || 500;
+        const errorData = axiosError.response?.data;
+        errorMessage = errorData
+          ? JSON.stringify(errorData)
+          : axiosError.message;
+
+        this.logger.error(
+          `[Data API Error] ${statusCode} - Failed URL: ${finalUrl}`,
+        );
+      }
+
+      if (statusCode === 404) {
+        return [] as unknown as T;
+      }
+
+      throw new InternalServerErrorException(
+        `Data API Proxy Error: ${errorMessage}`,
+      );
+    }
+  }
+
+  // --- API Methods ---
+
   async getHistory(
     startDate: string,
     endDate: string,
     eqpids: string,
     intervalSeconds: number = 300,
-  ) {
-    if (!eqpids) return [];
-    if (intervalSeconds <= 0) intervalSeconds = 1;
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    const eqpIdArray = eqpids
-      .split(',')
-      .map((id) => `'${id.trim()}'`)
-      .join(',');
-
-    const results = await this.prisma.$queryRawUnsafe<PerformanceRawResult[]>(
-      `
-        SELECT
-            eqpid,
-            (to_timestamp(floor((extract('epoch' from serv_ts) / ${intervalSeconds} )) * ${intervalSeconds})) as "Timestamp",
-            AVG(cpu_usage) as "CpuUsage",
-            AVG(mem_usage) as "MemoryUsage",
-            AVG(cpu_temp) as "CpuTemp",
-            AVG(gpu_temp) as "GpuTemp",
-            AVG(fan_speed) as "FanSpeed"
-        FROM public.eqp_perf
-        WHERE eqpid IN (${eqpIdArray})
-          AND serv_ts >= $1
-          AND serv_ts <= $2
-        GROUP BY eqpid, "Timestamp"
-        ORDER BY eqpid, "Timestamp"
-    `,
-      start,
-      end,
-    );
-
-    return results.map((r) => ({
-      eqpId: r.eqpid,
-      timestamp: r.Timestamp,
-      cpuUsage: r.CpuUsage || 0,
-      memoryUsage: r.MemoryUsage || 0,
-      cpuTemp: r.CpuTemp || 0,
-      gpuTemp: r.GpuTemp || 0,
-      fanSpeed: r.FanSpeed || 0,
-    }));
+  ): Promise<PerformanceTrendResponse[]> {
+    return this.fetchFromApi<PerformanceTrendResponse[]>('history', {
+      startDate,
+      endDate,
+      eqpids,
+      intervalSeconds,
+    });
   }
 
-  // [기존] 특정 장비의 프로세스별 메모리 이력 조회
   async getProcessHistory(
     startDate: string,
     endDate: string,
     eqpId: string,
     intervalSeconds?: number,
-  ) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    let interval = intervalSeconds;
-
-    if (!interval || interval <= 0) {
-      const dateDiffDays =
-        (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
-      if (dateDiffDays <= 1) interval = 60;
-      else if (dateDiffDays <= 3) interval = 300;
-      else if (dateDiffDays <= 7) interval = 600;
-      else interval = 1800;
-    }
-
-    const results = await this.prisma.$queryRawUnsafe<ProcessMemoryRawResult[]>(
-      `
-        SELECT
-            (to_timestamp(floor((extract('epoch' from serv_ts) / ${interval} )) * ${interval})) as "Timestamp",
-            process_name as "ProcessName",
-            AVG(memory_usage_mb) as "MemoryUsageMB"
-        FROM public.eqp_proc_perf
-        WHERE eqpid = $1
-          AND serv_ts >= $2
-          AND serv_ts <= $3
-        GROUP BY "Timestamp", process_name
-        ORDER BY "Timestamp", "MemoryUsageMB" DESC
-    `,
+  ): Promise<ProcessMemoryResponse[]> {
+    return this.fetchFromApi<ProcessMemoryResponse[]>('process-history', {
+      startDate,
+      endDate,
       eqpId,
-      start,
-      end,
-    );
-
-    return results.map((r) => ({
-      timestamp: r.Timestamp,
-      processName: r.ProcessName,
-      memoryUsageMB: r.MemoryUsageMB || 0,
-    }));
+      intervalSeconds,
+    });
   }
 
-  // [수정됨] ITM Agent 프로세스 메모리 트렌드 조회
   async getItmAgentTrend(
     site: string,
     sdwt: string,
-    eqpid: string, // Optional (특정 장비만 조회 시 사용, 없으면 SDWT 전체)
+    eqpid: string,
     startDate: string,
     endDate: string,
     intervalSeconds?: number,
-  ) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    // [수정 핵심] 실제 DB에 저장되는 이름 'ITM_Agent'로 변경
-    const TARGET_PROCESS_NAME = 'ITM_Agent';
-
-    let interval = intervalSeconds;
-    if (!interval || interval <= 0) {
-      const dateDiffDays =
-        (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
-      if (dateDiffDays <= 1) interval = 60; // 1일 이하: 1분
-      else if (dateDiffDays <= 3) interval = 300; // 3일 이하: 5분
-      else if (dateDiffDays <= 7) interval = 600; // 7일 이하: 10분
-      else interval = 1800; // 그 외: 30분
-    }
-
-    // 장비 필터링 조건 생성
-    let eqpFilterCondition = '';
-    
-    // eqpid가 지정되어 있으면 해당 장비만 조회
-    if (eqpid) {
-      eqpFilterCondition = `AND p.eqpid = '${eqpid}'`;
-    } else if (sdwt) {
-      // SDWT가 지정되어 있으면 해당 SDWT에 속한 장비들로 제한
-      eqpFilterCondition = `AND p.eqpid IN (SELECT eqpid FROM ref_equipment WHERE sdwt = '${sdwt}')`;
-    }
-
-    // 쿼리 실행
-    const results = await this.prisma.$queryRawUnsafe<ItmAgentTrendRawResult[]>(
-      `
-        SELECT
-            (to_timestamp(floor((extract('epoch' from p.serv_ts) / ${interval} )) * ${interval})) as "Timestamp",
-            p.eqpid as "EqpId",
-            AVG(p.memory_usage_mb) as "MemoryUsageMB"
-        FROM public.eqp_proc_perf p
-        WHERE 1=1
-          ${eqpFilterCondition}
-          AND p.process_name = '${TARGET_PROCESS_NAME}'
-          AND p.serv_ts >= $1
-          AND p.serv_ts <= $2
-        GROUP BY "Timestamp", p.eqpid
-        ORDER BY "Timestamp", p.eqpid
-      `,
-      start,
-      end,
-    );
-
-    return results.map((r) => ({
-      timestamp: r.Timestamp,
-      eqpId: r.EqpId,
-      memoryUsageMB: r.MemoryUsageMB || 0,
-    }));
+  ): Promise<ItmAgentTrendResponse[]> {
+    return this.fetchFromApi<ItmAgentTrendResponse[]>('itm-agent-trend', {
+      site,
+      sdwt,
+      eqpId: eqpid,
+      startDate,
+      endDate,
+      intervalSeconds,
+    });
   }
 }
