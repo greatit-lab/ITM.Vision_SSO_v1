@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, {
   AxiosError,
@@ -13,7 +14,6 @@ import axios, {
 } from 'axios';
 import { RefEquipment, Prisma } from '@prisma/client';
 
-// DTO 정의
 export interface EquipmentDto {
   eqpId: string;
   pcName: string;
@@ -47,14 +47,16 @@ export interface EquipmentQueryParams {
 @Injectable()
 export class EquipmentService {
   private readonly logger = new Logger(EquipmentService.name);
-  // Data API의 Equipment 엔드포인트 베이스 URL
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/equipment';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/equipment`;
+  }
 
-  /**
-   * [Core] GET 요청용 공통 Fetcher
-   */
   private async fetchFromApi<T>(
     endpoint: string,
     params: EquipmentQueryParams = {},
@@ -63,12 +65,11 @@ export class EquipmentService {
 
     try {
       const targetPath = endpoint
-        ? `${this.DATA_API_BASE}/${endpoint}`
-        : this.DATA_API_BASE;
+        ? `${this.baseUrl}/${endpoint}`
+        : this.baseUrl;
 
       const cleanParams: Record<string, string> = {};
       
-      // [ESLint 수정] 값의 타입을 명확히 확인하여 변환
       Object.entries(params).forEach(([key, value]) => {
         if (value === undefined || value === null || value === '') {
           return;
@@ -80,7 +81,6 @@ export class EquipmentService {
         } else if (value instanceof Date) {
           cleanParams[key] = value.toISOString();
         } else {
-          // 그 외 객체 타입 등은 JSON 문자열로 변환
           cleanParams[key] = JSON.stringify(value);
         }
       });
@@ -105,18 +105,14 @@ export class EquipmentService {
     }
   }
 
-  /**
-   * [Core] Mutation (POST, PATCH, DELETE) 요청용 공통 Method
-   * [ESLint 수정] data 타입을 any -> unknown으로 변경하여 unsafe assignment 방지
-   */
   private async mutateApi<T>(
     method: 'post' | 'patch' | 'delete',
     endpoint: string,
     data?: unknown, 
   ): Promise<T> {
     const targetPath = endpoint
-      ? `${this.DATA_API_BASE}/${endpoint}`
-      : this.DATA_API_BASE;
+      ? `${this.baseUrl}/${endpoint}`
+      : this.baseUrl;
 
     try {
       this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
@@ -156,16 +152,10 @@ export class EquipmentService {
     );
   }
 
-  // =================================================================
-  // 1. [Infra Management] 인프라 관리용 단순 조회
-  // =================================================================
   async getInfraList(): Promise<RefEquipment[]> {
     return this.fetchFromApi<RefEquipment[]>('infra');
   }
 
-  // =================================================================
-  // 2. [Equipment Explorer] 장비 탐색기/상세용 복잡한 조회
-  // =================================================================
   async getDetails(
     site?: string,
     sdwt?: string,
@@ -182,9 +172,6 @@ export class EquipmentService {
     return this.fetchFromApi<string[]>('ids', { site, sdwt, type });
   }
 
-  // =================================================================
-  // 3. [Basic CRUD] 기본 기능 (Data API로 위임)
-  // =================================================================
   async create(data: Prisma.RefEquipmentCreateInput): Promise<RefEquipment> {
     return this.mutateApi<RefEquipment>('post', '', data);
   }
