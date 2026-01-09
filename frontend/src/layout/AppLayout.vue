@@ -1,30 +1,18 @@
 <!-- frontend/src/layout/AppLayout.vue -->
 <template>
-  <div class="flex h-screen w-full bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden font-sans">
-    
-    <AppSidebar />
-
-    <div class="flex-1 flex flex-col min-w-0">
-      <AppHeader />
-
-      <main class="flex-1 p-6 overflow-hidden relative">
-        <div class="absolute inset-0 p-6 overflow-y-auto custom-scrollbar">
-           <router-view v-slot="{ Component }">
-              <transition name="fade" mode="out-in">
-                <component :is="Component" />
-              </transition>
-           </router-view>
-        </div>
-      </main>
+  <div class="w-full h-full relative">
+    <div class="absolute inset-0 overflow-y-auto custom-scrollbar p-1">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </div>
-
   </div>
 </template>
 
 <script setup lang="ts">
-// 기존 컴포넌트를 가져옵니다.
-import AppHeader from '@/components/layout/Header.vue';
-import AppSidebar from '@/components/layout/Sidebar.vue';
+// Sidebar와 Header는 App.vue에서 관리하므로 제거합니다.
 </script>
 
 <style scoped>
@@ -38,5 +26,15 @@ import AppSidebar from '@/components/layout/Sidebar.vue';
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-slate-300 dark:bg-zinc-700 rounded-full;
+}
+
+/* 페이드 애니메이션 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
