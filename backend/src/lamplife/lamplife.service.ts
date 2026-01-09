@@ -15,7 +15,7 @@ export class LampLifeService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
     this.baseUrl = `${apiHost}/api/lamplife`;
   }
 
