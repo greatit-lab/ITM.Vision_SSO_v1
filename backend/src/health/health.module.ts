@@ -1,11 +1,17 @@
 // backend/src/health/health.module.ts
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
-import { PrismaService } from '../prisma.service';
 
 @Module({
+  imports: [
+    HttpModule.register({
+      timeout: 30000,
+      maxRedirects: 5,
+    }),
+  ],
   controllers: [HealthController],
-  providers: [HealthService, PrismaService],
+  providers: [HealthService],
 })
 export class HealthModule {}
