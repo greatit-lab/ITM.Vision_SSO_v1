@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config'; // [추가] ConfigService 임포트
 import { firstValueFrom } from 'rxjs';
 import axios, {
   AxiosError,
@@ -47,9 +48,16 @@ export interface PerformanceQueryParams {
 @Injectable()
 export class PerformanceService {
   private readonly logger = new Logger(PerformanceService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/performance';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService, // [추가] 주입
+  ) {
+    // [개선] 환경변수에서 호스트 가져오기 (기본값 설정 포함)
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/performance`;
+  }
 
   private async fetchFromApi<T>(
     endpoint: string,
@@ -58,14 +66,13 @@ export class PerformanceService {
     let finalUrl = 'URL_NOT_GENERATED';
 
     try {
-      const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+      const targetPath = `${this.baseUrl}/${endpoint}`;
       const cleanParams: Record<string, string> = {};
 
       const rawEntries = Object.entries(
         params as unknown as Record<string, unknown>,
       );
 
-      // [ESLint 수정] no-base-to-string 오류 해결을 위한 타입 체크 강화
       rawEntries.forEach(([key, value]) => {
         if (value === undefined || value === null || value === '') {
           return;
@@ -78,7 +85,6 @@ export class PerformanceService {
         } else if (value instanceof Date) {
           cleanParams[key] = value.toISOString();
         } else {
-          // 객체 타입인 경우(배열 포함) JSON 문자열로 명시적 변환
           cleanParams[key] = JSON.stringify(value);
         }
       });
