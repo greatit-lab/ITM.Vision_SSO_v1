@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, {
   AxiosError,
@@ -22,9 +23,15 @@ export interface PreAlignDataRaw {
 @Injectable()
 export class PreAlignService {
   private readonly logger = new Logger(PreAlignService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/prealign';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/prealign`;
+  }
 
   async getData(
     eqpId: string,
@@ -34,7 +41,7 @@ export class PreAlignService {
     let finalUrl = 'URL_NOT_GENERATED';
 
     try {
-      const targetPath = `${this.DATA_API_BASE}/data`;
+      const targetPath = `${this.baseUrl}/data`;
       const cleanParams = {
         eqpId,
         startDate: new Date(startDate).toISOString(),
