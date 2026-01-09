@@ -34,10 +34,7 @@ export class AdminService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    const apiHost =
-      this.configService.get<string>('DATA_API_HOST') ??
-      'http://10.135.77.71:8081';
-
+    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
     this.baseUrl = `${apiHost}/api/admin`;
   }
 
@@ -52,8 +49,6 @@ export class AdminService {
 
   /**
    * [Core] 공통 API 요청 처리
-   * - any 제거
-   * - unsafe-assignment 완전 제거
    */
   private async requestApi<T>(
     method: 'get' | 'post' | 'patch' | 'delete' | 'put',
@@ -83,9 +78,7 @@ export class AdminService {
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError<unknown>;
         statusCode = axiosError.response?.status ?? 500;
-        errorMessage = this.stringifyErrorData(
-          axiosError.response?.data,
-        );
+        errorMessage = this.stringifyErrorData(axiosError.response?.data);
 
         this.logger.error(
           `[Data API Error] ${statusCode} - ${targetPath} / ${errorMessage}`,
