@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, {
   AxiosError,
@@ -119,9 +120,16 @@ export interface SpectrumRawResult {
 @Injectable()
 export class WaferService {
   private readonly logger = new Logger(WaferService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/wafer';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    // 환경 변수 필수 체크 (누락 시 서버 시작 실패)
+    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
+    this.baseUrl = `${apiHost}/api/wafer`;
+  }
 
   /**
    * [Core] ESLint 오류 해결 및 404 방지 로직
@@ -133,7 +141,7 @@ export class WaferService {
     let finalUrl = 'URL_NOT_GENERATED';
 
     try {
-      const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+      const targetPath = `${this.baseUrl}/${endpoint}`;
 
       const cleanParams: Record<string, string | number> = {};
       const rawEntries = Object.entries(
