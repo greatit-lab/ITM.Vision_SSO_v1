@@ -5,10 +5,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
-// DTO 정의
 export interface ErrorQueryParams {
   startDate: string;
   endDate: string;
@@ -51,21 +51,23 @@ export interface ErrorLogsResponse {
 @Injectable()
 export class ErrorService {
   private readonly logger = new Logger(ErrorService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/error';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/error`;
+  }
 
-  /**
-   * [Core] 공통 Fetcher
-   */
   private async fetchApi<T>(endpoint: string, params: unknown): Promise<T> {
     let finalUrl = 'URL_NOT_GENERATED';
-    const targetPath = `${this.DATA_API_BASE}/${endpoint}`;
+    const targetPath = `${this.baseUrl}/${endpoint}`;
 
     try {
       const cleanParams: Record<string, string> = {};
       
-      // [ESLint 수정] 파라미터 타입 명시적 확인 후 변환
       if (typeof params === 'object' && params !== null) {
         Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
           if (value === undefined || value === null || value === '') {
@@ -79,7 +81,6 @@ export class ErrorService {
           } else if (value instanceof Date) {
             cleanParams[key] = value.toISOString();
           } else {
-            // 그 외 객체나 배열 등은 JSON 문자열로 변환
             cleanParams[key] = JSON.stringify(value);
           }
         });
