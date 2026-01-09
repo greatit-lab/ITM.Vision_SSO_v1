@@ -490,12 +490,11 @@ const onEqpIdChange = () => {
 const loadEqpIds = async () => {
   isEqpIdLoading.value = true;
   try {
-    // Agent가 설치된 장비만 조회
-    eqpIds.value = await equipmentApi.getEqpIds(
-      undefined,
-      filterStore.selectedSdwt,
-      "agent"
-    );
+    // [수정] 객체 인자 방식으로 호출
+    eqpIds.value = await equipmentApi.getEqpIds({
+      sdwt: filterStore.selectedSdwt,
+      type: "agent"
+    });
   } finally {
     isEqpIdLoading.value = false;
   }
@@ -522,12 +521,13 @@ const searchData = async () => {
     else if (diffDays <= 30) fetchInterval = 1800;
     else fetchInterval = 3600;
 
-    const rawData = await performanceApi.getProcessHistory(
-      fixedStart.toISOString(),
-      fixedEnd.toISOString(),
-      selectedEqpId.value,
-      fetchInterval
-    );
+    // [수정] 객체 인자 방식으로 호출, interval 포함
+    const rawData = await performanceApi.getProcessHistory({
+      startDate: fixedStart.toISOString(),
+      endDate: fixedEnd.toISOString(),
+      eqpId: selectedEqpId.value,
+      interval: fetchInterval
+    });
     processData(rawData);
   } catch (e) {
     console.error(e);
@@ -841,4 +841,3 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
-
