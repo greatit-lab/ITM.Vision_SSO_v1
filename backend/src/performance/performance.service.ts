@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config'; // [추가] ConfigService 임포트
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, {
   AxiosError,
@@ -52,10 +52,9 @@ export class PerformanceService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly configService: ConfigService, // [추가] 주입
+    private readonly configService: ConfigService,
   ) {
-    // [개선] 환경변수에서 호스트 가져오기 (기본값 설정 포함)
-    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
     this.baseUrl = `${apiHost}/api/performance`;
   }
 
