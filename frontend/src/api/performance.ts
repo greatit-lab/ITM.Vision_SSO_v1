@@ -1,57 +1,90 @@
 // frontend/src/api/performance.ts
-import httpData from './http-data';
+import http from "./http";
 
-export interface PerformanceData {
-  eqpId: string;
-  timestamp: string;
-  cpuUsage: number;
-  memoryUsage: number;
-  cpuTemp: number;
-  gpuTemp: number;
-  fanSpeed: number;
+// Performance Trend용 데이터 DTO
+export interface PerformanceDataPointDto {
+  eqpId?: string;
+  timestamp?: string;
+  cpuUsage?: number;
+  memoryUsage?: number;
+  cpuTemp?: number;
+  gpuTemp?: number;
+  fanSpeed?: number;
 }
 
 export interface ProcessMemoryDataDto {
   timestamp: string;
-  processName: string; // 혹은 eqpId (ITM Agent Trend의 경우)
+  processName: string;
   memoryUsageMB: number;
 }
 
-// 1. 장비 성능 이력 조회
-export const getPerformanceHistory = async (params: {
-  startDate: string;
-  endDate: string;
-  eqpids: string;
-}): Promise<PerformanceData[]> => {
-  const response = await httpData.get<PerformanceData[]>('/performance/history', { params });
-  return response.data;
-};
-
-// 2. 특정 장비의 프로세스별 메모리 이력 조회
-export const getProcessHistory = async (params: {
-  startDate: string;
-  endDate: string;
+// ITM Agent 데이터 DTO
+export interface ItmAgentDataDto {
+  timestamp: string;
   eqpId: string;
-  interval?: number;
-}): Promise<ProcessMemoryDataDto[]> => {
-  const response = await httpData.get<ProcessMemoryDataDto[]>('/performance/process-history', { params });
-  return response.data;
-};
+  memoryUsageMB: number;
+}
 
-// 3. ITM Agent 프로세스 메모리 트렌드 조회 (전체 장비 비교)
-export const getItmAgentTrend = async (params: {
-  site: string;
-  sdwt: string;
-  startDate: string;
-  endDate: string;
-}): Promise<ProcessMemoryDataDto[]> => {
-  const response = await httpData.get<ProcessMemoryDataDto[]>('/performance/itm-agent-trend', { params });
-  return response.data;
-};
-
-// [Export] 객체 형태로 내보내기 (View에서 import { performanceApi } 로 사용)
 export const performanceApi = {
-  getPerformanceHistory,
-  getProcessHistory,
-  getItmAgentTrend,
+  // [수정] 대문자 'Performance' -> 소문자 'performance'
+  getHistory: async (
+    startDate: string,
+    endDate: string,
+    eqpids: string[],
+    intervalSeconds = 300
+  ) => {
+    const params = {
+      startDate,
+      endDate,
+      eqpids: eqpids.join(","),
+      interval: intervalSeconds,
+    };
+    // URL 수정: /performance/history
+    const { data } = await http.get<PerformanceDataPointDto[]>(
+      "/performance/history",
+      { params }
+    );
+    return data;
+  },
+
+  // [수정] 경로 및 대소문자 수정
+  getProcessHistory: async (
+    startDate: string,
+    endDate: string,
+    eqpId: string,
+    intervalSeconds?: number
+  ) => {
+    const params = { startDate, endDate, eqpId, interval: intervalSeconds };
+    // URL 수정: /performance/process-history (백엔드와 일치)
+    const { data } = await http.get<ProcessMemoryDataDto[]>(
+      "/performance/process-history",
+      { params }
+    );
+    return data;
+  },
+
+  // [수정] 대문자 'Performance' -> 소문자 'performance'
+  getItmAgentTrend: async (
+    site: string,
+    sdwt: string,
+    eqpId: string,
+    startDate: string,
+    endDate: string,
+    intervalSeconds?: number
+  ) => {
+    const params = {
+      site,
+      sdwt,
+      eqpid: eqpId,
+      startDate,
+      endDate,
+      interval: intervalSeconds,
+    };
+    // URL 수정: /performance/itm-agent-trend
+    const { data } = await http.get<ItmAgentDataDto[]>(
+      "/performance/itm-agent-trend",
+      { params }
+    );
+    return data;
+  },
 };
