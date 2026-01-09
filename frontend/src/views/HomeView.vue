@@ -890,12 +890,12 @@ const openChart = async (agent: AgentStatusDto) => {
   const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
   try {
-    const data = await performanceDataApi.getPerformanceHistory({
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+    const data = await performanceApi.getHistory(
+      startDate.toISOString(),
+      endDate.toISOString(),
       [agent.eqpId],
       600
-    });
+    );
     chartData.value = data || []; 
   } catch (e) {
     console.error("Failed to load chart data", e);
@@ -1273,4 +1273,5 @@ body .p-tooltip .p-tooltip-arrow {
   font-size: 12px !important;
 }
 </style>
+
 
