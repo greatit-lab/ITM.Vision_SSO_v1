@@ -102,3 +102,14 @@ export async function updateEquipment(eqpId: string, data: Partial<Equipment>): 
 export async function deleteEquipment(eqpId: string): Promise<void> {
   await http.delete(`/equipment/${eqpId}`);
 }
+
+// [수정] View에서 import { equipmentApi } 로 사용할 수 있도록 객체 export 추가
+export const equipmentApi = {
+  getInfraList,
+  getEquipmentDetails,
+  getEqpIds,
+  getEquipment,
+  createEquipment,
+  updateEquipment,
+  deleteEquipment,
+};
