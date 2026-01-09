@@ -1,10 +1,7 @@
 // backend/src/lamplife/lamplife.service.ts
-import {
-  Injectable,
-  Logger,
-  // [ESLint 수정] 사용하지 않는 InternalServerErrorException 제거
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { LampLifeDto } from '../models/LampLifeDto';
@@ -12,15 +9,21 @@ import { LampLifeDto } from '../models/LampLifeDto';
 @Injectable()
 export class LampLifeService {
   private readonly logger = new Logger(LampLifeService.name);
-  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/lamplife';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const apiHost = this.configService.get<string>('DATA_API_HOST', 'http://10.135.77.71:8081');
+    this.baseUrl = `${apiHost}/api/lamplife`;
+  }
 
   async getLampStatus(site: string, sdwt?: string): Promise<LampLifeDto[]> {
     let finalUrl = 'URL_NOT_GENERATED';
 
     try {
-      const targetPath = `${this.DATA_API_BASE}/status`;
+      const targetPath = `${this.baseUrl}/status`;
       const params: Record<string, string> = { site };
       if (sdwt) params.sdwt = sdwt;
 
@@ -33,7 +36,6 @@ export class LampLifeService {
 
       return response.data;
     } catch (error: unknown) {
-      // [ESLint 수정] errorMessage 변수 활용 및 로깅 로직 개선
       let errorMessage = 'Unknown Error';
       let statusCode = 500;
 
@@ -54,7 +56,6 @@ export class LampLifeService {
         );
       }
       
-      // 실패 시 빈 배열 반환하여 대시보드 중단 방지
       return [];
     }
   }
