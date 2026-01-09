@@ -1,9 +1,19 @@
 // backend/src/prealign/prealign.service.ts
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 
 export interface PreAlignDataRaw {
-  timestamp: Date;
+  timestamp: string | Date;
   xmm: number;
   ymm: number;
   notch: number;
@@ -11,34 +21,65 @@ export interface PreAlignDataRaw {
 
 @Injectable()
 export class PreAlignService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(PreAlignService.name);
+  private readonly DATA_API_BASE = 'http://10.135.77.71:8081/api/prealign';
 
-  async getData(eqpId: string, startDate: string, endDate: string) {
-    // 날짜 문자열을 Date 객체로 변환
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  constructor(private readonly httpService: HttpService) {}
 
-    // SQL 쿼리 실행 (public.plg_prealign 테이블)
-    const results = await this.prisma.$queryRawUnsafe<PreAlignDataRaw[]>(
-      `
-      SELECT serv_ts as "timestamp", xmm, ymm, notch
-      FROM public.plg_prealign
-      WHERE eqpid = $1
-        AND serv_ts >= $2
-        AND serv_ts <= $3
-      ORDER BY serv_ts ASC
-      `,
-      eqpId,
-      start,
-      end,
-    );
+  async getData(
+    eqpId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<PreAlignDataRaw[]> {
+    let finalUrl = 'URL_NOT_GENERATED';
 
-    // 프론트엔드 DTO 형식에 맞춰 매핑
-    return results.map((r) => ({
-      timestamp: r.timestamp,
-      xmm: r.xmm || 0,
-      ymm: r.ymm || 0,
-      notch: r.notch || 0,
-    }));
+    try {
+      const targetPath = `${this.DATA_API_BASE}/data`;
+      const cleanParams = {
+        eqpId,
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+      };
+
+      const dummyConfig = {
+        params: cleanParams,
+        url: targetPath,
+      } as InternalAxiosRequestConfig;
+      finalUrl = axios.getUri(dummyConfig);
+
+      this.logger.debug(`[Requesting] ${finalUrl}`);
+
+      const response: AxiosResponse<PreAlignDataRaw[]> = await firstValueFrom(
+        this.httpService.get<PreAlignDataRaw[]>(targetPath, {
+          params: cleanParams,
+        }),
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      let errorMessage = 'Unknown Error';
+      let statusCode = 500;
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        statusCode = axiosError.response?.status || 500;
+        const errorData = axiosError.response?.data;
+        errorMessage = errorData
+          ? JSON.stringify(errorData)
+          : axiosError.message;
+
+        this.logger.error(
+          `[Data API Error] ${statusCode} - Failed URL: ${finalUrl}`,
+        );
+      }
+
+      if (statusCode === 404) {
+        return [];
+      }
+
+      throw new InternalServerErrorException(
+        `Data API Proxy Error: ${errorMessage}`,
+      );
+    }
   }
 }
