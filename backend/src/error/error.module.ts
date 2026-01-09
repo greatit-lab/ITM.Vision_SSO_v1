@@ -1,12 +1,17 @@
 // backend/src/error/error.module.ts
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { ErrorController } from './error.controller';
 import { ErrorService } from './error.service';
-import { PrismaService } from '../prisma.service'; // [중요] PrismaService 임포트
 
 @Module({
+  imports: [
+    HttpModule.register({
+      timeout: 30000,
+      maxRedirects: 5,
+    }),
+  ],
   controllers: [ErrorController],
-  // [수정] providers 목록에 PrismaService 추가
-  providers: [ErrorService, PrismaService],
+  providers: [ErrorService],
 })
 export class ErrorModule {}
