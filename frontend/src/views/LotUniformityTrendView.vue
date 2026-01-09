@@ -623,7 +623,8 @@ onMounted(async () => {
       filterStore.selectedSdwt = targetSdwt;
       isEqpLoading.value = true;
       try {
-        eqpIds.value = await equipmentApi.getEqpIds(undefined, targetSdwt, "agent");
+        // [수정] API 호출 시 객체 인자 사용
+        eqpIds.value = await equipmentApi.getEqpIds({ sdwt: targetSdwt, type: "agent" });
       } finally {
         isEqpLoading.value = false;
       }
@@ -702,7 +703,8 @@ const onSdwtChange = async () => {
     localStorage.setItem("lot_sdwt", filterStore.selectedSdwt);
     isEqpLoading.value = true;
     try {
-      eqpIds.value = await equipmentApi.getEqpIds(undefined, filterStore.selectedSdwt, "agent");
+      // [수정] API 호출 시 객체 인자 사용
+      eqpIds.value = await equipmentApi.getEqpIds({ sdwt: filterStore.selectedSdwt, type: "agent" });
     } finally {
       isEqpLoading.value = false;
     }
@@ -874,30 +876,23 @@ const onLineChartClick = (params: any) => {
   }
 };
 
-// [수정] 붉은색 비중을 줄이고 전체 스펙트럼(Indigo -> Cyan -> Green -> Yellow -> Red)을 균형있게 배치
 const getHeatmapColor = (value: number, min: number, max: number) => {
   if (isNaN(value)) return `rgba(0,0,0,0)`;
   
   let ratio = (value - min) / (max - min);
   ratio = Math.max(0, Math.min(1, ratio));
 
-  // [등고선 효과] 40단계로 세분화 (High Resolution Contour)
   const levels = 40;
   ratio = Math.floor(ratio * levels) / levels;
 
-  // [새로운 팔레트 - Balanced Rainbow/Jet]
-  // 0.0 ~ 0.3: Deep Blue to Cyan (차가움)
-  // 0.3 ~ 0.6: Cyan to Green (안정)
-  // 0.6 ~ 0.8: Green to Yellow (경고 전 단계)
-  // 0.8 ~ 1.0: Orange to Red (위험)
   const stops = [
-    { pos: 0.0,  r: 49,  g: 46,  b: 129 }, // Indigo-900 (#312e81) - 아주 낮음
-    { pos: 0.15, r: 59,  g: 130, b: 246 }, // Blue-500 (#3b82f6)
-    { pos: 0.3,  r: 6,   g: 182, b: 212 }, // Cyan-500 (#06b6d4)
-    { pos: 0.5,  r: 34,  g: 197, b: 94 },  // Green-500 (#22c55e) - 중간값(Median)
-    { pos: 0.7,  r: 234, g: 179, b: 8 },   // Yellow-500 (#eab308)
-    { pos: 0.85, r: 249, g: 115, b: 22 },  // Orange-500 (#f97316)
-    { pos: 1.0,  r: 239, g: 68,  b: 68 },  // Red-500 (#ef4444) - 아주 높음
+    { pos: 0.0,  r: 49,  g: 46,  b: 129 }, 
+    { pos: 0.15, r: 59,  g: 130, b: 246 }, 
+    { pos: 0.3,  r: 6,   g: 182, b: 212 }, 
+    { pos: 0.5,  r: 34,  g: 197, b: 94 },  
+    { pos: 0.7,  r: 234, g: 179, b: 8 },   
+    { pos: 0.85, r: 249, g: 115, b: 22 },  
+    { pos: 1.0,  r: 239, g: 68,  b: 68 },  
   ];
 
   let lowerIndex = 0;
@@ -1093,7 +1088,6 @@ const mapChartOption = computed(() => {
       const minVal = globalStats.value.min;
       const maxVal = globalStats.value.max;
 
-      // [수정] VisualMap 범례 색상도 새로운 스펙트럼에 맞게 조정
       visualMapOption = {
         show: true,
         min: minVal,
@@ -1106,13 +1100,13 @@ const mapChartOption = computed(() => {
         itemHeight: 200,
         inRange: {
           color: [
-            "#312e81", // Indigo
-            "#3b82f6", // Blue
-            "#06b6d4", // Cyan
-            "#22c55e", // Green
-            "#eab308", // Yellow
-            "#f97316", // Orange
-            "#ef4444"  // Red
+            "#312e81", 
+            "#3b82f6", 
+            "#06b6d4", 
+            "#22c55e", 
+            "#eab308", 
+            "#f97316", 
+            "#ef4444"  
           ],
         },
         textStyle: { color: axisColor, fontSize: 10 },
