@@ -45,10 +45,12 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // .env.development에 설정된 포트(44364) 사용
+  // [삭제됨] prismaService.enableShutdownHooks(app); -> 더 이상 필요 없음 (삭제 완료)
+
+  // .env.development에 설정된 포트(44364) 사용 (없으면 3000)
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
-  
+
   // 로그 출력 시 실제 접속 경로(api 포함) 명시
   console.log(`Application is running on: https://localhost:${port}/api`);
 }
