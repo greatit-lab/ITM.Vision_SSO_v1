@@ -1,13 +1,6 @@
 // backend/src/admin/admin.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
 import {
   CreateAdminDto,
@@ -27,148 +20,89 @@ import {
 
 @Injectable()
 export class AdminService {
-  private readonly logger = new Logger(AdminService.name);
-  private readonly baseUrl: string;
+  private readonly DOMAIN = 'admin';
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/admin`;
-  }
-
-  // ==========================
-  // 공통 유틸
-  // ==========================
-  private stringifyErrorData(data: unknown): string {
-    if (typeof data === 'string') return data;
-    if (data instanceof Object) return JSON.stringify(data);
-    return 'Unknown Error';
-  }
-
-  /**
-   * [Core] 공통 API 요청 처리
-   */
-  private async requestApi<T>(
-    method: 'get' | 'post' | 'patch' | 'delete' | 'put',
-    endpoint: string,
-    data?: unknown,
-    params?: unknown,
-  ): Promise<T> {
-    const targetPath = `${this.baseUrl}/${endpoint}`;
-
-    try {
-      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.request<T>({
-          method,
-          url: targetPath,
-          data,
-          params,
-        }),
-      );
-
-      return response.data;
-    } catch (error: unknown) {
-      let errorMessage = 'Unknown Error';
-      let statusCode = 500;
-
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<unknown>;
-        statusCode = axiosError.response?.status ?? 500;
-        errorMessage = this.stringifyErrorData(axiosError.response?.data);
-
-        this.logger.error(
-          `[Data API Error] ${statusCode} - ${targetPath} / ${errorMessage}`,
-        );
-      }
-
-      throw new InternalServerErrorException(
-        `Data API Proxy Error: ${errorMessage}`,
-      );
-    }
-  }
+  constructor(private readonly api: DataApiService) {}
 
   // ==========================================
   // [User & Admin Management]
   // ==========================================
   async getAllUsers() {
-    return this.requestApi('get', 'users');
+    return this.api.request(this.DOMAIN, 'get', 'users');
   }
 
   async getAllAdmins() {
-    return this.requestApi('get', 'admins');
+    return this.api.request(this.DOMAIN, 'get', 'admins');
   }
 
   async addAdmin(data: CreateAdminDto) {
-    return this.requestApi('post', 'admins', data);
+    return this.api.request(this.DOMAIN, 'post', 'admins', data);
   }
 
   async deleteAdmin(loginId: string) {
-    return this.requestApi('delete', `admins/${loginId}`);
+    return this.api.request(this.DOMAIN, 'delete', `admins/${loginId}`);
   }
 
   // ==========================================
   // [Access Codes]
   // ==========================================
   async getAllAccessCodes() {
-    return this.requestApi('get', 'access-codes');
+    return this.api.request(this.DOMAIN, 'get', 'access-codes');
   }
 
   async createAccessCode(data: CreateAccessCodeDto) {
-    return this.requestApi('post', 'access-codes', data);
+    return this.api.request(this.DOMAIN, 'post', 'access-codes', data);
   }
 
   async updateAccessCode(compid: string, data: UpdateAccessCodeDto) {
-    return this.requestApi('patch', `access-codes/${compid}`, data);
+    return this.api.request(this.DOMAIN, 'patch', `access-codes/${compid}`, data);
   }
 
   async deleteAccessCode(compid: string) {
-    return this.requestApi('delete', `access-codes/${compid}`);
+    return this.api.request(this.DOMAIN, 'delete', `access-codes/${compid}`);
   }
 
   // ==========================================
   // [Guest Management]
   // ==========================================
   async getAllGuests() {
-    return this.requestApi('get', 'guests');
+    return this.api.request(this.DOMAIN, 'get', 'guests');
   }
 
   async addGuest(data: CreateGuestDto) {
-    return this.requestApi('post', 'guests', data);
+    return this.api.request(this.DOMAIN, 'post', 'guests', data);
   }
 
   async deleteGuest(loginId: string) {
-    return this.requestApi('delete', `guests/${loginId}`);
+    return this.api.request(this.DOMAIN, 'delete', `guests/${loginId}`);
   }
 
   async getGuestRequests() {
-    return this.requestApi('get', 'guest-requests');
+    return this.api.request(this.DOMAIN, 'get', 'guest-requests');
   }
 
   async approveGuestRequest(data: ApproveGuestRequestDto) {
-    return this.requestApi('post', 'guest-requests/approve', data);
+    return this.api.request(this.DOMAIN, 'post', 'guest-requests/approve', data);
   }
 
   async rejectGuestRequest(data: RejectGuestRequestDto) {
-    return this.requestApi('post', 'guest-requests/reject', data);
+    return this.api.request(this.DOMAIN, 'post', 'guest-requests/reject', data);
   }
 
   // ==========================================
   // [Infra] Error Severity
   // ==========================================
   async getSeverities() {
-    return this.requestApi('get', 'severities');
+    return this.api.request(this.DOMAIN, 'get', 'severities');
   }
 
   async createSeverity(data: CreateSeverityDto) {
-    return this.requestApi('post', 'severities', data);
+    return this.api.request(this.DOMAIN, 'post', 'severities', data);
   }
 
   async updateSeverity(errorId: string, data: UpdateSeverityDto) {
-    return this.requestApi(
+    return this.api.request(
+      this.DOMAIN,
       'patch',
       `severities/${encodeURIComponent(errorId)}`,
       data,
@@ -176,7 +110,8 @@ export class AdminService {
   }
 
   async deleteSeverity(errorId: string) {
-    return this.requestApi(
+    return this.api.request(
+      this.DOMAIN,
       'delete',
       `severities/${encodeURIComponent(errorId)}`,
     );
@@ -186,15 +121,16 @@ export class AdminService {
   // [Infra] Metrics
   // ==========================================
   async getMetrics() {
-    return this.requestApi('get', 'metrics');
+    return this.api.request(this.DOMAIN, 'get', 'metrics');
   }
 
   async createMetric(data: CreateMetricDto) {
-    return this.requestApi('post', 'metrics', data);
+    return this.api.request(this.DOMAIN, 'post', 'metrics', data);
   }
 
   async updateMetric(metricName: string, data: UpdateMetricDto) {
-    return this.requestApi(
+    return this.api.request(
+      this.DOMAIN,
       'patch',
       `metrics/${encodeURIComponent(metricName)}`,
       data,
@@ -202,7 +138,8 @@ export class AdminService {
   }
 
   async deleteMetric(metricName: string) {
-    return this.requestApi(
+    return this.api.request(
+      this.DOMAIN,
       'delete',
       `metrics/${encodeURIComponent(metricName)}`,
     );
@@ -212,33 +149,33 @@ export class AdminService {
   // [Equipments]
   // ==========================================
   async getRefEquipments() {
-    return this.requestApi('get', 'ref-equipments');
+    return this.api.request(this.DOMAIN, 'get', 'ref-equipments');
   }
 
   // ==========================================
   // [System Config]
   // ==========================================
   async getNewServerConfig() {
-    return this.requestApi('get', 'new-server');
+    return this.api.request(this.DOMAIN, 'get', 'new-server');
   }
 
   async updateNewServerConfig(data: UpdateNewServerDto) {
-    return this.requestApi('patch', 'new-server', data);
+    return this.api.request(this.DOMAIN, 'patch', 'new-server', data);
   }
 
   async getCfgServers() {
-    return this.requestApi('get', 'cfg-servers');
+    return this.api.request(this.DOMAIN, 'get', 'cfg-servers');
   }
 
   async createCfgServer(data: CreateCfgServerDto) {
-    return this.requestApi('post', 'cfg-servers', data);
+    return this.api.request(this.DOMAIN, 'post', 'cfg-servers', data);
   }
 
   async updateCfgServer(eqpid: string, data: UpdateCfgServerDto) {
-    return this.requestApi('patch', `cfg-servers/${eqpid}`, data);
+    return this.api.request(this.DOMAIN, 'patch', `cfg-servers/${eqpid}`, data);
   }
 
   async deleteCfgServer(eqpid: string) {
-    return this.requestApi('delete', `cfg-servers/${eqpid}`);
+    return this.api.request(this.DOMAIN, 'delete', `cfg-servers/${eqpid}`);
   }
 }
