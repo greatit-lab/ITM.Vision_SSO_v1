@@ -8,7 +8,42 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { RefSdwt, CfgServer, Prisma } from '@prisma/client';
+
+// [수정] Interface 유지
+export interface RefSdwt {
+  sdwt: string;
+  site: string;
+  [key: string]: any;
+}
+
+// [수정] DTO를 Class로 변경
+export class CreateSdwtDto {
+  sdwt: string;
+  site: string;
+  [key: string]: any;
+}
+
+export class UpdateSdwtDto {
+  [key: string]: any;
+}
+
+// [수정] Interface 유지
+export interface CfgServer {
+  id?: number | string;
+  eqpid?: string;
+  [key: string]: any;
+}
+
+// [수정] DTO를 Class로 변경
+export class CreateCfgServerDto {
+  eqpid?: string;
+  [key: string]: any;
+}
+
+export class UpdateCfgServerDto {
+  [key: string]: any;
+}
+
 
 @Injectable()
 export class InfraService {
@@ -70,11 +105,11 @@ export class InfraService {
     return this.requestApi<RefSdwt[]>('get', 'sdwt');
   }
 
-  async createSdwt(data: Prisma.RefSdwtCreateInput): Promise<RefSdwt> {
+  async createSdwt(data: CreateSdwtDto): Promise<RefSdwt> {
     return this.requestApi<RefSdwt>('post', 'sdwt', null, data);
   }
 
-  async updateSdwt(id: string, data: Prisma.RefSdwtUpdateInput): Promise<RefSdwt> {
+  async updateSdwt(id: string, data: UpdateSdwtDto): Promise<RefSdwt> {
     return this.requestApi<RefSdwt>('patch', `sdwt/${id}`, null, data);
   }
 
@@ -87,11 +122,11 @@ export class InfraService {
     return this.requestApi<CfgServer[]>('get', 'server');
   }
 
-  async createAgentServer(data: Prisma.CfgServerCreateInput): Promise<CfgServer> {
+  async createAgentServer(data: CreateCfgServerDto): Promise<CfgServer> {
     return this.requestApi<CfgServer>('post', 'server', null, data);
   }
 
-  async updateAgentServer(eqpid: string, data: Prisma.CfgServerUpdateInput): Promise<CfgServer> {
+  async updateAgentServer(eqpid: string, data: UpdateCfgServerDto): Promise<CfgServer> {
     return this.requestApi<CfgServer>('patch', `server/${eqpid}`, null, data);
   }
 
