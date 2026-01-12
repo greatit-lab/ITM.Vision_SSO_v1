@@ -1,19 +1,8 @@
 // backend/src/wafer/wafer.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, {
-  AxiosError,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
-// --- DTO & Interfaces ---
+// [중요] TS1272 방지 및 Validation을 위해 Class로 DTO 정의
 export class WaferQueryParams {
   eqpId?: string;
   lotId?: string;
@@ -36,8 +25,10 @@ export class WaferQueryParams {
   site?: string;
   sdwt?: string;
   targetEqps?: string;
+  [key: string]: any; // 인덱스 시그니처 추가
 }
 
+// Interfaces for Responses
 export interface ResidualMapItem {
   point: number;
   x: number;
@@ -119,204 +110,226 @@ export interface SpectrumRawResult {
 
 @Injectable()
 export class WaferService {
-  private readonly logger = new Logger(WaferService.name);
-  private readonly baseUrl: string;
+  private readonly DOMAIN = 'wafer';
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    // 환경 변수 필수 체크 (누락 시 서버 시작 실패)
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/wafer`;
-  }
+  constructor(private readonly api: DataApiService) {}
 
   /**
-   * [Core] ESLint 오류 해결 및 404 방지 로직
+   * 파라미터 정제 (Date -> String 등)
    */
-  private async fetchFromApi<T>(
-    endpoint: string,
-    params: WaferQueryParams,
-  ): Promise<T> {
-    let finalUrl = 'URL_NOT_GENERATED';
+  private cleanParams(params: WaferQueryParams): Record<string, any> {
+    const clean: Record<string, any> = {};
+    const entries = Object.entries(params);
 
-    try {
-      const targetPath = `${this.baseUrl}/${endpoint}`;
-
-      const cleanParams: Record<string, string | number> = {};
-      const rawEntries = Object.entries(
-        params as unknown as Record<string, unknown>,
-      );
-
-      rawEntries.forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          if (value instanceof Date) {
-            cleanParams[key] = value.toISOString();
-          } else if (
-            typeof value === 'string' ||
-            typeof value === 'number' ||
-            typeof value === 'boolean'
-          ) {
-            // [ESLint 해결] 명시적인 기본 타입 체크로 String() 변환 시 경고 방지
-            cleanParams[key] = String(value);
-          } else {
-            // [ESLint 해결] 그 외의 객체 타입은 JSON 문자열로 안전하게 변환
-            cleanParams[key] = JSON.stringify(value);
-          }
+    for (const [key, value] of entries) {
+      if (value !== undefined && value !== null && value !== '') {
+        if (value instanceof Date) {
+          clean[key] = value.toISOString();
+        } else if (
+          typeof value === 'string' ||
+          typeof value === 'number' ||
+          typeof value === 'boolean'
+        ) {
+          clean[key] = String(value);
+        } else {
+          clean[key] = JSON.stringify(value);
         }
-      });
-
-      const dummyConfig: InternalAxiosRequestConfig = {
-        params: cleanParams,
-        url: targetPath,
-      } as InternalAxiosRequestConfig;
-      finalUrl = axios.getUri(dummyConfig);
-
-      this.logger.debug(`[Requesting] ${finalUrl}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.get<T>(targetPath, {
-          params: cleanParams,
-          proxy: false,
-          headers: {
-            Accept: 'application/json',
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-          timeout: 10000,
-        }),
-      );
-
-      return response.data;
-    } catch (error: unknown) {
-      let errorMessage = 'Unknown Error';
-      let statusCode = 500;
-
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        statusCode = axiosError.response?.status || 500;
-
-        const errorData = axiosError.response?.data;
-        errorMessage = errorData
-          ? JSON.stringify(errorData)
-          : axiosError.message;
-
-        this.logger.error(
-          `[Data API Error] ${statusCode} - Failed URL: ${finalUrl}`,
-        );
       }
-
-      if (
-        statusCode === 404 &&
-        ['distinct-values', 'available-metrics', 'points'].includes(endpoint)
-      ) {
-        return [] as unknown as T;
-      }
-
-      throw new InternalServerErrorException(
-        `Data API Proxy Error: ${errorMessage}`,
-      );
     }
+    return clean;
   }
 
   // --- API Methods ---
 
   async getFlatData(params: WaferQueryParams): Promise<FlatDataResponse> {
-    return this.fetchFromApi<FlatDataResponse>('flat-data', params);
+    return this.api.request<FlatDataResponse>(
+      this.DOMAIN,
+      'get',
+      'flat-data',
+      undefined,
+      this.cleanParams(params),
+    ) as Promise<FlatDataResponse>;
   }
 
   async getDistinctValues(
     column: string,
     params: WaferQueryParams,
   ): Promise<string[]> {
-    const query = { ...params, field: column } as unknown as WaferQueryParams;
-    return this.fetchFromApi<string[]>('distinct-values', query);
+    const query = { ...params, field: column };
+    return this.api.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'distinct-values',
+      undefined,
+      this.cleanParams(query),
+      { returnNullOn404: true },
+    ).then((res) => res || []);
   }
 
   async getDistinctPoints(params: WaferQueryParams): Promise<string[]> {
-    return this.fetchFromApi<string[]>('distinct-points', params);
+    return this.api.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'distinct-points',
+      undefined,
+      this.cleanParams(params),
+      { returnNullOn404: true },
+    ).then((res) => res || []);
   }
 
   async getSpectrumTrend(
     params: WaferQueryParams,
   ): Promise<SpectrumTrendSeries[]> {
-    return this.fetchFromApi<SpectrumTrendSeries[]>('spectrum-trend', params);
+    return this.api.request<SpectrumTrendSeries[]>(
+      this.DOMAIN,
+      'get',
+      'spectrum-trend',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 
   async getSpectrumGen(
     params: WaferQueryParams,
   ): Promise<SpectrumGenResponse | null> {
-    return this.fetchFromApi<SpectrumGenResponse | null>(
+    return this.api.request<SpectrumGenResponse | null>(
+      this.DOMAIN,
+      'get',
       'spectrum-gen',
-      params,
+      undefined,
+      this.cleanParams(params),
     );
   }
 
   async getPdfImage(params: WaferQueryParams): Promise<string> {
-    const res = await this.fetchFromApi<PdfImageResponse>('pdf-image', params);
-    return res.image;
+    const res = await this.api.request<PdfImageResponse>(
+      this.DOMAIN,
+      'get',
+      'pdf-image',
+      undefined,
+      this.cleanParams(params),
+    );
+    return res ? res.image : '';
   }
 
   async checkPdf(params: WaferQueryParams): Promise<PdfCheckResponse> {
-    return this.fetchFromApi<PdfCheckResponse>('check-pdf', params);
+    return this.api.request<PdfCheckResponse>(
+      this.DOMAIN,
+      'get',
+      'check-pdf',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || { exists: false, url: null });
   }
 
   async getSpectrum(params: WaferQueryParams): Promise<SpectrumRawResult[]> {
-    return this.fetchFromApi<SpectrumRawResult[]>('spectrum', params);
+    return this.api.request<SpectrumRawResult[]>(
+      this.DOMAIN,
+      'get',
+      'spectrum',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 
   async getStatistics(params: WaferQueryParams): Promise<any> {
-    return this.fetchFromApi<any>('statistics', params);
+    return this.api.request<any>(
+      this.DOMAIN,
+      'get',
+      'statistics',
+      undefined,
+      this.cleanParams(params),
+    );
   }
 
   async getPointData(
     params: WaferQueryParams,
   ): Promise<{ headers: string[]; data: unknown[][] }> {
-    return this.fetchFromApi<{ headers: string[]; data: unknown[][] }>(
+    return this.api.request<{ headers: string[]; data: unknown[][] }>(
+      this.DOMAIN,
+      'get',
       'point-data',
-      params,
-    );
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || { headers: [], data: [] });
   }
 
   async getResidualMap(params: WaferQueryParams): Promise<ResidualMapItem[]> {
-    return this.fetchFromApi<ResidualMapItem[]>('residual-map', params);
+    return this.api.request<ResidualMapItem[]>(
+      this.DOMAIN,
+      'get',
+      'residual-map',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 
   async getGoldenSpectrum(
     params: WaferQueryParams,
   ): Promise<GoldenSpectrumResponse | null> {
-    return this.fetchFromApi<GoldenSpectrumResponse | null>(
+    return this.api.request<GoldenSpectrumResponse | null>(
+      this.DOMAIN,
+      'get',
       'golden-spectrum',
-      params,
+      undefined,
+      this.cleanParams(params),
     );
   }
 
   async getAvailableMetrics(params: WaferQueryParams): Promise<string[]> {
-    return this.fetchFromApi<string[]>('available-metrics', params);
+    return this.api.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'available-metrics',
+      undefined,
+      this.cleanParams(params),
+      { returnNullOn404: true },
+    ).then((res) => res || []);
   }
 
   async getLotUniformityTrend(
     params: WaferQueryParams & { metric: string },
   ): Promise<LotUniformityTrendSeries[]> {
-    return this.fetchFromApi<LotUniformityTrendSeries[]>(
+    return this.api.request<LotUniformityTrendSeries[]>(
+      this.DOMAIN,
+      'get',
       'lot-uniformity-trend',
-      params,
-    );
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 
   async getMatchingEquipments(params: WaferQueryParams): Promise<string[]> {
-    return this.fetchFromApi<string[]>('matching-equipments', params);
+    return this.api.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'matching-equipments',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 
   async getComparisonData(
     params: WaferQueryParams,
   ): Promise<ComparisonRawResult[]> {
-    return this.fetchFromApi<ComparisonRawResult[]>('comparison-data', params);
+    return this.api.request<ComparisonRawResult[]>(
+      this.DOMAIN,
+      'get',
+      'comparison-data',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 
   async getOpticalTrend(
     params: WaferQueryParams,
   ): Promise<OpticalTrendResponse[]> {
-    return this.fetchFromApi<OpticalTrendResponse[]>('optical-trend', params);
+    return this.api.request<OpticalTrendResponse[]>(
+      this.DOMAIN,
+      'get',
+      'optical-trend',
+      undefined,
+      this.cleanParams(params),
+    ).then((res) => res || []);
   }
 }
