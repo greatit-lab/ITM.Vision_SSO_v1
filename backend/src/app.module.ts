@@ -1,6 +1,7 @@
 // backend/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CommonModule } from './common/common.module'; // [추가]
 
 // --- Feature Modules ---
 import { AdminModule } from './admin/admin.module';
@@ -19,13 +20,16 @@ import { InfraModule } from './infra/infra.module';
 
 @Module({
   imports: [
-    // Global Config (Process Env)
+    // Global Config
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.development', '.env.production', '.env'],
     }),
 
-    // Business Modules (All Refactored to use Data API)
+    // [중요] Common Module (DataApiService) 등록
+    CommonModule,
+
+    // Business Modules
     AdminModule,
     AuthModule,
     DashboardModule,
@@ -41,6 +45,6 @@ import { InfraModule } from './infra/infra.module';
     InfraModule,
   ],
   controllers: [],
-  providers: [], // [제거] PrismaService
+  providers: [],
 })
 export class AppModule {}
