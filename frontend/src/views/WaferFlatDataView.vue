@@ -74,7 +74,7 @@
             </div>
           </div>
           <div class="relative flex-1 overflow-auto">
-            <DataTable :value="flatData" v-model:selection="selectedRow" selectionMode="single" :metaKeySelection="false" dataKey="servTs" @rowSelect="onRowSelect" :loading="isLoading" class="absolute inset-0 text-sm p-datatable-sm custom-datatable" stripedRows>
+            <DataTable :value="flatData" v-model:selection="selectedRow" selectionMode="single" :metaKeySelection="false" dataKey="servTs" @rowSelect="onRowSelect" @rowUnselect="onRowUnselect" :loading="isLoading" class="absolute inset-0 text-sm p-datatable-sm custom-datatable" stripedRows>
               <template #empty><div class="flex flex-col items-center justify-center h-full text-slate-400"><i class="mb-2 text-3xl opacity-30 pi pi-filter-slash"></i><p class="font-medium">No data found.</p></div></template>
               <Column field="servTs" header="DATE TIME" style="min-width: 160px" frozen :bodyStyle="{ paddingLeft: '16px' }" headerStyle="padding-left: 16px"><template #body="{ data }"><span class="font-mono">{{ formatDate(data.servTs) }}</span></template></Column>
               <Column field="lotId" header="LOT ID" style="min-width: 130px"><template #body="{ data }"><span class="font-bold text-slate-600 dark:text-slate-300">{{ data.lotId }}</span></template></Column>
@@ -112,30 +112,38 @@
                     <td v-for="(cell, ci) in row" :key="ci" v-show="pointData?.headers?.[ci] !== 'datetime' && pointData?.headers?.[ci] !== 'serv_ts'" 
                         class="py-1.5 px-4 min-w-[80px] whitespace-nowrap" 
                         :class="[pointData?.headers?.[ci]?.toLowerCase() === 'point' ? 'sticky left-0 z-10 text-left pl-4 font-bold bg-inherit' : 'text-right']">
-                      {{ cell }}
+                      {{ formatPointCell(cell, ci) }}
                     </td>
                   </tr>
                 </tbody>
               </table>
               <div v-else class="flex items-center justify-center h-full py-10 text-xs text-slate-400">No point data available</div>
             </div>
+            
             <div v-else-if="activeTab === 'stats'" class="h-full overflow-auto">
-              <table v-if="statistics && statistics.t1" class="w-full text-xs border-collapse">
+              <table v-if="statistics && availableStatFields.length > 0" class="w-full text-xs border-collapse">
                 <thead class="sticky top-0 text-xs font-bold uppercase bg-slate-50 dark:bg-zinc-800 text-slate-500 dark:text-slate-400">
-                  <tr><th class="p-2 pl-4 text-left border-b dark:border-zinc-700 w-[20%]">Statistics</th><th class="p-2 text-right border-b dark:border-zinc-700 w-[20%]">T1(Å)</th><th class="p-2 text-right border-b dark:border-zinc-700 w-[20%]">GOF</th><th class="p-2 text-right border-b dark:border-zinc-700 w-[20%]">Z(µm)</th><th class="p-2 text-right pr-4 border-b dark:border-zinc-700 w-[20%]">SRVISZ(µm)</th></tr>
+                  <tr>
+                    <th class="p-2 pl-4 text-left border-b dark:border-zinc-700 w-[120px]">Statistics</th>
+                    <th v-for="header in availableStatFields" :key="header" class="p-2 text-right border-b dark:border-zinc-700 min-w-[80px]">
+                      {{ header.toUpperCase() }}{{ header.toLowerCase() === 't1' || header.toLowerCase() === 'thickness' ? '(Å)' : header.toLowerCase() === 'z' || header.toLowerCase() === 'srvisz' ? '(µm)' : '' }}
+                    </th>
+                  </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-zinc-800 text-slate-700 dark:text-slate-300">
                   <tr v-for="statType in statKeys" :key="statType" class="hover:bg-slate-50 dark:hover:bg-zinc-800/50">
-                    <td class="px-2 py-1 pl-4 font-bold text-slate-600 dark:text-slate-400 capitalize">{{ statType === 'percentStdDev' ? '%StdD' : statType === 'percentNonU' ? '%NonU' : statType }}</td>
-                    <td class="px-2 py-1 text-right">{{ fmt(statistics.t1[statType], 3) }}</td>
-                    <td class="px-2 py-1 text-right">{{ fmt(statistics.gof[statType], 4) }}</td>
-                    <td class="px-2 py-1 text-right">{{ fmt(statistics.z[statType], 4) }}</td>
-                    <td class="px-2 py-1 pr-4 text-right">{{ fmt(statistics.srvisz[statType], 4) }}</td>
+                    <td class="px-2 py-1 pl-4 font-bold text-slate-600 dark:text-slate-400 capitalize">
+                      {{ statType === 'percentStdDev' ? '%StdD' : statType === 'percentNonU' ? '%NonU' : statType }}
+                    </td>
+                    <td v-for="header in availableStatFields" :key="header" class="px-2 py-1 text-right">
+                      {{ getStatValue(statistics, header, statType) !== null ? fmt(getStatValue(statistics, header, statType), header.toLowerCase() === 'gof' ? 4 : 3) : '-' }}
+                    </td>
                   </tr>
                 </tbody>
               </table>
               <div v-else class="flex items-center justify-center h-full text-xs text-slate-400">No statistics available</div>
             </div>
+
           </div>
         </div>
       </div>
@@ -194,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -254,6 +262,8 @@ const pointData = ref<PointDataResponseDto>({ headers: [], data: [] });
 const selectedPointIdx = ref(-1);
 const selectedPointValue = ref<number | string>("");
 
+const columnPrecisions = ref<number[]>([]);
+
 const pdfExists = ref(false);
 const pdfImageUrl = ref<string | null>(null);
 const spectrumData = ref<any[]>([]);
@@ -265,6 +275,76 @@ const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
+
+// [수정] TS2532 오류 해결: 지역 변수 할당으로 타입 추론 강화
+const availableStatFields = computed(() => {
+  const pd = pointData.value;
+  // pd 또는 pd.headers가 없으면 빈 배열 반환
+  // statistics.value가 없어도 pd가 있다면 헤더 추출 가능 (더 유연하게 변경)
+  if (!pd || !pd.headers) return [];
+  
+  const excludedHeaders = [
+    'point', 'x', 'y', 'diex', 'diey', 
+    'dierow', 'diecol', 'lotid', 'waferid', 'slot', 
+    'dummy', 'index', 'servts', 'datetime', 'serv_ts', 'date_time',
+    'dienum', 'diepointtag'
+  ];
+  
+  // pd가 null이 아님을 보장한 상태에서 접근
+  return pd.headers.filter(header => 
+    !excludedHeaders.includes(header.toLowerCase())
+  );
+});
+
+// [수정] TS2532 오류 해결: 지역 변수 할당 및 null 체크 강화
+const calculateColumnPrecisions = () => {
+  const pd = pointData.value;
+  if (!pd || !Array.isArray(pd.headers) || !Array.isArray(pd.data)) {
+    columnPrecisions.value = [];
+    return;
+  }
+
+  const precisions = new Array(pd.headers.length).fill(0);
+
+  for (let c = 0; c < pd.headers.length; c++) {
+    let maxP = 0;
+    for (const row of pd.data) {
+      const v = row[c];
+      if (typeof v === "number") {
+        const p = v.toString().split(".")[1]?.length ?? 0;
+        maxP = Math.max(maxP, p);
+      }
+    }
+    precisions[c] = maxP;
+  }
+
+  columnPrecisions.value = precisions;
+};
+
+const formatPointCell = (val: unknown, colIdx: number) => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'number') {
+    const p = columnPrecisions.value[colIdx] ?? 0;
+    return val.toFixed(p);
+  }
+  return val;
+};
+
+const getStatValue = (stats: StatisticsDto | null, header: string, type: keyof StatisticItem): number | null | undefined => {
+  if (!stats) return null;
+  if ((stats as any)[header]) {
+    return (stats as any)[header][type];
+  }
+  const lowerHeader = header.toLowerCase();
+  if ((stats as any)[lowerHeader]) {
+    return (stats as any)[lowerHeader][type];
+  }
+  const matchedKey = Object.keys(stats).find(k => k.toLowerCase() === lowerHeader);
+  if (matchedKey) {
+    return (stats as any)[matchedKey][type];
+  }
+  return null;
+};
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
@@ -430,13 +510,35 @@ const prevPage = () => { if (first.value > 0) first.value -= rowsPerPage.value; 
 const nextPage = () => { if (first.value + rowsPerPage.value < totalRecords.value) first.value += rowsPerPage.value; loadDataGrid(); };
 const lastPage = () => { first.value = Math.floor(Math.max(totalRecords.value - 1, 0) / rowsPerPage.value) * rowsPerPage.value; loadDataGrid(); };
 
+const resetDetails = () => {
+  isStatsLoading.value = false;
+  isPointsLoading.value = false;
+  isImageLoading.value = false;
+  isSpectrumLoading.value = false;
+  pdfExists.value = false;
+  pdfImageUrl.value = null;
+  selectedPointIdx.value = -1;
+  selectedPointValue.value = "";
+  statistics.value = null;
+  pointData.value = { headers: [], data: [] };
+  spectrumData.value = [];
+  isZoomed.value = false;
+  if (spectrumChartInstance) {
+    spectrumChartInstance.dispatchAction({ type: "restore" });
+  }
+};
+
 const onRowSelect = async (event: any) => {
   const row = event.data; selectedRow.value = row;
-  isStatsLoading.value = true; isPointsLoading.value = true; pdfExists.value = false; pdfImageUrl.value = null; selectedPointIdx.value = -1; selectedPointValue.value = ""; statistics.value = null; pointData.value = { headers: [], data: [] }; spectrumData.value = [];
+  resetDetails(); 
+  
+  isStatsLoading.value = true; isPointsLoading.value = true; 
+  
   try {
     const params = { ...row, eqpId: row.eqpId, lotId: row.lotId, waferId: row.waferId, servTs: row.servTs, dateTime: row.dateTime };
     statistics.value = await waferApi.getStatistics(params);
     pointData.value = await waferApi.getPointData(params);
+    calculateColumnPrecisions();
     
     const pdfRes = await waferApi.checkPdf({
         eqpId: row.eqpId,
@@ -448,6 +550,16 @@ const onRowSelect = async (event: any) => {
 
   } catch (error) { console.error("Failed to load details:", error); } finally { isStatsLoading.value = false; isPointsLoading.value = false; }
 };
+
+const onRowUnselect = () => {
+  resetDetails();
+};
+
+watch(selectedRow, (newVal) => {
+  if (!newVal) {
+    resetDetails();
+  }
+});
 
 const loadPointImage = async (pointValue: number) => {
   if (!pdfExists.value || !selectedRow.value) return;
@@ -483,30 +595,43 @@ const loadSpectrumData = async (pointValue: number) => {
 
 const onPointClick = async (idx: number) => {
   let pointValue = idx + 1;
-  if (pointData.value?.headers && pointData.value?.data?.[idx]) {
-    const pointColIndex = pointData.value.headers.findIndex((h: string) => h?.toLowerCase() === "point");
+
+  const pd = pointData.value;
+  const headers = pd?.headers;
+  const row = pd?.data?.[idx];
+
+  if (Array.isArray(headers) && Array.isArray(row)) {
+    const pointColIndex = headers.findIndex(
+      (h) => typeof h === "string" && h.toLowerCase() === "point"
+    );
+
     if (pointColIndex > -1) {
-      const cellValue = pointData.value.data[idx][pointColIndex];
-      const parsed = Number(cellValue); if (!isNaN(parsed)) pointValue = parsed;
+      const parsed = Number(row[pointColIndex]);
+      if (!isNaN(parsed)) pointValue = parsed;
     }
   }
-  selectedPointValue.value = pointValue; selectedPointIdx.value = idx;
+
+  selectedPointValue.value = pointValue;
+  selectedPointIdx.value = idx;
+
   const tasks: Promise<void>[] = [];
-  if (pdfExists.value && selectedRow.value) tasks.push(loadPointImage(pointValue)); else pdfImageUrl.value = null;
+
+  if (pdfExists.value && selectedRow.value) {
+    tasks.push(loadPointImage(pointValue));
+  } else {
+    pdfImageUrl.value = null;
+  }
+
   tasks.push(loadSpectrumData(pointValue));
-  try { await Promise.all(tasks); } catch (error) { console.error("Error loading point details:", error); }
+
+  await Promise.all(tasks);
 };
 
 const resetFilters = () => {
   filterStore.selectedSite = ""; filterStore.selectedSdwt = ""; localStorage.removeItem("wafer_site"); localStorage.removeItem("wafer_sdwt"); localStorage.removeItem("wafer_eqpid");
   sdwts.value = []; eqpIds.value = []; filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
-  flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; spectrumData.value = [];
-  
-  pdfImageUrl.value = null;
-  pdfExists.value = false;
-  pointData.value = { headers: [], data: [] };
-  statistics.value = null;
-  isZoomed.value = false;
+  flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; 
+  resetDetails(); 
 };
 
 const formatDate = (dateStr: string) => {
@@ -520,8 +645,8 @@ const fmt = (num: number | null | undefined, prec: number = 3) => num === null |
 
 <style scoped>
 /* 기존 스타일 유지 */
-:deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700; }
-:deep(.p-datatable-tbody > tr > td) { @apply py-1 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
+:deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 whitespace-nowrap; }
+:deep(.p-datatable-tbody > tr > td) { @apply py-1 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50 whitespace-nowrap; }
 :deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
 :deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
 :deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
