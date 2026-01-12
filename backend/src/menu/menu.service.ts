@@ -1,13 +1,6 @@
 // backend/src/menu/menu.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
 // ==========================
 // DTO / Interfaces
@@ -25,7 +18,7 @@ export interface MenuNode {
   roles?: string[];
 }
 
-export interface CreateMenuDto {
+export class CreateMenuDto {
   label: string;
   routerPath?: string;
   parentId?: number | null;
@@ -36,7 +29,7 @@ export interface CreateMenuDto {
   roles?: string[];
 }
 
-export interface UpdateMenuDto {
+export class UpdateMenuDto {
   label?: string;
   routerPath?: string;
   parentId?: number | null;
@@ -49,110 +42,59 @@ export interface UpdateMenuDto {
 
 @Injectable()
 export class MenuService {
-  private readonly logger = new Logger(MenuService.name);
-  private readonly baseUrl: string;
+  private readonly DOMAIN = 'menu';
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/menu`;
-  }
-
-  // ==========================
-  // 공통 유틸
-  // ==========================
-  private stringifyErrorData(data: unknown): string {
-    if (typeof data === 'string') return data;
-    if (data instanceof Object) return JSON.stringify(data);
-    return 'Unknown Error';
-  }
-
-  // ==========================
-  // 공통 API 헬퍼
-  // ==========================
-  private async requestApi<T>(
-    method: 'get' | 'post' | 'patch' | 'delete',
-    endpoint: string,
-    params?: unknown,
-    data?: unknown,
-  ): Promise<T> {
-    const targetPath = endpoint
-      ? `${this.baseUrl}/${endpoint}`
-      : this.baseUrl;
-
-    try {
-      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.request<T>({
-          method,
-          url: targetPath,
-          params,
-          data,
-        }),
-      );
-
-      return response.data;
-    } catch (error: unknown) {
-      let errorMessage = 'Unknown Error';
-      let statusCode = 500;
-
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<unknown>;
-        statusCode = axiosError.response?.status ?? 500;
-        errorMessage = this.stringifyErrorData(
-          axiosError.response?.data,
-        );
-
-        this.logger.error(
-          `[Data API Error] ${statusCode} - ${targetPath} / ${errorMessage}`,
-        );
-      }
-
-      throw new InternalServerErrorException(
-        `Data API Proxy Error: ${errorMessage}`,
-      );
-    }
-  }
+  constructor(private readonly api: DataApiService) {}
 
   // ==========================
   // Menu APIs
   // ==========================
   async getMyMenus(role: string): Promise<MenuNode[]> {
-    return this.requestApi<MenuNode[]>('get', 'my', { role });
+    // [수정] null이 반환될 경우 빈 배열([])로 처리
+    return this.api.request<MenuNode[]>(
+      this.DOMAIN,
+      'get',
+      'my',
+      undefined,
+      { role }
+    ).then(res => res || []);
   }
 
   async getAllMenus(): Promise<MenuNode[]> {
-    return this.requestApi<MenuNode[]>('get', 'all');
+    // [수정] null이 반환될 경우 빈 배열([])로 처리
+    return this.api.request<MenuNode[]>(
+      this.DOMAIN,
+      'get',
+      'all'
+    ).then(res => res || []);
   }
 
   async createMenu(data: CreateMenuDto) {
-    return this.requestApi('post', '', undefined, data);
+    return this.api.request(this.DOMAIN, 'post', '', data);
   }
 
   async updateMenu(id: number, data: UpdateMenuDto) {
-    return this.requestApi('patch', String(id), undefined, data);
+    return this.api.request(this.DOMAIN, 'patch', String(id), data);
   }
 
   async deleteMenu(id: number) {
-    return this.requestApi('delete', String(id));
+    return this.api.request(this.DOMAIN, 'delete', String(id));
   }
 
   async updateRolePermissions(
     role: string,
     menuIds: number[],
   ): Promise<void> {
-    return this.requestApi(
+    // [수정] void 반환 타입 맞춤 (null 무시)
+    return this.api.request(
+      this.DOMAIN,
       'post',
       'role-permissions',
-      undefined,
       { role, menuIds },
-    );
+    ).then(() => {}); 
   }
 
   async getAllRolePermissions() {
-    return this.requestApi('get', 'role-permissions');
+    return this.api.request(this.DOMAIN, 'get', 'role-permissions');
   }
 }
