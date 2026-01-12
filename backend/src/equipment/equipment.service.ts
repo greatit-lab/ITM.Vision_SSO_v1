@@ -12,7 +12,22 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
-import { RefEquipment, Prisma } from '@prisma/client';
+
+// [수정] Interface는 그대로 유지 (반환 타입용)
+export interface RefEquipment {
+  eqpId: string;
+  [key: string]: any;
+}
+
+// [수정] DTO를 class로 변경 (TS1272 오류 해결)
+export class CreateEquipmentDto {
+  eqpId: string;
+  [key: string]: any; // 추가 속성 허용
+}
+
+export class UpdateEquipmentDto {
+  [key: string]: any; // 부분 업데이트 허용
+}
 
 export interface EquipmentDto {
   eqpId: string;
@@ -172,7 +187,7 @@ export class EquipmentService {
     return this.fetchFromApi<string[]>('ids', { site, sdwt, type });
   }
 
-  async create(data: Prisma.RefEquipmentCreateInput): Promise<RefEquipment> {
+  async create(data: CreateEquipmentDto): Promise<RefEquipment> {
     return this.mutateApi<RefEquipment>('post', '', data);
   }
 
@@ -182,7 +197,7 @@ export class EquipmentService {
 
   async update(
     eqpid: string,
-    data: Prisma.RefEquipmentUpdateInput,
+    data: UpdateEquipmentDto,
   ): Promise<RefEquipment> {
     return this.mutateApi<RefEquipment>('patch', eqpid, data);
   }
