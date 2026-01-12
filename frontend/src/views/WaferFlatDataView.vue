@@ -96,14 +96,24 @@
           <div class="relative flex-1 overflow-auto">
             <div v-if="isStatsLoading || isPointsLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80"><ProgressSpinner style="width: 25px; height: 25px" /></div>
             <div v-if="!selectedRow" class="flex items-center justify-center h-full text-sm text-slate-400">Select a row to view details</div>
-            <div v-else-if="activeTab === 'points'">
-              <table v-if="pointData && pointData.data && pointData.data.length > 0" class="w-full text-xs text-center border-collapse table-fixed">
+            <div v-else-if="activeTab === 'points'" class="w-full h-full overflow-auto">
+              <table v-if="pointData && pointData.data && pointData.data.length > 0" class="w-full text-xs text-center border-collapse table-auto">
                 <thead class="sticky top-0 z-20 text-xs font-bold uppercase shadow-sm bg-teal-50 dark:bg-zinc-800 text-slate-600 dark:text-slate-300">
-                  <tr><th v-for="h in pointData.headers" :key="h" v-show="h !== 'datetime' && h !== 'serv_ts'" class="py-2 px-4 whitespace-nowrap border-b dark:border-zinc-700 min-w-[80px]" :class="[h.toLowerCase() === 'point' ? 'sticky left-0 z-30 bg-teal-50 dark:bg-zinc-800 text-left pl-4 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'text-right']">{{ h.toUpperCase() }}</th></tr>
+                  <tr>
+                    <th v-for="h in pointData.headers" :key="h" v-show="h !== 'datetime' && h !== 'serv_ts'" 
+                        class="py-2 px-4 whitespace-nowrap border-b dark:border-zinc-700 min-w-[80px]" 
+                        :class="[h.toLowerCase() === 'point' ? 'sticky left-0 z-30 bg-teal-50 dark:bg-zinc-800 text-left pl-4 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'text-right']">
+                      {{ h.toUpperCase() }}
+                    </th>
+                  </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
                   <tr v-for="(row, idx) in pointData.data" :key="idx" class="transition-colors cursor-pointer group" :class="{'bg-teal-100 dark:bg-teal-900/40': idx === selectedPointIdx, 'hover:bg-teal-50 dark:hover:bg-teal-900/20': idx !== selectedPointIdx}" @click="onPointClick(idx)">
-                    <td v-for="(cell, ci) in row" :key="ci" v-show="pointData?.headers?.[ci] !== 'datetime' && pointData?.headers?.[ci] !== 'serv_ts'" class="py-1.5 px-4 min-w-[80px]" :class="[pointData?.headers?.[ci]?.toLowerCase() === 'point' ? 'sticky left-0 z-10 text-left pl-4 font-bold bg-inherit' : 'text-right']">{{ cell }}</td>
+                    <td v-for="(cell, ci) in row" :key="ci" v-show="pointData?.headers?.[ci] !== 'datetime' && pointData?.headers?.[ci] !== 'serv_ts'" 
+                        class="py-1.5 px-4 min-w-[80px] whitespace-nowrap" 
+                        :class="[pointData?.headers?.[ci]?.toLowerCase() === 'point' ? 'sticky left-0 z-10 text-left pl-4 font-bold bg-inherit' : 'text-right']">
+                      {{ cell }}
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -129,7 +139,6 @@
           </div>
         </div>
       </div>
-
       <div class="w-[450px] shrink-0 flex flex-col gap-4 h-full">
         <div class="h-[420px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-7 overflow-hidden">
           <div class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center"><i class="pi pi-image mr-2 text-teal-500"></i> Wafer Map</div>
@@ -218,7 +227,7 @@ const sdwts = ref<string[]>([]);
 
 const filters = reactive({
   eqpId: "", lotId: "", waferId: "", startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date(),
-  cassetteRcp: "", stageGroup: "", film: "",
+  cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
 });
 
 const eqpIds = ref<string[]>([]);
@@ -408,7 +417,7 @@ const loadDataGrid = async () => {
     const res = await waferApi.getFlatData({
       eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId,
       startDate: filters.startDate?.toISOString(), endDate: filters.endDate?.toISOString(),
-      cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, film: filters.film,
+      cassetteRcp: filters.cassetteRcp, stageRcp: filters.stageRcp, stageGroup: filters.stageGroup, film: filters.film,
       page: first.value / rowsPerPage.value, pageSize: rowsPerPage.value,
     });
     flatData.value = res?.items || [];
@@ -425,7 +434,6 @@ const onRowSelect = async (event: any) => {
   const row = event.data; selectedRow.value = row;
   isStatsLoading.value = true; isPointsLoading.value = true; pdfExists.value = false; pdfImageUrl.value = null; selectedPointIdx.value = -1; selectedPointValue.value = ""; statistics.value = null; pointData.value = { headers: [], data: [] }; spectrumData.value = [];
   try {
-    // [수정] dateTime 파라미터를 명시적으로 전달 (DTO에 포함되어 있지만 확인 차원)
     const params = { ...row, eqpId: row.eqpId, lotId: row.lotId, waferId: row.waferId, servTs: row.servTs, dateTime: row.dateTime };
     statistics.value = await waferApi.getStatistics(params);
     pointData.value = await waferApi.getPointData(params);
@@ -501,7 +509,6 @@ const resetFilters = () => {
   isZoomed.value = false;
 };
 
-// [수정] DB의 날짜 문자열(UTC)을 그대로 파싱하여 화면에 표시 (오프셋 추가 없음)
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
