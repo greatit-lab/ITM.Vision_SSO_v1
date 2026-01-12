@@ -3,11 +3,11 @@
   <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B]">
     <div class="flex items-center gap-2 px-1 mb-2 shrink-0">
       <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
-        <i class="text-lg text-blue-500 pi pi-table dark:text-blue-400"></i>
+        <i class="text-lg text-teal-600 pi pi-chart-pie dark:text-teal-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Wafer Data</h1>
-        <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">Raw measurement data explorer.</span>
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Wafer Flat Data</h1>
+        <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">Detailed metrology data analysis.</span>
       </div>
     </div>
 
@@ -43,10 +43,9 @@
         </div>
       </div>
       <div v-show="showAdvanced" class="grid grid-cols-4 gap-2 px-1 pt-2 border-t border-dashed border-slate-200 dark:border-zinc-800 animate-fade-in">
-        <Select v-model="filters.cassetteRcp" :options="cassetteRcps" placeholder="Cassette RCP" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onAdvancedFilterChange" />
-        <Select v-model="filters.stageRcp" :options="stageRcps" placeholder="Stage RCP" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onAdvancedFilterChange" />
-        <Select v-model="filters.stageGroup" :options="stageGroups" placeholder="Stage Group" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onAdvancedFilterChange" />
-        <Select v-model="filters.film" :options="films" placeholder="Film" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onAdvancedFilterChange" />
+        <Select v-model="filters.cassetteRcp" :options="cassetteRcps" placeholder="Cassette RCP" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onCassetteRcpChange" />
+        <Select v-model="filters.stageGroup" :options="stageGroups" placeholder="Stage Group" showClear :disabled="!filters.cassetteRcp" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.cassetteRcp }" @change="onStageGroupChange" />
+        <Select v-model="filters.film" :options="films" placeholder="Film" showClear :disabled="!filters.stageGroup" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.stageGroup }" @change="onFilmChange" />
       </div>
     </div>
 
@@ -97,7 +96,7 @@
           <div class="relative flex-1 overflow-auto">
             <div v-if="isStatsLoading || isPointsLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80"><ProgressSpinner style="width: 25px; height: 25px" /></div>
             <div v-if="!selectedRow" class="flex items-center justify-center h-full text-sm text-slate-400">Select a row to view details</div>
-            <div v-else-if="activeTab === 'points'" class="overflow-auto" style="max-height: 280px">
+            <div v-else-if="activeTab === 'points'">
               <table v-if="pointData && pointData.data && pointData.data.length > 0" class="w-full text-xs text-center border-collapse table-fixed">
                 <thead class="sticky top-0 z-20 text-xs font-bold uppercase shadow-sm bg-teal-50 dark:bg-zinc-800 text-slate-600 dark:text-slate-300">
                   <tr><th v-for="h in pointData.headers" :key="h" v-show="h !== 'datetime' && h !== 'serv_ts'" class="py-2 px-4 whitespace-nowrap border-b dark:border-zinc-700 min-w-[80px]" :class="[h.toLowerCase() === 'point' ? 'sticky left-0 z-30 bg-teal-50 dark:bg-zinc-800 text-left pl-4 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'text-right']">{{ h.toUpperCase() }}</th></tr>
@@ -197,11 +196,10 @@ import {
   type PointDataResponseDto,
   type StatisticItem
 } from "@/api/wafer";
-import { getEqpIds } from "@/api/equipment"; // [수정] 함수 직접 import
+import { getEqpIds } from "@/api/equipment";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
 
-// PrimeVue Components
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
@@ -217,9 +215,10 @@ const hasSearched = ref(false);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
+
 const filters = reactive({
   eqpId: "", lotId: "", waferId: "", startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date(),
-  cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
+  cassetteRcp: "", stageGroup: "", film: "",
 });
 
 const eqpIds = ref<string[]>([]);
@@ -227,7 +226,6 @@ const isEqpLoading = ref(false);
 const lotIds = ref<string[]>([]);
 const waferIds = ref<string[]>([]);
 const cassetteRcps = ref<string[]>([]);
-const stageRcps = ref<string[]>([]);
 const stageGroups = ref<string[]>([]);
 const films = ref<string[]>([]);
 
@@ -257,7 +255,6 @@ let spectrumChartInstance: ECharts | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-// [수정] 통계 항목 키 배열 정의 (타입 에러 방지)
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
 onMounted(async () => {
@@ -345,19 +342,20 @@ const onSiteChange = async () => {
   if (filterStore.selectedSite) { localStorage.setItem("wafer_site", filterStore.selectedSite); sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite); }
   else { localStorage.removeItem("wafer_site"); sdwts.value = []; }
   filterStore.selectedSdwt = ""; localStorage.removeItem("wafer_sdwt"); localStorage.removeItem("wafer_eqpid"); filters.eqpId = ""; filters.lotId = ""; filters.waferId = "";
+  filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
 };
 
 const onSdwtChange = () => {
   if (filterStore.selectedSdwt) { localStorage.setItem("wafer_sdwt", filterStore.selectedSdwt); loadEqpIds(); }
   else { localStorage.removeItem("wafer_sdwt"); eqpIds.value = []; }
   localStorage.removeItem("wafer_eqpid"); filters.eqpId = ""; filters.lotId = ""; filters.waferId = "";
+  filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
 };
 
 const loadEqpIds = async () => {
   if (!filterStore.selectedSdwt) return;
   isEqpLoading.value = true;
   try {
-    // [수정] getEqpIds 객체 파라미터 사용 ({ sdwt, type })
     eqpIds.value = await getEqpIds({ sdwt: filterStore.selectedSdwt, type: "wafer" });
   } finally { isEqpLoading.value = false; }
 };
@@ -365,19 +363,38 @@ const loadEqpIds = async () => {
 const onEqpChange = () => {
   if (filters.eqpId) { localStorage.setItem("wafer_eqpid", filters.eqpId); filters.lotId = ""; filters.waferId = ""; loadFilterOptions(); }
   else { localStorage.removeItem("wafer_eqpid"); filters.lotId = ""; filters.waferId = ""; }
+  filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
 };
 
 const onLotChange = () => { filters.waferId = ""; if (filters.lotId) loadFilterOptions(); };
-const onAdvancedFilterChange = () => { loadFilterOptions(); };
+
+const onCassetteRcpChange = () => {
+  filters.stageGroup = "";
+  filters.film = "";
+  loadFilterOptions();
+};
+
+const onStageGroupChange = () => {
+  filters.film = "";
+  loadFilterOptions();
+};
+
+const onFilmChange = () => {
+  loadFilterOptions();
+};
 
 const loadFilterOptions = async () => {
   if (!filters.eqpId) return;
-  const params = { eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId, startDate: filters.startDate?.toISOString(), endDate: filters.endDate?.toISOString(), cassetteRcp: filters.cassetteRcp, stageRcp: filters.stageRcp, stageGroup: filters.stageGroup, film: filters.film };
+  const params = { eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId, startDate: filters.startDate?.toISOString(), endDate: filters.endDate?.toISOString(), cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, film: filters.film };
   try {
     const [lots, wafers] = await Promise.all([waferApi.getDistinctValues("lotids", params), waferApi.getDistinctValues("waferids", params)]);
-    lotIds.value = lots; waferIds.value = wafers;
-    const [cRcps, sRcps] = await Promise.all([waferApi.getDistinctValues("cassettercps", params), waferApi.getDistinctValues("stagercps", params)]);
-    cassetteRcps.value = cRcps; stageRcps.value = sRcps;
+    
+    lotIds.value = lots.sort();
+    waferIds.value = wafers.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    const cRcps = await waferApi.getDistinctValues("cassettercps", params);
+    cassetteRcps.value = cRcps;
+    
     const [sGrps, filmsList] = await Promise.all([waferApi.getDistinctValues("stagegroups", params), waferApi.getDistinctValues("films", params)]);
     stageGroups.value = sGrps; films.value = filmsList;
   } catch (error) { console.error("Failed to load filter options completely:", error); }
@@ -391,10 +408,9 @@ const loadDataGrid = async () => {
     const res = await waferApi.getFlatData({
       eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId,
       startDate: filters.startDate?.toISOString(), endDate: filters.endDate?.toISOString(),
-      cassetteRcp: filters.cassetteRcp, stageRcp: filters.stageRcp, stageGroup: filters.stageGroup, film: filters.film,
+      cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, film: filters.film,
       page: first.value / rowsPerPage.value, pageSize: rowsPerPage.value,
     });
-    // [수정] 안전한 할당 (res?.items)
     flatData.value = res?.items || [];
     totalRecords.value = res?.totalItems || 0;
   } finally { isLoading.value = false; }
@@ -409,10 +425,19 @@ const onRowSelect = async (event: any) => {
   const row = event.data; selectedRow.value = row;
   isStatsLoading.value = true; isPointsLoading.value = true; pdfExists.value = false; pdfImageUrl.value = null; selectedPointIdx.value = -1; selectedPointValue.value = ""; statistics.value = null; pointData.value = { headers: [], data: [] }; spectrumData.value = [];
   try {
-    const params = { ...row, eqpId: row.eqpId, lotId: row.lotId, waferId: row.waferId, servTs: row.servTs };
+    // [수정] dateTime 파라미터를 명시적으로 전달 (DTO에 포함되어 있지만 확인 차원)
+    const params = { ...row, eqpId: row.eqpId, lotId: row.lotId, waferId: row.waferId, servTs: row.servTs, dateTime: row.dateTime };
     statistics.value = await waferApi.getStatistics(params);
     pointData.value = await waferApi.getPointData(params);
-    pdfExists.value = await waferApi.checkPdf(row.eqpId, row.lotId, row.waferId, row.servTs);
+    
+    const pdfRes = await waferApi.checkPdf({
+        eqpId: row.eqpId,
+        lotId: row.lotId,
+        waferId: row.waferId,
+        servTs: row.servTs
+    });
+    pdfExists.value = pdfRes.exists;
+
   } catch (error) { console.error("Failed to load details:", error); } finally { isStatsLoading.value = false; isPointsLoading.value = false; }
 };
 
@@ -420,8 +445,14 @@ const loadPointImage = async (pointValue: number) => {
   if (!pdfExists.value || !selectedRow.value) return;
   isImageLoading.value = true; pdfImageUrl.value = null;
   try {
-    const base64 = await waferApi.getPdfImageBase64(selectedRow.value.eqpId, selectedRow.value.lotId, selectedRow.value.waferId, selectedRow.value.dateTime, pointValue);
-    pdfImageUrl.value = `data:image/png;base64,${base64}`;
+    const res = await waferApi.getPdfImage({
+        eqpId: selectedRow.value.eqpId,
+        lotId: selectedRow.value.lotId,
+        waferId: selectedRow.value.waferId,
+        dateTime: selectedRow.value.dateTime,
+        pointNumber: pointValue
+    });
+    pdfImageUrl.value = `data:image/png;base64,${res.image}`;
   } catch (error) { pdfImageUrl.value = null; } finally { isImageLoading.value = false; }
 };
 
@@ -432,8 +463,8 @@ const loadSpectrumData = async (pointValue: number) => {
     const params = { eqpId: selectedRow.value.eqpId, ts: selectedRow.value.dateTime, lotId: selectedRow.value.lotId, waferId: String(selectedRow.value.waferId), pointNumber: pointValue };
     const rawData = await waferApi.getSpectrum(params);
     if (!rawData || rawData.length === 0) return;
-    const expData = rawData.find((d) => d.class && d.class.toUpperCase() === "EXP");
-    const genData = rawData.find((d) => d.class && d.class.toUpperCase() === "GEN");
+    const expData = rawData.find((d: any) => d.class && d.class.toUpperCase() === "EXP");
+    const genData = rawData.find((d: any) => d.class && d.class.toUpperCase() === "GEN");
     const base = expData?.wavelengths || genData?.wavelengths || [];
     spectrumData.value = base.map((wl: number, i: number) => {
       const expVal = expData?.values?.[i]; const genVal = genData?.values?.[i];
@@ -445,7 +476,7 @@ const loadSpectrumData = async (pointValue: number) => {
 const onPointClick = async (idx: number) => {
   let pointValue = idx + 1;
   if (pointData.value?.headers && pointData.value?.data?.[idx]) {
-    const pointColIndex = pointData.value.headers.findIndex((h) => h?.toLowerCase() === "point");
+    const pointColIndex = pointData.value.headers.findIndex((h: string) => h?.toLowerCase() === "point");
     if (pointColIndex > -1) {
       const cellValue = pointData.value.data[idx][pointColIndex];
       const parsed = Number(cellValue); if (!isNaN(parsed)) pointValue = parsed;
@@ -460,19 +491,28 @@ const onPointClick = async (idx: number) => {
 
 const resetFilters = () => {
   filterStore.selectedSite = ""; filterStore.selectedSdwt = ""; localStorage.removeItem("wafer_site"); localStorage.removeItem("wafer_sdwt"); localStorage.removeItem("wafer_eqpid");
-  sdwts.value = []; eqpIds.value = []; filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; filters.cassetteRcp = ""; filters.stageRcp = ""; filters.stageGroup = ""; filters.film = "";
+  sdwts.value = []; eqpIds.value = []; filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
   flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; spectrumData.value = [];
+  
+  pdfImageUrl.value = null;
+  pdfExists.value = false;
+  pointData.value = { headers: [], data: [] };
+  statistics.value = null;
+  isZoomed.value = false;
 };
 
+// [수정] DB의 날짜 문자열(UTC)을 그대로 파싱하여 화면에 표시 (오프셋 추가 없음)
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   return `${d.getUTCFullYear().toString().slice(2)}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:${String(d.getUTCSeconds()).padStart(2, "0")}`;
 };
+
 const fmt = (num: number | null | undefined, prec: number = 3) => num === null || num === undefined ? "0.".padEnd(prec + 2, "0") : num.toFixed(prec);
 </script>
 
 <style scoped>
+/* 기존 스타일 유지 */
 :deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700; }
 :deep(.p-datatable-tbody > tr > td) { @apply py-1 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
 :deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
@@ -493,9 +533,4 @@ table th, table td { @apply px-4 py-2; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-</style>
-
-<style>
-.custom-dropdown-panel.small .p-select-option, .custom-dropdown-panel.small .p-autocomplete-option, .custom-dropdown-panel.small .p-autocomplete-item { padding: 6px 10px !important; font-size: 11px !important; }
-.custom-dropdown-panel.small .p-select-empty-message { padding: 6px 10px !important; font-size: 11px !important; }
 </style>
