@@ -1,6 +1,47 @@
 // frontend/src/api/wafer.ts
 import http from "./http";
 
+// View에서 사용하는 DTO 인터페이스 정의
+export interface WaferFlatDataDto {
+  eqpId: string;
+  lotId: string;
+  waferId: number;
+  servTs: string;
+  dateTime: string;
+  cassetteRcp: string;
+  stageRcp: string;
+  stageGroup: string;
+  film: string;
+}
+
+export interface StatisticItem {
+  max: number;
+  min: number;
+  range: number;
+  mean: number;
+  stdDev: number;
+  percentStdDev: number;
+  percentNonU: number;
+}
+
+export interface StatisticsDto {
+  t1: StatisticItem;
+  gof: StatisticItem;
+  z: StatisticItem;
+  srvisz: StatisticItem;
+}
+
+export interface PointDataResponseDto {
+  headers: string[];
+  data: (string | number | null)[][];
+}
+
+export interface SpectrumDataDto {
+  class: string;
+  wavelengths: number[];
+  values: number[];
+}
+
 export interface WaferQueryParams {
   eqpId?: string;
   lotId?: string;
@@ -51,7 +92,7 @@ export const waferApi = {
   },
 
   getFlatData: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/flat-data", { params });
+    const { data } = await http.get<{ totalItems: number; items: WaferFlatDataDto[] }>("/wafer/flat-data", { params });
     return data;
   },
 
@@ -63,7 +104,6 @@ export const waferApi = {
   },
 
   checkPdf: async (params: WaferQueryParams) => {
-    // [수정] Proxy 객체를 제거하고 필요한 필드만 순수 객체로 추출하여 전달 (오류 해결)
     const cleanParams = {
       eqpId: params.eqpId,
       lotId: params.lotId,
@@ -79,30 +119,30 @@ export const waferApi = {
   },
 
   getSpectrum: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/spectrum", { params });
+    const { data } = await http.get<SpectrumDataDto[]>("/wafer/spectrum", { params });
     return data;
   },
 
   getStatistics: async (params: WaferQueryParams) => {
-    // [수정] 통계 API 호출 시에도 안전하게 파라미터 전달
+    // [수정] 백엔드 DTO(WaferQueryParams)와 매칭되도록 camelCase 키 사용
     const cleanParams = {
       eqpId: params.eqpId,
       lotId: params.lotId,
       waferId: params.waferId,
       servTs: params.servTs,
-      cassettercp: params.cassetteRcp,
-      stagercp: params.stageRcp,
-      stagegroup: params.stageGroup,
+      cassetteRcp: params.cassetteRcp,
+      stageRcp: params.stageRcp,
+      stageGroup: params.stageGroup,
       film: params.film,
     };
-    const { data } = await http.get("/wafer/statistics", {
+    const { data } = await http.get<StatisticsDto>("/wafer/statistics", {
       params: cleanParams,
     });
     return data;
   },
 
   getPointData: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/point-data", { params });
+    const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", { params });
     return data;
   },
 
