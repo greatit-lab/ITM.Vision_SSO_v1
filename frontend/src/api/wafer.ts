@@ -1,7 +1,6 @@
 // frontend/src/api/wafer.ts
 import http from "./http";
 
-// View에서 사용하는 DTO 인터페이스 정의
 export interface WaferFlatDataDto {
   eqpId: string;
   lotId: string;
@@ -97,8 +96,15 @@ export const waferApi = {
   },
 
   getPdfImage: async (params: WaferQueryParams) => {
+    const cleanParams = {
+        eqpId: params.eqpId,
+        lotId: params.lotId,
+        waferId: params.waferId,
+        dateTime: params.dateTime, // [중요] PDF 이미지 조회 시 dateTime 포함
+        pointNumber: params.pointNumber
+    };
     const { data } = await http.get<{ image: string }>("/wafer/pdf-image", {
-      params,
+      params: cleanParams,
     });
     return data;
   },
@@ -109,7 +115,7 @@ export const waferApi = {
       lotId: params.lotId,
       waferId: params.waferId,
       servTs: params.servTs,
-      dateTime: params.dateTime,
+      dateTime: params.dateTime, // [중요] dateTime 포함
     };
     const { data } = await http.get<{ exists: boolean; url: string | null }>(
       "/wafer/check-pdf",
@@ -124,12 +130,14 @@ export const waferApi = {
   },
 
   getStatistics: async (params: WaferQueryParams) => {
-    // [수정] 백엔드 DTO(WaferQueryParams)와 매칭되도록 camelCase 키 사용
+    // [문제 해결] 통계 조회 시 0값이 나오는 원인: dateTime이 누락되어 백엔드에서 정확한 데이터를 찾지 못함.
+    // 따라서 dateTime을 반드시 포함하여 전송합니다.
     const cleanParams = {
       eqpId: params.eqpId,
       lotId: params.lotId,
       waferId: params.waferId,
       servTs: params.servTs,
+      dateTime: params.dateTime, // [필수] 장비 측정 시간 기준 조회
       cassetteRcp: params.cassetteRcp,
       stageRcp: params.stageRcp,
       stageGroup: params.stageGroup,
@@ -142,7 +150,11 @@ export const waferApi = {
   },
 
   getPointData: async (params: WaferQueryParams) => {
-    const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", { params });
+    const cleanParams = {
+      ...params,
+      dateTime: params.dateTime // Point 조회 시에도 dateTime 사용
+    };
+    const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", { params: cleanParams });
     return data;
   },
 
