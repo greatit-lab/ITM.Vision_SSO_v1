@@ -3,84 +3,22 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
-  InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { DataApiService } from '../common/data-api.service';
 import type { User, LoginResult } from './auth.interface';
 import { GuestRequestDto } from './auth.controller';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly baseUrl: string;
+  private readonly DOMAIN = 'auth';
 
   constructor(
     private jwtService: JwtService,
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    // 환경 변수 필수 체크 (누락 시 에러 발생)
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/auth`;
-  }
-
-  // ==========================
-  // [Helper] 공통 API 요청
-  // ==========================
-  private stringifyErrorData(data: unknown): string {
-    if (typeof data === 'string') return data;
-    if (data instanceof Object) return JSON.stringify(data);
-    return 'Unknown Error';
-  }
-
-  private async requestApi<T>(
-    method: 'get' | 'post' | 'patch' | 'delete',
-    endpoint: string,
-    params?: unknown,
-    data?: unknown,
-    ignore404 = false, // 404 에러 시 null 반환 옵션
-  ): Promise<T | null> {
-    const targetPath = `${this.baseUrl}/${endpoint}`;
-
-    try {
-      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.request<T>({
-          method,
-          url: targetPath,
-          params,
-          data,
-        }),
-      );
-
-      return response.data;
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<unknown>;
-        const statusCode = axiosError.response?.status ?? 500;
-
-        // 404 무시 옵션이 켜져있으면 null 반환 (예: 관리자 여부 체크 등)
-        if (ignore404 && statusCode === 404) {
-          return null;
-        }
-
-        const errorMessage = this.stringifyErrorData(axiosError.response?.data);
-        this.logger.error(
-          `[Data API Error] ${statusCode} - ${targetPath} / ${errorMessage}`,
-        );
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to communicate with Data API',
-      );
-    }
-  }
+    private readonly api: DataApiService,
+  ) {}
 
   // ==========================
   // [Core] Login Logic
@@ -96,23 +34,25 @@ export class AuthService {
     // 1. Whitelist Check (Access Code)
     try {
       if (user.companyCode) {
-        const companyAuth = await this.requestApi<{ isActive: string }>(
+        const companyAuth = await this.api.request<{ isActive: string }>(
+          this.DOMAIN,
           'get',
           'whitelist/check',
-          { compId: user.companyCode },
           undefined,
-          true,
+          { compId: user.companyCode },
+          { returnNullOn404: true },
         );
         if (companyAuth?.isActive === 'Y') isWhitelisted = true;
       }
 
       if (user.department && !isWhitelisted) {
-        const deptAuth = await this.requestApi<{ isActive: string }>(
+        const deptAuth = await this.api.request<{ isActive: string }>(
+          this.DOMAIN,
           'get',
           'whitelist/check',
-          { deptId: user.department },
           undefined,
-          true,
+          { deptId: user.department },
+          { returnNullOn404: true },
         );
         if (deptAuth?.isActive === 'Y') isWhitelisted = true;
       }
@@ -123,11 +63,10 @@ export class AuthService {
     // 2. User Sync (Create or Update)
     let dbLoginId = rawUserId;
     try {
-      // Data API가 insert/update 로직을 수행하고 최종 유저 정보를 반환한다고 가정
-      const syncedUser = await this.requestApi<{ loginId: string }>(
+      const syncedUser = await this.api.request<{ loginId: string }>(
+        this.DOMAIN,
         'post',
         'user/sync',
-        undefined,
         { loginId: rawUserId },
       );
       if (syncedUser) {
@@ -143,24 +82,26 @@ export class AuthService {
 
     try {
       // (1) Admin Check
-      const adminUser = await this.requestApi<{ role: string }>(
+      const adminUser = await this.api.request<{ role: string }>(
+        this.DOMAIN,
         'get',
         'admin/check',
-        { loginId: dbLoginId },
         undefined,
-        true,
+        { loginId: dbLoginId },
+        { returnNullOn404: true },
       );
 
       if (adminUser) {
         role = adminUser.role.toUpperCase();
       } else {
         // (2) Guest Check
-        const guestUser = await this.requestApi<{ grantedRole: string }>(
+        const guestUser = await this.api.request<{ grantedRole: string }>(
+          this.DOMAIN,
           'get',
           'guest/check',
-          { loginId: dbLoginId },
           undefined,
-          true,
+          { loginId: dbLoginId },
+          { returnNullOn404: true },
         );
         if (guestUser) {
           role = guestUser.grantedRole.toUpperCase();
@@ -178,12 +119,13 @@ export class AuthService {
     if (!isAllowed) {
       // 신청 상태 확인
       try {
-        const lastRequest = await this.requestApi<{ status: string }>(
+        const lastRequest = await this.api.request<{ status: string }>(
+          this.DOMAIN,
           'get',
           'guest-request/status',
-          { loginId: dbLoginId },
           undefined,
-          true,
+          { loginId: dbLoginId },
+          { returnNullOn404: true },
         );
 
         if (lastRequest) {
@@ -206,9 +148,16 @@ export class AuthService {
     let contextSite = '';
     let contextSdwt = '';
     try {
-      const userContext = await this.requestApi<{
+      const userContext = await this.api.request<{
         sdwtInfo: { site: string; sdwt: string };
-      }>('get', 'user/context', { loginId: dbLoginId }, undefined, true);
+      }>(
+        this.DOMAIN,
+        'get',
+        'user/context',
+        undefined,
+        { loginId: dbLoginId },
+        { returnNullOn404: true },
+      );
 
       if (userContext?.sdwtInfo) {
         contextSite = userContext.sdwtInfo.site;
@@ -246,26 +195,28 @@ export class AuthService {
   // ==========================
 
   async saveUserContext(loginId: string, site: string, sdwt: string) {
-    // API 호출로 Context 저장 위임
     try {
-      return await this.requestApi(
-        'post',
-        'user/context',
-        undefined,
-        { loginId, site, sdwt },
-      );
+      return await this.api.request(this.DOMAIN, 'post', 'user/context', {
+        loginId,
+        site,
+        sdwt,
+      });
     } catch (e) {
       throw new NotFoundException(`Invalid Site or SDWT or User: ${e}`);
     }
   }
 
   async getAccessCodes() {
-    return await this.requestApi('get', 'access-codes');
+    return await this.api.request(this.DOMAIN, 'get', 'access-codes');
   }
 
   async createGuestRequest(data: GuestRequestDto) {
     this.logger.log(`[GUEST REQUEST] New request from ${data.loginId}`);
-    // Data API에서 중복 체크 및 생성 로직 수행
-    return await this.requestApi('post', 'guest-request', undefined, data);
+    return await this.api.request(
+      this.DOMAIN,
+      'post',
+      'guest-request',
+      data,
+    );
   }
 }
