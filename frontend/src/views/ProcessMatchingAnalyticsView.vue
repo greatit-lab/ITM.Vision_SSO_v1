@@ -427,7 +427,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
 import { useFilterStore } from "@/stores/filter";
-import { useAuthStore } from "@/stores/auth"; // [추가]
+import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { waferApi } from "@/api/wafer";
 import { equipmentApi } from "@/api/equipment"; 
@@ -457,7 +457,7 @@ interface FilterState {
 
 // Stores & State
 const filterStore = useFilterStore();
-const authStore = useAuthStore(); // [추가]
+const authStore = useAuthStore();
 const isEqpLoading = ref(false);
 const isDataLoading = ref(false);
 const hasSearched = ref(false);
@@ -518,7 +518,6 @@ const isListVisible = computed(() => {
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   
-  // 2. 초기 필터 값 결정
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
@@ -534,21 +533,18 @@ onMounted(async () => {
     targetSdwt = authStore.user?.sdwt || "";
   }
   
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
     sdwts.value = await dashboardApi.getSdwts(targetSite);
     
-    // 4. SDWT 적용 및 Ref EQP 목록 로드
     if (targetSdwt && sdwts.value.includes(targetSdwt)) {
       filterStore.selectedSdwt = targetSdwt;
       await loadRefEqpList();
 
-      // 5. Ref EQP 복원 및 옵션 로드
       const savedEqp = localStorage.getItem("match_eqp");
       if (savedEqp && refEqpList.value.includes(savedEqp)) {
         refEqpId.value = savedEqp;
-        await loadOptions(); // Recipe 등 하위 옵션 로드
+        await loadOptions(); 
       }
     } else {
       filterStore.selectedSdwt = "";
@@ -570,8 +566,6 @@ onMounted(async () => {
 
 onUnmounted(() => themeObserver?.disconnect());
 
-// Handlers
-// [수정] Site 변경 시 로컬 스토리지(match_site) 업데이트
 const onSiteChange = async () => {
   if (filterStore.selectedSite) {
     localStorage.setItem("match_site", filterStore.selectedSite);
@@ -589,7 +583,6 @@ const onSiteChange = async () => {
   resetConditions();
 };
 
-// [수정] SDWT 변경 시 로컬 스토리지(match_sdwt) 업데이트
 const onSdwtChange = async () => {
   if (filterStore.selectedSdwt) {
     localStorage.setItem("match_sdwt", filterStore.selectedSdwt);
@@ -605,11 +598,14 @@ const onSdwtChange = async () => {
 
 const loadRefEqpList = async () => {
   if (filterStore.selectedSdwt) {
-    refEqpList.value = await equipmentApi.getEqpIds(undefined, filterStore.selectedSdwt, 'agent');
+    // [수정] 올바른 객체 파라미터 전달 (type: agent)
+    refEqpList.value = await equipmentApi.getEqpIds({
+      sdwt: filterStore.selectedSdwt,
+      type: "agent"
+    });
   }
 };
 
-// [수정] Ref EQP 변경 시 로컬 스토리지(match_eqp) 업데이트
 const onRefEqpChange = async () => {
   resetConditions();
   if (refEqpId.value) {
@@ -666,7 +662,6 @@ const onCassetteChange = async () => {
   }
 };
 
-// [수정] Stage Group 변경 핸들러 (Film 목록 조회 및 자동 선택)
 const onStageChange = async () => {
   filters.film = undefined;
   films.value = [];
@@ -682,7 +677,6 @@ const onStageChange = async () => {
       };
       films.value = await waferApi.getDistinctValues("films", params);
 
-      // Film 항목이 1개면 자동 선택 후 장비 목록 조회
       if (films.value.length === 1) {
         filters.film = films.value[0];
         await onFilmChange();
@@ -693,7 +687,6 @@ const onStageChange = async () => {
   }
 };
 
-// [수정] Film 변경 핸들러 (장비 목록 조회)
 const onFilmChange = async () => {
   targetEqps.value = [];
   selectedEqps.value = [];
@@ -714,10 +707,8 @@ const loadEquipments = async () => {
       film: filters.film ?? "",
     };
     
-    // 장비 목록 조회
     const list = await waferApi.getMatchingEquipments(params);
     
-    // [수정] Ref 장비가 최상단에 오도록 정렬
     list.sort((a, b) => {
       if (a === refEqpId.value) return -1;
       if (b === refEqpId.value) return 1;
@@ -808,7 +799,6 @@ const loadComparisonData = async () => {
   }
 };
 
-// [수정] 초기화 시 로컬 스토리지 키 삭제
 const resetFilters = () => {
   filterStore.reset();
   refEqpId.value = "";
@@ -820,8 +810,6 @@ const resetFilters = () => {
   localStorage.removeItem("match_sdwt");
   localStorage.removeItem("match_eqp");
 };
-
-// --- Math Helpers for Advanced Analytics ---
 
 const getBasicStats = (points: number[][]) => {
   const n = points.length;
@@ -907,8 +895,6 @@ const getRegressionLine = (points: number[][]) => {
     [x2, slope * x2 + intercept],
   ];
 };
-
-// --- Chart Options ---
 
 const calculateBoxPlotData = (data: readonly (number | undefined)[]): number[] => {
   const values: number[] = [];
