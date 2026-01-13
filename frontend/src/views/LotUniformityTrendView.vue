@@ -486,14 +486,11 @@ import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
-// [수정] DTO import 추가
 import { waferApi, type LotUniformitySeriesDto, type LotUniformityPointDto } from "@/api/wafer";
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
-
-// [수정] 사용하지 않는 LineChartPoint 타입 선언 제거
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
@@ -586,7 +583,7 @@ const isReadyToSearch = computed(
     filters.film &&
     filters.metric
 );
-// [수정] 타입 명시
+
 const availableWafers = computed(() =>
   chartSeries.value.map((s: LotUniformitySeriesDto) => s.waferId).sort((a: number, b: number) => a - b)
 );
@@ -598,7 +595,6 @@ const globalStats = computed(() => {
   if (chartSeries.value.length === 0) return { min: 0, max: 100 };
   let allValues: number[] = [];
   chartSeries.value.forEach((s: LotUniformitySeriesDto) => {
-    // [수정] null 값 제외하고 통계 계산
     s.dataPoints.forEach((p: LotUniformityPointDto) => {
       if (p.value !== null && p.value !== undefined) {
         allValues.push(p.value);
@@ -754,12 +750,14 @@ const onTopSearch = async () => {
 };
 
 const loadLotIds = async () => {
+  // [유지] Lot ID 목록은 날짜 범위 필터를 적용하여 로딩 (너무 많은 데이터를 가져오지 않도록)
   lotIds.value = await waferApi.getDistinctValues("lotids", getBaseParams());
 };
 
 const loadCassettes = async () => {
+  // [수정] Lot ID가 특정되었으므로 날짜 필터 제외
   cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
-    ...getBaseParams(),
+    eqpId: filters.eqpId,
     lotId: filters.lotId,
   });
 };
@@ -772,8 +770,9 @@ const selectCassette = async (val: string) => {
   films.value = [];
   filters.metric = "";
   metrics.value = [];
+  // [수정] Lot ID가 특정되었으므로 날짜 필터 제외
   stageGroups.value = await waferApi.getDistinctValues("stagegroups", {
-    ...getBaseParams(),
+    eqpId: filters.eqpId,
     lotId: filters.lotId,
     cassetteRcp: val,
   });
@@ -785,8 +784,9 @@ const selectStageGroup = async (val: string) => {
   films.value = [];
   filters.metric = "";
   metrics.value = [];
+  // [수정] Lot ID가 특정되었으므로 날짜 필터 제외
   films.value = await waferApi.getDistinctValues("films", {
-    ...getBaseParams(),
+    eqpId: filters.eqpId,
     lotId: filters.lotId,
     cassetteRcp: filters.cassetteRcp,
     stageGroup: val,
@@ -799,8 +799,9 @@ const selectFilm = async (val: string) => {
   metrics.value = [];
   isMetricLoading.value = true;
   try {
+    // [수정] Lot ID가 특정되었으므로 날짜 필터 제외하고 정확한 메트릭 조회
     const p = {
-      ...getBaseParams(),
+      eqpId: filters.eqpId,
       lotId: filters.lotId,
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
@@ -834,8 +835,11 @@ const searchData = async () => {
   chartSeries.value = [];
 
   try {
+    // [수정] 데이터 조회 시에도 LotID가 특정되었으므로 날짜 필터 제외 가능
+    // 다만 API가 startDate/endDate를 요구하지 않더라도 정상 동작하는지 확인 필요
+    // 여기서는 명시적인 LotID 조회를 위해 날짜를 제외하고 호출
     chartSeries.value = await waferApi.getLotUniformityTrend({
-      ...getBaseParams(),
+      eqpId: filters.eqpId,
       lotId: filters.lotId,
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
@@ -936,7 +940,6 @@ const interpolateData = (
       let denominator = 0;
 
       for (const p of targetPoints) {
-        // [수정] value가 null이면 건너뜀 (NaN 방지)
         if (p.value === null || p.value === undefined) continue;
 
         const d = Math.sqrt((x - p.x) ** 2 + (y - p.y) ** 2);
@@ -974,15 +977,13 @@ const lineChartOption = computed(() => {
     maxX = 155;
   }
 
-  // [수정] 타입 명시 및 null 처리
   const series = chartSeries.value.map((s: LotUniformitySeriesDto) => {
     const isSelected = selectedWaferId.value === s.waferId;
-    let data: any[]; // LineChartPoint 대신 any로 유연하게 처리 (ECharts는 null 허용)
+    let data: any[]; 
 
     if (isSpatialView.value) {
        data = s.dataPoints.map((p: LotUniformityPointDto) => {
           const projectedX = p.x * cos - p.y * sin;
-          // value가 null이어도 ECharts는 처리 가능하지만, 명시적으로 전달
           return [projectedX, p.value, p.point]; 
        });
        data.sort((a, b) => a[0] - b[0]);
@@ -1037,7 +1038,6 @@ const lineChartOption = computed(() => {
         params.forEach((p: any) => {
           const pointId = p.value[2];
           const val = p.value[1];
-          // [수정] 런타임 오류 해결: toFixed 호출 전 null 체크 추가
           const valStr = (val !== null && val !== undefined && typeof val === 'number') ? val.toFixed(3) : '-';
 
           html += `<div class="flex justify-between items-center gap-3 text-xs mb-0.5">
@@ -1204,7 +1204,6 @@ const mapChartOption = computed(() => {
         tooltip: {
           show: true,
           trigger: "item",
-          // [수정] 런타임 오류 해결: toFixed 호출 전 null 체크 추가
           formatter: (p: any) => {
             const pt = p.data[3];
             const val = p.data[2];
