@@ -18,6 +18,31 @@ import {
   UpdateCfgServerDto,
 } from './dto/admin.dto';
 
+// [추가] Data API 반환 타입 정의 (ESLint 'no-unsafe-return' 해결용)
+export interface AdminUserResult {
+  loginId: string;
+  role?: string;
+  [key: string]: any;
+}
+
+export interface GuestAccessResult {
+  loginId: string;
+  validUntil?: string | Date;
+  grantedRole?: string;
+  [key: string]: any;
+}
+
+export interface GuestRequestResult {
+  reqId: number;
+  loginId: string;
+  status: string;
+  reason?: string;
+  [key: string]: any;
+}
+
+// 일반적인 객체 응답 (엄격한 타입 정의가 필요 없는 경우 사용)
+export type GenericResult = Record<string, any>;
+
 @Injectable()
 export class AdminService {
   private readonly DOMAIN = 'admin';
@@ -27,81 +52,98 @@ export class AdminService {
   // ==========================================
   // [User & Admin Management]
   // ==========================================
-  async getAllUsers() {
-    return this.api.request(this.DOMAIN, 'get', 'users');
+  async getAllUsers(): Promise<AdminUserResult[] | null> {
+    return this.api.request<AdminUserResult[]>(this.DOMAIN, 'get', 'users');
   }
 
-  async getAllAdmins() {
-    return this.api.request(this.DOMAIN, 'get', 'admins');
+  async getAllAdmins(): Promise<AdminUserResult[] | null> {
+    return this.api.request<AdminUserResult[]>(this.DOMAIN, 'get', 'admins');
   }
 
-  async addAdmin(data: CreateAdminDto) {
-    return this.api.request(this.DOMAIN, 'post', 'admins', data);
+  async addAdmin(data: CreateAdminDto): Promise<AdminUserResult | null> {
+    return this.api.request<AdminUserResult>(this.DOMAIN, 'post', 'users', data);
   }
 
-  async deleteAdmin(loginId: string) {
-    return this.api.request(this.DOMAIN, 'delete', `admins/${loginId}`);
+  async deleteAdmin(loginId: string): Promise<AdminUserResult | null> {
+    return this.api.request<AdminUserResult>(this.DOMAIN, 'delete', `users/${loginId}`);
   }
 
   // ==========================================
   // [Access Codes]
   // ==========================================
-  async getAllAccessCodes() {
-    return this.api.request(this.DOMAIN, 'get', 'access-codes');
+  async getAllAccessCodes(): Promise<GuestAccessResult[] | null> {
+    return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guest/access');
   }
 
-  async createAccessCode(data: CreateAccessCodeDto) {
-    return this.api.request(this.DOMAIN, 'post', 'access-codes', data);
+  async createAccessCode(data: CreateAccessCodeDto): Promise<GuestAccessResult | null> {
+    return this.api.request<GuestAccessResult>(this.DOMAIN, 'post', 'guest/access', data);
   }
 
-  async updateAccessCode(compid: string, data: UpdateAccessCodeDto) {
-    return this.api.request(this.DOMAIN, 'patch', `access-codes/${compid}`, data);
+  async updateAccessCode(compid: string, data: UpdateAccessCodeDto): Promise<GuestAccessResult | null> {
+    return this.api.request<GuestAccessResult>(
+      this.DOMAIN,
+      'patch',
+      `access-codes/${compid}`,
+      data,
+    );
   }
 
-  async deleteAccessCode(compid: string) {
-    return this.api.request(this.DOMAIN, 'delete', `access-codes/${compid}`);
+  async deleteAccessCode(compid: string): Promise<GuestAccessResult | null> {
+    return this.api.request<GuestAccessResult>(this.DOMAIN, 'delete', `guest/access/${compid}`);
   }
 
   // ==========================================
   // [Guest Management]
   // ==========================================
-  async getAllGuests() {
-    return this.api.request(this.DOMAIN, 'get', 'guests');
+  async getAllGuests(): Promise<GuestAccessResult[] | null> {
+    return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guests');
   }
 
-  async addGuest(data: CreateGuestDto) {
-    return this.api.request(this.DOMAIN, 'post', 'guests', data);
+  async addGuest(data: CreateGuestDto): Promise<GuestAccessResult | null> {
+    return this.api.request<GuestAccessResult>(this.DOMAIN, 'post', 'guests', data);
   }
 
-  async deleteGuest(loginId: string) {
-    return this.api.request(this.DOMAIN, 'delete', `guests/${loginId}`);
+  async deleteGuest(loginId: string): Promise<GuestAccessResult | null> {
+    return this.api.request<GuestAccessResult>(this.DOMAIN, 'delete', `guests/${loginId}`);
   }
 
-  async getGuestRequests() {
-    return this.api.request(this.DOMAIN, 'get', 'guest-requests');
+  async getGuestRequests(): Promise<GuestRequestResult[] | null> {
+    return this.api.request<GuestRequestResult[]>(this.DOMAIN, 'get', 'guest/request');
   }
 
-  async approveGuestRequest(data: ApproveGuestRequestDto) {
-    return this.api.request(this.DOMAIN, 'post', 'guest-requests/approve', data);
+  // [수정] Data API가 승인 시 'GuestAccessResult' (권한 객체)를 반환하므로 타입 명시
+  async approveGuestRequest(data: ApproveGuestRequestDto): Promise<GuestAccessResult | null> {
+    return this.api.request<GuestAccessResult>(
+      this.DOMAIN,
+      'put',
+      `guest/request/${data.reqId}/approve`,
+      { approverId: data.approverId },
+    );
   }
 
-  async rejectGuestRequest(data: RejectGuestRequestDto) {
-    return this.api.request(this.DOMAIN, 'post', 'guest-requests/reject', data);
+  // [수정] Data API가 반려 시 'GuestRequestResult' (요청 객체)를 반환하므로 타입 명시
+  async rejectGuestRequest(data: RejectGuestRequestDto): Promise<GuestRequestResult | null> {
+    return this.api.request<GuestRequestResult>(
+      this.DOMAIN,
+      'put',
+      `guest/request/${data.reqId}/reject`,
+      { rejectorId: data.rejectorId },
+    );
   }
 
   // ==========================================
   // [Infra] Error Severity
   // ==========================================
-  async getSeverities() {
-    return this.api.request(this.DOMAIN, 'get', 'severities');
+  async getSeverities(): Promise<GenericResult[] | null> {
+    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'severities');
   }
 
-  async createSeverity(data: CreateSeverityDto) {
-    return this.api.request(this.DOMAIN, 'post', 'severities', data);
+  async createSeverity(data: CreateSeverityDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'severities', data);
   }
 
-  async updateSeverity(errorId: string, data: UpdateSeverityDto) {
-    return this.api.request(
+  async updateSeverity(errorId: string, data: UpdateSeverityDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(
       this.DOMAIN,
       'patch',
       `severities/${encodeURIComponent(errorId)}`,
@@ -109,8 +151,8 @@ export class AdminService {
     );
   }
 
-  async deleteSeverity(errorId: string) {
-    return this.api.request(
+  async deleteSeverity(errorId: string): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(
       this.DOMAIN,
       'delete',
       `severities/${encodeURIComponent(errorId)}`,
@@ -120,16 +162,16 @@ export class AdminService {
   // ==========================================
   // [Infra] Metrics
   // ==========================================
-  async getMetrics() {
-    return this.api.request(this.DOMAIN, 'get', 'metrics');
+  async getMetrics(): Promise<GenericResult[] | null> {
+    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'metrics');
   }
 
-  async createMetric(data: CreateMetricDto) {
-    return this.api.request(this.DOMAIN, 'post', 'metrics', data);
+  async createMetric(data: CreateMetricDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'metrics', data);
   }
 
-  async updateMetric(metricName: string, data: UpdateMetricDto) {
-    return this.api.request(
+  async updateMetric(metricName: string, data: UpdateMetricDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(
       this.DOMAIN,
       'patch',
       `metrics/${encodeURIComponent(metricName)}`,
@@ -137,8 +179,8 @@ export class AdminService {
     );
   }
 
-  async deleteMetric(metricName: string) {
-    return this.api.request(
+  async deleteMetric(metricName: string): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(
       this.DOMAIN,
       'delete',
       `metrics/${encodeURIComponent(metricName)}`,
@@ -148,34 +190,34 @@ export class AdminService {
   // ==========================================
   // [Equipments]
   // ==========================================
-  async getRefEquipments() {
-    return this.api.request(this.DOMAIN, 'get', 'ref-equipments');
+  async getRefEquipments(): Promise<GenericResult[] | null> {
+    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'ref-equipments');
   }
 
   // ==========================================
   // [System Config]
   // ==========================================
-  async getNewServerConfig() {
-    return this.api.request(this.DOMAIN, 'get', 'new-server');
+  async getNewServerConfig(): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'get', 'new-server');
   }
 
-  async updateNewServerConfig(data: UpdateNewServerDto) {
-    return this.api.request(this.DOMAIN, 'patch', 'new-server', data);
+  async updateNewServerConfig(data: UpdateNewServerDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'patch', 'new-server', data);
   }
 
-  async getCfgServers() {
-    return this.api.request(this.DOMAIN, 'get', 'cfg-servers');
+  async getCfgServers(): Promise<GenericResult[] | null> {
+    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'cfg-servers');
   }
 
-  async createCfgServer(data: CreateCfgServerDto) {
-    return this.api.request(this.DOMAIN, 'post', 'cfg-servers', data);
+  async createCfgServer(data: CreateCfgServerDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'cfg-servers', data);
   }
 
-  async updateCfgServer(eqpid: string, data: UpdateCfgServerDto) {
-    return this.api.request(this.DOMAIN, 'patch', `cfg-servers/${eqpid}`, data);
+  async updateCfgServer(eqpid: string, data: UpdateCfgServerDto): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'patch', `cfg-servers/${eqpid}`, data);
   }
 
-  async deleteCfgServer(eqpid: string) {
-    return this.api.request(this.DOMAIN, 'delete', `cfg-servers/${eqpid}`);
+  async deleteCfgServer(eqpid: string): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'delete', `cfg-servers/${eqpid}`);
   }
 }
