@@ -1,32 +1,20 @@
 // backend/src/equipment/equipment.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, {
-  AxiosError,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
-// [수정] Interface는 그대로 유지 (반환 타입용)
+// [유지] Interface 및 DTO 정의
 export interface RefEquipment {
   eqpId: string;
   [key: string]: any;
 }
 
-// [수정] DTO를 class로 변경 (TS1272 오류 해결)
 export class CreateEquipmentDto {
   eqpId: string;
-  [key: string]: any; // 추가 속성 허용
+  [key: string]: any;
 }
 
 export class UpdateEquipmentDto {
-  [key: string]: any; // 부분 업데이트 허용
+  [key: string]: any;
 }
 
 export interface EquipmentDto {
@@ -61,114 +49,21 @@ export interface EquipmentQueryParams {
 
 @Injectable()
 export class EquipmentService {
-  private readonly logger = new Logger(EquipmentService.name);
-  private readonly baseUrl: string;
+  // 생성자에 DataApiService 주입 (HttpService, ConfigService 직접 사용 X)
+  constructor(private readonly dataApiService: DataApiService) {}
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/equipment`;
-  }
-
-  private async fetchFromApi<T>(
-    endpoint: string,
-    params: EquipmentQueryParams = {},
-  ): Promise<T> {
-    let finalUrl = 'URL_NOT_GENERATED';
-
-    try {
-      const targetPath = endpoint
-        ? `${this.baseUrl}/${endpoint}`
-        : this.baseUrl;
-
-      const cleanParams: Record<string, string> = {};
-      
-      Object.entries(params).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          return;
-        }
-        if (typeof value === 'string') {
-          cleanParams[key] = value;
-        } else if (typeof value === 'number' || typeof value === 'boolean') {
-          cleanParams[key] = String(value);
-        } else if (value instanceof Date) {
-          cleanParams[key] = value.toISOString();
-        } else {
-          cleanParams[key] = JSON.stringify(value);
-        }
-      });
-
-      const dummyConfig = {
-        params: cleanParams,
-        url: targetPath,
-      } as InternalAxiosRequestConfig;
-      finalUrl = axios.getUri(dummyConfig);
-
-      this.logger.debug(`[Requesting GET] ${finalUrl}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.get<T>(targetPath, {
-          params: cleanParams,
-        }),
-      );
-      return response.data;
-    } catch (error) {
-      this.handleError(error, finalUrl);
-      return [] as unknown as T;
-    }
-  }
-
-  private async mutateApi<T>(
-    method: 'post' | 'patch' | 'delete',
-    endpoint: string,
-    data?: unknown, 
-  ): Promise<T> {
-    const targetPath = endpoint
-      ? `${this.baseUrl}/${endpoint}`
-      : this.baseUrl;
-
-    try {
-      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.request<T>({
-          method,
-          url: targetPath,
-          data, 
-        }),
-      );
-      return response.data;
-    } catch (error) {
-      this.handleError(error, targetPath);
-      throw error;
-    }
-  }
-
-  private handleError(error: unknown, url: string): void {
-    let errorMessage = 'Unknown Error';
-    let statusCode = 500;
-
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError;
-      statusCode = axiosError.response?.status || 500;
-      const errorData = axiosError.response?.data;
-      errorMessage = errorData
-        ? JSON.stringify(errorData)
-        : axiosError.message;
-
-      this.logger.error(
-        `[Data API Error] ${statusCode} - Failed URL: ${url} / Msg: ${errorMessage}`,
-      );
-    }
-    throw new InternalServerErrorException(
-      `Data API Proxy Error: ${errorMessage}`,
-    );
-  }
+  /**
+   * 도메인: 'equipment'
+   * 모든 요청은 DataApiService를 통해 8081 포트의 Data API로 위임됩니다.
+   */
 
   async getInfraList(): Promise<RefEquipment[]> {
-    return this.fetchFromApi<RefEquipment[]>('infra');
+    const result = await this.dataApiService.request<RefEquipment[]>(
+      'equipment', // Domain defined in Data API
+      'get',
+      'infra',
+    );
+    return result || []; // null일 경우 빈 배열 반환 안전장치
   }
 
   async getDetails(
@@ -176,7 +71,15 @@ export class EquipmentService {
     sdwt?: string,
     eqpId?: string,
   ): Promise<EquipmentDto[]> {
-    return this.fetchFromApi<EquipmentDto[]>('details', { site, sdwt, eqpId });
+    const params: EquipmentQueryParams = { site, sdwt, eqpId };
+    const result = await this.dataApiService.request<EquipmentDto[]>(
+      'equipment',
+      'get',
+      'details',
+      undefined, // data (body) 없음
+      params,    // query string
+    );
+    return result || [];
   }
 
   async getEqpIds(
@@ -184,25 +87,54 @@ export class EquipmentService {
     sdwt?: string,
     type?: string,
   ): Promise<string[]> {
-    return this.fetchFromApi<string[]>('ids', { site, sdwt, type });
+    const params: EquipmentQueryParams = { site, sdwt, type };
+    const result = await this.dataApiService.request<string[]>(
+      'equipment',
+      'get',
+      'ids',
+      undefined,
+      params,
+    );
+    return result || [];
   }
 
-  async create(data: CreateEquipmentDto): Promise<RefEquipment> {
-    return this.mutateApi<RefEquipment>('post', '', data);
+  async create(data: CreateEquipmentDto): Promise<RefEquipment | null> {
+    return this.dataApiService.request<RefEquipment>(
+      'equipment',
+      'post',
+      '',
+      data,
+    );
   }
 
-  async findOne(eqpid: string): Promise<RefEquipment | null> {
-    return this.fetchFromApi<RefEquipment | null>(eqpid);
+  async findOne(eqpId: string): Promise<RefEquipment | null> {
+    return this.dataApiService.request<RefEquipment | null>(
+      'equipment',
+      'get',
+      eqpId,
+      undefined,
+      undefined,
+      { returnNullOn404: true }, // 404 발생 시 에러 대신 null 반환
+    );
   }
 
   async update(
-    eqpid: string,
+    eqpId: string,
     data: UpdateEquipmentDto,
-  ): Promise<RefEquipment> {
-    return this.mutateApi<RefEquipment>('patch', eqpid, data);
+  ): Promise<RefEquipment | null> {
+    return this.dataApiService.request<RefEquipment>(
+      'equipment',
+      'patch',
+      eqpId,
+      data,
+    );
   }
 
-  async remove(eqpid: string): Promise<RefEquipment> {
-    return this.mutateApi<RefEquipment>('delete', eqpid);
+  async remove(eqpId: string): Promise<RefEquipment | null> {
+    return this.dataApiService.request<RefEquipment>(
+      'equipment',
+      'delete',
+      eqpId,
+    );
   }
 }
