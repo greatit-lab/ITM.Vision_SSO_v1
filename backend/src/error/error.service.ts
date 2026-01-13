@@ -1,132 +1,100 @@
 // backend/src/error/error.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
-export interface ErrorQueryParams {
-  startDate: string;
-  endDate: string;
-  site?: string;
-  sdwt?: string;
-  eqpids?: string;
-  page?: number | string;
-  pageSize?: number | string;
-}
-
-export interface ErrorSummaryResponse {
-  totalErrorCount: number;
-  errorEqpCount: number;
-  topErrorId: string;
-  topErrorCount: number;
-  topErrorLabel: string;
-  errorCountByEqp: { label: string; value: number }[];
-}
-
-export interface ErrorTrendItem {
-  date: string | Date;
-  count: number;
-}
-
-export interface ErrorLogItem {
-  timeStamp: string | Date;
-  eqpId: string;
+// [유지] DTO/Interface 정의
+export interface ErrorLog {
   errorId: string;
-  errorLabel: string;
-  errorDesc: string;
-  extraMessage1: string;
-  extraMessage2: string;
+  errorCode: string;
+  errorMessage: string;
+  timestamp: Date | string;
+  eqpId: string;
+  severity: string;
+  [key: string]: any;
 }
 
-export interface ErrorLogsResponse {
-  items: ErrorLogItem[];
-  totalItems: number;
+export class CreateErrorLogDto {
+  errorCode: string;
+  errorMessage: string;
+  eqpId: string;
+  severity?: string;
 }
+
+// [수정] Interface -> Class로 변경 (TS1272 에러 해결)
+// NestJS 컨트롤러에서 @Query() 타입으로 사용되려면 클래스여야 합니다.
+export class ErrorQueryParams {
+  startDate?: string;
+  endDate?: string;
+  eqpId?: string;
+  severity?: string;
+  page?: number | string;
+  limit?: number | string;
+}
+
+// [추가] 통계 결과 타입 정의 (Unsafe return 해결용)
+// 구체적인 필드를 모를 경우 Record<string, any>를 사용하여 any보다는 안전하게 처리
+export type ErrorStatisticsResult = Record<string, any>;
 
 @Injectable()
 export class ErrorService {
-  private readonly logger = new Logger(ErrorService.name);
-  private readonly baseUrl: string;
+  private readonly DOMAIN = 'error';
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/error`;
-  }
+  constructor(private readonly dataApiService: DataApiService) {}
 
-  private async fetchApi<T>(endpoint: string, params: unknown): Promise<T> {
-    let finalUrl = 'URL_NOT_GENERATED';
-    const targetPath = `${this.baseUrl}/${endpoint}`;
-
-    try {
-      const cleanParams: Record<string, string> = {};
-      
-      if (typeof params === 'object' && params !== null) {
-        Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
-          if (value === undefined || value === null || value === '') {
-            return;
-          }
-
-          if (typeof value === 'string') {
-            cleanParams[key] = value;
-          } else if (typeof value === 'number' || typeof value === 'boolean') {
-            cleanParams[key] = String(value);
-          } else if (value instanceof Date) {
-            cleanParams[key] = value.toISOString();
-          } else {
-            cleanParams[key] = JSON.stringify(value);
-          }
-        });
+  async getErrors(params: ErrorQueryParams): Promise<ErrorLog[]> {
+    const queryParams: Record<string, string> = {};
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams[key] = String(value);
       }
+    });
 
-      const queryString = new URLSearchParams(cleanParams).toString();
-      finalUrl = queryString ? `${targetPath}?${queryString}` : targetPath;
-      this.logger.debug(`[Requesting] ${finalUrl}`);
+    const result = await this.dataApiService.request<ErrorLog[]>(
+      this.DOMAIN,
+      'get',
+      '', // GET /api/error
+      undefined,
+      queryParams,
+    );
+    return result || [];
+  }
 
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.get<T>(targetPath, { params: cleanParams }),
-      );
+  async getErrorDetail(errorId: string): Promise<ErrorLog | null> {
+    return this.dataApiService.request<ErrorLog>(
+      this.DOMAIN,
+      'get',
+      errorId, // GET /api/error/:id
+      undefined,
+      undefined,
+      { returnNullOn404: true },
+    );
+  }
 
-      return response.data;
-    } catch (error: unknown) {
-      let errorMessage = 'Unknown Error';
-      let statusCode = 500;
+  async createError(data: CreateErrorLogDto): Promise<ErrorLog | null> {
+    return this.dataApiService.request<ErrorLog>(
+      this.DOMAIN,
+      'post',
+      '',
+      data,
+    );
+  }
 
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        statusCode = axiosError.response?.status || 500;
-        const errorData = axiosError.response?.data;
-        errorMessage = errorData
-          ? JSON.stringify(errorData)
-          : axiosError.message;
-        
-        this.logger.error(`[Data API Error] ${statusCode} - ${finalUrl} / Msg: ${errorMessage}`);
-      } else {
-        this.logger.error(`[Data API Error] Unknown - ${finalUrl}`);
+  // [수정] 반환 타입을 명시하여 ESLint 에러 해결
+  async getErrorStatistics(params: ErrorQueryParams): Promise<ErrorStatisticsResult | null> {
+    const queryParams: Record<string, string> = {};
+     Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams[key] = String(value);
       }
+    });
 
-      throw new InternalServerErrorException(
-        `Data API Proxy Error: ${errorMessage}`,
-      );
-    }
-  }
-
-  async getSummary(params: ErrorQueryParams): Promise<ErrorSummaryResponse> {
-    return this.fetchApi<ErrorSummaryResponse>('summary', params);
-  }
-
-  async getTrend(params: ErrorQueryParams): Promise<ErrorTrendItem[]> {
-    return this.fetchApi<ErrorTrendItem[]>('trend', params);
-  }
-
-  async getLogs(params: ErrorQueryParams): Promise<ErrorLogsResponse> {
-    return this.fetchApi<ErrorLogsResponse>('logs', params);
+    return this.dataApiService.request<ErrorStatisticsResult>(
+      this.DOMAIN,
+      'get',
+      'statistics', // GET /api/error/statistics
+      undefined,
+      queryParams,
+    );
   }
 }
