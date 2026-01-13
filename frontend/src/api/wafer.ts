@@ -41,6 +41,20 @@ export interface SpectrumDataDto {
   values: number[];
 }
 
+export interface LotUniformityPointDto {
+  point: number;
+  value: number | null; // null 가능성 명시
+  x: number;
+  y: number;
+  dieRow: number | null;
+  dieCol: number | null;
+}
+
+export interface LotUniformitySeriesDto {
+  waferId: number;
+  dataPoints: LotUniformityPointDto[];
+}
+
 export interface WaferQueryParams {
   eqpId?: string;
   lotId?: string;
@@ -100,7 +114,7 @@ export const waferApi = {
         eqpId: params.eqpId,
         lotId: params.lotId,
         waferId: params.waferId,
-        dateTime: params.dateTime, // [중요] PDF 이미지 조회 시 dateTime 포함
+        dateTime: params.dateTime,
         pointNumber: params.pointNumber
     };
     const { data } = await http.get<{ image: string }>("/wafer/pdf-image", {
@@ -115,7 +129,7 @@ export const waferApi = {
       lotId: params.lotId,
       waferId: params.waferId,
       servTs: params.servTs,
-      dateTime: params.dateTime, // [중요] dateTime 포함
+      dateTime: params.dateTime,
     };
     const { data } = await http.get<{ exists: boolean; url: string | null }>(
       "/wafer/check-pdf",
@@ -130,14 +144,12 @@ export const waferApi = {
   },
 
   getStatistics: async (params: WaferQueryParams) => {
-    // [문제 해결] 통계 조회 시 0값이 나오는 원인: dateTime이 누락되어 백엔드에서 정확한 데이터를 찾지 못함.
-    // 따라서 dateTime을 반드시 포함하여 전송합니다.
     const cleanParams = {
       eqpId: params.eqpId,
       lotId: params.lotId,
       waferId: params.waferId,
       servTs: params.servTs,
-      dateTime: params.dateTime, // [필수] 장비 측정 시간 기준 조회
+      dateTime: params.dateTime,
       cassetteRcp: params.cassetteRcp,
       stageRcp: params.stageRcp,
       stageGroup: params.stageGroup,
@@ -152,7 +164,7 @@ export const waferApi = {
   getPointData: async (params: WaferQueryParams) => {
     const cleanParams = {
       ...params,
-      dateTime: params.dateTime // Point 조회 시에도 dateTime 사용
+      dateTime: params.dateTime
     };
     const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", { params: cleanParams });
     return data;
@@ -175,9 +187,10 @@ export const waferApi = {
     return data;
   },
 
-  getLotUniformityTrend: async (metric: string, params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/lot-uniformity-trend", {
-      params: { ...params, metric },
+  // [중요] params 객체 하나만 전달받도록 정의 (metric 포함)
+  getLotUniformityTrend: async (params: WaferQueryParams) => {
+    const { data } = await http.get<LotUniformitySeriesDto[]>("/wafer/lot-uniformity-trend", {
+      params,
     });
     return data;
   },
