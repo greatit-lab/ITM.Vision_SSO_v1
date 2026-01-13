@@ -1,9 +1,6 @@
 // backend/src/filters/filters.service.ts
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
 export class FilterQueryDto {
   eqpId?: string;
@@ -19,58 +16,29 @@ export class FilterQueryDto {
 
 @Injectable()
 export class FiltersService {
-  private readonly logger = new Logger(FiltersService.name);
-  private readonly baseUrl: string;
+  // [중요] Data API Controller가 대문자 'Filters'를 사용함
+  private readonly DOMAIN = 'Filters';
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/filters`;
-  }
-
-  private async fetchApi<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
-    let finalUrl = 'URL_NOT_GENERATED';
-    const targetPath = `${this.baseUrl}/${endpoint}`;
-
-    try {
-      const queryString = new URLSearchParams(params).toString();
-      finalUrl = queryString ? `${targetPath}?${queryString}` : targetPath;
-      this.logger.debug(`[Requesting] ${finalUrl}`);
-
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.get<T>(targetPath, { params }),
-      );
-      return response.data;
-    } catch (error: unknown) {
-      this.handleError(error, finalUrl);
-      return [] as unknown as T;
-    }
-  }
-
-  private handleError(error: unknown, url: string): void {
-    let errorMessage = 'Unknown Error';
-    let statusCode = 500;
-
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError;
-      statusCode = axiosError.response?.status || 500;
-      const errorData = axiosError.response?.data;
-      errorMessage = errorData ? JSON.stringify(errorData) : axiosError.message;
-      
-      this.logger.error(`[Data API Error] ${statusCode} - ${url} : ${errorMessage}`);
-    } else {
-       this.logger.error(`[Data API Error] Unknown - ${url}`);
-    }
-  }
+  constructor(private readonly dataApiService: DataApiService) {}
 
   async getSites(): Promise<string[]> {
-    return this.fetchApi<string[]>('sites');
+    const result = await this.dataApiService.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'sites',
+    );
+    return result || [];
   }
 
   async getSdwts(site: string): Promise<string[]> {
-    return this.fetchApi<string[]>('sdwts', { site });
+    const result = await this.dataApiService.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'sdwts',
+      undefined,
+      { site },
+    );
+    return result || [];
   }
 
   async getEqpIdsBySource(
@@ -81,8 +49,15 @@ export class FiltersService {
     const params: Record<string, string> = { type };
     if (site) params.site = site;
     if (sdwt) params.sdwt = sdwt;
-    
-    return this.fetchApi<string[]>('eqpids-by-source', params);
+
+    const result = await this.dataApiService.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'eqpids-by-source',
+      undefined,
+      params,
+    );
+    return result || [];
   }
 
   async getFilteredDistinctValues(
@@ -90,13 +65,22 @@ export class FiltersService {
     query: FilterQueryDto,
   ): Promise<string[]> {
     const params: Record<string, string> = { field };
-    
+
+    // 쿼리 파라미터 정제
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-         params[key] = String(value);
+        params[key] = String(value);
       }
     });
 
-    return this.fetchApi<string[]>('distinct-values', params);
+    const result = await this.dataApiService.request<string[]>(
+      this.DOMAIN,
+      'get',
+      'distinct-values',
+      undefined,
+      params,
+      { returnNullOn404: true },
+    );
+    return result || [];
   }
 }
