@@ -332,7 +332,7 @@
               </div>
               <div class="flex items-center gap-2 ml-4">
                 <span class="text-[10px] font-bold text-slate-400"
-                  >Golden Ref:</span
+                  >Golden Ref (Best GOF):</span
                 >
                 <ToggleSwitch
                   v-model="showGoldenRef"
@@ -496,7 +496,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
 import { useFilterStore } from "@/stores/filter";
-import { useAuthStore } from "@/stores/auth"; // [추가]
+import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import { waferApi } from "@/api/wafer";
@@ -510,7 +510,7 @@ import Column from "primevue/column";
 import ToggleSwitch from "primevue/toggleswitch";
 
 const filterStore = useFilterStore();
-const authStore = useAuthStore(); // [추가]
+const authStore = useAuthStore();
 const isLoading = ref(false);
 const isPointsLoading = ref(false);
 const hasSearched = ref(false);
@@ -559,11 +559,25 @@ const hoveredWaferId = ref<number | null>(null);
 const selectedTableRow = ref();
 const selectedModelWafer = ref<number | null>(null);
 
-// [수정] onMounted 로직 교체
+// [수정] 노랑색(#FFD700) 계열을 완전히 배제한 Slot 전용 색상 팔레트
+const slotColors = [
+  "#3B82F6", // Blue
+  "#10B981", // Green
+  "#F43F5E", // Rose
+  "#8B5CF6", // Violet
+  "#06B6D4", // Cyan
+  "#EC4899", // Pink
+  "#6366F1", // Indigo
+  "#14B8A6", // Teal
+  "#F97316", // Orange
+  "#64748B", // Slate
+  "#D946EF", // Fuchsia
+  "#0EA5E9", // Sky
+];
+
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // 2. 초기 필터 값 결정
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
@@ -579,21 +593,22 @@ onMounted(async () => {
     targetSdwt = authStore.user?.sdwt || "";
   }
 
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
     sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-    // 4. SDWT 적용 및 EQP 로드
     if (targetSdwt && sdwts.value.includes(targetSdwt)) {
       filterStore.selectedSdwt = targetSdwt;
-      eqpIds.value = await equipmentApi.getEqpIds(undefined, targetSdwt, "agent");
+      // [수정] 객체 파라미터 전달 { sdwt, type: "agent" }
+      eqpIds.value = await equipmentApi.getEqpIds({
+        sdwt: targetSdwt,
+        type: "agent"
+      });
 
-      // 5. EQP ID 및 Lot 복원
       const savedEqp = localStorage.getItem("spec_eqp");
       if (savedEqp && eqpIds.value.includes(savedEqp)) {
         filters.eqpId = savedEqp;
-        await loadLotIds(); // Lot 목록 로드
+        await loadLotIds();
       }
     } else {
       filterStore.selectedSdwt = "";
@@ -617,8 +632,6 @@ onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
 });
 
-// --- Filter Change Handlers ---
-// [수정] Site 변경 시 로컬 스토리지(spec_site) 업데이트 및 하위 필터 초기화
 const onSiteChange = async () => {
   resetFrom(0);
   if (filterStore.selectedSite) {
@@ -630,23 +643,21 @@ const onSiteChange = async () => {
   }
 };
 
-// [수정] SDWT 변경 시 로컬 스토리지(spec_sdwt) 업데이트
 const onSdwtChange = async () => {
   resetFrom(1);
   if (filterStore.selectedSdwt) {
     localStorage.setItem("spec_sdwt", filterStore.selectedSdwt);
-    eqpIds.value = await equipmentApi.getEqpIds(
-      undefined,
-      filterStore.selectedSdwt,
-      "agent"
-    );
+    // [수정] 객체 파라미터 전달
+    eqpIds.value = await equipmentApi.getEqpIds({
+      sdwt: filterStore.selectedSdwt,
+      type: "agent"
+    });
   } else {
     localStorage.removeItem("spec_sdwt");
     eqpIds.value = [];
   }
 };
 
-// [수정] EqpID 변경 시 로컬 스토리지(spec_eqp) 업데이트
 const onEqpChange = () => {
   resetFrom(2);
   if (filters.eqpId) {
@@ -717,7 +728,8 @@ const loadPoints = async () => {
   pointIds.value = [];
   filters.pointId = "";
   try {
-    const points = await waferApi.getPoints({
+    // [수정] getPoints -> getDistinctPoints
+    const points = await waferApi.getDistinctPoints({
       eqpId: filters.eqpId,
       lotId: filters.lotId,
       cassetteRcp: filters.cassetteRcp,
@@ -734,7 +746,6 @@ const loadPoints = async () => {
   }
 };
 
-// [수정] resetFrom 함수 내에서 로컬 스토리지 삭제 로직 보강
 const resetFrom = (level: number) => {
   if (level <= 0) {
     filterStore.selectedSdwt = "";
@@ -878,24 +889,29 @@ const fetchGoldenRef = async () => {
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
       pointId: filters.pointId,
+      lotId: filters.lotId, // [필수] Best GOF 조회 시 LotID 필요
     });
 
-    if (golden && golden.wavelengths && golden.values) {
+    if (golden && golden.wavelengths && golden.values && golden.wavelengths.length > 0) {
       const dataPoints = golden.wavelengths.map((w: number, i: number) => [
         w,
         (golden.values[i] ?? 0) * 100,
       ]);
 
       goldenSeries.value = {
-        name: "Golden Ref",
+        name: "Golden Ref (Best GOF)",
         type: "line",
         data: dataPoints,
         showSymbol: false,
-        lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 0.8 },
+        smooth: false,
+        lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 1 },
+        itemStyle: { color: "#FFD700" },
+        color: "#FFD700", 
         areaStyle: { color: "rgba(255, 215, 0, 0.1)" },
-        z: 1,
+        z: 999,
       };
     } else {
+      // 데이터가 없는 경우 조용히 처리
       goldenSeries.value = null;
     }
   } catch (e) {
@@ -947,7 +963,6 @@ const clearModelFit = () => {
   selectedTableRow.value = null;
 };
 
-// [수정] resetFilters: 로컬 스토리지 삭제 포함
 const resetFilters = () => {
   filterStore.reset();
   localStorage.removeItem("spec_site");
@@ -956,7 +971,6 @@ const resetFilters = () => {
   resetFrom(0);
 };
 
-// --- Sync Logic ---
 const onChartMouseOver = (params: any) => {
   if (params && params.seriesName) {
     const name = params.seriesName;
@@ -995,32 +1009,37 @@ const chartOption = computed(() => {
 
   const series: any[] = [];
 
+  // [수정] Golden Ref를 가장 먼저 추가하되 z-index 높임
   if (showGoldenRef.value && goldenSeries.value) {
     series.push({
       ...goldenSeries.value,
       id: "golden-ref",
-      name: "Golden Ref",
+      name: goldenSeries.value.name,
       type: "line",
       symbol: "none",
       smooth: false,
-      lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 0.8 },
+      lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 1 },
       color: "#FFD700",
       itemStyle: { color: "#FFD700" },
-      z: 1,
+      z: 999,
     });
   } else {
+    // 범례용 더미 시리즈
     series.push({
       id: "golden-ref",
-      name: "Golden Ref",
+      name: "Golden Ref (Best GOF)",
       type: "line",
       data: [],
       showSymbol: false,
       lineStyle: { opacity: 0 },
+      itemStyle: { color: "#FFD700" },
+      color: "#FFD700",
       smooth: false,
       z: 0,
     });
   }
 
+  // [수정] Slot 데이터에 전용 팔레트 적용 (노랑 제외)
   chartSeries.value.forEach((s, idx) => {
     const isHovered = hoveredWaferId.value === s.waferId;
     const isSelected = selectedModelWafer.value === s.waferId;
@@ -1028,6 +1047,8 @@ const chartOption = computed(() => {
       (hoveredWaferId.value === null && selectedModelWafer.value === null) ||
       isHovered ||
       isSelected;
+
+    const assignedColor = slotColors[idx % slotColors.length];
 
     series.push({
       id: `wafer-${s.waferId}`,
@@ -1038,7 +1059,10 @@ const chartOption = computed(() => {
       lineStyle: {
         width: isHovered || isSelected ? 3 : 1,
         opacity: isFocus ? 1 : 0.15,
+        color: assignedColor,
       },
+      itemStyle: { color: assignedColor },
+      color: assignedColor,
       data: s.data,
       z: 5 + idx,
     });
@@ -1089,9 +1113,10 @@ const chartOption = computed(() => {
         let html = `<div class="font-bold mb-1 border-b border-slate-500/30 pb-1">Wavelength: ${params[0].axisValue} nm</div>`;
 
         params.forEach((p) => {
-          if (p.seriesName === "Golden Ref") {
+          // [수정] 툴팁 색상을 시리즈 색상(p.color)으로 통일
+          if (p.seriesName.includes("Golden Ref")) {
             if (!p.value || p.value.length === 0) return;
-            html += `<div style="color:${p.color}" class="text-[10px]">● ${p.seriesName}</div>`;
+            html += `<div style="color:#FFD700" class="text-[10px]">● ${p.seriesName}</div>`;
             return;
           }
           if (p.seriesName.startsWith("Model")) {
