@@ -1,22 +1,15 @@
 // backend/src/infra/infra.service.ts
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
-// [수정] Interface 유지
+// [유지] Interface 및 DTO 정의
+// (기존 타입을 그대로 유지하여 다른 코드와의 호환성을 지킵니다)
 export interface RefSdwt {
   sdwt: string;
   site: string;
   [key: string]: any;
 }
 
-// [수정] DTO를 Class로 변경
 export class CreateSdwtDto {
   sdwt: string;
   site: string;
@@ -27,14 +20,12 @@ export class UpdateSdwtDto {
   [key: string]: any;
 }
 
-// [수정] Interface 유지
 export interface CfgServer {
   id?: number | string;
   eqpid?: string;
   [key: string]: any;
 }
 
-// [수정] DTO를 Class로 변경
 export class CreateCfgServerDto {
   eqpid?: string;
   [key: string]: any;
@@ -44,93 +35,91 @@ export class UpdateCfgServerDto {
   [key: string]: any;
 }
 
-
 @Injectable()
 export class InfraService {
-  private readonly logger = new Logger(InfraService.name);
-  private readonly baseUrl: string;
+  // Domain 정의 (Data API의 controller 경로와 일치)
+  private readonly DOMAIN = 'infra';
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    const apiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
-    this.baseUrl = `${apiHost}/api/infra`;
-  }
+  constructor(private readonly dataApiService: DataApiService) {}
 
-  private async requestApi<T>(
-    method: 'get' | 'post' | 'patch' | 'delete',
-    endpoint: string,
-    params?: unknown,
-    data?: unknown,
-  ): Promise<T> {
-    const targetPath = `${this.baseUrl}/${endpoint}`;
-    
-    try {
-      this.logger.debug(`[Requesting ${method.toUpperCase()}] ${targetPath}`);
+  // ==========================================
+  // 1. SDWT (ref_sdwt)
+  // ==========================================
 
-      const response: AxiosResponse<T> = await firstValueFrom(
-        this.httpService.request<T>({
-          method,
-          url: targetPath,
-          params,
-          data,
-        }),
-      );
-      return response.data;
-    } catch (error: unknown) {
-      let errorMessage = 'Unknown Error';
-      let statusCode = 500;
-
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        statusCode = axiosError.response?.status || 500;
-        const errorData = axiosError.response?.data;
-        errorMessage = errorData
-          ? JSON.stringify(errorData)
-          : axiosError.message;
-
-        this.logger.error(
-          `[Data API Error] ${statusCode} - Failed: ${targetPath} / ${errorMessage}`,
-        );
-      }
-      throw new InternalServerErrorException(
-        `Data API Proxy Error: ${errorMessage}`,
-      );
-    }
-  }
-
-  // --- 1. SDWT (ref_sdwt) ---
   async getSdwts(): Promise<RefSdwt[]> {
-    return this.requestApi<RefSdwt[]>('get', 'sdwt');
+    const result = await this.dataApiService.request<RefSdwt[]>(
+      this.DOMAIN,
+      'get',
+      'sdwt',
+    );
+    return result || []; // null 반환 시 빈 배열로 안전 처리
   }
 
-  async createSdwt(data: CreateSdwtDto): Promise<RefSdwt> {
-    return this.requestApi<RefSdwt>('post', 'sdwt', null, data);
+  async createSdwt(data: CreateSdwtDto): Promise<RefSdwt | null> {
+    return this.dataApiService.request<RefSdwt>(
+      this.DOMAIN,
+      'post',
+      'sdwt',
+      data, // Request Body
+    );
   }
 
-  async updateSdwt(id: string, data: UpdateSdwtDto): Promise<RefSdwt> {
-    return this.requestApi<RefSdwt>('patch', `sdwt/${id}`, null, data);
+  async updateSdwt(id: string, data: UpdateSdwtDto): Promise<RefSdwt | null> {
+    return this.dataApiService.request<RefSdwt>(
+      this.DOMAIN,
+      'patch',
+      `sdwt/${id}`, // Endpoint에 ID 포함
+      data,
+    );
   }
 
-  async deleteSdwt(id: string): Promise<RefSdwt> {
-    return this.requestApi<RefSdwt>('delete', `sdwt/${id}`);
+  async deleteSdwt(id: string): Promise<RefSdwt | null> {
+    return this.dataApiService.request<RefSdwt>(
+      this.DOMAIN,
+      'delete',
+      `sdwt/${id}`,
+    );
   }
 
-  // --- 2. Agent Server Config (cfg_server) ---
+  // ==========================================
+  // 2. Agent Server Config (cfg_server)
+  // ==========================================
+
   async getAgentServers(): Promise<CfgServer[]> {
-    return this.requestApi<CfgServer[]>('get', 'server');
+    const result = await this.dataApiService.request<CfgServer[]>(
+      this.DOMAIN,
+      'get',
+      'server',
+    );
+    return result || [];
   }
 
-  async createAgentServer(data: CreateCfgServerDto): Promise<CfgServer> {
-    return this.requestApi<CfgServer>('post', 'server', null, data);
+  async createAgentServer(data: CreateCfgServerDto): Promise<CfgServer | null> {
+    return this.dataApiService.request<CfgServer>(
+      this.DOMAIN,
+      'post',
+      'server',
+      data,
+    );
   }
 
-  async updateAgentServer(eqpid: string, data: UpdateCfgServerDto): Promise<CfgServer> {
-    return this.requestApi<CfgServer>('patch', `server/${eqpid}`, null, data);
+  async updateAgentServer(
+    eqpid: string,
+    data: UpdateCfgServerDto,
+  ): Promise<CfgServer | null> {
+    return this.dataApiService.request<CfgServer>(
+      this.DOMAIN,
+      'patch',
+      `server/${eqpid}`,
+      data,
+    );
   }
 
-  async deleteAgentServer(eqpid: string): Promise<CfgServer> {
-    return this.requestApi<CfgServer>('delete', `server/${eqpid}`);
+  async deleteAgentServer(eqpid: string): Promise<CfgServer | null> {
+    return this.dataApiService.request<CfgServer>(
+      this.DOMAIN,
+      'delete',
+      `server/${eqpid}`,
+    );
   }
 }
