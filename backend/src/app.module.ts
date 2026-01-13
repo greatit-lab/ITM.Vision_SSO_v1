@@ -1,7 +1,7 @@
 // backend/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { CommonModule } from './common/common.module'; // [추가]
+import { CommonModule } from './common/common.module';
 
 // --- Feature Modules ---
 import { AdminModule } from './admin/admin.module';
@@ -20,16 +20,16 @@ import { InfraModule } from './infra/infra.module';
 
 @Module({
   imports: [
-    // Global Config
+    // 1. 환경 변수 설정 (Global)
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.development', '.env.production', '.env'],
     }),
 
-    // [중요] Common Module (DataApiService) 등록
+    // 2. 공통 모듈 (DataApiService 포함 - 핵심 통신 모듈)
     CommonModule,
 
-    // Business Modules
+    // 3. 비즈니스 모듈 (이제 모두 Data API를 바라봄)
     AdminModule,
     AuthModule,
     DashboardModule,
