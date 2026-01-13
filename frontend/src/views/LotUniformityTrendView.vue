@@ -379,7 +379,7 @@
                   : 'text-slate-400 hover:text-slate-600'
               "
             >
-              Contour
+              HeatMap
             </button>
           </div>
         </div>
@@ -486,13 +486,14 @@ import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
-import { waferApi, type LotUniformitySeriesDto } from "@/api/wafer";
+// [수정] DTO import 추가
+import { waferApi, type LotUniformitySeriesDto, type LotUniformityPointDto } from "@/api/wafer";
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 
-type LineChartPoint = [number, number, number];
+// [수정] 사용하지 않는 LineChartPoint 타입 선언 제거
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
@@ -585,18 +586,24 @@ const isReadyToSearch = computed(
     filters.film &&
     filters.metric
 );
+// [수정] 타입 명시
 const availableWafers = computed(() =>
-  chartSeries.value.map((s) => s.waferId).sort((a, b) => a - b)
+  chartSeries.value.map((s: LotUniformitySeriesDto) => s.waferId).sort((a: number, b: number) => a - b)
 );
 const totalPoints = computed(() =>
-  chartSeries.value.reduce((acc, s) => acc + s.dataPoints.length, 0)
+  chartSeries.value.reduce((acc: number, s: LotUniformitySeriesDto) => acc + s.dataPoints.length, 0)
 );
 
 const globalStats = computed(() => {
   if (chartSeries.value.length === 0) return { min: 0, max: 100 };
   let allValues: number[] = [];
-  chartSeries.value.forEach((s) => {
-    s.dataPoints.forEach((p) => allValues.push(p.value));
+  chartSeries.value.forEach((s: LotUniformitySeriesDto) => {
+    // [수정] null 값 제외하고 통계 계산
+    s.dataPoints.forEach((p: LotUniformityPointDto) => {
+      if (p.value !== null && p.value !== undefined) {
+        allValues.push(p.value);
+      }
+    });
   });
   if (allValues.length === 0) return { min: 0, max: 100 };
   return { min: Math.min(...allValues), max: Math.max(...allValues) };
@@ -623,7 +630,6 @@ onMounted(async () => {
       filterStore.selectedSdwt = targetSdwt;
       isEqpLoading.value = true;
       try {
-        // [수정] API 호출 시 객체 인자 사용
         eqpIds.value = await equipmentApi.getEqpIds({ sdwt: targetSdwt, type: "agent" });
       } finally {
         isEqpLoading.value = false;
@@ -703,7 +709,6 @@ const onSdwtChange = async () => {
     localStorage.setItem("lot_sdwt", filterStore.selectedSdwt);
     isEqpLoading.value = true;
     try {
-      // [수정] API 호출 시 객체 인자 사용
       eqpIds.value = await equipmentApi.getEqpIds({ sdwt: filterStore.selectedSdwt, type: "agent" });
     } finally {
       isEqpLoading.value = false;
@@ -916,7 +921,7 @@ const getHeatmapColor = (value: number, min: number, max: number) => {
 };
 
 const interpolateData = (
-  targetPoints: { x: number; y: number; value: number }[]
+  targetPoints: { x: number; y: number; value: number | null }[]
 ) => {
   const RESOLUTION = 180;
   const LIMIT = 150;
@@ -931,6 +936,9 @@ const interpolateData = (
       let denominator = 0;
 
       for (const p of targetPoints) {
+        // [수정] value가 null이면 건너뜀 (NaN 방지)
+        if (p.value === null || p.value === undefined) continue;
+
         const d = Math.sqrt((x - p.x) ** 2 + (y - p.y) ** 2);
         const w = 1 / Math.pow(d + 35, 2);
 
@@ -966,18 +974,20 @@ const lineChartOption = computed(() => {
     maxX = 155;
   }
 
-  const series = chartSeries.value.map((s) => {
+  // [수정] 타입 명시 및 null 처리
+  const series = chartSeries.value.map((s: LotUniformitySeriesDto) => {
     const isSelected = selectedWaferId.value === s.waferId;
-    let data: LineChartPoint[];
+    let data: any[]; // LineChartPoint 대신 any로 유연하게 처리 (ECharts는 null 허용)
 
     if (isSpatialView.value) {
-       data = s.dataPoints.map((p): LineChartPoint => {
+       data = s.dataPoints.map((p: LotUniformityPointDto) => {
           const projectedX = p.x * cos - p.y * sin;
+          // value가 null이어도 ECharts는 처리 가능하지만, 명시적으로 전달
           return [projectedX, p.value, p.point]; 
        });
        data.sort((a, b) => a[0] - b[0]);
     } else {
-       data = s.dataPoints.map((p): LineChartPoint => [p.point, p.value, p.point]);
+       data = s.dataPoints.map((p: LotUniformityPointDto) => [p.point, p.value, p.point]);
     }
 
     return {
@@ -1026,9 +1036,13 @@ const lineChartOption = computed(() => {
         html += `<div style="max-height: 200px; overflow-y: auto;">`;
         params.forEach((p: any) => {
           const pointId = p.value[2];
+          const val = p.value[1];
+          // [수정] 런타임 오류 해결: toFixed 호출 전 null 체크 추가
+          const valStr = (val !== null && val !== undefined && typeof val === 'number') ? val.toFixed(3) : '-';
+
           html += `<div class="flex justify-between items-center gap-3 text-xs mb-0.5">
                     <span>${p.marker} ${p.seriesName} <span class="text-[9px] text-slate-400">(Pt.${pointId})</span></span>
-                    <span class="font-mono font-bold">${p.value[1].toFixed(3)}</span>
+                    <span class="font-mono font-bold">${valStr}</span>
                    </div>`;
         });
         html += `</div>`;
@@ -1081,7 +1095,7 @@ const mapChartOption = computed(() => {
 
   if (isHeatMode) {
     const targetWafer = chartSeries.value.find(
-      (s) => s.waferId === selectedWaferId.value
+      (s: LotUniformitySeriesDto) => s.waferId === selectedWaferId.value
     );
     if (targetWafer) {
       const interpolated = interpolateData(targetWafer.dataPoints);
@@ -1174,7 +1188,7 @@ const mapChartOption = computed(() => {
         symbol: "circle",
         symbolSize: 1,
         itemStyle: { color: "transparent", borderColor: "transparent" },
-        data: targetWafer.dataPoints.map((p) => [p.x, p.y, p.value, p.point]),
+        data: targetWafer.dataPoints.map((p: LotUniformityPointDto) => [p.x, p.y, p.value, p.point]),
         z: 200,
         label: {
           show: true,
@@ -1190,8 +1204,13 @@ const mapChartOption = computed(() => {
         tooltip: {
           show: true,
           trigger: "item",
-          formatter: (p: any) =>
-            `<div class="text-xs font-bold">Point #${p.data[3]}</div><div class="text-xs">Value: ${p.data[2].toFixed(3)}</div>`,
+          // [수정] 런타임 오류 해결: toFixed 호출 전 null 체크 추가
+          formatter: (p: any) => {
+            const pt = p.data[3];
+            const val = p.data[2];
+            const valStr = (val !== null && val !== undefined && typeof val === 'number') ? val.toFixed(3) : '-';
+            return `<div class="text-xs font-bold">Point #${pt}</div><div class="text-xs">Value: ${valStr}</div>`;
+          }
         },
         silent: false,
       });
@@ -1205,8 +1224,8 @@ const mapChartOption = computed(() => {
     };
     let seriesData: any[] = [];
     const uniquePoints = new Set<string>();
-    chartSeries.value.forEach((s) => {
-      s.dataPoints.forEach((p) => {
+    chartSeries.value.forEach((s: LotUniformitySeriesDto) => {
+      s.dataPoints.forEach((p: LotUniformityPointDto) => {
         const key = `${p.point}`;
         if (!uniquePoints.has(key)) {
           uniquePoints.add(key);
