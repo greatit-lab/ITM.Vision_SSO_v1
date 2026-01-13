@@ -1,20 +1,32 @@
 // backend/src/error/error.controller.ts
-import { Controller, Get, Query } from '@nestjs/common';
-import { ErrorService } from './error.service';
+import { Controller, Get, Query, Param, Post, Body } from '@nestjs/common';
+import { ErrorService, CreateErrorLogDto, ErrorQueryParams } from './error.service';
 
-// [수정] main.ts의 Global Prefix('api')와 중복되지 않도록 'api/' 제거
-// 변경 전: @Controller('api/ErrorAnalytics')
-// 변경 후: @Controller('ErrorAnalytics')
-@Controller('ErrorAnalytics') 
+@Controller('error')
 export class ErrorController {
   constructor(private readonly errorService: ErrorService) {}
 
-  @Get('summary')
-  getSummary(@Query() query: any) { return this.errorService.getSummary(query); }
-
-  @Get('trend')
-  getTrend(@Query() query: any) { return this.errorService.getTrend(query); }
-
+  // 1. 에러 로그 목록 조회
   @Get('logs')
-  getLogs(@Query() query: any) { return this.errorService.getLogs(query); }
+  async getLogs(@Query() query: ErrorQueryParams) {
+    return this.errorService.getErrors(query);
+  }
+
+  // 2. 에러 통계/요약
+  @Get('statistics')
+  async getStatistics(@Query() query: ErrorQueryParams) {
+    return this.errorService.getErrorStatistics(query);
+  }
+
+  // 3. 에러 상세 조회
+  @Get(':id')
+  async getErrorDetail(@Param('id') id: string) {
+    return this.errorService.getErrorDetail(id);
+  }
+
+  // 4. 에러 로그 생성
+  @Post()
+  async createError(@Body() data: CreateErrorLogDto) {
+    return this.errorService.createError(data);
+  }
 }
