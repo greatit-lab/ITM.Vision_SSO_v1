@@ -634,10 +634,20 @@ const resetFilters = () => {
   resetDetails(); 
 };
 
+// [수정] UTC 기준 표시(getUTC...)를 로컬 시간 기준 표시(get...)로 변경
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
-  return `${d.getUTCFullYear().toString().slice(2)}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:${String(d.getUTCSeconds()).padStart(2, "0")}`;
+  
+  // 기존 getUTC* 메서드 대신 로컬 시간대 메서드 사용
+  const year = d.getFullYear().toString().slice(2);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const seconds = String(d.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
 const fmt = (num: number | null | undefined, prec: number = 3) => num === null || num === undefined ? "0.".padEnd(prec + 2, "0") : num.toFixed(prec);
@@ -666,3 +676,4 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
+
