@@ -37,7 +37,8 @@ export class ApproveGuestRequestDto {
 
 export class RejectGuestRequestDto {
   reqId: number;
-  approverId: string;
+  // [수정] approverId -> rejectorId 로 변경 (Service 코드와 일치시킴)
+  rejectorId: string;
 }
 
 // Error Severity
