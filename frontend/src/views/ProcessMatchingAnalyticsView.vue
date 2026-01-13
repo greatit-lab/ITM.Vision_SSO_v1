@@ -598,7 +598,6 @@ const onSdwtChange = async () => {
 
 const loadRefEqpList = async () => {
   if (filterStore.selectedSdwt) {
-    // [수정] 올바른 객체 파라미터 전달 (type: agent)
     refEqpList.value = await equipmentApi.getEqpIds({
       sdwt: filterStore.selectedSdwt,
       type: "agent"
@@ -632,6 +631,10 @@ const resetConditions = () => {
   films.value = [];
   targetEqps.value = [];
   selectedEqps.value = [];
+  
+  // [수정] 조건 초기화 시 차트 데이터도 함께 초기화하여 오해 방지
+  rawData.value = [];
+  hasSearched.value = false;
 };
 
 const getBaseParams = () => ({
@@ -656,6 +659,10 @@ const onCassetteChange = async () => {
   selectedEqps.value = [];
   targetEqps.value = [];
   
+  // [수정] 필터 변경 시 차트 데이터 초기화 (분석 대기 상태로 전환)
+  rawData.value = [];
+  hasSearched.value = false;
+  
   if (filters.cassetteRcp) {
     const params = { ...getBaseParams(), cassetteRcp: filters.cassetteRcp };
     stageGroups.value = await waferApi.getDistinctValues("stagegroups", params);
@@ -667,6 +674,10 @@ const onStageChange = async () => {
   films.value = [];
   targetEqps.value = [];
   selectedEqps.value = [];
+
+  // [수정] 필터 변경 시 차트 데이터 초기화
+  rawData.value = [];
+  hasSearched.value = false;
 
   if (filters.cassetteRcp && filters.stageGroup) {
     try {
@@ -690,6 +701,11 @@ const onStageChange = async () => {
 const onFilmChange = async () => {
   targetEqps.value = [];
   selectedEqps.value = [];
+  
+  // [수정] 필터 변경 시 차트 데이터 초기화 (재조회 필요)
+  rawData.value = [];
+  hasSearched.value = false;
+
   if (filters.film) {
     await loadEquipments();
   }
