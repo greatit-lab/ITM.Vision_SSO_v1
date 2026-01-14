@@ -55,6 +55,18 @@ export interface LotUniformitySeriesDto {
   dataPoints: LotUniformityPointDto[];
 }
 
+// [추가] OpticalTrendDto 인터페이스 정의 (Backend의 OpticalTrendResponse와 일치)
+export interface OpticalTrendDto {
+  ts: string;
+  lotId: string;
+  waferId: string;
+  point: number;
+  totalIntensity: number;
+  peakIntensity: number;
+  peakWavelength: number;
+  darkNoise: number;
+}
+
 export interface WaferQueryParams {
   eqpId?: string;
   lotId?: string;
@@ -207,8 +219,9 @@ export const waferApi = {
     return data;
   },
 
+  // [수정] OpticalTrendDto[] 반환 타입 명시
   getOpticalTrend: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/optical-trend", { params });
+    const { data } = await http.get<OpticalTrendDto[]>("/wafer/optical-trend", { params });
     return data;
   },
 };
