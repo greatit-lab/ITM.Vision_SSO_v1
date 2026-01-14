@@ -1,4 +1,4 @@
-// backend/src/auth/auth.controller.ts
+// [전체 코드 교체] backend/src/auth/auth.controller.ts
 import {
   Controller,
   Get,
@@ -26,11 +26,12 @@ interface ErrorWithStatus {
   constructor?: { name: string };
 }
 
+// [수정] Validation 에러 방지를 위해 필드를 선택적(Optional)으로 변경
 export class GuestRequestDto {
-  loginId: string;
-  deptName: string;
-  deptCode?: string;
-  reason: string;
+  loginId: string; // ID는 필수
+  deptName?: string; // Optional
+  deptCode?: string; // Optional
+  reason?: string; // Optional
 }
 
 @Controller('auth')
@@ -88,7 +89,7 @@ export class AuthController {
           errorType = 'Rejected';
         }
 
-        // [수정] deptCode(부서코드) 추가 전달
+        // [수정] deptCode(부서코드) 및 deptName 전달
         const params = new URLSearchParams({
           error: errorType,
           loginId: req.user.userId || '',
@@ -118,6 +119,8 @@ export class AuthController {
 
   @Post('guest-request')
   async requestGuestAccess(@Body() body: GuestRequestDto) {
+    // [디버깅] 프론트엔드에서 넘어온 데이터 확인용 로그
+    console.log('[SSO Controller] Guest Request Body:', body);
     return this.authService.createGuestRequest(body);
   }
 
