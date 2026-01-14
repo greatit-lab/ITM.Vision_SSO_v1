@@ -1,11 +1,14 @@
-// backend/src/dashboard/dashboard.controller.ts
+// [전체 코드 교체]
+// 프로젝트: ITM.Vision_SSO_v1
+// 파일 경로: backend/src/dashboard/dashboard.controller.ts
+
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // [수정] 커스텀 가드 임포트
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 // Global Prefix('api')와 결합되어 최종 URL은 '/api/dashboard'가 됩니다.
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard) // [수정] AuthGuard('jwt') -> JwtAuthGuard로 변경 (데모 모드 지원)
+@UseGuards(JwtAuthGuard) // JWT 인증 및 데모 모드 지원 Guard
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
