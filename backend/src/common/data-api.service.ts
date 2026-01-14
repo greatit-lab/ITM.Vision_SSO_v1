@@ -8,6 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import axios, { AxiosError, AxiosResponse } from 'axios';
+import * as https from 'https';
 
 /**
  * Data API 요청 시 사용할 추가 옵션
@@ -16,59 +17,59 @@ export interface RequestOptions {
   returnNullOn404?: boolean; // 404 에러 발생 시 Exception 대신 null 반환 여부
 }
 
+// 에러 객체의 타입 정의 (ESLint unsafe 에러 방지용)
+interface ErrorPayload {
+  message?: string | string[];
+  statusCode?: number;
+  error?: string;
+}
+
 @Injectable()
 export class DataApiService {
   private readonly logger = new Logger(DataApiService.name);
   private readonly dataApiHost: string;
+  
+  // SSL 검증 무시를 위한 에이전트 생성
+  private readonly httpsAgent = new https.Agent({  
+    rejectUnauthorized: false 
+  });
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    // 환경 변수에서 Data API 호스트 주소를 가져옵니다. (예: http://localhost:8081)
     this.dataApiHost = this.configService.getOrThrow<string>('DATA_API_HOST');
   }
 
-  /**
-   * Data API로 HTTP 요청을 보냅니다.
-   *
-   * @param domain - API 도메인 (예: 'equipment', 'user' 등 - Controller 경로)
-   * @param method - HTTP 메서드 ('get', 'post', 'patch', 'delete', 'put')
-   * @param endpoint - 상세 엔드포인트 (기본값: '')
-   * @param data - Body 데이터 (POST, PATCH, PUT 시 사용)
-   * @param params - Query String 파라미터
-   * @param options - 추가 요청 옵션 (예: 404 무시)
-   */
   async request<T>(
     domain: string,
     method: 'get' | 'post' | 'patch' | 'delete' | 'put',
-    endpoint: string = '',
+    endpoint: string | undefined = '',
     data?: unknown,
     params?: unknown,
     options?: RequestOptions,
   ): Promise<T | null> {
-    // URL 조립: {HOST}/api/{DOMAIN}/{ENDPOINT}
+    const safeEndpoint = endpoint || '';
     const baseUrl = `${this.dataApiHost}/api/${domain}`;
-    const targetUrl = endpoint ? `${baseUrl}/${endpoint}` : baseUrl;
+    const targetUrl = safeEndpoint ? `${baseUrl}/${safeEndpoint}` : baseUrl;
 
     try {
       this.logger.debug(
         `[Data API Request] ${method.toUpperCase()} ${targetUrl}`,
       );
 
-      // Axios 요청 실행
       const response: AxiosResponse<T> = await firstValueFrom(
         this.httpService.request<T>({
           method,
           url: targetUrl,
-          data,    // Request Body
-          params,  // Query Params
+          data,
+          params,
+          httpsAgent: this.httpsAgent, 
         }),
       );
 
       return response.data;
     } catch (error: unknown) {
-      // 옵션 처리: 404 에러를 null로 반환하라는 옵션이 켜져 있고, 실제 404인 경우
       if (
         options?.returnNullOn404 &&
         axios.isAxiosError(error) &&
@@ -78,15 +79,11 @@ export class DataApiService {
         return null;
       }
 
-      // 그 외 에러는 공통 핸들러로 위임하여 예외 발생
       this.handleError(error, targetUrl);
-      return null; // 실행되지 않음 (위에서 throw 됨)
+      return null;
     }
   }
 
-  /**
-   * 에러 로그 출력 및 예외 재발생
-   */
   private handleError(error: unknown, url: string): void {
     let errorMessage = 'Unknown Error';
     let statusCode = 500;
@@ -94,19 +91,30 @@ export class DataApiService {
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError;
       statusCode = axiosError.response?.status ?? 500;
-      const errorData = axiosError.response?.data;
+      
+      // unknown으로 타입 단언하여 unsafe 에러 방지
+      const errorData = axiosError.response?.data as unknown;
 
-      // 에러 메시지 추출 로직
       if (errorData !== undefined && errorData !== null) {
         if (typeof errorData === 'object') {
-          // 객체인 경우 JSON 문자열로 변환 시도
-          try {
-            errorMessage = JSON.stringify(errorData);
-          } catch {
-            errorMessage = '[Circular or Unserializable Object]';
+          // 객체인 경우 ErrorPayload 인터페이스로 단언하여 안전한 접근 보장
+          const payload = errorData as ErrorPayload;
+
+          if (payload.message) {
+             errorMessage = Array.isArray(payload.message) 
+                ? payload.message.join(', ') 
+                : String(payload.message);
+          } else {
+             // message 속성이 없는 객체인 경우 JSON 문자열화 시도
+             try {
+               errorMessage = JSON.stringify(payload);
+             } catch {
+               errorMessage = '[Circular or Unserializable Object]';
+             }
           }
         } else {
-          // 원시 타입(문자열 등)인 경우
+          // [수정] 원시 타입인 경우: ESLint 'no-base-to-string' 에러 해결을 위해 타입 명시
+          // 이미 typeof === 'object' 체크를 통과했으므로 여기서는 원시 타입임이 확실함
           errorMessage = String(errorData as string | number | boolean);
         }
       } else {
@@ -117,14 +125,12 @@ export class DataApiService {
         `[Data API Error] ${statusCode} - ${url} / Msg: ${errorMessage}`,
       );
     } else {
-      // Axios 에러가 아닌 시스템 에러
       const sysErrorMsg =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`[System Error] ${url} / ${sysErrorMsg}`);
       errorMessage = sysErrorMsg;
     }
 
-    // 최종적으로 500 Internal Server Error로 감싸서 던짐
     throw new InternalServerErrorException(
       `Data API Proxy Error: ${errorMessage}`,
     );
