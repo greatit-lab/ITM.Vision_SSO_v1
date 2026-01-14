@@ -29,7 +29,7 @@
       <div
         class="flex items-center flex-1 gap-3 px-1 py-1 overflow-x-auto scrollbar-hide"
       >
-        <div class="min-w-[140px] shrink-0">
+        <div class="w-[140px] shrink-0">
           <Select
             v-model="filter.site"
             :options="sites"
@@ -41,7 +41,7 @@
           />
         </div>
 
-        <div class="min-w-[160px] shrink-0">
+        <div class="w-[160px] shrink-0">
           <Select
             v-model="filter.sdwt"
             :options="sdwts"
@@ -54,7 +54,7 @@
           />
         </div>
 
-        <div class="min-w-[160px] shrink-0">
+        <div class="w-[160px] shrink-0">
           <Select
             v-model="filter.eqpId"
             :options="eqpIds"
