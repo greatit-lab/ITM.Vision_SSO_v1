@@ -2,8 +2,10 @@
 import { Injectable } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
 
-export interface PreAlignDataRaw {
-  timestamp: string | Date;
+// [수정] 인터페이스 키값 변경 (x, y, theta -> xmm, ymm, notch)
+export interface PreAlignData {
+  timestamp: string;
+  eqpId: string;
   xmm: number;
   ymm: number;
   notch: number;
@@ -15,25 +17,21 @@ export class PreAlignService {
 
   constructor(private readonly dataApiService: DataApiService) {}
 
-  async getData(
+  async getTrend(
+    site: string,
+    sdwt: string,
     eqpId: string,
     startDate: string,
     endDate: string,
-  ): Promise<PreAlignDataRaw[]> {
-    const params = {
-      eqpId,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
-    };
+  ): Promise<PreAlignData[]> {
+    const params = { site, sdwt, eqpId, startDate, endDate };
 
-    const result = await this.dataApiService.request<PreAlignDataRaw[]>(
+    return await this.dataApiService.request<PreAlignData[]>(
       this.DOMAIN,
       'get',
-      'data',
+      'trend',
       undefined,
       params,
-    );
-    
-    return result || [];
+    ) || [];
   }
 }
