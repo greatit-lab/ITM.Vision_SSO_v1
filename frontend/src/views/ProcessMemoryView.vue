@@ -143,13 +143,13 @@
 
         <div class="relative w-full flex-1 min-h-0">
           <EChart
-            v-if="!isLoading && chartData.length > 0"
+            v-if="!isLoading && xAxisData.length > 0"
             :option="chartOption"
             @chartCreated="onChartCreated"
           />
 
           <div
-            v-else-if="!isLoading && chartData.length === 0"
+            v-else-if="!isLoading && xAxisData.length === 0"
             class="absolute inset-0 flex flex-col items-center justify-center text-slate-400"
           >
             <i class="mb-2 text-2xl opacity-50 pi pi-info-circle"></i>
@@ -326,7 +326,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useFilterStore } from "@/stores/filter";
-import { useAuthStore } from "@/stores/auth"; // [추가] Auth Store
+import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import { performanceApi, type ProcessMemoryDataDto } from "@/api/performance";
@@ -347,7 +347,7 @@ interface ProcessStat {
 }
 
 const filterStore = useFilterStore();
-const authStore = useAuthStore(); // [추가]
+const authStore = useAuthStore();
 const selectedEqpId = ref("");
 const startDate = ref(new Date(Date.now() - 24 * 60 * 60 * 1000));
 const endDate = ref(new Date());
@@ -356,7 +356,8 @@ const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 const eqpIds = ref<string[]>([]);
 
-const chartData = ref<any[]>([]);
+// [수정] 차트 데이터: X축과 Series를 분리
+const xAxisData = ref<string[]>([]);
 const processSeries = ref<any[]>([]);
 const processStats = ref<ProcessStat[]>([]);
 const displayedProcessCount = ref(0);
@@ -385,10 +386,8 @@ const colorPalette = [
 
 // --- Lifecycle ---
 onMounted(async () => {
-  // 1. Site 목록 로드
   sites.value = await dashboardApi.getSites();
 
-  // 2. 초기 필터 값 결정 (우선순위: Store > LocalStorage > Auth)
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
@@ -404,17 +403,14 @@ onMounted(async () => {
     targetSdwt = authStore.user?.sdwt || "";
   }
 
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
     sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-    // 4. SDWT 적용 및 EQP 로드
     if (targetSdwt && sdwts.value.includes(targetSdwt)) {
       filterStore.selectedSdwt = targetSdwt;
       await loadEqpIds();
 
-      // 5. EQP ID 복원
       const savedEqpId = localStorage.getItem("process_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
@@ -446,7 +442,6 @@ onUnmounted(() => {
 });
 
 // --- Handlers ---
-// [수정] Site 변경 시 로컬 스토리지 업데이트 (process_site)
 const onSiteChange = async () => {
   if (filterStore.selectedSite) {
     localStorage.setItem("process_site", filterStore.selectedSite);
@@ -456,7 +451,6 @@ const onSiteChange = async () => {
     sdwts.value = [];
   }
 
-  // 하위 필터 초기화 & 로컬스토리지 삭제
   filterStore.selectedSdwt = "";
   localStorage.removeItem("process_sdwt");
   selectedEqpId.value = "";
@@ -465,7 +459,6 @@ const onSiteChange = async () => {
   hasSearched.value = false;
 };
 
-// [수정] SDWT 변경 시 로컬 스토리지 업데이트 (process_sdwt)
 const onSdwtChange = async () => {
   if (filterStore.selectedSdwt) {
     localStorage.setItem("process_sdwt", filterStore.selectedSdwt);
@@ -475,12 +468,10 @@ const onSdwtChange = async () => {
     eqpIds.value = [];
   }
 
-  // 하위 필터 초기화 & 로컬스토리지 삭제
   selectedEqpId.value = "";
   localStorage.removeItem("process_eqpid");
 };
 
-// [수정] EqpID 변경 시 로컬 스토리지 업데이트 (process_eqpid)
 const onEqpIdChange = () => {
   if (selectedEqpId.value)
     localStorage.setItem("process_eqpid", selectedEqpId.value);
@@ -490,7 +481,6 @@ const onEqpIdChange = () => {
 const loadEqpIds = async () => {
   isEqpIdLoading.value = true;
   try {
-    // [수정] 객체 인자 방식으로 호출
     eqpIds.value = await equipmentApi.getEqpIds({
       sdwt: filterStore.selectedSdwt,
       type: "agent"
@@ -521,7 +511,6 @@ const searchData = async () => {
     else if (diffDays <= 30) fetchInterval = 1800;
     else fetchInterval = 3600;
 
-    // [수정] 객체 인자 방식으로 호출, interval 포함
     const rawData = await performanceApi.getProcessHistory({
       startDate: fixedStart.toISOString(),
       endDate: fixedEnd.toISOString(),
@@ -531,7 +520,7 @@ const searchData = async () => {
     processData(rawData);
   } catch (e) {
     console.error(e);
-    chartData.value = [];
+    xAxisData.value = [];
     processSeries.value = [];
     processStats.value = [];
   } finally {
@@ -541,17 +530,25 @@ const searchData = async () => {
 
 const processData = (data: ProcessMemoryDataDto[]) => {
   if (!data || data.length === 0) {
-    chartData.value = [];
+    xAxisData.value = [];
+    processSeries.value = [];
     processStats.value = [];
     return;
+  }
+
+  // 1. 데이터 집계
+  let maxTs = 0;
+  if (data.length > 0) {
+    maxTs = data.reduce((max, d) => {
+      const ts = new Date(d.timestamp).getTime();
+      return ts > max ? ts : max;
+    }, 0);
   }
 
   const procMap = new Map<
     string,
     { max: number; latest: number; dataPoints: number }
   >();
-  const timestamps = data.map((d) => new Date(d.timestamp).getTime());
-  const maxTs = Math.max(...timestamps);
 
   data.forEach((d) => {
     const memVal = Number(d.memoryUsageMB) || 0;
@@ -572,6 +569,7 @@ const processData = (data: ProcessMemoryDataDto[]) => {
     name,
     ...stats,
   }));
+  
   const topByMax = [...allProcs].sort((a, b) => b.max - a.max).slice(0, 5);
   const topByLatest = [...allProcs]
     .sort((a, b) => b.latest - a.latest)
@@ -583,20 +581,26 @@ const processData = (data: ProcessMemoryDataDto[]) => {
 
   displayedProcessCount.value = targetProcesses.size;
 
+  // 2. 시간별 데이터 정렬 및 X축 데이터 생성
   const timeMap = new Map<string, any>();
+  
   data.forEach((d) => {
     if (!targetProcesses.has(d.processName)) return;
-    let tsKey = String(d.timestamp);
-    if (tsKey.includes(".")) tsKey = tsKey.split(".")[0] ?? tsKey;
-    if (tsKey.includes("Z")) tsKey = tsKey.replace("Z", "");
+    
+    // [중요] ISO String으로 통일하여 안전한 시간 키 생성
+    const ts = new Date(d.timestamp);
+    if (isNaN(ts.getTime())) return;
+    const tsKey = ts.toISOString(); 
 
     if (!timeMap.has(tsKey)) timeMap.set(tsKey, { timestamp: tsKey });
     timeMap.get(tsKey)[d.processName] = Number(d.memoryUsageMB) || 0;
   });
 
-  chartData.value = Array.from(timeMap.values()).sort(
+  const sortedData = Array.from(timeMap.values()).sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
+
+  xAxisData.value = sortedData.map(d => d.timestamp);
 
   const series: any[] = [];
   const stats: ProcessStat[] = [];
@@ -604,6 +608,10 @@ const processData = (data: ProcessMemoryDataDto[]) => {
 
   sortedTargetProcs.forEach((name, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? "#8b5cf6";
+    
+    // Dataset이 아닌 Series Data 직접 할당 (1차원 배열)
+    const seriesData = sortedData.map(d => d[name] ?? 0);
+
     series.push({
       name: name,
       type: "line",
@@ -612,7 +620,8 @@ const processData = (data: ProcessMemoryDataDto[]) => {
       symbolSize: 2,
       itemStyle: { color: color },
       lineStyle: { width: 2 },
-      encode: { x: "timestamp", y: name },
+      data: seriesData, // [핵심] 1차원 데이터 배열
+      // [수정] encode 속성 삭제: data가 1차원 배열이므로 encode 불필요/오류 원인
     });
 
     const pData = data.filter((d) => d.processName === name);
@@ -620,9 +629,9 @@ const processData = (data: ProcessMemoryDataDto[]) => {
       (acc, cur) => acc + (Number(cur.memoryUsageMB) || 0),
       0
     );
-    const max = Math.max(...pData.map((d) => Number(d.memoryUsageMB) || 0));
-    const last =
-      pData.sort(
+    const max = pData.reduce((acc, cur) => Math.max(acc, Number(cur.memoryUsageMB) || 0), 0);
+    
+    const last = pData.sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       )[0]?.memoryUsageMB || 0;
@@ -640,7 +649,6 @@ const processData = (data: ProcessMemoryDataDto[]) => {
   processStats.value = stats.sort((a, b) => b.max - a.max);
 };
 
-// [수정] 초기화 시 로컬 스토리지 키 삭제
 const resetFilters = () => {
   filterStore.reset();
   selectedEqpId.value = "";
@@ -652,7 +660,8 @@ const resetFilters = () => {
   sdwts.value = [];
   eqpIds.value = [];
   hasSearched.value = false;
-  chartData.value = [];
+  xAxisData.value = [];
+  processSeries.value = [];
   processStats.value = [];
 };
 
@@ -678,6 +687,8 @@ const chartOption = computed(() => {
     : "rgba(0, 0, 0, 0.1)";
   return {
     backgroundColor: "transparent",
+    // [수정] dataset 삭제
+    dataset: undefined,
     tooltip: {
       trigger: "axis",
       backgroundColor: isDarkMode.value
@@ -686,25 +697,32 @@ const chartOption = computed(() => {
       borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
       textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" },
       formatter: (params: any) => {
-        if (!params || !params[0]) return "";
-        const xDate = new Date(params[0].axisValueLabel);
-        const timeStr = isNaN(xDate.getTime())
-          ? params[0].axisValueLabel
-          : `${String(xDate.getHours()).padStart(2, "0")}:${String(
-              xDate.getMinutes()
+        if (!params || !params.length) return "";
+        
+        // params[0].axisValue에 ISO Timestamp가 들어옴
+        const rawLabel = params[0].axisValue;
+        if (!rawLabel) return "";
+
+        const d = new Date(rawLabel);
+        const timeStr = isNaN(d.getTime())
+          ? rawLabel
+          : `${String(d.getHours()).padStart(2, "0")}:${String(
+              d.getMinutes()
             ).padStart(2, "0")}`;
+
         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
+        
         const sortedParams = [...params].sort(
-          (a, b) => (b.value[b.seriesName] || 0) - (a.value[a.seriesName] || 0)
+          (a, b) => (b.value || 0) - (a.value || 0)
         );
+        
         sortedParams.forEach((p: any) => {
-          const val = p.value[p.seriesName];
-          if (val !== undefined) {
+          if (p.value !== undefined) {
             const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
             html += `<div class="flex justify-between items-center gap-4 text-xs"><span>${colorDot} ${
               p.seriesName
             }</span><span class="font-mono font-bold">${Number(
-              val
+              p.value
             ).toLocaleString()} MB</span></div>`;
           }
         });
@@ -729,14 +747,15 @@ const chartOption = computed(() => {
     },
     grid: { left: 60, right: 170, top: 30, bottom: 30 },
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
-    dataset: { source: chartData.value },
     xAxis: {
       type: "category",
       boundaryGap: false,
+      data: xAxisData.value, // X축 데이터 바인딩
       axisLabel: {
         color: textColor,
         fontSize: 10,
         formatter: (value: string) => {
+          if (!value) return '';
           const d = new Date(value);
           if (isNaN(d.getTime())) return value;
           return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
