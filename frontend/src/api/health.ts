@@ -10,12 +10,15 @@ export interface EquipmentHealthDto {
     performance: number;
     component: number;
     stability: number;
+    optical: number; // [추가] 백엔드 연동
   };
   details: {
     errorCount: number;
     avgResourceUsage: number;
     lampUsageRatio: number;
     tempVolatility: number;
+    avgIntensity: number; // [추가]
+    snrValue: number;     // [추가]
   };
 }
 
