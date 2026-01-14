@@ -3,6 +3,7 @@
   <li class="relative group/item">
     <div
       @click="handleClick"
+      v-tooltip.right="!isSidebarOpen ? item.label : undefined"
       class="relative flex items-center transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer select-none rounded-xl my-1 overflow-hidden border border-transparent"
       :class="[
         'min-h-[36px]',
@@ -79,18 +80,8 @@
           ]"
         ></i>
       </div>
-
-      <div
-        v-if="!isSidebarOpen"
-        class="absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-800 dark:bg-zinc-700 text-white text-[12px] font-medium rounded-md opacity-0 invisible group-hover/item:opacity-100 group-hover/item:visible transition-all duration-200 cubic-bezier(0.2,0,0.2,1) whitespace-nowrap z-[100] shadow-[4px_0_15px_-3px_rgba(0,0,0,0.1)] pointer-events-none translate-x-[-8px] group-hover/item:translate-x-0"
-      >
-        {{ item.label }}
-        <div class="absolute left-0 w-2 h-2 rotate-45 -translate-x-1 -translate-y-1/2 top-1/2 bg-slate-800 dark:bg-zinc-700"></div>
-        <span v-if="item.statusTag" class="ml-1.5 px-1 py-[0.5px] rounded text-[8px] font-bold uppercase tracking-wider bg-white/20 text-white">
-          {{ item.statusTag }}
-        </span>
+      
       </div>
-    </div>
 
     <div
       v-if="hasChildren && isSidebarOpen"
