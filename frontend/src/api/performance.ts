@@ -23,10 +23,11 @@ export interface ItmAgentDataDto {
   timestamp: string;
   eqpId: string;
   memoryUsageMB: number;
+  agentVersion?: string; // [추가] Agent 버전 정보
 }
 
 export const performanceApi = {
-  // [유지] PerformanceTrendView에서는 개별 인자로 호출하므로 유지
+  // 1. Performance Trend History
   getHistory: async (
     startDate: string,
     endDate: string,
@@ -46,14 +47,13 @@ export const performanceApi = {
     return data;
   },
 
-  // [수정] ProcessMemoryView에서 객체 인자 방식으로 호출하므로 인터페이스 수정
+  // 2. Process Memory History
   getProcessHistory: async (params: {
     startDate: string;
     endDate: string;
     eqpId: string;
     interval?: number;
   }) => {
-    // params 객체 자체가 쿼리 파라미터 구조와 일치하므로 그대로 전달
     const { data } = await http.get<ProcessMemoryDataDto[]>(
       "/performance/process-history",
       { params }
@@ -61,7 +61,7 @@ export const performanceApi = {
     return data;
   },
 
-  // [유지] ItmAgentMemoryView용 (기존 유지)
+  // 3. ITM Agent Trend
   getItmAgentTrend: async (
     site: string,
     sdwt: string,
