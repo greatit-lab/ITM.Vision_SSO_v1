@@ -24,12 +24,12 @@
     </div>
 
     <div
-      class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm shrink-0 transition-colors duration-300"
+      class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 shadow-sm shrink-0 transition-colors duration-300"
     >
       <div
-        class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
+        class="flex items-center flex-1 gap-3 px-1 py-1 overflow-x-auto scrollbar-hide"
       >
-        <div class="min-w-[100px] shrink-0">
+        <div class="min-w-[140px] shrink-0">
           <Select
             v-model="filter.site"
             :options="sites"
@@ -41,7 +41,7 @@
           />
         </div>
 
-        <div class="min-w-[120px] shrink-0">
+        <div class="min-w-[160px] shrink-0">
           <Select
             v-model="filter.sdwt"
             :options="sdwts"
@@ -54,7 +54,7 @@
           />
         </div>
 
-        <div class="min-w-[140px] shrink-0">
+        <div class="min-w-[160px] shrink-0">
           <Select
             v-model="filter.eqpId"
             :options="eqpIds"
@@ -62,6 +62,7 @@
             placeholder="EQP ID"
             :disabled="!filter.sdwt"
             showClear
+            filter
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
             @change="onEqpIdChange"
@@ -70,7 +71,7 @@
 
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
-        <div class="min-w-[160px] shrink-0">
+        <div class="min-w-[150px] flex-1">
           <Select
             v-model="filter.recipe"
             :options="options.recipes"
@@ -93,12 +94,12 @@
           </Select>
         </div>
 
-        <div class="min-w-[130px] shrink-0">
+        <div class="min-w-[150px] flex-1">
           <Select
             v-model="filter.stage"
             :options="options.stages"
             :loading="isDependentLoading"
-            placeholder="Stage Group"
+            placeholder="Stage"
             :disabled="!filter.recipe"
             showClear
             class="w-full custom-dropdown small"
@@ -106,12 +107,12 @@
           />
         </div>
 
-        <div class="min-w-[130px] shrink-0">
+        <div class="min-w-[150px] flex-1">
           <Select
             v-model="filter.film"
             :options="options.films"
             :loading="isDependentLoading"
-            placeholder="Film Type"
+            placeholder="Film"
             :disabled="!filter.recipe"
             showClear
             class="w-full custom-dropdown small"
@@ -121,7 +122,7 @@
 
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
-        <div class="min-w-[130px] shrink-0">
+        <div class="w-[135px] shrink-0">
           <DatePicker
             v-model="filter.startDate"
             showIcon
@@ -131,7 +132,7 @@
           />
         </div>
 
-        <div class="min-w-[130px] shrink-0">
+        <div class="w-[135px] shrink-0">
           <DatePicker
             v-model="filter.endDate"
             showIcon
@@ -715,7 +716,7 @@
                     <i class="pi pi-times text-[10px]"></i>
                   </button>
                 </div>
-                <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                   밝기(Intensity)와 신호 품질(SNR)의 관계입니다.<br/><br/>
                   점들이 <strong class="text-emerald-600 dark:text-emerald-400">우상향(밝을수록 품질 좋음)</strong> 대각선에 모여 있어야 정상입니다.<br/>
                   점들이 아래로 처져 있다면 센서 노이즈가 증가했음을 의미합니다.
@@ -858,11 +859,11 @@ onMounted(async () => {
         filter.sdwt = targetSdwt;
         isEqpIdLoading.value = true;
         try {
-          eqpIds.value = await equipmentApi.getEqpIds(
-            undefined,
-            targetSdwt,
-            "wafer"
-          );
+          // [수정 1] ITM Agent 설치 장비만 조회 (type: 'agent', 객체 형태 파라미터 전달)
+          eqpIds.value = await equipmentApi.getEqpIds({
+            sdwt: targetSdwt,
+            type: "agent"
+          });
         } finally {
           isEqpIdLoading.value = false;
         }
@@ -1020,11 +1021,11 @@ const onSdwtChange = async () => {
     localStorage.setItem(LS_KEYS.SDWT, filter.sdwt);
     isEqpIdLoading.value = true;
     try {
-      eqpIds.value = await equipmentApi.getEqpIds(
-        undefined,
-        filter.sdwt,
-        "wafer"
-      );
+      // [수정 1] ITM Agent 설치 장비만 조회 (type: 'agent')
+      eqpIds.value = await equipmentApi.getEqpIds({
+        sdwt: filter.sdwt,
+        type: "agent"
+      });
     } finally {
       isEqpIdLoading.value = false;
     }
@@ -1474,7 +1475,7 @@ const correlationChartOption = computed(() => {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
 :deep(.custom-dropdown .p-select-label) {
-  @apply text-[13px] py-[5px] px-3;
+  @apply text-[13px] py-[5px] px-3 truncate;
 }
 :deep(.custom-dropdown.small) {
   @apply h-7;
@@ -1482,11 +1483,18 @@ const correlationChartOption = computed(() => {
 :deep(.custom-dropdown:hover) {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
-:deep(.p-datepicker-input) {
-  @apply !text-[12px] !py-1 !px-2;
+/* [수정] DatePicker CSS 개선 */
+:deep(.date-picker) {
+  @apply relative w-full overflow-visible; /* overflow-visible로 변경하여 툴팁 등 잘림 방지 (필요시) */
 }
 :deep(.date-picker .p-inputtext) {
-  @apply !h-7;
+  @apply !h-7 !text-[12px] !py-1 !pl-2 !pr-7 w-full; /* w-full 추가 */
+}
+:deep(.date-picker .p-datepicker-trigger) {
+  @apply absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 !w-6 !h-full flex items-center justify-center;
+}
+:deep(.date-picker .p-datepicker-trigger svg) {
+  @apply w-3 h-3;
 }
 
 .animate-fade-in {
