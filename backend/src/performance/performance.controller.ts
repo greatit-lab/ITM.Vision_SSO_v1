@@ -2,10 +2,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { PerformanceService } from './performance.service';
 
-// [수정] main.ts의 Global Prefix('api')와 중복되지 않도록 'api/' 제거
-// 변경 전: @Controller('api/Performance')
-// 변경 후: @Controller('Performance')
-@Controller('Performance')
+// [수정] 대소문자 일치: 'Performance' -> 'performance'
+@Controller('performance')
 export class PerformanceController {
   constructor(private readonly performanceService: PerformanceService) {}
 
@@ -25,7 +23,7 @@ export class PerformanceController {
     );
   }
 
-  @Get('process/history')
+  @Get('process-history')
   getProcessHistory(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
@@ -41,7 +39,6 @@ export class PerformanceController {
     );
   }
 
-  // [추가] ITM Agent Trend 조회 엔드포인트
   @Get('itm-agent-trend')
   getItmAgentTrend(
     @Query('site') site: string,
