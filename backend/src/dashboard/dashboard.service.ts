@@ -1,8 +1,11 @@
-// backend/src/dashboard/dashboard.service.ts
+// [전체 코드 교체]
+// 프로젝트: ITM.Vision_SSO_v1
+// 파일 경로: backend/src/dashboard/dashboard.service.ts
+
 import { Injectable } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
 
-// [유지] Interface 정의
+// Interface 정의 (Frontend와 공유되는 구조)
 export interface DashboardSummaryResponse {
   totalEqpCount: number;
   totalServers: number;
@@ -36,6 +39,7 @@ export interface AgentStatusResponse {
 
 @Injectable()
 export class DashboardService {
+  // Data API의 기본 경로 (Controller Prefix)
   private readonly DOMAIN = 'dashboard';
 
   constructor(private readonly dataApiService: DataApiService) {}
@@ -52,8 +56,8 @@ export class DashboardService {
       this.DOMAIN,
       'get',
       'summary',
-      undefined,
-      params,
+      undefined, // Body 없음
+      params,    // Query Params
     );
   }
 
@@ -65,7 +69,7 @@ export class DashboardService {
     if (site) params.site = site;
     if (sdwt) params.sdwt = sdwt;
 
-    // [주의] Data API Controller 경로는 'agentstatus' (하이픈 없음)
+    // Data API의 /dashboard/agentstatus 호출
     const result = await this.dataApiService.request<AgentStatusResponse[]>(
       this.DOMAIN,
       'get',
