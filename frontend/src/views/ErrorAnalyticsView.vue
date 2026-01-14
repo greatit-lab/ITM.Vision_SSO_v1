@@ -537,23 +537,26 @@ const onSdwtChange = async () => {
 const getEffectiveParams = () => {
   let start = filter.startDate;
   let end = filter.endDate;
-  let eqps = filter.eqpId;
+  let eqps = filter.eqpId; // 메인 필터의 eqpId
+
+  // 1. Daily Trend 차트 클릭 시: 날짜 필터 적용
   if (gridFilter.date) {
     start = new Date(gridFilter.date); start.setHours(0, 0, 0, 0);
     end = new Date(gridFilter.date); end.setHours(23, 59, 59, 999);
   }
-  if (gridFilter.eqpId) eqps = gridFilter.eqpId;
-  return { site: filter.site, sdwt: filter.sdwt, eqpids: eqps, startDate: start ? start.toISOString() : "", endDate: end ? end.toISOString() : "" };
-};
-
-const search = async () => {
-  if (!filter.startDate || !filter.endDate) return;
-  gridFilter.date = null; gridFilter.eqpId = null;
-  isLoading.value = true; hasSearched.value = true; first.value = 0;
-  try {
-    await Promise.all([updateSummaryData(), updateTrendData()]);
-    await loadGridData();
-  } catch (e) { console.error(e); } finally { isLoading.value = false; }
+  
+  // 2. Worst Equipment 차트 클릭 시: 장비 ID 덮어쓰기
+  if (gridFilter.eqpId) {
+    eqps = gridFilter.eqpId;
+  }
+  
+  return { 
+    site: filter.site, 
+    sdwt: filter.sdwt, 
+    eqpId: eqps, // [수정] eqpids -> eqpId (Backend Controller와 일치)
+    startDate: start ? start.toISOString() : "", 
+    endDate: end ? end.toISOString() : "" 
+  };
 };
 
 const updateSummaryData = async () => {
@@ -688,4 +691,5 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
 
