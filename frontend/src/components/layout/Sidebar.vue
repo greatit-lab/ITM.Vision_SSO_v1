@@ -14,7 +14,7 @@
           <img
             :src="logoUrl"
             alt="Logo"
-            class="object-contain w-auto transition-all duration-300 h-8 drop-shadow-md filter hover:scale-110"
+            class="object-contain w-auto transition-all duration-300 h-9 drop-shadow-md filter hover:scale-110"
           />
         </div>
 
@@ -22,23 +22,23 @@
           class="flex flex-col transition-all duration-300 origin-left cursor-pointer"
           :class="isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-90 w-0 hidden'"
         >
-          <span class="font-sans text-lg font-black leading-none tracking-tight text-slate-800 dark:text-slate-100 whitespace-nowrap">
+          <span class="text-xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-700 to-slate-500 dark:from-white dark:via-slate-200 dark:to-slate-400 whitespace-nowrap drop-shadow-sm font-sans">
             ITM Vision
           </span>
-          <span class="text-[6px] font-bold tracking-[0.25em] text-indigo-500 uppercase mt-1 whitespace-nowrap">
-            Smart Factory
+          <span class="text-[10px] font-bold tracking-widest text-indigo-500 dark:text-indigo-400 uppercase mt-0.5 whitespace-nowrap opacity-90">
+            Data Intelligence
           </span>
         </div>
       </div>
-
-      <button
-        @click="toggleSidebar"
-        class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-7 h-7 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700 rounded-full shadow-lg text-slate-400 hover:text-indigo-600 transition-all duration-300 hover:scale-110 focus:outline-none group"
-      >
-        <i class="pi text-[10px] transition-transform duration-300 group-hover:text-indigo-500"
-           :class="isOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
-      </button>
     </div>
+
+    <button
+      @click="toggleSidebar"
+      class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-7 h-7 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700 rounded-full shadow-lg text-slate-400 hover:text-indigo-600 transition-all duration-300 hover:scale-110 focus:outline-none group"
+    >
+      <i class="pi text-[10px] transition-transform duration-300 group-hover:text-indigo-500"
+         :class="isOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
+    </button>
 
     <nav class="flex-1 px-2 py-2 space-y-6 overflow-x-hidden overflow-y-auto scrollbar-hide">
       <div v-if="menuStore.isLoading" class="flex justify-center py-10">
@@ -55,12 +55,12 @@
     </nav>
 
     <div
-      class="p-4 mt-auto transition-all duration-300 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 backdrop-blur-sm"
-      :class="isOpen ? '' : 'flex justify-center px-0'"
+      class="mt-auto transition-all duration-300 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 backdrop-blur-sm"
+      :class="isOpen ? 'p-4' : 'py-4 flex flex-col items-center justify-center'"
     >
       <div
-        class="flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-300 cursor-pointer group hover:bg-white dark:hover:bg-white/10 hover:shadow-md border border-transparent hover:border-slate-100 dark:hover:border-white/5"
-        :class="isOpen ? 'w-full' : 'justify-center w-auto aspect-square'"
+        class="flex items-center p-2.5 rounded-xl transition-all duration-300 cursor-pointer group hover:bg-white dark:hover:bg-white/10 hover:shadow-md border border-transparent hover:border-slate-100 dark:hover:border-white/5"
+        :class="isOpen ? 'w-full gap-3.5' : 'justify-center w-auto aspect-square gap-0'"
       >
         <div
           class="relative flex items-center justify-center text-base font-bold text-white transition-transform duration-300 shadow-lg w-9 h-9 rounded-xl shrink-0 group-hover:scale-105 group-hover:rotate-3"
@@ -75,14 +75,27 @@
           class="flex flex-col min-w-0 overflow-hidden transition-all duration-300"
           :class="isOpen ? 'opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-4 hidden'"
         >
-          <p class="text-xs font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+          <p class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
             {{ contextInfo || authStore.userName }}
           </p>
-          <p class="text-[10px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
+          <p class="text-[11px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
             {{ userRole }}
           </p>
         </div>
       </div>
+
+      <div
+        class="overflow-hidden transition-all duration-500 ease-in-out"
+        :class="isOpen ? 'max-h-10 mt-3 opacity-100' : 'max-h-0 mt-0 opacity-0'"
+      >
+        <div class="relative flex items-center justify-center w-full py-1.5 overflow-hidden rounded-lg shadow-sm bg-gradient-to-r from-slate-700 to-slate-600 dark:from-slate-800 dark:to-slate-700 group cursor-default">
+          <div class="absolute inset-0 transition-opacity opacity-0 bg-white/5 group-hover:opacity-100"></div>
+          <span class="text-[10px] font-black text-white/90 tracking-[0.2em] uppercase drop-shadow-sm">
+            테스트팀
+          </span>
+        </div>
+      </div>
+
     </div>
   </aside>
 </template>
