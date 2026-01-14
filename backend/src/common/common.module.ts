@@ -1,12 +1,19 @@
 // backend/src/common/common.module.ts
 import { Global, Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
+import { ConfigModule } from '@nestjs/config';
 import { DataApiService } from './data-api.service';
 
-@Global() // 다른 모듈에서 import 없이 DataApiService 주입 가능
+@Global()
 @Module({
-  imports: [HttpModule],
+  imports: [
+    ConfigModule, // ConfigService 사용
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+  ],
   providers: [DataApiService],
-  exports: [DataApiService, HttpModule],
+  exports: [DataApiService],
 })
 export class CommonModule {}
