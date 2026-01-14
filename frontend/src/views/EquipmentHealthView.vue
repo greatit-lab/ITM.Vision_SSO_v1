@@ -1,4 +1,3 @@
-<!-- frontend/src/views/EquipmentHealthView.vue -->
 <template>
   <div
     class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden"
@@ -8,14 +7,14 @@
         class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
       >
         <i
-          class="text-lg text-rose-500 pi pi-heart-pulse dark:text-rose-400"
+          class="text-lg text-rose-500 pi pi-heart-fill dark:text-rose-400"
         ></i>
       </div>
       <div class="flex items-baseline gap-2">
         <h1
           class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white"
         >
-          Equipment Health
+          ITM Health
         </h1>
         <span
           class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
@@ -54,6 +53,21 @@
             @change="onSdwtChange"
           />
         </div>
+        <div class="min-w-[160px] shrink-0">
+          <Select
+            v-model="filter.eqpId"
+            :options="eqpIds"
+            :loading="isEqpIdLoading"
+            placeholder="EQP ID"
+            :disabled="!filter.sdwt"
+            showClear
+            filter
+            class="w-full custom-dropdown small"
+            overlayClass="custom-dropdown-panel small"
+            :class="{ '!text-slate-400': !filter.eqpId }"
+            @change="onEqpIdChange"
+          />
+        </div>
       </div>
 
       <div
@@ -71,7 +85,7 @@
     </div>
 
     <div
-      v-if="healthData.length > 0"
+      v-if="filteredHealthData.length > 0"
       class="flex flex-col flex-1 min-h-0 gap-4 overflow-hidden animate-fade-in"
     >
       <div class="grid grid-cols-1 gap-3 md:grid-cols-4 shrink-0">
@@ -198,7 +212,7 @@
           </div>
           <div class="flex-1 p-2 space-y-1 overflow-y-auto custom-scrollbar">
             <div
-              v-for="item in healthData"
+              v-for="item in filteredHealthData"
               :key="item.eqpId"
               @click="selectedEqp = item"
               class="relative flex items-center justify-between p-3 transition-all duration-200 border rounded-lg cursor-pointer group"
@@ -234,6 +248,10 @@
               <i
                 class="pi pi-chevron-right text-[10px] text-slate-300 group-hover:text-slate-500 transition-colors"
               ></i>
+            </div>
+            
+            <div v-if="filteredHealthData.length === 0" class="p-4 text-center">
+               <p class="text-xs text-slate-400">No matching equipment found.</p>
             </div>
           </div>
         </div>
@@ -324,7 +342,7 @@
                   class="text-2xl font-black text-slate-800 dark:text-white"
                   >{{ selectedEqp.factors.reliability
                   }}<span class="text-sm font-medium text-slate-400"
-                    >/40</span
+                    >/30</span
                   ></span
                 >
                 <span class="text-xs font-bold text-slate-500"
@@ -338,7 +356,7 @@
                   class="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000"
                   :style="{
                     width:
-                      (selectedEqp.factors.reliability / 40) * 100 + '%',
+                      (selectedEqp.factors.reliability / 30) * 100 + '%',
                   }"
                 ></div>
               </div>
@@ -376,7 +394,7 @@
                   class="text-2xl font-black text-slate-800 dark:text-white"
                   >{{ selectedEqp.factors.performance
                   }}<span class="text-sm font-medium text-slate-400"
-                    >/30</span
+                    >/20</span
                   ></span
                 >
                 <span class="text-xs font-bold text-slate-500"
@@ -392,7 +410,7 @@
                   class="bg-teal-500 h-1.5 rounded-full transition-all duration-1000"
                   :style="{
                     width:
-                      (selectedEqp.factors.performance / 30) * 100 + '%',
+                      (selectedEqp.factors.performance / 20) * 100 + '%',
                   }"
                 ></div>
               </div>
@@ -531,13 +549,12 @@
                 <span
                   class="text-2xl font-black text-slate-800 dark:text-white"
                 >
-                  {{ (selectedEqp.factors.optical ?? 95)
-                  }}<span class="text-sm font-medium text-slate-400"
-                    >/100</span
+                  {{ selectedEqp.factors.optical }}<span class="text-sm font-medium text-slate-400"
+                    >/20</span
                   >
                 </span>
                 <span class="text-xs font-bold text-slate-500">
-                  Avg {{ selectedEqp.details.avgIntensity ?? 2450 }}
+                  Avg {{ selectedEqp.details.avgIntensity }}
                 </span>
               </div>
               <div
@@ -547,7 +564,7 @@
                   class="h-1.5 rounded-full transition-all duration-1000 bg-violet-500"
                   :style="{
                     width:
-                      ((selectedEqp.factors.optical ?? 95) / 100) * 100 +
+                      (selectedEqp.factors.optical / 20) * 100 +
                       '%',
                   }"
                 ></div>
@@ -614,39 +631,40 @@ import { ref, onMounted, computed, onUnmounted, reactive, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { healthApi, type EquipmentHealthDto } from "@/api/health";
+import { equipmentApi } from "@/api/equipment";
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
-
-// Extend DTO to include Optical factor (for type safety in template)
-interface ExtendedEquipmentHealthDto extends EquipmentHealthDto {
-  factors: EquipmentHealthDto["factors"] & {
-    optical?: number;
-  };
-  details: EquipmentHealthDto["details"] & {
-    avgIntensity?: number;
-  };
-}
 
 const authStore = useAuthStore();
 const LS_KEYS = {
   SITE: "health-view-site",
   SDWT: "health-view-sdwt",
+  EQPID: "health-view-eqpid", 
 };
 
 const filter = reactive({
   site: "",
   sdwt: "",
+  eqpId: "", 
 });
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
-// Use extended type
-const healthData = ref<ExtendedEquipmentHealthDto[]>([]);
-const selectedEqp = ref<ExtendedEquipmentHealthDto | null>(null);
+const eqpIds = ref<string[]>([]); 
+const isEqpIdLoading = ref(false); 
+
+const healthData = ref<EquipmentHealthDto[]>([]);
+const selectedEqp = ref<EquipmentHealthDto | null>(null);
 const isLoading = ref(false);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver;
+
+// Computed - EQP ID 필터링
+const filteredHealthData = computed(() => {
+  if (!filter.eqpId) return healthData.value;
+  return healthData.value.filter((item) => item.eqpId === filter.eqpId);
+});
 
 const avgScore = computed(() => {
   if (healthData.value.length === 0) return 0;
@@ -666,11 +684,9 @@ const goodCount = computed(
   () => healthData.value.filter((i) => i.status === "Good").length
 );
 
-// [수정] onMounted 로직 교체
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // 2. 초기 필터 값 결정
   let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
   let targetSdwt = "";
 
@@ -681,18 +697,23 @@ onMounted(async () => {
     targetSdwt = authStore.user?.sdwt || "";
   }
 
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filter.site = targetSite;
     try {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
       
-      // 4. SDWT 적용 및 데이터 조회
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
-        fetchData(); // 데이터 조회
+        await loadEqpIds();
+        const savedEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
+        if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
+            filter.eqpId = savedEqpId;
+        }
+
+        fetchData();
       } else {
         filter.sdwt = "";
+        filter.eqpId = "";
       }
     } catch (e) {
       console.error("Failed to restore filter state:", e);
@@ -732,6 +753,19 @@ watch(
   }
 );
 
+watch(
+  () => filter.eqpId,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.EQPID, newVal);
+    else localStorage.removeItem(LS_KEYS.EQPID);
+    
+    if (newVal && healthData.value.length > 0) {
+        const target = healthData.value.find(item => item.eqpId === newVal);
+        if(target) selectedEqp.value = target;
+    }
+  }
+);
+
 const onSiteChange = async () => {
   if (filter.site) {
     sdwts.value = await dashboardApi.getSdwts(filter.site);
@@ -739,9 +773,38 @@ const onSiteChange = async () => {
     sdwts.value = [];
   }
   filter.sdwt = "";
+  filter.eqpId = "";
+  eqpIds.value = [];
 };
 
-const onSdwtChange = () => {};
+const onSdwtChange = async () => {
+    if (filter.sdwt) {
+        await loadEqpIds();
+    } else {
+        eqpIds.value = [];
+    }
+    filter.eqpId = "";
+};
+
+const onEqpIdChange = () => {
+    // Watcher handles logic
+};
+
+const loadEqpIds = async () => {
+    if (!filter.sdwt) return;
+    isEqpIdLoading.value = true;
+    try {
+        eqpIds.value = await equipmentApi.getEqpIds({
+            sdwt: filter.sdwt,
+            type: "agent" 
+        });
+    } catch(e) {
+        console.error("Failed to load Eqp IDs", e);
+        eqpIds.value = [];
+    } finally {
+        isEqpIdLoading.value = false;
+    }
+}
 
 const fetchData = async () => {
   if (!filter.site) return;
@@ -749,24 +812,15 @@ const fetchData = async () => {
   selectedEqp.value = null;
   try {
     const res = await healthApi.getSummary(filter.site, filter.sdwt);
-
-    // [Mocking] Inject Optical Data if missing from backend
-    healthData.value = res.map((item) => {
-      const extendedItem = item as ExtendedEquipmentHealthDto;
-      // If backend doesn't provide 'optical', mock it for UI demo
-      if (extendedItem.factors.optical === undefined) {
-        extendedItem.factors.optical =
-          Math.floor(Math.random() * 15) + 85; // 85~100 Random
-      }
-      if (extendedItem.details.avgIntensity === undefined) {
-        extendedItem.details.avgIntensity =
-          Math.floor(Math.random() * 500) + 2000; // 2000~2500 Random
-      }
-      return extendedItem;
-    });
+    healthData.value = res;
 
     if (healthData.value.length > 0) {
-      selectedEqp.value = healthData.value[0] ?? null;
+        if (filter.eqpId) {
+            const target = healthData.value.find(item => item.eqpId === filter.eqpId);
+            selectedEqp.value = target ?? healthData.value[0] ?? null;
+        } else {
+            selectedEqp.value = healthData.value[0] ?? null;
+        }
     }
   } catch (e) {
     console.error(e);
@@ -830,7 +884,6 @@ const gaugeOption = computed(() => {
         splitLine: { show: false },
         axisLabel: { show: false },
         detail: { show: false },
-        // [수정] 데이터 속성 추가 (차트 렌더링을 위해 필수)
         data: [{ value: score }] 
       },
     ],
@@ -843,23 +896,22 @@ const radarOption = computed(() => {
   const gridColor = isDarkMode.value ? "#3f3f46" : "#e2e8f0";
 
   const factors = selectedEqp.value.factors;
-  // Use mock values or defaults if undefined
   const data = [
-    (factors.reliability / 40) * 100,
-    (factors.performance / 30) * 100,
-    (factors.component / 20) * 100,
-    (factors.stability / 10) * 100,
-    ((factors.optical ?? 100) / 100) * 100, // [Added] Optical Axis
+    (factors.reliability / 30) * 100, 
+    (factors.performance / 20) * 100, 
+    (factors.component / 20) * 100,   
+    (factors.stability / 10) * 100,   
+    (factors.optical / 20) * 100, 
   ];
 
   return {
     radar: {
       indicator: [
-        { name: "Reliability", max: 100 },
-        { name: "Performance", max: 100 },
-        { name: "Component", max: 100 },
-        { name: "Stability", max: 100 },
-        { name: "Optical", max: 100 }, // [Added]
+        { name: "신뢰성 (Reliability)", max: 100 },
+        { name: "성능 (Performance)", max: 100 },
+        { name: "부품 (Component)", max: 100 },
+        { name: "안정성 (Stability)", max: 100 },
+        { name: "광학 (Optical)", max: 100 },
       ],
       center: ["50%", "50%"],
       radius: "65%",
@@ -902,13 +954,13 @@ const radarOption = computed(() => {
 </script>
 
 <style scoped>
-/* Styles inherited from existing code */
+/* [수정] 폰트 크기 13px로 통일 */
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
 :deep(.custom-dropdown .p-select-label) {
-  @apply text-[12px] py-[5px] px-3;
+  @apply text-[13px] py-[5px] px-3; /* Changed from 12px to 13px */
 }
 :deep(.custom-dropdown.small) {
   @apply h-7;
