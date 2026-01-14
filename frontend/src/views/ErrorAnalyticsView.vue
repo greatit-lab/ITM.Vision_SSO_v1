@@ -559,6 +559,23 @@ const getEffectiveParams = () => {
   };
 };
 
+const search = async () => {
+  if (!filter.startDate || !filter.endDate) return;
+  gridFilter.date = null;
+  gridFilter.eqpId = null;
+  isLoading.value = true;
+  hasSearched.value = true;
+  first.value = 0;
+  try {
+    await Promise.all([updateSummaryData(), updateTrendData()]);
+    await loadGridData();
+  } catch (e) {
+    console.error(e);
+  } finally {
+    isLoading.value = false;
+  }
+};
+  
 const updateSummaryData = async () => {
   try {
     const res = await getErrorSummary(getEffectiveParams());
@@ -691,5 +708,6 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
 
 
