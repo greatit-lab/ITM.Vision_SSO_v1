@@ -26,7 +26,7 @@ export interface ItmAgentDataDto {
 }
 
 export const performanceApi = {
-  // [수정] 대문자 'Performance' -> 소문자 'performance'
+  // [유지] PerformanceTrendView에서는 개별 인자로 호출하므로 유지
   getHistory: async (
     startDate: string,
     endDate: string,
@@ -39,7 +39,6 @@ export const performanceApi = {
       eqpids: eqpids.join(","),
       interval: intervalSeconds,
     };
-    // URL 수정: /performance/history
     const { data } = await http.get<PerformanceDataPointDto[]>(
       "/performance/history",
       { params }
@@ -47,15 +46,14 @@ export const performanceApi = {
     return data;
   },
 
-  // [수정] 경로 및 대소문자 수정
-  getProcessHistory: async (
-    startDate: string,
-    endDate: string,
-    eqpId: string,
-    intervalSeconds?: number
-  ) => {
-    const params = { startDate, endDate, eqpId, interval: intervalSeconds };
-    // URL 수정: /performance/process-history (백엔드와 일치)
+  // [수정] ProcessMemoryView에서 객체 인자 방식으로 호출하므로 인터페이스 수정
+  getProcessHistory: async (params: {
+    startDate: string;
+    endDate: string;
+    eqpId: string;
+    interval?: number;
+  }) => {
+    // params 객체 자체가 쿼리 파라미터 구조와 일치하므로 그대로 전달
     const { data } = await http.get<ProcessMemoryDataDto[]>(
       "/performance/process-history",
       { params }
@@ -63,7 +61,7 @@ export const performanceApi = {
     return data;
   },
 
-  // [수정] 대문자 'Performance' -> 소문자 'performance'
+  // [유지] ItmAgentMemoryView용 (기존 유지)
   getItmAgentTrend: async (
     site: string,
     sdwt: string,
@@ -80,7 +78,6 @@ export const performanceApi = {
       endDate,
       interval: intervalSeconds,
     };
-    // URL 수정: /performance/itm-agent-trend
     const { data } = await http.get<ItmAgentDataDto[]>(
       "/performance/itm-agent-trend",
       { params }
