@@ -594,7 +594,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 min-h-[300px] shrink-0">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 min-h-[280px] shrink-0">
         <div
           class="p-4 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden relative group/shift"
         >
