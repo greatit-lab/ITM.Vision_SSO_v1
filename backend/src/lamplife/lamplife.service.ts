@@ -2,7 +2,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
 
-// [유지] Interface
 export interface LampLifeData {
   eqpId: string;
   usageHours: number;
@@ -22,10 +21,11 @@ export class LampLifeService {
     if (site) params.site = site;
     if (sdwt) params.sdwt = sdwt;
 
+    // [수정] endpoint를 undefined로 설정하여 Data API의 Root 경로(/api/lamplife) 호출
     const result = await this.dataApiService.request<LampLifeData[]>(
       this.DOMAIN,
       'get',
-      'status', // GET /api/lamplife/status
+      undefined, 
       undefined,
       params,
     );
@@ -36,7 +36,7 @@ export class LampLifeService {
     await this.dataApiService.request(
       this.DOMAIN,
       'post',
-      'replacement', // POST /api/lamplife/replacement
+      'replacement',
       { eqpId, date },
     );
   }
