@@ -20,6 +20,7 @@ export default defineConfig(() => {
 
       // 2. 개발 PC 포트 (8082)
       port: 8082,
+      strictPort: true,
 
       // 3. HTTPS 설정 (pfx 인증서 사용)
       https: {
@@ -32,7 +33,8 @@ export default defineConfig(() => {
         "/api": {
           // [중요!] 여기에 실제 DB API 서버의 IP 주소를 입력하세요.
           // 예: target: "http://192.168.0.100:8081",
-          target: "http://[DB_SERVER_IP]:8081", 
+          // target: "http://[DB_SERVER_IP]:8081", // 데모모드시
+          target: "https://127.0.0.1:44364", 
           changeOrigin: true,
           secure: false,
         },
