@@ -302,7 +302,7 @@
             class="grid grid-cols-1 gap-3 pb-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
           >
             <div
-              class="p-4 transition-shadow bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md"
+              class="relative group p-4 transition-all bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md overflow-hidden"
             >
               <div class="flex items-start justify-between mb-4">
                 <div>
@@ -342,10 +342,17 @@
                   }"
                 ></div>
               </div>
+              <div
+                class="absolute inset-0 z-10 hidden items-center justify-center p-4 text-center bg-black/80 group-hover:flex animate-fade-in"
+              >
+                <p class="text-xs font-bold leading-relaxed text-white">
+                  에러 빈도 기반의<br />신뢰성 점수입니다.
+                </p>
+              </div>
             </div>
 
             <div
-              class="p-4 transition-shadow bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md"
+              class="relative group p-4 transition-all bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md overflow-hidden"
             >
               <div class="flex items-start justify-between mb-4">
                 <div>
@@ -389,10 +396,17 @@
                   }"
                 ></div>
               </div>
+              <div
+                class="absolute inset-0 z-10 hidden items-center justify-center p-4 text-center bg-black/80 group-hover:flex animate-fade-in"
+              >
+                <p class="text-xs font-bold leading-relaxed text-white">
+                  시스템 리소스(CPU/메모리)<br />부하 상태입니다.
+                </p>
+              </div>
             </div>
 
             <div
-              class="p-4 transition-shadow bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md"
+              class="relative group p-4 transition-all bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md overflow-hidden"
             >
               <div class="flex items-start justify-between mb-4">
                 <div>
@@ -433,10 +447,17 @@
                   }"
                 ></div>
               </div>
+              <div
+                class="absolute inset-0 z-10 hidden items-center justify-center p-4 text-center bg-black/80 group-hover:flex animate-fade-in"
+              >
+                <p class="text-xs font-bold leading-relaxed text-white">
+                  주요 부품(램프)의<br />수명 상태입니다.
+                </p>
+              </div>
             </div>
 
             <div
-              class="p-4 transition-shadow bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md"
+              class="relative group p-4 transition-all bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md overflow-hidden"
             >
               <div class="flex items-start justify-between mb-4">
                 <div>
@@ -477,10 +498,17 @@
                   }"
                 ></div>
               </div>
+              <div
+                class="absolute inset-0 z-10 hidden items-center justify-center p-4 text-center bg-black/80 group-hover:flex animate-fade-in"
+              >
+                <p class="text-xs font-bold leading-relaxed text-white">
+                  온도 변동성에 따른<br />장비 안정성입니다.
+                </p>
+              </div>
             </div>
 
             <div
-              class="p-4 transition-shadow bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md"
+              class="relative group p-4 transition-all bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 hover:shadow-md overflow-hidden"
             >
               <div class="flex items-start justify-between mb-4">
                 <div>
@@ -523,6 +551,13 @@
                       '%',
                   }"
                 ></div>
+              </div>
+              <div
+                class="absolute inset-0 z-10 hidden items-center justify-center p-4 text-center bg-black/80 group-hover:flex animate-fade-in"
+              >
+                <p class="text-xs font-bold leading-relaxed text-white">
+                  광학계 조도(Intensity)<br />건전성입니다.
+                </p>
               </div>
             </div>
           </div>
@@ -795,6 +830,8 @@ const gaugeOption = computed(() => {
         splitLine: { show: false },
         axisLabel: { show: false },
         detail: { show: false },
+        // [수정] 데이터 속성 추가 (차트 렌더링을 위해 필수)
+        data: [{ value: score }] 
       },
     ],
   };
