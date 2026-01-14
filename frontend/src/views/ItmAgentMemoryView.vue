@@ -215,11 +215,16 @@
               <tr>
                 <th
                   scope="col"
-                  class="px-4 py-2.5 font-bold w-[50px] text-center"
+                  class="px-4 py-2.5 font-bold text-center w-[60px]"
                 >
                   #
                 </th>
-                <th scope="col" class="px-4 py-2.5 font-bold">Equipment ID</th>
+                <th 
+                  scope="col" 
+                  class="px-4 py-2.5 font-bold w-[180px]"
+                >
+                  Equipment ID
+                </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-center">
                   Version
                 </th>
@@ -278,7 +283,7 @@
                     class="inline-block w-2 h-2 rounded-full flex-shrink-0"
                     :style="{ backgroundColor: stat.color }"
                   ></span>
-                  <span class="truncate">{{ stat.eqpId }}</span>
+                  <span class="truncate" :title="stat.eqpId">{{ stat.eqpId }}</span>
                 </td>
                 <td class="px-4 py-2 font-mono text-center text-slate-500">
                   <span
@@ -636,9 +641,12 @@ const processData = (data: ItmAgentDataDto[]) => {
     const color = colorPalette[idx % colorPalette.length] ?? '#888888';
     const version = eqpVersionMap.get(eqpId) || "Unknown";
     
+    // [수정] 버전 표시 포맷 변경 (괄호 제거 및 'v' 중복 방지)
+    const displayVersion = version.startsWith('v') ? version : `v${version}`;
+
     // Series
     series.push({
-      name: `${eqpId} (v${version})`,
+      name: `${eqpId} ${displayVersion}`, // "TEST01 v0.0.8.7" 형식
       type: "line",
       smooth: true,
       showSymbol: true, 
@@ -741,7 +749,9 @@ const chartOption = computed(() => {
         const sortedParams = [...params].sort((a, b) => (b.value[b.seriesName] || 0) - (a.value[a.seriesName] || 0));
         
         sortedParams.forEach((p: any) => {
-          const eqpIdMatch = p.seriesName.match(/^(.*) \(v.*\)$/);
+          // [수정] 범례 포맷 변경에 따른 ID 추출 정규식 수정
+          // 예: "TEST01 v0.0.8.7" -> 마지막 공백+v 이전까지를 ID로 간주
+          const eqpIdMatch = p.seriesName.match(/^(.*)\s(v.*)$/);
           const key = eqpIdMatch ? eqpIdMatch[1] : p.seriesName;
 
           const val = p.data[key];
