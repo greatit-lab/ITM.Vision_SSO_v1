@@ -220,6 +220,9 @@
                   #
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold">Equipment ID</th>
+                <th scope="col" class="px-4 py-2.5 font-bold text-center">
+                  Version
+                </th>
 
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
                   <div
@@ -276,6 +279,13 @@
                     :style="{ backgroundColor: stat.color }"
                   ></span>
                   <span class="truncate">{{ stat.eqpId }}</span>
+                </td>
+                <td class="px-4 py-2 font-mono text-center text-slate-500">
+                  <span
+                    class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[10px]"
+                  >
+                    {{ stat.version }}
+                  </span>
                 </td>
                 <td
                   class="px-4 py-2 font-mono font-bold text-right text-cyan-600 dark:text-cyan-400"
@@ -351,6 +361,7 @@ import Button from "primevue/button";
 
 interface EqpStat {
   eqpId: string;
+  version: string;
   color: string;
   max: number;
   avg: number;
@@ -428,7 +439,7 @@ onMounted(async () => {
       }
       
       // 6. 데이터 자동 검색 (SDWT만 있어도 검색 가능)
-      searchData();
+      // searchData();
     } else {
       filterStore.selectedSdwt = "";
       selectedEqpId.value = "";
@@ -554,12 +565,16 @@ const processData = (data: ItmAgentDataDto[]) => {
 
   // 1. 유효한 장비 목록 추출 (값이 있는 장비만)
   const activeEqpSet = new Set<string>();
+  const eqpVersionMap = new Map<string, string>();
   
   data.forEach(d => {
     const rawId = (d as any).eqpid ?? d.eqpId;
     const val = Number(d.memoryUsageMB) || 0;
     if (rawId && val > 0) {
       activeEqpSet.add(String(rawId));
+      if (d.agentVersion) {
+        eqpVersionMap.set(String(rawId), d.agentVersion);
+      }
     }
   });
 
@@ -576,8 +591,14 @@ const processData = (data: ItmAgentDataDto[]) => {
   // 2. Chart Data 변환 (Pivot by EqpId)
   const timeMap = new Map<string, any>();
   
-  data.forEach((d) => {
-    let tsKey = String(d.timestamp);
+    data.forEach((d) => {
+    let tsKey = "";
+    if ((d.timestamp as any) instanceof Date) {
+      tsKey = (d.timestamp as any).toISOString();
+    } else {
+      tsKey = String(d.timestamp);
+    }
+
     if (tsKey.includes('.')) {
       const parts = tsKey.split('.');
       if (parts[0]) tsKey = parts[0];
@@ -613,10 +634,11 @@ const processData = (data: ItmAgentDataDto[]) => {
 
   sortedEqps.forEach((eqpId, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? '#888888';
+    const version = eqpVersionMap.get(eqpId) || "Unknown";
     
     // Series
     series.push({
-      name: eqpId,
+      name: `${eqpId} (v${version})`,
       type: "line",
       smooth: true,
       showSymbol: true, 
@@ -659,6 +681,7 @@ const processData = (data: ItmAgentDataDto[]) => {
 
     stats.push({
       eqpId,
+      version,
       color,
       max,
       avg: pData.length > 0 ? sum / pData.length : 0,
@@ -718,7 +741,11 @@ const chartOption = computed(() => {
         const sortedParams = [...params].sort((a, b) => (b.value[b.seriesName] || 0) - (a.value[a.seriesName] || 0));
         
         sortedParams.forEach((p: any) => {
-          const val = p.value[p.seriesName];
+          const eqpIdMatch = p.seriesName.match(/^(.*) \(v.*\)$/);
+          const key = eqpIdMatch ? eqpIdMatch[1] : p.seriesName;
+
+          const val = p.data[key];
+
           if (val !== undefined && val !== null) {
             const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
             html += `<div class="flex justify-between items-center gap-4 text-xs">
@@ -737,11 +764,11 @@ const chartOption = computed(() => {
       right: 10,
       top: "middle",
       itemGap: 10,
-      textStyle: { color: textColor, fontSize: 11, width: 100, overflow: 'truncate' },
+      textStyle: { color: textColor, fontSize: 11, width: 120, overflow: 'truncate' },
       pageIconColor: textColor,
       pageTextStyle: { color: textColor },
     },
-    grid: { left: 50, right: 140, top: 30, bottom: 30 },
+    grid: { left: 50, right: 160, top: 30, bottom: 30 },
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
     dataset: { source: chartData.value },
     xAxis: {
