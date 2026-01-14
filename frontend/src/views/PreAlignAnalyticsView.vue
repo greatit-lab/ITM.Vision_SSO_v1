@@ -204,10 +204,9 @@ import {
 } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
-// [수정] equipmentApi 대신 getEqpIds 함수 직접 import
 import { getEqpIds } from "@/api/equipment";
-// [수정] preAlignApi -> getPreAlignData, PreAlignDataDto -> PreAlignData
-import { getPreAlignData, type PreAlignData } from "@/api/prealign";
+// [수정] httpData 직접 사용 (API 경로 보장을 위해)
+import httpData from "@/api/http-data";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
 
@@ -216,6 +215,15 @@ import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import ProgressSpinner from "primevue/progressspinner";
+
+// [수정] 백엔드 데이터 구조와 일치하는 인터페이스 정의
+interface PreAlignData {
+  timestamp: string;
+  eqpId: string;
+  xmm: number;
+  ymm: number;
+  notch: number;
+}
 
 // --- Store & Constants ---
 const authStore = useAuthStore();
@@ -291,7 +299,6 @@ onMounted(async () => {
         
         isEqpLoading.value = true;
         try {
-          // [수정] getEqpIds 객체 파라미터 전달
           eqpIds.value = await getEqpIds({
             sdwt: targetSdwt,
             type: "prealign"
@@ -370,7 +377,6 @@ const onSdwtChange = async () => {
   if (filter.sdwt) {
     isEqpLoading.value = true;
     try {
-      // [수정] getEqpIds 객체 파라미터 전달
       eqpIds.value = await getEqpIds({
         sdwt: filter.sdwt,
         type: "prealign"
@@ -397,15 +403,19 @@ const search = async () => {
   searchedEqpId.value = filter.eqpId;
 
   try {
-    // [수정] getPreAlignData 호출 및 파라미터 객체 전달
-    const res = await getPreAlignData({
-      eqpId: filter.eqpId,
-      startDate: filter.startDate.toISOString(),
-      endDate: filter.endDate.toISOString()
+    // [수정] BFF Controller 경로 /prealign/trend 직접 호출
+    const res = await httpData.get<PreAlignData[]>("/prealign/trend", {
+      params: {
+        site: filter.site,
+        sdwt: filter.sdwt,
+        eqpId: filter.eqpId,
+        startDate: filter.startDate.toISOString(),
+        endDate: filter.endDate.toISOString()
+      }
     });
     
-    // [수정] res.data 사용 및 안전 처리
-    chartData.value = res?.data || [];
+    // 데이터 바인딩
+    chartData.value = res.data || [];
   } catch (e) {
     console.error("Failed to load PreAlign data:", e);
     chartData.value = [];
@@ -472,6 +482,7 @@ const chartOption = computed(() => {
     ? "rgba(255, 255, 255, 0.1)"
     : "rgba(0, 0, 0, 0.1)";
 
+  // [수정] 백엔드 데이터(xmm, ymm, notch)를 차트 배열([time, val])로 매핑
   const xmmData = chartData.value.map((d) => [d.timestamp, d.xmm]);
   const ymmData = chartData.value.map((d) => [d.timestamp, d.ymm]);
   const notchData = chartData.value.map((d) => [d.timestamp, d.notch]);
@@ -560,8 +571,7 @@ const chartOption = computed(() => {
           padding: [0, 0, 0, -30],
         },
         position: "left",
-        min: -0.5,
-        max: 0.5,
+        // min, max 제거 (데이터에 맞춰 자동 스케일)
         axisLabel: { color: textColor, fontSize: 10 },
         splitLine: { lineStyle: { color: gridColor } },
         axisLine: { show: true, lineStyle: { color: gridColor } },
