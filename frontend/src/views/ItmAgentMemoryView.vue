@@ -121,7 +121,24 @@
     </div>
 
     <div
-      v-if="hasSearched"
+      v-if="isLoading"
+      class="flex flex-col items-center justify-center flex-1 space-y-4 min-h-[400px]"
+    >
+      <div class="relative">
+        <div
+          class="w-12 h-12 border-4 rounded-full border-slate-100 dark:border-zinc-800"
+        ></div>
+        <div
+          class="absolute top-0 left-0 w-12 h-12 border-4 rounded-full border-cyan-500 border-t-transparent animate-spin"
+        ></div>
+      </div>
+      <p class="text-xs font-bold text-slate-400 animate-pulse">
+        Analyzing Agent Memory...
+      </p>
+    </div>
+
+    <div
+      v-else-if="hasSearched"
       class="flex-1 flex flex-col gap-4 pb-2 min-h-0 animate-fade-in"
     >
       <div
@@ -141,13 +158,13 @@
 
         <div class="relative w-full flex-1 min-h-0">
           <EChart
-            v-if="!isLoading && chartData.length > 0"
+            v-if="chartData.length > 0"
             :option="chartOption"
             @chartCreated="onChartCreated"
           />
 
           <div
-            v-else-if="!isLoading && chartData.length === 0"
+            v-else
             class="absolute inset-0 flex flex-col items-center justify-center text-slate-400"
           >
             <i class="mb-2 text-2xl opacity-50 pi pi-info-circle"></i>
@@ -472,8 +489,15 @@ const onEqpIdChange = () => {
 const loadEqpIds = async () => {
   isEqpIdLoading.value = true;
   try {
-    // Only Agent Installed EQPs
-    eqpIds.value = await equipmentApi.getEqpIds(undefined, filterStore.selectedSdwt, "agent");
+    // [수정 TS2554] 인자 3개가 아닌 객체 형태 1개로 전달
+    // equipmentApi.getEqpIds(params: { site?, sdwt?, type? })
+    eqpIds.value = await equipmentApi.getEqpIds({ 
+      sdwt: filterStore.selectedSdwt, 
+      type: "agent" 
+    });
+  } catch (e) {
+    console.error("Failed to load Eqp IDs:", e);
+    eqpIds.value = [];
   } finally {
     isEqpIdLoading.value = false;
   }
@@ -483,7 +507,7 @@ const searchData = async () => {
   if (!filterStore.selectedSdwt) return;
   
   isLoading.value = true;
-  hasSearched.value = true;
+  hasSearched.value = true; // 검색 시작 시 true로 변경 (하지만 v-if="isLoading"이 우선)
   isZoomed.value = false;
 
   try {
@@ -565,13 +589,12 @@ const processData = (data: ItmAgentDataDto[]) => {
     const rawId = (d as any).eqpid ?? d.eqpId;
     const key = rawId ? String(rawId) : '';
     
-    // 활성화된 장비만 데이터 매핑
     if (key && activeEqpSet.has(key)) {
       timeMap.get(tsKey)![key] = Number(d.memoryUsageMB) || 0;
     }
   });
 
-  // 결측치 처리 (Chart 선 끊김 방지)
+  // 결측치 처리
   for (const item of timeMap.values()) {
     sortedEqps.forEach(eqpId => {
       if (item[eqpId] === undefined) {
@@ -596,16 +619,15 @@ const processData = (data: ItmAgentDataDto[]) => {
       name: eqpId,
       type: "line",
       smooth: true,
-      // [수정] showSymbol: true로 변경하여 포인트 표시
       showSymbol: true, 
-      symbolSize: 2, // ProcessMemoryView와 동일한 사이즈 2
+      symbolSize: 2, 
       itemStyle: { color: color },
       lineStyle: { width: 2 },
       encode: { x: "timestamp", y: eqpId },
       connectNulls: true, 
     });
 
-    // Stats
+    // Stats Calculation
     const pData = data.filter(d => {
       const rawId = (d as any).eqpid ?? d.eqpId;
       return String(rawId) === eqpId;
@@ -619,8 +641,19 @@ const processData = (data: ItmAgentDataDto[]) => {
 
     if (memValues.length > 0) {
       sum = memValues.reduce((a, b) => a + b, 0);
-      max = Math.max(...memValues);
-      const lastRecord = pData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+      // Stack Overflow 방지를 위해 reduce 사용
+      max = memValues.reduce((a, b) => Math.max(a, b), 0);
+
+      // [수정 TS18048] 'latest' undefined 가능성 해결
+      // pData[0]을 초기값으로 사용하되, 타입 단언(!)을 사용하거나 length 체크가 되어 있으므로 안전함
+      // 최신 데이터(Last Recorded) 찾기
+      const lastRecord = pData.reduce((latest, current) => {
+        // latest가 undefined일 수 있다는 에러 방지
+        const latestTime = new Date(latest.timestamp).getTime();
+        const currentTime = new Date(current.timestamp).getTime();
+        return currentTime > latestTime ? current : latest;
+      }, pData[0]!); // Non-null assertion (!)
+
       last = Number(lastRecord?.memoryUsageMB) || 0;
     }
 
@@ -634,7 +667,6 @@ const processData = (data: ItmAgentDataDto[]) => {
   });
 
   eqpSeries.value = series;
-  // Sort stats by Max usage descending
   eqpStats.value = stats.sort((a, b) => b.max - a.max);
 };
 
