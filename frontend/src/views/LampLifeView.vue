@@ -75,7 +75,7 @@
           class="!bg-amber-500 !border-amber-500 hover:!bg-amber-600 !w-8 !h-8 !text-xs"
           @click="fetchData"
           :loading="isLoading"
-          :disabled="!filter.site || !filter.sdwt"
+          :disabled="!filter.site"
         />
         <Button
           icon="pi pi-refresh"
@@ -239,7 +239,7 @@
         <div class="relative w-full flex-1 min-h-0">
           <DataTable
             :value="filteredLamps"
-            :paginator="false"
+            :paginator="false" 
             class="absolute inset-0 text-xs p-datatable-sm custom-header-group"
             stripedRows
             scrollable
@@ -286,11 +286,11 @@
               field="lastChanged"
               header="Last Changed"
               sortable
-              style="min-width: 120px"
+              style="min-width: 140px"
             >
               <template #body="{ data }">
                 <span class="font-mono text-slate-500">{{
-                  data.lastChanged || "-"
+                  formatDate(data.lastChanged)
                 }}</span>
               </template>
             </Column>
@@ -369,7 +369,6 @@
 import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
-// [변경] API 함수 import
 import { getLampLifeStatus, type LampLife } from "@/api/lamp";
 import EChart from "@/components/common/EChart.vue";
 
@@ -425,7 +424,6 @@ onMounted(async () => {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
-        fetchData();
       } else {
         filter.sdwt = "";
       }
@@ -441,14 +439,31 @@ onMounted(async () => {
       }
     });
   });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
 });
 
-onUnmounted(() => { if (themeObserver) themeObserver.disconnect(); });
+onUnmounted(() => {
+  if (themeObserver) themeObserver.disconnect();
+});
 
 // Watchers
-watch(() => filter.site, (newVal) => { if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal); else localStorage.removeItem(LS_KEYS.SITE); });
-watch(() => filter.sdwt, (newVal) => { if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal); else localStorage.removeItem(LS_KEYS.SDWT); });
+watch(
+  () => filter.site,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
+    else localStorage.removeItem(LS_KEYS.SITE);
+  }
+);
+watch(
+  () => filter.sdwt,
+  (newVal) => {
+    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
+    else localStorage.removeItem(LS_KEYS.SDWT);
+  }
+);
 
 // Handlers
 const onSiteChange = async () => {
@@ -460,18 +475,22 @@ const onSiteChange = async () => {
   filter.sdwt = "";
 };
 
-const onSdwtChange = () => { /* Persistence handled by watcher */ };
+const onSdwtChange = () => {
+  /* Persistence handled by watcher */
+};
 
 const setStatusFilter = (status: string | null) => {
   filter.status = filter.status === status ? null : status;
 };
 
-// [중요] API 호출 부분 수정
 const fetchData = async () => {
   isLoading.value = true;
   hasSearched.value = true;
   try {
-    const res = await getLampLifeStatus({ site: filter.site, sdwt: filter.sdwt }); // API 호출 변경
+    const res = await getLampLifeStatus({
+      site: filter.site,
+      sdwt: filter.sdwt,
+    });
     const rawData = res.data || [];
 
     allLamps.value = rawData.map((l: LampLife) => ({
@@ -504,6 +523,22 @@ const getStatus = (age: number, lifespan: number) => {
   return "Good";
 };
 
+// 날짜 포맷팅 함수
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 const filteredLamps = computed(() => {
   let data = [...allLamps.value];
   if (filter.status) {
@@ -522,7 +557,9 @@ const kpi = computed(() => {
 });
 
 const chartData = computed(() => {
-  return [...allLamps.value].sort((a, b) => b.usageRatio - a.usageRatio).slice(0, 10);
+  return [...allLamps.value]
+    .sort((a, b) => b.usageRatio - a.usageRatio)
+    .slice(0, 10);
 });
 
 const chartOption = computed(() => {
@@ -533,29 +570,125 @@ const chartOption = computed(() => {
 
   return {
     backgroundColor: "transparent",
-    tooltip: { trigger: "axis", formatter: (params: any) => { if (!params || !params[0]) return ""; const i = params[0].dataIndex; const item = data[i]; if (!item) return ""; return `<div class="font-bold mb-1">${item.eqpId} <span style="font-weight:normal; opacity:0.7">(${item.lampId})</span></div><div class="text-xs">Age: ${item.ageHour} / ${item.lifespanHour} hrs</div><div class="text-xs font-bold mt-1">Ratio: ${item.usageRatio.toFixed(2)}%</div>`; } },
+    tooltip: {
+      trigger: "axis",
+      formatter: (params: any) => {
+        if (!params || !params[0]) return "";
+        const i = params[0].dataIndex;
+        const item = data[i];
+        if (!item) return "";
+        return `<div class="font-bold mb-1">${item.eqpId} <span style="font-weight:normal; opacity:0.7">(${item.lampId})</span></div><div class="text-xs">Age: ${item.ageHour} / ${item.lifespanHour} hrs</div><div class="text-xs font-bold mt-1">Ratio: ${item.usageRatio.toFixed(2)}%</div>`;
+      },
+    },
     grid: { containLabel: true, left: "2%", right: "5%", top: 10, bottom: 10 },
-    xAxis: { type: "value", min: (value: any) => Math.max(0, Math.floor(value.min - 5)), axisLabel: { color: textColor, fontSize: 10, formatter: "{value}%" }, splitLine: { show: false } },
-    yAxis: { type: "category", data: categories, axisLabel: { color: textColor, fontSize: 10, align: "right", margin: 10 }, inverse: true, axisLine: { show: false }, axisTick: { show: false } },
-    series: [{ type: "bar", data: values, barWidth: 20, itemStyle: { borderRadius: [0, 4, 4, 0], color: (params: any) => { const val = params.value; if (val >= 95) return "#f43f5e"; if (val >= 80) return "#f59e0b"; return "#10b981"; } }, label: { show: true, position: "insideRight", formatter: (params: any) => `${params.value.toFixed(2)}%`, fontSize: 10, color: "#fff", fontWeight: "bold", padding: [0, 5, 0, 0] } }]
+    xAxis: {
+      type: "value",
+      min: (value: any) => Math.max(0, Math.floor(value.min - 5)),
+      axisLabel: { color: textColor, fontSize: 10, formatter: "{value}%" },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: "category",
+      data: categories,
+      axisLabel: {
+        color: textColor,
+        fontSize: 10,
+        align: "right",
+        margin: 10,
+      },
+      inverse: true,
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    series: [
+      {
+        type: "bar",
+        data: values,
+        barWidth: 20,
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: (params: any) => {
+            const val = params.value;
+            if (val >= 95) return "#f43f5e";
+            if (val >= 80) return "#f59e0b";
+            return "#10b981";
+          },
+        },
+        label: {
+          show: true,
+          position: "insideRight",
+          formatter: (params: any) => `${params.value.toFixed(2)}%`,
+          fontSize: 10,
+          color: "#fff",
+          fontWeight: "bold",
+          padding: [0, 5, 0, 0],
+        },
+      },
+    ],
   };
 });
 
-const getProgressColor = (ratio: number) => { if (ratio >= 95) return "bg-rose-500"; if (ratio >= 80) return "bg-amber-500"; return "bg-emerald-500"; };
-const getStatusBadgeClass = (status: string) => { switch (status) { case "Critical": return "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-900/30"; case "Warning": return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30"; case "Good": return "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30"; default: return "bg-slate-100 text-slate-500 border-slate-200"; } };
+const getProgressColor = (ratio: number) => {
+  if (ratio >= 95) return "bg-rose-500";
+  if (ratio >= 80) return "bg-amber-500";
+  return "bg-emerald-500";
+};
+
+const getStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case "Critical":
+      return "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-900/30";
+    case "Warning":
+      return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30";
+    case "Good":
+      return "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30";
+    default:
+      return "bg-slate-100 text-slate-500 border-slate-200";
+  }
+};
 </script>
 
 <style scoped>
 /* Style unchanged */
-:deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0; }
-:deep(.p-datatable-tbody > tr > td) { @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
-:deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
-:deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
-:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
-:deep(.custom-dropdown.small) { @apply h-7; }
-:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
-:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
-:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
-.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+:deep(.p-datatable-thead > tr > th) {
+  @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0;
+}
+:deep(.p-datatable-tbody > tr > td) {
+  @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50;
+}
+:deep(.dark .p-datatable-tbody > tr:hover) {
+  @apply !bg-[#27272a] !text-white;
+}
+:deep(.p-select),
+:deep(.custom-dropdown) {
+  @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
+}
+:deep(.custom-dropdown .p-select-label) {
+  @apply text-[13px] py-[5px] px-3;
+}
+:deep(.custom-dropdown.small) {
+  @apply h-7;
+}
+:deep(.custom-dropdown:hover) {
+  @apply !bg-slate-200 dark:!bg-zinc-800;
+}
+:deep(.p-select-dropdown) {
+  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
+}
+:deep(.p-select-dropdown svg) {
+  @apply w-3 h-3;
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 </style>
