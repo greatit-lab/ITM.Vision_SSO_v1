@@ -20,9 +20,11 @@
           <Select v-model="filter.sdwt" :options="sdwts" placeholder="SDWT" :disabled="!filter.site" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" showClear @change="onSdwtChange" />
         </div>
         <div class="min-w-[160px] shrink-0">
-          <Select v-model="filter.eqpId" :options="eqpIds" filter placeholder="EQP ID" :disabled="!filter.sdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
+          <Select v-model="filter.eqpId" :options="eqpIds" filter placeholder="EQP ID" :disabled="!filter.sdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onEqpIdChange" />
         </div>
+
         <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
+
         <div class="min-w-[150px] shrink-0">
           <DatePicker v-model="filter.startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start Date" class="w-full custom-dropdown small date-picker" />
         </div>
@@ -30,13 +32,22 @@
           <DatePicker v-model="filter.endDate" showIcon dateFormat="yy-mm-dd" placeholder="End Date" class="w-full custom-dropdown small date-picker" />
         </div>
       </div>
+
       <div class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800">
-        <Button icon="pi pi-search" rounded class="!bg-rose-500 !border-rose-500 hover:!bg-rose-600 !w-8 !h-8 !text-xs" @click="search" :loading="isLoading" :disabled="!filter.sdwt || !filter.startDate || !filter.endDate" />
+        <Button icon="pi pi-search" rounded class="!bg-rose-500 !border-rose-500 hover:!bg-rose-600 !w-8 !h-8 !text-xs" @click="search" :disabled="!filter.sdwt || !filter.startDate || !filter.endDate || isLoading" />
         <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.left="'Reset'" @click="reset" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors" />
       </div>
     </div>
 
-    <div v-if="hasSearched" class="flex flex-col flex-1 min-h-0 gap-4 pb-2 overflow-hidden animate-fade-in">
+    <div v-if="hasSearched" class="flex flex-col flex-1 min-h-0 gap-4 pb-2 overflow-hidden animate-fade-in relative">
+      <div v-if="isLoading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-xl border border-transparent">
+        <div class="relative">
+          <div class="w-10 h-10 border-4 rounded-full border-slate-100 dark:border-zinc-800"></div>
+          <div class="absolute top-0 left-0 w-10 h-10 border-4 rounded-full border-rose-500 border-t-transparent animate-spin"></div>
+        </div>
+        <p class="mt-3 text-xs font-bold text-slate-500 animate-pulse">Loading Alert History...</p>
+      </div>
+
       <div class="grid grid-cols-1 gap-4 md:grid-cols-3 shrink-0">
         <div class="relative p-4 overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl group">
           <div class="absolute right-0 top-0 w-24 h-24 bg-rose-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
@@ -217,6 +228,25 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
+// [추가] 날짜 자동 보정 로직
+watch(
+  [() => filter.startDate, () => filter.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           filter.endDate = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           filter.startDate = new Date(newEnd);
+        }
+      }
+    }
+  }
+);
+
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   let targetSite = localStorage.getItem(LS_KEYS.SITE) || authStore.user?.site || "";
@@ -247,10 +277,34 @@ watch(() => filter.site, (n) => n ? localStorage.setItem(LS_KEYS.SITE, n) : loca
 watch(() => filter.sdwt, (n) => n ? localStorage.setItem(LS_KEYS.SDWT, n) : localStorage.removeItem(LS_KEYS.SDWT));
 watch(() => filter.eqpId, (n) => n ? localStorage.setItem(LS_KEYS.EQPID, n) : localStorage.removeItem(LS_KEYS.EQPID));
 
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
+
+const resetView = () => {
+  hasSearched.value = false;
+  summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
+  trendData.value = [];
+  logs.value = [];
+};
+
 const onSiteChange = async () => {
   if (filter.site) sdwts.value = await dashboardApi.getSdwts(filter.site);
   else sdwts.value = [];
-  filter.sdwt = ""; filter.eqpId = ""; eqpIds.value = [];
+  filter.sdwt = ""; 
+  filter.eqpId = ""; 
+  eqpIds.value = [];
+  resetView();
 };
 
 const onSdwtChange = async () => {
@@ -260,22 +314,24 @@ const onSdwtChange = async () => {
     eqpIds.value = [];
   }
   filter.eqpId = "";
+  resetView();
 };
 
-const toLocalISOString = (date: Date) => {
-  const offset = date.getTimezoneOffset() * 60000;
-  const localDate = new Date(date.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+const onEqpIdChange = () => {
+  resetView();
 };
 
 const getEffectiveParams = () => {
-  let start = filter.startDate;
-  let end = filter.endDate;
+  // [수정] toLocalISOString 사용하여 시차 보정
+  let startStr = toLocalISOString(filter.startDate);
+  let endStr = toLocalISOString(filter.endDate, true); // Full Day
   let eqps = filter.eqpId;
 
   if (gridFilter.date) {
-    start = new Date(gridFilter.date); start.setHours(0, 0, 0, 0);
-    end = new Date(gridFilter.date); end.setHours(23, 59, 59, 999);
+    // 드릴다운 시 해당 날짜의 전체 범위
+    const d = new Date(gridFilter.date);
+    startStr = toLocalISOString(d);
+    endStr = toLocalISOString(d, true);
   }
   
   if (gridFilter.eqpId) {
@@ -286,8 +342,8 @@ const getEffectiveParams = () => {
     site: filter.site, 
     sdwt: filter.sdwt, 
     eqpId: eqps,
-    startDate: start ? toLocalISOString(start) : "", 
-    endDate: end ? toLocalISOString(end) : "" 
+    startDate: startStr, 
+    endDate: endStr 
   };
 };
 
@@ -295,8 +351,11 @@ const search = async () => {
   if (!filter.startDate || !filter.endDate) return;
   gridFilter.date = null;
   gridFilter.eqpId = null;
-  isLoading.value = true;
+  
+  // [수정] 차트 영역 먼저 표시 후 로딩 오버레이
   hasSearched.value = true;
+  isLoading.value = true;
+  
   first.value = 0;
   logs.value = [];
   summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
@@ -343,9 +402,7 @@ const loadGridData = async () => {
   try {
     const params = { 
         ...getEffectiveParams(), 
-        // [핵심 수정] page는 0부터 시작 (백엔드 로직: page * pageSize)
         page: Math.floor(first.value / rowsPerPage.value), 
-        // [핵심 수정] limit -> pageSize 파라미터명 변경 (백엔드와 일치)
         pageSize: rowsPerPage.value 
     };
     const res = await getErrorLogs(params);
@@ -395,10 +452,11 @@ const nextPage = () => { if (first.value + rowsPerPage.value < totalRecords.valu
 const lastPage = () => { first.value = Math.floor(Math.max(totalRecords.value - 1, 0) / rowsPerPage.value) * rowsPerPage.value; loadGridData(); };
 
 const reset = () => {
-  hasSearched.value = false; filter.site = ""; filter.sdwt = ""; filter.eqpId = ""; filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); filter.endDate = new Date();
+  resetView();
+  filter.site = ""; filter.sdwt = ""; filter.eqpId = ""; 
+  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); 
+  filter.endDate = new Date();
   gridFilter.date = null; gridFilter.eqpId = null; sdwts.value = []; eqpIds.value = [];
-  summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
-  trendData.value = []; logs.value = [];
 };
 
 const trendOption = computed(() => {
