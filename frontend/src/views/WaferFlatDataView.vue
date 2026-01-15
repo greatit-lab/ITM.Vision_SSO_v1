@@ -147,6 +147,7 @@
           </div>
         </div>
       </div>
+      
       <div class="w-[450px] shrink-0 flex flex-col gap-4 h-full">
         <div class="h-[420px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-7 overflow-hidden">
           <div class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center"><i class="pi pi-image mr-2 text-teal-500"></i> Wafer Map</div>
@@ -163,11 +164,11 @@
               </div>
             </transition>
             <transition name="fade">
-              <img v-if="pdfImageUrl && !isImageLoading" :src="pdfImageUrl" class="absolute inset-0 w-full h-full object-contain rounded-full" />
+              <img v-if="pdfImageUrl && !isImageLoading" :src="pdfImageUrl" class="absolute inset-0 w-full h-full object-contain" alt="Wafer Map" />
             </transition>
-            <div v-if="pdfImageUrl && selectedPointIdx !== -1" class="absolute inset-0 pointer-events-none rounded-full overflow-hidden">
-              <div class="absolute top-0 bottom-0 left-1/2 w-px bg-red-500 transform -translate-x-1/2"></div>
-              <div class="absolute left-0 right-0 top-1/2 h-px bg-red-500 transform -translate-y-1/2"></div>
+            <div v-if="pdfImageUrl && selectedPointIdx !== -1" class="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-10">
+              <div class="absolute top-0 bottom-0 left-1/2 w-px bg-red-500 transform -translate-x-1/2 opacity-70"></div>
+              <div class="absolute left-0 right-0 top-1/2 h-px bg-red-500 transform -translate-y-1/2 opacity-70"></div>
             </div>
           </div>
           <div v-if="pdfExists && selectedPointIdx !== -1" class="absolute bottom-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md font-mono shadow-lg border border-white/10 z-30">{{ selectedRow?.lotId }} W{{ selectedRow?.waferId }} #{{ selectedPointValue }}</div>
@@ -238,6 +239,18 @@ const filters = reactive({
   cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
 });
 
+watch(() => filters.startDate, (newStartDate) => {
+  if (newStartDate && filters.endDate && newStartDate > filters.endDate) {
+    filters.endDate = newStartDate;
+  }
+});
+
+watch(() => filters.endDate, (newEndDate) => {
+  if (newEndDate && filters.startDate && newEndDate < filters.startDate) {
+    filters.startDate = newEndDate;
+  }
+});
+
 const eqpIds = ref<string[]>([]);
 const isEqpLoading = ref(false);
 const lotIds = ref<string[]>([]);
@@ -276,11 +289,9 @@ let themeObserver: MutationObserver | null = null;
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
-// [수정] TS2532 오류 해결: 지역 변수 할당으로 타입 추론 강화
+// TS2532 오류 해결
 const availableStatFields = computed(() => {
   const pd = pointData.value;
-  // pd 또는 pd.headers가 없으면 빈 배열 반환
-  // statistics.value가 없어도 pd가 있다면 헤더 추출 가능 (더 유연하게 변경)
   if (!pd || !pd.headers) return [];
   
   const excludedHeaders = [
@@ -290,13 +301,12 @@ const availableStatFields = computed(() => {
     'dienum', 'diepointtag'
   ];
   
-  // pd가 null이 아님을 보장한 상태에서 접근
   return pd.headers.filter(header => 
     !excludedHeaders.includes(header.toLowerCase())
   );
 });
 
-// [수정] TS2532 오류 해결: 지역 변수 할당 및 null 체크 강화
+// TS2532 오류 해결
 const calculateColumnPrecisions = () => {
   const pd = pointData.value;
   if (!pd || !Array.isArray(pd.headers) || !Array.isArray(pd.data)) {
@@ -427,18 +437,59 @@ const spectrumOption = computed(() => {
   };
 });
 
+// [수정] onSiteChange - 사이트 변경 시 하위 필터 모두 초기화
 const onSiteChange = async () => {
-  if (filterStore.selectedSite) { localStorage.setItem("wafer_site", filterStore.selectedSite); sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite); }
-  else { localStorage.removeItem("wafer_site"); sdwts.value = []; }
-  filterStore.selectedSdwt = ""; localStorage.removeItem("wafer_sdwt"); localStorage.removeItem("wafer_eqpid"); filters.eqpId = ""; filters.lotId = ""; filters.waferId = "";
-  filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
+  if (filterStore.selectedSite) { 
+    localStorage.setItem("wafer_site", filterStore.selectedSite); 
+    sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite); 
+  } else { 
+    localStorage.removeItem("wafer_site"); 
+    sdwts.value = []; 
+  }
+  // 하위 필터 초기화
+  filterStore.selectedSdwt = ""; 
+  localStorage.removeItem("wafer_sdwt"); 
+  localStorage.removeItem("wafer_eqpid"); 
+  filters.eqpId = ""; 
+  filters.lotId = ""; 
+  filters.waferId = "";
+  // 상세 필터 초기화
+  filters.cassetteRcp = ""; 
+  filters.stageGroup = ""; 
+  filters.film = "";
+  
+  eqpIds.value = [];
+  lotIds.value = [];
+  waferIds.value = [];
+  cassetteRcps.value = [];
+  stageGroups.value = [];
+  films.value = [];
 };
 
+// [수정] onSdwtChange - SDWT 변경 시 하위 필터 모두 초기화
 const onSdwtChange = () => {
-  if (filterStore.selectedSdwt) { localStorage.setItem("wafer_sdwt", filterStore.selectedSdwt); loadEqpIds(); }
-  else { localStorage.removeItem("wafer_sdwt"); eqpIds.value = []; }
-  localStorage.removeItem("wafer_eqpid"); filters.eqpId = ""; filters.lotId = ""; filters.waferId = "";
-  filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
+  if (filterStore.selectedSdwt) { 
+    localStorage.setItem("wafer_sdwt", filterStore.selectedSdwt); 
+    loadEqpIds(); 
+  } else { 
+    localStorage.removeItem("wafer_sdwt"); 
+    eqpIds.value = []; 
+  }
+  // 하위 필터 초기화
+  localStorage.removeItem("wafer_eqpid"); 
+  filters.eqpId = ""; 
+  filters.lotId = ""; 
+  filters.waferId = "";
+  // 상세 필터 초기화
+  filters.cassetteRcp = ""; 
+  filters.stageGroup = ""; 
+  filters.film = "";
+  
+  lotIds.value = [];
+  waferIds.value = [];
+  cassetteRcps.value = [];
+  stageGroups.value = [];
+  films.value = [];
 };
 
 const loadEqpIds = async () => {
@@ -449,20 +500,58 @@ const loadEqpIds = async () => {
   } finally { isEqpLoading.value = false; }
 };
 
+// [수정] onEqpChange - 장비 변경 시 하위 필터 모두 초기화
 const onEqpChange = () => {
-  if (filters.eqpId) { localStorage.setItem("wafer_eqpid", filters.eqpId); filters.lotId = ""; filters.waferId = ""; loadFilterOptions(); }
-  else { localStorage.removeItem("wafer_eqpid"); filters.lotId = ""; filters.waferId = ""; }
-  filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
+  if (filters.eqpId) { 
+    localStorage.setItem("wafer_eqpid", filters.eqpId); 
+    filters.lotId = ""; 
+    filters.waferId = ""; 
+    // 상세 필터 초기화
+    filters.cassetteRcp = ""; 
+    filters.stageGroup = ""; 
+    filters.film = "";
+    loadFilterOptions(); 
+  } else { 
+    localStorage.removeItem("wafer_eqpid"); 
+    filters.lotId = ""; 
+    filters.waferId = ""; 
+    filters.cassetteRcp = ""; 
+    filters.stageGroup = ""; 
+    filters.film = "";
+    
+    lotIds.value = [];
+    waferIds.value = [];
+    cassetteRcps.value = [];
+    stageGroups.value = [];
+    films.value = [];
+  }
 };
 
-const onLotChange = () => { filters.waferId = ""; if (filters.lotId) loadFilterOptions(); };
+// [수정] onLotChange - Lot 변경 시 하위 및 상세 필터 초기화
+const onLotChange = () => { 
+  filters.waferId = ""; 
+  // 상세 필터 초기화 (사용자 요청 사항)
+  filters.cassetteRcp = "";
+  filters.stageGroup = "";
+  filters.film = "";
+  
+  if (filters.lotId) {
+    loadFilterOptions(); 
+  } else {
+    // Lot ID가 비워지면 Wafer 목록 등도 갱신 필요할 수 있음 (선택 사항, 보통은 그대로 유지하거나 초기화)
+    // 여기서는 기존 loadFilterOptions을 호출하여 가능한 옵션 재로딩
+    loadFilterOptions();
+  }
+};
 
+// [수정] onCassetteRcpChange - 하위 상세 필터 초기화
 const onCassetteRcpChange = () => {
   filters.stageGroup = "";
   filters.film = "";
   loadFilterOptions();
 };
 
+// [수정] onStageGroupChange - 하위 상세 필터 초기화
 const onStageGroupChange = () => {
   filters.film = "";
   loadFilterOptions();
@@ -516,7 +605,12 @@ const resetDetails = () => {
   isImageLoading.value = false;
   isSpectrumLoading.value = false;
   pdfExists.value = false;
+  
+  if (pdfImageUrl.value && pdfImageUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(pdfImageUrl.value);
+  }
   pdfImageUrl.value = null;
+  
   selectedPointIdx.value = -1;
   selectedPointValue.value = "";
   statistics.value = null;
@@ -540,11 +634,12 @@ const onRowSelect = async (event: any) => {
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
     
+    // [수정] PDF 체크 시 dateTime을 우선으로 전달
     const pdfRes = await waferApi.checkPdf({
         eqpId: row.eqpId,
         lotId: row.lotId,
         waferId: row.waferId,
-        servTs: row.servTs
+        dateTime: row.dateTime // servTs -> dateTime 변경
     });
     pdfExists.value = pdfRes.exists;
 
@@ -563,6 +658,7 @@ watch(selectedRow, (newVal) => {
 
 const loadPointImage = async (pointValue: number) => {
   if (!pdfExists.value || !selectedRow.value) return;
+  
   isImageLoading.value = true; pdfImageUrl.value = null;
   try {
     const res = await waferApi.getPdfImage({
@@ -572,8 +668,28 @@ const loadPointImage = async (pointValue: number) => {
         dateTime: selectedRow.value.dateTime,
         pointNumber: pointValue
     });
-    pdfImageUrl.value = `data:image/png;base64,${res.image}`;
-  } catch (error) { pdfImageUrl.value = null; } finally { isImageLoading.value = false; }
+    
+    console.log("PDF Image Response:", res); // 디버깅용
+
+    // [핵심 수정] 응답이 문자열이든 객체든 처리 가능하도록 수정
+    let base64Image = "";
+    if (typeof res === 'string') {
+        base64Image = res;
+    } else if (res && (res as any).image) {
+        base64Image = (res as any).image;
+    }
+
+    if (base64Image) {
+        // 중복 prefix 제거 후 적용
+        const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+        pdfImageUrl.value = `data:image/png;base64,${cleanBase64}`;
+    }
+  } catch (error) { 
+      console.error("Failed to load PDF Image:", error);
+      pdfImageUrl.value = null; 
+  } finally { 
+      isImageLoading.value = false; 
+  }
 };
 
 const loadSpectrumData = async (pointValue: number) => {
@@ -634,18 +750,18 @@ const resetFilters = () => {
   resetDetails(); 
 };
 
-// [수정] UTC 기준 표시(getUTC...)를 로컬 시간 기준 표시(get...)로 변경
+// [2. 수정] UTC 시간(ISO String의 Z)을 무시하고 숫자를 그대로 가져와 DB 원본과 동일하게 표시
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   
-  // 기존 getUTC* 메서드 대신 로컬 시간대 메서드 사용
-  const year = d.getFullYear().toString().slice(2);
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const seconds = String(d.getSeconds()).padStart(2, "0");
+  // getUTC* 메서드를 사용하여 로컬 시간대 변환 없이 원본 숫자 추출
+  const year = d.getUTCFullYear().toString().slice(2);
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const hours = String(d.getUTCHours()).padStart(2, "0");
+  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(d.getUTCSeconds()).padStart(2, "0");
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
@@ -676,4 +792,3 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
-
