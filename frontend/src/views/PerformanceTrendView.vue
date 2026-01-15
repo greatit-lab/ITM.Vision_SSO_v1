@@ -178,8 +178,25 @@
 
     <div
       v-if="hasSearched"
-      class="flex flex-col flex-1 min-h-0 gap-3 pb-2 animate-fade-in"
+      class="flex flex-col flex-1 min-h-0 gap-3 pb-2 animate-fade-in relative"
     >
+      <div
+        v-if="isLoading"
+        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-transparent"
+      >
+        <div class="relative">
+          <div
+            class="w-12 h-12 border-4 rounded-full border-slate-100 dark:border-zinc-800"
+          ></div>
+          <div
+            class="absolute top-0 left-0 w-12 h-12 border-4 rounded-full border-teal-500 border-t-transparent animate-spin"
+          ></div>
+        </div>
+        <p class="mt-4 text-xs font-bold text-slate-500 animate-pulse">
+          Analyzing Lot Data...
+        </p>
+      </div>
+
       <div
         class="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 lg:grid-rows-2"
       >
@@ -441,7 +458,6 @@ import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
-// [수정] performanceApi 객체로 import
 import {
   performanceApi,
   type PerformanceDataPointDto,
@@ -507,6 +523,15 @@ const intervalOptions = [
   { label: "1 Min", value: 60 },
   { label: "5 Min", value: 300 },
 ];
+
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결)
+const toLocalISOString = (date: Date) => {
+  if (!date) return ""; 
+  const d = new Date(date);
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -583,7 +608,11 @@ const onSiteChange = async () => {
   selectedEqpId.value = "";
   localStorage.removeItem("performance_eqpid");
   eqpIds.value = [];
+  
+  // [수정] 사이트 변경 시 화면 초기화
   hasSearched.value = false;
+  chartData.value = [];
+  summaryData.value = [];
 };
 
 const onSdwtChange = async () => {
@@ -597,6 +626,11 @@ const onSdwtChange = async () => {
 
   selectedEqpId.value = "";
   localStorage.removeItem("performance_eqpid");
+  
+  // [수정] SDWT 변경 시 화면 초기화
+  hasSearched.value = false;
+  chartData.value = [];
+  summaryData.value = [];
 };
 
 const onEqpIdChange = () => {
@@ -605,6 +639,11 @@ const onEqpIdChange = () => {
   } else {
     localStorage.removeItem("performance_eqpid");
   }
+  
+  // [핵심] EQP ID 변경 시 조회 전 상태로 화면 초기화
+  hasSearched.value = false;
+  chartData.value = [];
+  summaryData.value = [];
 };
 
 const resetFilters = () => {
@@ -623,16 +662,19 @@ const resetFilters = () => {
   summaryData.value = [];
   hasSearched.value = false;
   intervalSeconds.value = 0;
+  
+  // 날짜 초기화
+  endDate.value = new Date();
+  startDate.value = new Date(Date.now() - 24 * 60 * 60 * 1000);
 };
 
 const loadEqpIds = async () => {
   isEqpLoading.value = true;
   try {
-    // [수정] 속성명을 'feature' -> 'type'으로 변경
     eqpIds.value = await equipmentApi.getEqpIds({
       site: filterStore.selectedSite || undefined,
       sdwt: filterStore.selectedSdwt,
-      type: "performance", // 여기가 수정됨
+      type: "performance", 
     });
   } catch (e) {
     console.error("Failed to load EQP IDs", e);
@@ -1004,18 +1046,23 @@ const updateRealtimeDates = () => {
 
 const searchData = async (silent = false) => {
   if (!selectedEqpId.value) return;
-  if (!silent) isLoading.value = true;
+  
+  // [수정] 차트 영역을 먼저 보여주고, 로딩 오버레이를 띄움
   hasSearched.value = true;
+  if (!silent) isLoading.value = true;
+
+  // 데이터 초기화 (이전 데이터 잔상 방지)
+  chartData.value = [];
+  summaryData.value = [];
 
   try {
-    const fixedStart = new Date(startDate.value);
-    fixedStart.setMinutes(0, 0, 0);
-
-    const fixedEnd = new Date(endDate.value);
-    fixedEnd.setMinutes(59, 59, 999);
+    const startStr = toLocalISOString(startDate.value) || "";
+    const endStr = toLocalISOString(endDate.value) || "";
 
     let fetchInterval = 60;
 
+    const fixedStart = new Date(startDate.value);
+    const fixedEnd = new Date(endDate.value);
     const diffMs = fixedEnd.getTime() - fixedStart.getTime();
     const diffDays = diffMs / (1000 * 3600 * 24);
 
@@ -1029,12 +1076,9 @@ const searchData = async (silent = false) => {
       else fetchInterval = 1800;
     }
 
-    // [수정] performanceApi.getHistory 호출 (import 에러 해결)
     const rawData = await performanceApi.getHistory(
-      isRealtime.value
-        ? startDate.value.toISOString()
-        : fixedStart.toISOString(),
-      isRealtime.value ? endDate.value.toISOString() : fixedEnd.toISOString(),
+      startStr,
+      endStr,
       [selectedEqpId.value],
       fetchInterval
     );
