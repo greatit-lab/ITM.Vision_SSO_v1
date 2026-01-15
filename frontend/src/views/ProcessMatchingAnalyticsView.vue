@@ -30,10 +30,10 @@
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
         <div class="min-w-[140px] shrink-0">
-          <DatePicker v-model="filters.startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!refEqpId" @update:model-value="onDateChange" />
+          <DatePicker v-model="filters.startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!refEqpId" />
         </div>
         <div class="min-w-[140px] shrink-0">
-          <DatePicker v-model="filters.endDate" showIcon dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!refEqpId" @update:model-value="onDateChange" />
+          <DatePicker v-model="filters.endDate" showIcon dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!refEqpId" />
         </div>
       </div>
 
@@ -289,18 +289,34 @@ const isListVisible = computed(() => {
   return true;
 });
 
-// [추가] 날짜 자동 보정 로직
-watch(() => filters.startDate, (newStart) => {
-  if (newStart && filters.endDate && newStart > filters.endDate) {
-    filters.endDate = new Date(newStart);
-  }
-});
+// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+watch(
+  [() => filters.startDate, () => filters.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
 
-watch(() => filters.endDate, (newEnd) => {
-  if (newEnd && filters.startDate && newEnd < filters.startDate) {
-    filters.startDate = new Date(newEnd);
+      // 보정 로직
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
+           filters.endDate = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
+           filters.startDate = new Date(newEnd);
+        }
+        return; // 보정 발생 시 로딩 중단
+      }
+    }
+
+    // 유효한 날짜 범위일 때만 데이터 로드
+    if (refEqpId.value) {
+      resetConditions();
+      loadOptions();
+    }
   }
-});
+);
 
 // [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
 // isEndDate = true 이면 23:59:59.999 로 설정
@@ -416,13 +432,6 @@ const onRefEqpChange = async () => {
     await loadOptions();
   } else {
     localStorage.removeItem("match_eqp");
-  }
-};
-
-const onDateChange = async () => {
-  if (refEqpId.value) {
-    resetConditions();
-    await loadOptions();
   }
 };
 
@@ -626,6 +635,9 @@ const resetFilters = () => {
   localStorage.removeItem("match_site");
   localStorage.removeItem("match_sdwt");
   localStorage.removeItem("match_eqp");
+  
+  filters.startDate = new Date(Date.now() - 7 * 864e5);
+  filters.endDate = new Date();
 };
 
 const getBasicStats = (points: number[][]) => {
@@ -1004,15 +1016,18 @@ const scatterOption = computed(() => {
     transform: translateY(0);
   }
 }
-</style>
 
-<style>
-.custom-dropdown-panel.small .p-select-option {
-  padding: 6px 10px !important;
-  font-size: 11px !important;
+/* PrimeVue DataTable Custom */
+:deep(.p-datatable-thead > tr > th) {
+  @apply bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-slate-400 !py-2 !text-[11px] font-extrabold uppercase;
 }
-.custom-dropdown-panel.small .p-select-empty-message {
-  padding: 6px 10px !important;
-  font-size: 11px !important;
+:deep(.p-datatable-tbody > tr > td) {
+  @apply !py-1.5 !text-[11px] text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800;
+}
+:deep(.p-datatable-tbody > tr:hover) {
+  @apply bg-indigo-50/50 dark:bg-indigo-900/20 cursor-pointer;
+}
+:deep(.p-datatable-tbody > tr.p-highlight) {
+  @apply bg-amber-50 dark:bg-amber-900/20 !text-slate-900 dark:!text-white;
 }
 </style>
