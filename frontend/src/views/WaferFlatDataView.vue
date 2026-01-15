@@ -289,10 +289,20 @@ let themeObserver: MutationObserver | null = null;
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
-// [추가] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 문제 해결)
-const toLocalISOString = (date: Date) => {
-  const offset = date.getTimezoneOffset() * 60000;
-  const localDate = new Date(date.getTime() - offset);
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+// isEndDate = true 이면 23:59:59.999 로 설정
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return undefined;
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
@@ -532,7 +542,7 @@ const onEqpChange = () => {
   }
 };
 
-// [수정] onLotChange - Lot 변경 시 Wafer 로드 및 상세 필터(Cassette/Stage/Film) 재로드
+// [수정] onLotChange - Lot 변경 시 Wafer 로드 (Cassette/Stage 리셋 방지)
 const onLotChange = () => { 
   filters.waferId = ""; 
   
@@ -603,7 +613,7 @@ const loadLotOptions = async () => {
   const params = { 
     eqpId: filters.eqpId, 
     startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-    endDate: filters.endDate ? toLocalISOString(filters.endDate) : undefined, 
+    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
   };
   try {
     const lots = await waferApi.getDistinctValues("lotids", params);
@@ -618,7 +628,7 @@ const loadCassetteOptions = async () => {
     eqpId: filters.eqpId, 
     lotId: filters.lotId, // [핵심] Lot ID 포함
     startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-    endDate: filters.endDate ? toLocalISOString(filters.endDate) : undefined, 
+    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
   };
   try {
     const cRcps = await waferApi.getDistinctValues("cassettercps", params);
@@ -633,7 +643,7 @@ const loadWaferOptions = async () => {
         eqpId: filters.eqpId,
         lotId: filters.lotId,
         startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-        endDate: filters.endDate ? toLocalISOString(filters.endDate) : undefined, 
+        endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
     };
     try {
         const wafers = await waferApi.getDistinctValues("waferids", params);
@@ -646,10 +656,10 @@ const loadStageOptions = async () => {
     if (!filters.eqpId || !filters.cassetteRcp) return;
     const params = {
         eqpId: filters.eqpId,
-        lotId: filters.lotId, // [핵심] Lot ID 포함
+        lotId: filters.lotId,
         cassetteRcp: filters.cassetteRcp,
         startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-        endDate: filters.endDate ? toLocalISOString(filters.endDate) : undefined, 
+        endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
     };
     try {
         const stages = await waferApi.getDistinctValues("stagegroups", params);
@@ -666,7 +676,7 @@ const loadFilmOptions = async () => {
         cassetteRcp: filters.cassetteRcp,
         stageGroup: filters.stageGroup,
         startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-        endDate: filters.endDate ? toLocalISOString(filters.endDate) : undefined, 
+        endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
     };
     try {
         const filmsList = await waferApi.getDistinctValues("films", params);
@@ -679,10 +689,11 @@ const searchData = async () => { first.value = 0; await loadDataGrid(); };
 const loadDataGrid = async () => {
   isLoading.value = true; hasSearched.value = true; selectedRow.value = null;
   try {
+    // [수정] toLocalISOString 사용
     const res = await waferApi.getFlatData({
       eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId,
       startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-      endDate: filters.endDate ? toLocalISOString(filters.endDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
       cassetteRcp: filters.cassetteRcp, stageRcp: filters.stageRcp, stageGroup: filters.stageGroup, film: filters.film,
       page: first.value / rowsPerPage.value, pageSize: rowsPerPage.value,
     });
