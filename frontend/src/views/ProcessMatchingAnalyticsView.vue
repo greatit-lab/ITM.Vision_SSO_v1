@@ -1,3 +1,4 @@
+<!-- frontend/src/views/ProcessMatchingAnalyticsView.vue -->
 <template>
   <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden">
     <div class="flex items-center gap-3 px-1 mb-2 shrink-0">
@@ -204,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -238,7 +239,6 @@ const isEqpLoading = ref(false);
 const isDataLoading = ref(false);
 const hasSearched = ref(false);
 
-// Analytics State & Options
 const selectedAnalytics = ref<string[]>([]); 
 const analyticsOptions = ref([
   { name: 'Centroid', code: 'centroid', desc: '군집의 중심점(평균) 표시' },
@@ -287,6 +287,19 @@ const isListVisible = computed(() => {
   if (!filters.stageGroup) return false;
   if (films.value.length > 0 && !filters.film) return false;
   return true;
+});
+
+// [추가] 날짜 자동 보정 로직
+watch(() => filters.startDate, (newStart) => {
+  if (newStart && filters.endDate && newStart > filters.endDate) {
+    filters.endDate = new Date(newStart);
+  }
+});
+
+watch(() => filters.endDate, (newEnd) => {
+  if (newEnd && filters.startDate && newEnd < filters.startDate) {
+    filters.startDate = new Date(newEnd);
+  }
 });
 
 // [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
