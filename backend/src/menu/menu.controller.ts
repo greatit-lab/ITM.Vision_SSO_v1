@@ -1,49 +1,41 @@
 // backend/src/menu/menu.controller.ts
-import { Controller, Get, Post, Put, Delete, Body, UseGuards, Param, Request } from '@nestjs/common';
-import { MenuService } from './menu.service';
+import { Controller, Get, Post, Put, Delete, Body, UseGuards, Param, Request, Logger } from '@nestjs/common';
+import { MenuService, CreateMenuDto, UpdateMenuDto } from './menu.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { User } from '../auth/auth.interface';
+import { Request as ExpressRequest } from 'express';
 
-interface RequestWithUser extends Request {
-  user: User;
-}
-
-// [수정] DTO 클래스 정의: isVisible 필드 추가
-export class CreateMenuDto {
-  label: string;
-  routerPath?: string;
-  parentId?: number;
-  icon?: string;
-  sortOrder?: number;
-  statusTag?: string;
-  isVisible?: boolean; // [추가] 노출 여부 (true/false)
-  roles?: string[];
-}
-
-export class UpdateMenuDto {
-  label?: string;
-  routerPath?: string;
-  parentId?: number;
-  icon?: string;
-  sortOrder?: number;
-  statusTag?: string;
-  isVisible?: boolean; // [추가] 노출 여부 (true/false)
-  roles?: string[];
+// [ESLint 해결] Request 타입 확장
+interface RequestWithUser extends ExpressRequest {
+  user?: {
+    userId: string;
+    role: string;
+    [key: string]: any;
+  };
 }
 
 @Controller('menu')
 @UseGuards(JwtAuthGuard)
 export class MenuController {
+  private readonly logger = new Logger(MenuController.name);
+
   constructor(private readonly menuService: MenuService) {}
 
-  // 1. 내 메뉴 조회 (사이드바용: 권한 및 노출 여부 필터링됨)
+  // 1. 내 메뉴 조회 (사이드바용)
   @Get('my')
   async getMyMenus(@Request() req: RequestWithUser) {
-    const role = req.user.role ?? 'USER';
+    const user = req.user;
+    // user가 없거나 role이 없으면 기본값 'USER'
+    const role = user?.role || 'USER';
+    
+    // [디버깅 로그] 1단계: SSO 컨트롤러 진입 확인
+    this.logger.warn(`[DEBUG-SSO-1] MenuController.getMyMenus() Called`);
+    this.logger.warn(`[DEBUG-SSO-1] Req User: ${JSON.stringify(user)}`);
+    this.logger.warn(`[DEBUG-SSO-1] Extracted Role: "${role}"`);
+    
     return this.menuService.getMyMenus(role);
   }
 
-  // 2. 전체 메뉴 트리 조회 (관리자용: 모든 메뉴 조회)
+  // 2. 전체 메뉴 트리 조회 (관리자용)
   @Get('all')
   async getAllMenus() {
     return this.menuService.getAllMenus();
@@ -73,7 +65,7 @@ export class MenuController {
     return this.menuService.getAllRolePermissions();
   }
 
-  // 7. 권한 저장
+  // 7. 특정 Role 권한 저장
   @Post('permissions/:role')
   async savePermissions(
     @Param('role') role: string,
