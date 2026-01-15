@@ -30,10 +30,10 @@
             <Select v-model="filters.waferId" :options="waferIds" filter placeholder="Wafer" :disabled="!filters.lotId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
           </div>
           <div class="min-w-[130px] shrink-0">
-            <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
+            <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
           </div>
           <div class="min-w-[130px] shrink-0">
-            <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
+            <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
           </div>
         </div>
         <div class="flex items-center gap-1 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800">
@@ -239,18 +239,6 @@ const filters = reactive({
   cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
 });
 
-watch(() => filters.startDate, (newStartDate) => {
-  if (newStartDate && filters.endDate && newStartDate > filters.endDate) {
-    filters.endDate = newStartDate;
-  }
-});
-
-watch(() => filters.endDate, (newEndDate) => {
-  if (newEndDate && filters.startDate && newEndDate < filters.startDate) {
-    filters.startDate = newEndDate;
-  }
-});
-
 const eqpIds = ref<string[]>([]);
 const isEqpLoading = ref(false);
 const lotIds = ref<string[]>([]);
@@ -288,6 +276,33 @@ const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
+
+// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+watch(
+  [() => filters.startDate, () => filters.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+
+      // 보정 로직
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
+           filters.endDate = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
+           filters.startDate = new Date(newEnd);
+        }
+        return; // 보정 발생 시 로딩 중단
+      }
+    }
+
+    if (filters.eqpId) {
+        onDateChange(); // 기존 날짜 변경 로직 호출
+    }
+  }
+);
 
 // [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
 // isEndDate = true 이면 23:59:59.999 로 설정
@@ -853,6 +868,10 @@ const resetFilters = () => {
   sdwts.value = []; eqpIds.value = []; filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
   flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; 
   resetDetails(); 
+  
+  // 날짜 초기화
+  filters.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  filters.endDate = new Date();
 };
 
 const formatDate = (dateStr: string) => {
