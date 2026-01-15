@@ -107,8 +107,7 @@
           rounded
           class="!bg-purple-600 !border-purple-600 hover:!bg-purple-700 !w-8 !h-8 !text-xs"
           @click="searchData"
-          :loading="isLoading"
-          :disabled="!selectedEqpId"
+          :disabled="!selectedEqpId || isLoading"
         />
         <Button
           icon="pi pi-refresh"
@@ -124,8 +123,25 @@
 
     <div
       v-if="hasSearched"
-      class="flex-1 flex flex-col gap-4 pb-2 min-h-0 animate-fade-in"
+      class="flex-1 flex flex-col gap-4 pb-2 min-h-0 animate-fade-in relative"
     >
+      <div
+        v-if="isLoading"
+        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-xl border border-transparent"
+      >
+        <div class="relative">
+          <div
+            class="w-10 h-10 border-4 rounded-full border-slate-100 dark:border-zinc-800"
+          ></div>
+          <div
+            class="absolute top-0 left-0 w-10 h-10 border-4 rounded-full border-purple-500 border-t-transparent animate-spin"
+          ></div>
+        </div>
+        <p class="mt-3 text-xs font-bold text-slate-500 animate-pulse">
+          Loading Process Data...
+        </p>
+      </div>
+
       <div
         class="relative flex flex-col h-[400px] shrink-0 p-4 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800"
       >
@@ -143,7 +159,7 @@
 
         <div class="relative w-full flex-1 min-h-0">
           <EChart
-            v-if="!isLoading && xAxisData.length > 0"
+            v-if="xAxisData.length > 0"
             :option="chartOption"
             @chartCreated="onChartCreated"
           />
@@ -170,7 +186,7 @@
       </div>
 
       <div
-        class="flex-none bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col"
+        class="flex-none bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden h-auto shrink-0 flex flex-col"
       >
         <div
           class="flex items-center justify-between px-4 py-2 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0"
@@ -304,7 +320,7 @@
 
     <div
       v-else
-      class="flex flex-col items-center justify-center flex-1 min-h-[400px] opacity-50 select-none"
+      class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]"
     >
       <div
         class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
@@ -313,18 +329,16 @@
           class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-server"
         ></i>
       </div>
-      <p class="text-sm font-bold text-slate-500">
-        Ready to analyze processes.
-      </p>
+      <p class="text-sm font-bold text-slate-500">Ready to Analyze</p>
       <p class="mt-1 text-xs text-slate-400">
-        Select filters to view memory usage history.
+        Select Equipment and Date Range to view process memory usage.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -356,7 +370,6 @@ const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 const eqpIds = ref<string[]>([]);
 
-// [수정] 차트 데이터: X축과 Series를 분리
 const xAxisData = ref<string[]>([]);
 const processSeries = ref<any[]>([]);
 const processStats = ref<ProcessStat[]>([]);
@@ -383,6 +396,35 @@ const colorPalette = [
   "#f97316",
   "#84cc16",
 ];
+
+// [추가] 날짜 유효성 검사 (Start가 End보다 뒤면 자동 조정)
+watch(startDate, (newStart) => {
+  if (newStart && endDate.value && newStart > endDate.value) {
+    endDate.value = new Date(newStart);
+  }
+});
+
+watch(endDate, (newEnd) => {
+  if (newEnd && startDate.value && newEnd < startDate.value) {
+    startDate.value = new Date(newEnd);
+  }
+});
+
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return "";
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -456,7 +498,8 @@ const onSiteChange = async () => {
   selectedEqpId.value = "";
   localStorage.removeItem("process_eqpid");
   eqpIds.value = [];
-  hasSearched.value = false;
+  
+  resetView();
 };
 
 const onSdwtChange = async () => {
@@ -470,12 +513,24 @@ const onSdwtChange = async () => {
 
   selectedEqpId.value = "";
   localStorage.removeItem("process_eqpid");
+  resetView();
 };
 
 const onEqpIdChange = () => {
-  if (selectedEqpId.value)
+  if (selectedEqpId.value) {
     localStorage.setItem("process_eqpid", selectedEqpId.value);
-  else localStorage.removeItem("process_eqpid");
+  } else {
+    localStorage.removeItem("process_eqpid");
+  }
+  // [수정] EQP 변경 시 뷰 초기화 (데이터 제거 및 초기 상태로 전환)
+  resetView();
+};
+
+const resetView = () => {
+  hasSearched.value = false;
+  xAxisData.value = [];
+  processSeries.value = [];
+  processStats.value = [];
 };
 
 const loadEqpIds = async () => {
@@ -492,11 +547,22 @@ const loadEqpIds = async () => {
 
 const searchData = async () => {
   if (!selectedEqpId.value) return;
-  isLoading.value = true;
+  
+  // [수정] 로딩 시작 시 hasSearched를 true로 하여 레이아웃을 보여주고,
+  // 오버레이를 통해 로딩 상태를 표시함
   hasSearched.value = true;
+  isLoading.value = true;
   isZoomed.value = false;
 
+  // 데이터 초기화
+  xAxisData.value = [];
+  processSeries.value = [];
+  processStats.value = [];
+
   try {
+    const startStr = toLocalISOString(startDate.value);
+    const endStr = toLocalISOString(endDate.value, true);
+
     const fixedStart = new Date(startDate.value);
     fixedStart.setHours(0, 0, 0, 0);
     const fixedEnd = new Date(endDate.value);
@@ -512,8 +578,8 @@ const searchData = async () => {
     else fetchInterval = 3600;
 
     const rawData = await performanceApi.getProcessHistory({
-      startDate: fixedStart.toISOString(),
-      endDate: fixedEnd.toISOString(),
+      startDate: startStr,
+      endDate: endStr,
       eqpId: selectedEqpId.value,
       interval: fetchInterval
     });
@@ -536,7 +602,6 @@ const processData = (data: ProcessMemoryDataDto[]) => {
     return;
   }
 
-  // 1. 데이터 집계
   let maxTs = 0;
   if (data.length > 0) {
     maxTs = data.reduce((max, d) => {
@@ -581,13 +646,11 @@ const processData = (data: ProcessMemoryDataDto[]) => {
 
   displayedProcessCount.value = targetProcesses.size;
 
-  // 2. 시간별 데이터 정렬 및 X축 데이터 생성
   const timeMap = new Map<string, any>();
   
   data.forEach((d) => {
     if (!targetProcesses.has(d.processName)) return;
     
-    // [중요] ISO String으로 통일하여 안전한 시간 키 생성
     const ts = new Date(d.timestamp);
     if (isNaN(ts.getTime())) return;
     const tsKey = ts.toISOString(); 
@@ -609,7 +672,6 @@ const processData = (data: ProcessMemoryDataDto[]) => {
   sortedTargetProcs.forEach((name, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? "#8b5cf6";
     
-    // Dataset이 아닌 Series Data 직접 할당 (1차원 배열)
     const seriesData = sortedData.map(d => d[name] ?? 0);
 
     series.push({
@@ -620,8 +682,7 @@ const processData = (data: ProcessMemoryDataDto[]) => {
       symbolSize: 2,
       itemStyle: { color: color },
       lineStyle: { width: 2 },
-      data: seriesData, // [핵심] 1차원 데이터 배열
-      // [수정] encode 속성 삭제: data가 1차원 배열이므로 encode 불필요/오류 원인
+      data: seriesData, 
     });
 
     const pData = data.filter((d) => d.processName === name);
@@ -659,10 +720,10 @@ const resetFilters = () => {
 
   sdwts.value = [];
   eqpIds.value = [];
-  hasSearched.value = false;
-  xAxisData.value = [];
-  processSeries.value = [];
-  processStats.value = [];
+  resetView();
+  
+  endDate.value = new Date();
+  startDate.value = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 };
 
 const formattedPeriod = computed(() => {
@@ -687,7 +748,6 @@ const chartOption = computed(() => {
     : "rgba(0, 0, 0, 0.1)";
   return {
     backgroundColor: "transparent",
-    // [수정] dataset 삭제
     dataset: undefined,
     tooltip: {
       trigger: "axis",
@@ -699,7 +759,6 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         if (!params || !params.length) return "";
         
-        // params[0].axisValue에 ISO Timestamp가 들어옴
         const rawLabel = params[0].axisValue;
         if (!rawLabel) return "";
 
@@ -750,7 +809,7 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      data: xAxisData.value, // X축 데이터 바인딩
+      data: xAxisData.value, 
       axisLabel: {
         color: textColor,
         fontSize: 10,
@@ -826,7 +885,8 @@ const resetZoom = () => {
 :deep(.p-autocomplete-dropdown) {
   @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
 }
-:deep(.p-select-dropdown svg) {
+:deep(.p-select-dropdown svg),
+:deep(.p-autocomplete-dropdown svg) {
   @apply w-3 h-3;
 }
 .animate-fade-in {
