@@ -105,8 +105,7 @@
           rounded
           class="!bg-cyan-600 !border-cyan-600 hover:!bg-cyan-700 !w-8 !h-8 !text-xs"
           @click="searchData"
-          :loading="isLoading"
-          :disabled="!filterStore.selectedSdwt" 
+          :disabled="!filterStore.selectedSdwt || isLoading" 
         />
         <Button
           icon="pi pi-refresh"
@@ -121,26 +120,26 @@
     </div>
 
     <div
-      v-if="isLoading"
-      class="flex flex-col items-center justify-center flex-1 space-y-4 min-h-[400px]"
+      v-if="hasSearched"
+      class="flex-1 flex flex-col gap-4 pb-2 min-h-0 animate-fade-in relative"
     >
-      <div class="relative">
-        <div
-          class="w-12 h-12 border-4 rounded-full border-slate-100 dark:border-zinc-800"
-        ></div>
-        <div
-          class="absolute top-0 left-0 w-12 h-12 border-4 rounded-full border-cyan-500 border-t-transparent animate-spin"
-        ></div>
+      <div
+        v-if="isLoading"
+        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-xl border border-transparent"
+      >
+        <div class="relative">
+          <div
+            class="w-10 h-10 border-4 rounded-full border-slate-100 dark:border-zinc-800"
+          ></div>
+          <div
+            class="absolute top-0 left-0 w-10 h-10 border-4 rounded-full border-cyan-500 border-t-transparent animate-spin"
+          ></div>
+        </div>
+        <p class="mt-3 text-xs font-bold text-slate-500 animate-pulse">
+          Analyzing Agent Memory...
+        </p>
       </div>
-      <p class="text-xs font-bold text-slate-400 animate-pulse">
-        Analyzing Agent Memory...
-      </p>
-    </div>
 
-    <div
-      v-else-if="hasSearched"
-      class="flex-1 flex flex-col gap-4 pb-2 min-h-0 animate-fade-in"
-    >
       <div
         class="relative flex flex-col h-[400px] shrink-0 p-4 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800"
       >
@@ -158,13 +157,13 @@
 
         <div class="relative w-full flex-1 min-h-0">
           <EChart
-            v-if="chartData.length > 0"
+            v-if="!isLoading && chartData.length > 0"
             :option="chartOption"
             @chartCreated="onChartCreated"
           />
 
           <div
-            v-else
+            v-else-if="!isLoading && chartData.length === 0"
             class="absolute inset-0 flex flex-col items-center justify-center text-slate-400"
           >
             <i class="mb-2 text-2xl opacity-50 pi pi-info-circle"></i>
@@ -350,7 +349,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -407,6 +406,44 @@ const colorPalette = [
   "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316"
 ];
 
+// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+watch(
+  [() => startDate.value, () => endDate.value],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+
+      // 보정 로직
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
+           endDate.value = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
+           startDate.value = new Date(newEnd);
+        }
+      }
+    }
+  }
+);
+
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return "";
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
+
 // --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
@@ -443,8 +480,6 @@ onMounted(async () => {
         selectedEqpId.value = savedEqpId;
       }
       
-      // 6. 데이터 자동 검색 (SDWT만 있어도 검색 가능)
-      // searchData();
     } else {
       filterStore.selectedSdwt = "";
       selectedEqpId.value = "";
@@ -482,7 +517,8 @@ const onSiteChange = async () => {
   selectedEqpId.value = "";
   localStorage.removeItem("agent_eqpid");
   eqpIds.value = [];
-  hasSearched.value = false;
+  
+  resetView();
 };
 
 const onSdwtChange = async () => {
@@ -495,18 +531,29 @@ const onSdwtChange = async () => {
   }
   selectedEqpId.value = "";
   localStorage.removeItem("agent_eqpid");
+  resetView();
 };
 
 const onEqpIdChange = () => {
-  if (selectedEqpId.value) localStorage.setItem("agent_eqpid", selectedEqpId.value);
-  else localStorage.removeItem("agent_eqpid");
+  if (selectedEqpId.value) {
+      localStorage.setItem("agent_eqpid", selectedEqpId.value);
+  } else {
+      localStorage.removeItem("agent_eqpid");
+  }
+  // [수정] EQP 변경 시 초기화
+  resetView();
+};
+
+const resetView = () => {
+  hasSearched.value = false;
+  chartData.value = [];
+  eqpStats.value = [];
+  eqpSeries.value = [];
 };
 
 const loadEqpIds = async () => {
   isEqpIdLoading.value = true;
   try {
-    // [수정 TS2554] 인자 3개가 아닌 객체 형태 1개로 전달
-    // equipmentApi.getEqpIds(params: { site?, sdwt?, type? })
     eqpIds.value = await equipmentApi.getEqpIds({ 
       sdwt: filterStore.selectedSdwt, 
       type: "agent" 
@@ -522,15 +569,23 @@ const loadEqpIds = async () => {
 const searchData = async () => {
   if (!filterStore.selectedSdwt) return;
   
+  hasSearched.value = true;
   isLoading.value = true;
-  hasSearched.value = true; // 검색 시작 시 true로 변경 (하지만 v-if="isLoading"이 우선)
   isZoomed.value = false;
+
+  chartData.value = [];
+  eqpSeries.value = [];
+  eqpStats.value = [];
 
   try {
     const fixedStart = new Date(startDate.value);
     fixedStart.setHours(0, 0, 0, 0);
     const fixedEnd = new Date(endDate.value);
     fixedEnd.setHours(23, 59, 59, 999);
+    
+    // [수정] toLocalISOString 사용
+    const startStr = toLocalISOString(startDate.value);
+    const endStr = toLocalISOString(endDate.value, true);
 
     const diffMs = fixedEnd.getTime() - fixedStart.getTime();
     const diffDays = diffMs / (1000 * 3600 * 24);
@@ -545,8 +600,8 @@ const searchData = async () => {
       filterStore.selectedSite || "", 
       filterStore.selectedSdwt || "",
       selectedEqpId.value || "", 
-      fixedStart.toISOString(),
-      fixedEnd.toISOString(),
+      startStr,
+      endStr,
       fetchInterval
     );
     processData(rawData);
@@ -568,7 +623,6 @@ const processData = (data: ItmAgentDataDto[]) => {
     return;
   }
 
-  // 1. 유효한 장비 목록 추출 (값이 있는 장비만)
   const activeEqpSet = new Set<string>();
   const eqpVersionMap = new Map<string, string>();
   
@@ -593,7 +647,6 @@ const processData = (data: ItmAgentDataDto[]) => {
      return;
   }
 
-  // 2. Chart Data 변환 (Pivot by EqpId)
   const timeMap = new Map<string, any>();
   
     data.forEach((d) => {
@@ -620,7 +673,6 @@ const processData = (data: ItmAgentDataDto[]) => {
     }
   });
 
-  // 결측치 처리
   for (const item of timeMap.values()) {
     sortedEqps.forEach(eqpId => {
       if (item[eqpId] === undefined) {
@@ -633,7 +685,6 @@ const processData = (data: ItmAgentDataDto[]) => {
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
-  // 3. Series & Stats 생성
   const series: any[] = [];
   const stats: EqpStat[] = [];
 
@@ -641,12 +692,10 @@ const processData = (data: ItmAgentDataDto[]) => {
     const color = colorPalette[idx % colorPalette.length] ?? '#888888';
     const version = eqpVersionMap.get(eqpId) || "Unknown";
     
-    // [수정] 버전 표시 포맷 변경 (괄호 제거 및 'v' 중복 방지)
     const displayVersion = version.startsWith('v') ? version : `v${version}`;
 
-    // Series
     series.push({
-      name: `${eqpId} ${displayVersion}`, // "TEST01 v0.0.8.7" 형식
+      name: `${eqpId} ${displayVersion}`,
       type: "line",
       smooth: true,
       showSymbol: true, 
@@ -657,7 +706,6 @@ const processData = (data: ItmAgentDataDto[]) => {
       connectNulls: true, 
     });
 
-    // Stats Calculation
     const pData = data.filter(d => {
       const rawId = (d as any).eqpid ?? d.eqpId;
       return String(rawId) === eqpId;
@@ -671,18 +719,13 @@ const processData = (data: ItmAgentDataDto[]) => {
 
     if (memValues.length > 0) {
       sum = memValues.reduce((a, b) => a + b, 0);
-      // Stack Overflow 방지를 위해 reduce 사용
       max = memValues.reduce((a, b) => Math.max(a, b), 0);
 
-      // [수정 TS18048] 'latest' undefined 가능성 해결
-      // pData[0]을 초기값으로 사용하되, 타입 단언(!)을 사용하거나 length 체크가 되어 있으므로 안전함
-      // 최신 데이터(Last Recorded) 찾기
       const lastRecord = pData.reduce((latest, current) => {
-        // latest가 undefined일 수 있다는 에러 방지
         const latestTime = new Date(latest.timestamp).getTime();
         const currentTime = new Date(current.timestamp).getTime();
         return currentTime > latestTime ? current : latest;
-      }, pData[0]!); // Non-null assertion (!)
+      }, pData[0]!);
 
       last = Number(lastRecord?.memoryUsageMB) || 0;
     }
@@ -711,9 +754,11 @@ const resetFilters = () => {
 
   sdwts.value = [];
   eqpIds.value = [];
-  hasSearched.value = false;
-  chartData.value = [];
-  eqpStats.value = [];
+  
+  resetView();
+  
+  startDate.value = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  endDate.value = new Date();
 };
 
 const formattedPeriod = computed(() => {
@@ -749,8 +794,6 @@ const chartOption = computed(() => {
         const sortedParams = [...params].sort((a, b) => (b.value[b.seriesName] || 0) - (a.value[a.seriesName] || 0));
         
         sortedParams.forEach((p: any) => {
-          // [수정] 범례 포맷 변경에 따른 ID 추출 정규식 수정
-          // 예: "TEST01 v0.0.8.7" -> 마지막 공백+v 이전까지를 ID로 간주
           const eqpIdMatch = p.seriesName.match(/^(.*)\s(v.*)$/);
           const key = eqpIdMatch ? eqpIdMatch[1] : p.seriesName;
 
@@ -850,7 +893,8 @@ const resetZoom = () => {
 :deep(.custom-dropdown:hover) {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
-:deep(.p-select-dropdown) {
+:deep(.p-select-dropdown),
+:deep(.p-autocomplete-dropdown) {
   @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
 }
 :deep(.p-select-dropdown svg) {
@@ -860,8 +904,14 @@ const resetZoom = () => {
   animation: fadeIn 0.4s ease-out forwards;
 }
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
