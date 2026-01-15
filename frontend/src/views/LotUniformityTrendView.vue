@@ -268,7 +268,7 @@
           </div>
           
           <div class="flex items-center gap-3">
-             <div class="flex bg-slate-200 dark:bg-zinc-800 p-0.5 rounded-lg">
+              <div class="flex bg-slate-200 dark:bg-zinc-800 p-0.5 rounded-lg">
                 <button
                   @click="isSpatialView = false"
                   class="px-3 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5"
@@ -502,7 +502,6 @@ const hasSearched = ref(false);
 const mapMode = ref<"point" | "heatmap">("point");
 const selectedWaferId = ref<number | null>(null);
 
-// Spatial Analysis States
 const isSpatialView = ref(false);
 const viewAngle = ref(0);
 
@@ -531,6 +530,23 @@ const filters = reactive({
 const chartSeries = ref<LotUniformitySeriesDto[]>([]);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
+
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+// isEndDate = true 이면 23:59:59.999 로 설정
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return undefined;
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
 
 const steps = computed(() => [
   {
@@ -749,13 +765,18 @@ const onTopSearch = async () => {
   }
 };
 
+// [수정] 날짜/시간 시차 해결을 위해 toLocalISOString 사용
 const loadLotIds = async () => {
-  // [유지] Lot ID 목록은 날짜 범위 필터를 적용하여 로딩 (너무 많은 데이터를 가져오지 않도록)
-  lotIds.value = await waferApi.getDistinctValues("lotids", getBaseParams());
+  const params = {
+      eqpId: filters.eqpId,
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
+  };
+  lotIds.value = await waferApi.getDistinctValues("lotids", params);
 };
 
 const loadCassettes = async () => {
-  // [수정] Lot ID가 특정되었으므로 날짜 필터 제외
+  // Lot ID가 특정되었으므로 날짜 필터 제외
   cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
     eqpId: filters.eqpId,
     lotId: filters.lotId,
@@ -770,7 +791,7 @@ const selectCassette = async (val: string) => {
   films.value = [];
   filters.metric = "";
   metrics.value = [];
-  // [수정] Lot ID가 특정되었으므로 날짜 필터 제외
+  
   stageGroups.value = await waferApi.getDistinctValues("stagegroups", {
     eqpId: filters.eqpId,
     lotId: filters.lotId,
@@ -784,7 +805,7 @@ const selectStageGroup = async (val: string) => {
   films.value = [];
   filters.metric = "";
   metrics.value = [];
-  // [수정] Lot ID가 특정되었으므로 날짜 필터 제외
+  
   films.value = await waferApi.getDistinctValues("films", {
     eqpId: filters.eqpId,
     lotId: filters.lotId,
@@ -799,7 +820,6 @@ const selectFilm = async (val: string) => {
   metrics.value = [];
   isMetricLoading.value = true;
   try {
-    // [수정] Lot ID가 특정되었으므로 날짜 필터 제외하고 정확한 메트릭 조회
     const p = {
       eqpId: filters.eqpId,
       lotId: filters.lotId,
@@ -821,12 +841,6 @@ const selectFilm = async (val: string) => {
   }
 };
 
-const getBaseParams = () => ({
-  eqpId: filters.eqpId,
-  startDate: filters.startDate?.toISOString(),
-  endDate: filters.endDate?.toISOString(),
-});
-
 const searchData = async () => {
   if (!isReadyToSearch.value) return;
   isLoading.value = true;
@@ -835,9 +849,6 @@ const searchData = async () => {
   chartSeries.value = [];
 
   try {
-    // [수정] 데이터 조회 시에도 LotID가 특정되었으므로 날짜 필터 제외 가능
-    // 다만 API가 startDate/endDate를 요구하지 않더라도 정상 동작하는지 확인 필요
-    // 여기서는 명시적인 LotID 조회를 위해 날짜를 제외하고 호출
     chartSeries.value = await waferApi.getLotUniformityTrend({
       eqpId: filters.eqpId,
       lotId: filters.lotId,
