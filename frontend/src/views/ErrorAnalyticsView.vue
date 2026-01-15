@@ -245,7 +245,7 @@
           </div>
           <div class="relative flex-1 w-full min-h-0 cursor-pointer">
             <EChart
-              v-if="summary.errorCountByEqp.length > 0"
+              v-if="summary.errorCountByEqp && summary.errorCountByEqp.length > 0"
               :option="byEqpOption"
               @chartCreated="onEqpChartInit"
             />
@@ -473,6 +473,7 @@ const hasSearched = ref(false);
 
 const summary = ref<ErrorSummary>({ totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] });
 const trendData = ref<ErrorTrendItem[]>([]);
+// [수정] 초기값을 빈 배열로 명확히 지정
 const logs = ref<ErrorLogItem[]>([]);
 const totalRecords = ref(0);
 const rowsPerPage = ref(10);
@@ -498,7 +499,6 @@ onMounted(async () => {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
-        // [수정] 인자 형태 수정: getEqpIds({ sdwt, type })
         eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "error" });
         
         const initEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
@@ -526,7 +526,6 @@ const onSiteChange = async () => {
 
 const onSdwtChange = async () => {
   if (filter.sdwt) {
-    // [수정] 인자 형태 수정
     eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "error" });
   } else {
     eqpIds.value = [];
@@ -537,15 +536,13 @@ const onSdwtChange = async () => {
 const getEffectiveParams = () => {
   let start = filter.startDate;
   let end = filter.endDate;
-  let eqps = filter.eqpId; // 메인 필터의 eqpId
+  let eqps = filter.eqpId;
 
-  // 1. Daily Trend 차트 클릭 시: 날짜 필터 적용
   if (gridFilter.date) {
     start = new Date(gridFilter.date); start.setHours(0, 0, 0, 0);
     end = new Date(gridFilter.date); end.setHours(23, 59, 59, 999);
   }
   
-  // 2. Worst Equipment 차트 클릭 시: 장비 ID 덮어쓰기
   if (gridFilter.eqpId) {
     eqps = gridFilter.eqpId;
   }
@@ -553,7 +550,7 @@ const getEffectiveParams = () => {
   return { 
     site: filter.site, 
     sdwt: filter.sdwt, 
-    eqpId: eqps, // [수정] eqpids -> eqpId (Backend Controller와 일치)
+    eqpId: eqps,
     startDate: start ? start.toISOString() : "", 
     endDate: end ? end.toISOString() : "" 
   };
@@ -566,6 +563,11 @@ const search = async () => {
   isLoading.value = true;
   hasSearched.value = true;
   first.value = 0;
+  // [수정] logs와 summary 데이터를 미리 비워둠
+  logs.value = [];
+  summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
+  trendData.value = [];
+  
   try {
     await Promise.all([updateSummaryData(), updateTrendData()]);
     await loadGridData();
@@ -579,7 +581,7 @@ const search = async () => {
 const updateSummaryData = async () => {
   try {
     const res = await getErrorSummary(getEffectiveParams());
-    // [수정] res && res.data 체크
+    // [수정] 응답 구조 체크 강화
     if (res && res.data) {
       summary.value = res.data;
     } else {
@@ -593,8 +595,8 @@ const updateSummaryData = async () => {
 const updateTrendData = async () => {
   try {
     const res = await getErrorTrend(getEffectiveParams());
-    // [수정] res && res.data 체크
-    if (res && res.data) {
+    // [수정] 배열 체크 강화
+    if (res && res.data && Array.isArray(res.data)) {
       trendData.value = res.data;
     } else {
       trendData.value = [];
@@ -610,10 +612,11 @@ const loadGridData = async () => {
     const params = { ...getEffectiveParams(), page: Math.floor(first.value / rowsPerPage.value) + 1, limit: rowsPerPage.value };
     const res = await getErrorLogs(params);
     
-    // [수정] res && res.data 체크 (TS2532 해결)
+    // [핵심 수정] 백엔드 응답이 { total: number, items: [] } 구조임에 주의
     if (res && res.data) {
-      logs.value = res.data.items || [];
-      totalRecords.value = res.data.totalItems || 0;
+      // items가 배열인지 확인 후 할당
+      logs.value = Array.isArray(res.data.items) ? res.data.items : [];
+      totalRecords.value = res.data.total || 0;
     } else {
       logs.value = [];
       totalRecords.value = 0;
@@ -708,6 +711,3 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
-
-
