@@ -133,8 +133,7 @@
             rounded
             class="!bg-teal-600 !border-teal-600 hover:!bg-teal-700 !w-8 !h-8 !text-xs"
             @click="() => searchData()"
-            :loading="isLoading"
-            :disabled="!selectedEqpId || isRealtime"
+            :disabled="!selectedEqpId || isRealtime || isLoading"
           />
           <Button
             icon="pi pi-refresh"
@@ -435,25 +434,25 @@
 
     <div
       v-else
-      class="flex flex-col items-center justify-center flex-1 min-h-[400px] opacity-50"
+      class="flex flex-col items-center justify-center flex-1 min-h-[400px] opacity-50 select-none"
     >
       <div
-        class="flex items-center justify-center w-16 h-16 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
+        class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
       >
         <i
-          class="text-3xl pi pi-chart-line text-slate-300 dark:text-zinc-600"
+          class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-chart-line"
         ></i>
       </div>
       <p class="text-sm font-bold text-slate-500">Ready to analyze.</p>
-      <p class="text-xs text-slate-400">
-        Select EQP ID and Date Range to view performance trends.
+      <p class="mt-1 text-xs text-slate-400">
+        Select Equipment and Time Range to view performance trends.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, reactive } from "vue";
+import { ref, onMounted, onUnmounted, computed, reactive, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -524,9 +523,22 @@ const intervalOptions = [
   { label: "5 Min", value: 300 },
 ];
 
+// [추가] 날짜 자동 보정 로직
+watch(startDate, (newStart) => {
+  if (newStart && endDate.value && newStart > endDate.value) {
+    endDate.value = new Date(newStart);
+  }
+});
+
+watch(endDate, (newEnd) => {
+  if (newEnd && startDate.value && newEnd < startDate.value) {
+    startDate.value = new Date(newEnd);
+  }
+});
+
 // [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결)
 const toLocalISOString = (date: Date) => {
-  if (!date) return ""; 
+  if (!date) return "";
   const d = new Date(date);
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
@@ -608,11 +620,7 @@ const onSiteChange = async () => {
   selectedEqpId.value = "";
   localStorage.removeItem("performance_eqpid");
   eqpIds.value = [];
-  
-  // [수정] 사이트 변경 시 화면 초기화
   hasSearched.value = false;
-  chartData.value = [];
-  summaryData.value = [];
 };
 
 const onSdwtChange = async () => {
@@ -626,11 +634,7 @@ const onSdwtChange = async () => {
 
   selectedEqpId.value = "";
   localStorage.removeItem("performance_eqpid");
-  
-  // [수정] SDWT 변경 시 화면 초기화
   hasSearched.value = false;
-  chartData.value = [];
-  summaryData.value = [];
 };
 
 const onEqpIdChange = () => {
@@ -640,7 +644,7 @@ const onEqpIdChange = () => {
     localStorage.removeItem("performance_eqpid");
   }
   
-  // [핵심] EQP ID 변경 시 조회 전 상태로 화면 초기화
+  // [수정] EQP ID 변경 시 초기화
   hasSearched.value = false;
   chartData.value = [];
   summaryData.value = [];
@@ -1047,11 +1051,11 @@ const updateRealtimeDates = () => {
 const searchData = async (silent = false) => {
   if (!selectedEqpId.value) return;
   
-  // [수정] 차트 영역을 먼저 보여주고, 로딩 오버레이를 띄움
+  // [수정] 차트 영역을 먼저 보여주고, 로딩 오버레이 표시
   hasSearched.value = true;
   if (!silent) isLoading.value = true;
 
-  // 데이터 초기화 (이전 데이터 잔상 방지)
+  // 데이터 초기화
   chartData.value = [];
   summaryData.value = [];
 
