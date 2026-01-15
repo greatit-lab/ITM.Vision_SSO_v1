@@ -99,8 +99,7 @@
           rounded
           class="!bg-indigo-500 !border-indigo-500 hover:!bg-indigo-600 !w-8 !h-8 !text-xs"
           @click="search"
-          :loading="isLoading"
-          :disabled="!filter.eqpId"
+          :disabled="!filter.eqpId || isLoading"
         />
         <Button
           icon="pi pi-refresh"
@@ -137,7 +136,7 @@
       <div class="relative flex-1 w-full min-h-0 group">
         <div
           v-if="isLoading"
-          class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
+          class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
         >
           <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
           <p class="mt-4 text-xs font-medium text-slate-400 animate-pulse">
@@ -146,7 +145,7 @@
         </div>
 
         <EChart
-          v-else-if="hasSearched && chartData.length > 0"
+          v-if="!isLoading && hasSearched && chartData.length > 0"
           :option="chartOption"
           class="w-full h-full"
           @chartCreated="onChartCreated"
@@ -205,7 +204,6 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getEqpIds } from "@/api/equipment";
-// [수정] httpData 직접 사용 (API 경로 보장을 위해)
 import httpData from "@/api/http-data";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
@@ -216,7 +214,6 @@ import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import ProgressSpinner from "primevue/progressspinner";
 
-// [수정] 백엔드 데이터 구조와 일치하는 인터페이스 정의
 interface PreAlignData {
   timestamp: string;
   eqpId: string;
@@ -270,6 +267,44 @@ const handleResize = () => {
   if (chartInstance) {
     chartInstance.resize();
   }
+};
+
+// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
+watch(
+  [() => filter.startDate, () => filter.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+
+      // 보정 로직
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
+           filter.endDate = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
+           filter.startDate = new Date(newEnd);
+        }
+      }
+    }
+  }
+);
+
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return "";
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
 // --- Lifecycle ---
@@ -371,6 +406,8 @@ const onSiteChange = async () => {
   filter.sdwt = "";
   filter.eqpId = "";
   eqpIds.value = [];
+  
+  resetView();
 };
 
 const onSdwtChange = async () => {
@@ -388,29 +425,40 @@ const onSdwtChange = async () => {
     eqpIds.value = [];
   }
   filter.eqpId = "";
+  resetView();
 };
 
 const onEqpIdChange = () => {
-  // Persistence handled by watchers
+  // [수정] EQP 변경 시 뷰 초기화
+  resetView();
+};
+
+const resetView = () => {
+  hasSearched.value = false;
+  chartData.value = [];
+  searchedEqpId.value = "";
+  isZoomed.value = false;
 };
 
 const search = async () => {
   if (!filter.eqpId || !filter.startDate || !filter.endDate) return;
 
-  isLoading.value = true;
+  // [수정] 차트 영역을 먼저 보여주고, 로딩 오버레이 표시
   hasSearched.value = true;
+  isLoading.value = true;
   isZoomed.value = false;
   searchedEqpId.value = filter.eqpId;
+  chartData.value = []; // 이전 데이터 클리어
 
   try {
-    // [수정] BFF Controller 경로 /prealign/trend 직접 호출
+    // [수정] toLocalISOString 사용하여 날짜 포맷 및 시차 보정
     const res = await httpData.get<PreAlignData[]>("/prealign/trend", {
       params: {
         site: filter.site,
         sdwt: filter.sdwt,
         eqpId: filter.eqpId,
-        startDate: filter.startDate.toISOString(),
-        endDate: filter.endDate.toISOString()
+        startDate: toLocalISOString(filter.startDate),
+        endDate: toLocalISOString(filter.endDate, true) // Full Day End
       }
     });
     
@@ -438,12 +486,8 @@ const reset = () => {
 
   sdwts.value = [];
   eqpIds.value = [];
-  chartData.value = [];
-  hasSearched.value = false;
-  isZoomed.value = false;
-  searchedEqpId.value = "";
   
-  // Watcher will handle LS cleanup
+  resetView();
 };
 
 // --- Chart Helper (Zoom & Resize) ---
@@ -482,7 +526,6 @@ const chartOption = computed(() => {
     ? "rgba(255, 255, 255, 0.1)"
     : "rgba(0, 0, 0, 0.1)";
 
-  // [수정] 백엔드 데이터(xmm, ymm, notch)를 차트 배열([time, val])로 매핑
   const xmmData = chartData.value.map((d) => [d.timestamp, d.xmm]);
   const ymmData = chartData.value.map((d) => [d.timestamp, d.ymm]);
   const notchData = chartData.value.map((d) => [d.timestamp, d.notch]);
@@ -571,7 +614,6 @@ const chartOption = computed(() => {
           padding: [0, 0, 0, -30],
         },
         position: "left",
-        // min, max 제거 (데이터에 맞춰 자동 스케일)
         axisLabel: { color: textColor, fontSize: 10 },
         splitLine: { lineStyle: { color: gridColor } },
         axisLine: { show: true, lineStyle: { color: gridColor } },
