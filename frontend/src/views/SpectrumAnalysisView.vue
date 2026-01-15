@@ -1,7 +1,7 @@
 <!-- frontend/src/views/SpectrumAnalysisView.vue -->
 <template>
   <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden">
-    <div class="flex items-center gap-3 px-1 mb-2 shrink-0">
+    <div class="flex items-center gap-2 px-1 mb-2 shrink-0">
       <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
         <i class="text-lg text-indigo-500 pi pi-wave-pulse dark:text-indigo-400"></i>
       </div>
@@ -34,11 +34,11 @@
         </div>
 
         <div class="min-w-[140px] shrink-0">
-          <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
+          <DatePicker v-model="filters.startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
         </div>
 
         <div class="min-w-[140px] shrink-0">
-          <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
+          <DatePicker v-model="filters.endDate" showIcon dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
         </div>
       </div>
 
@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -266,6 +266,33 @@ const selectedModelWafer = ref<number | null>(null);
 const slotColors = [
   "#3B82F6", "#10B981", "#F43F5E", "#8B5CF6", "#06B6D4", "#EC4899", "#6366F1", "#14B8A6", "#F97316", "#64748B", "#D946EF", "#0EA5E9",
 ];
+
+// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+watch(
+  [() => filters.startDate, () => filters.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+
+      // 보정 로직
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
+           filters.endDate = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
+           filters.startDate = new Date(newEnd);
+        }
+        return; // 보정 발생 시 로딩 중단
+      }
+    }
+
+    if (filters.eqpId) {
+        loadLotIds();
+    }
+  }
+);
 
 // [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
@@ -382,10 +409,6 @@ const onEqpChange = () => {
   } else {
     localStorage.removeItem("spec_eqp");
   }
-};
-
-const onDateChange = () => {
-  if (filters.eqpId) loadLotIds();
 };
 
 const loadLotIds = async () => {
