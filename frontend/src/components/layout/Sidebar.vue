@@ -5,7 +5,20 @@
     :class="isOpen ? 'w-60' : 'w-[70px]'"
   >
     <div
-      class="relative flex items-center h-16 transition-all duration-300 border-b border-slate-100 dark:border-slate-800/50"
+      class="shrink-0 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] border-b border-slate-100 dark:border-white/5 relative group cursor-default"
+      :class="isOpen ? 'max-h-8 py-0 opacity-100' : 'max-h-0 opacity-0 border-none'"
+    >
+      <div class="absolute inset-0 bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 dark:from-white/5 dark:via-indigo-500/10 dark:to-white/5"></div>
+      <div class="relative flex items-center justify-center w-full h-8 gap-2">
+        <i class="pi pi-verified text-[10px] text-indigo-500 animate-pulse"></i>
+        <span class="text-[9px] font-extrabold text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase drop-shadow-sm">
+          테스트팀
+        </span>
+      </div>
+    </div>
+
+    <div
+      class="relative flex items-center h-16 shrink-0 transition-all duration-300 border-b border-slate-100 dark:border-slate-800/50"
       :class="isOpen ? 'px-5 justify-start' : 'px-0 justify-center'"
     >
       <div class="flex items-center gap-3 overflow-hidden" @click="$router.push('/')">
@@ -75,7 +88,8 @@
           class="flex flex-col min-w-0 overflow-hidden transition-all duration-300"
           :class="isOpen ? 'opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-4 hidden'"
         >
-          <p class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+          <p class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+             :title="contextInfo || authStore.userName">
             {{ contextInfo || authStore.userName }}
           </p>
           <p class="text-[11px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
@@ -83,19 +97,6 @@
           </p>
         </div>
       </div>
-
-      <div
-        class="overflow-hidden transition-all duration-500 ease-in-out"
-        :class="isOpen ? 'max-h-10 mt-3 opacity-100' : 'max-h-0 mt-0 opacity-0'"
-      >
-        <div class="relative flex items-center justify-center w-full py-1.5 overflow-hidden rounded-lg shadow-sm bg-gradient-to-r from-slate-700 to-slate-600 dark:from-slate-800 dark:to-slate-700 group cursor-default">
-          <div class="absolute inset-0 transition-opacity opacity-0 bg-white/5 group-hover:opacity-100"></div>
-          <span class="text-[10px] font-black text-white/90 tracking-[0.2em] uppercase drop-shadow-sm">
-            테스트팀
-          </span>
-        </div>
-      </div>
-
     </div>
   </aside>
 </template>
@@ -122,8 +123,10 @@ const roleInitial = computed(() => {
   return 'U';
 });
 
+// Context 정보 존재 여부 확인
 const hasContext = computed(() => !!authStore.user?.site && !!authStore.user?.sdwt);
 
+// 원본 기능 복원: Site / SDWT 형식의 문자열 생성
 const contextInfo = computed(() => {
   if (hasContext.value) return `${authStore.user?.site} / ${authStore.user?.sdwt}`;
   return "";
