@@ -1,475 +1,183 @@
 <!-- frontend/src/views/SpectrumAnalysisView.vue -->
 <template>
-  <div
-    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden"
-  >
+  <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden">
     <div class="flex items-center gap-3 px-1 mb-2 shrink-0">
-      <div
-        class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
-      >
-        <i
-          class="text-lg text-indigo-500 pi pi-wave-pulse dark:text-indigo-400"
-        ></i>
+      <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
+        <i class="text-lg text-indigo-500 pi pi-wave-pulse dark:text-indigo-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <h1
-          class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white"
-        >
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Spectrum Analysis
         </h1>
-        <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
-          >Advanced Metrology: EXP vs GEN & Reference.</span
-        >
+        <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">Advanced Metrology: EXP vs GEN & Reference.</span>
       </div>
     </div>
 
-    <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300"
-    >
-      <div
-        class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
-      >
+    <div class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300">
+      <div class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide">
         <div class="min-w-[140px] shrink-0">
-          <Select
-            v-model="filterStore.selectedSite"
-            :options="sites"
-            placeholder="Site"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !filterStore.selectedSite }"
-            @change="onSiteChange"
-          />
+          <Select v-model="filterStore.selectedSite" :options="sites" placeholder="Site" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filterStore.selectedSite }" @change="onSiteChange" />
         </div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select
-            v-model="filterStore.selectedSdwt"
-            :options="sdwts"
-            placeholder="SDWT"
-            :disabled="!filterStore.selectedSite"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !filterStore.selectedSdwt }"
-            @change="onSdwtChange"
-          />
+          <Select v-model="filterStore.selectedSdwt" :options="sdwts" placeholder="SDWT" :disabled="!filterStore.selectedSite" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filterStore.selectedSdwt }" @change="onSdwtChange" />
         </div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select
-            v-model="filters.eqpId"
-            :options="eqpIds"
-            filter
-            placeholder="EQP ID"
-            :disabled="!filterStore.selectedSdwt"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !filters.eqpId }"
-            @change="onEqpChange"
-          />
+          <Select v-model="filters.eqpId" :options="eqpIds" filter placeholder="EQP ID" :disabled="!filterStore.selectedSdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.eqpId }" @change="onEqpChange" />
         </div>
 
         <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select
-            v-model="filters.lotId"
-            :options="lotIds"
-            filter
-            placeholder="Lot ID"
-            :disabled="!filters.eqpId"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !filters.lotId }"
-            @change="onLotChange"
-          />
+          <Select v-model="filters.lotId" :options="lotIds" filter placeholder="Lot ID" :disabled="!filters.eqpId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.lotId }" @change="onLotChange" />
         </div>
 
         <div class="min-w-[140px] shrink-0">
-          <DatePicker
-            v-model="filters.startDate"
-            showIcon
-            dateFormat="yy-mm-dd"
-            placeholder="Start"
-            class="w-full custom-dropdown small date-picker"
-            :disabled="!filters.eqpId"
-            @update:model-value="onDateChange"
-          />
+          <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
         </div>
 
         <div class="min-w-[140px] shrink-0">
-          <DatePicker
-            v-model="filters.endDate"
-            showIcon
-            dateFormat="yy-mm-dd"
-            placeholder="End"
-            class="w-full custom-dropdown small date-picker"
-            :disabled="!filters.eqpId"
-            @update:model-value="onDateChange"
-          />
+          <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" @update:model-value="onDateChange" />
         </div>
       </div>
 
-      <div
-        class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800"
-      >
-        <Button
-          icon="pi pi-refresh"
-          text
-          rounded
-          severity="secondary"
-          v-tooltip.bottom="'Reset'"
-          class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
-          @click="resetFilters"
-        />
+      <div class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800">
+        <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors" @click="resetFilters" />
       </div>
     </div>
 
-    <div
-      v-if="filters.lotId"
-      class="flex flex-1 min-h-0 gap-3 pb-2 overflow-hidden lg:flex-row flex-col animate-fade-in"
-    >
-      <div
-        class="flex flex-col w-full lg:w-64 shrink-0 bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden h-full"
-      >
-        <div
-          class="p-3 bg-slate-50 dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800"
-        >
-          <h3
-            class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2"
-          >
+    <div v-if="filters.lotId" class="flex flex-1 min-h-0 gap-3 pb-2 overflow-hidden lg:flex-row flex-col animate-fade-in">
+      <div class="flex flex-col w-full lg:w-64 shrink-0 bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden h-full">
+        <div class="p-3 bg-slate-50 dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
             <i class="pi pi-filter"></i> Target Selection
           </h3>
         </div>
-        <div
-          class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4 flex flex-col"
-        >
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4 flex flex-col">
           <div class="space-y-3 shrink-0">
-            <div
-              class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-            >
-              <span
-                class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]"
-                >1</span
-              >
+            <div class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              <span class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]">1</span>
               Process Condition
             </div>
             <div class="pl-2 space-y-2">
               <div>
-                <label class="text-[10px] text-slate-400 block mb-1"
-                  >CASSETTE RCP</label
-                >
-                <Select
-                  v-model="filters.cassetteRcp"
-                  :options="cassetteRcps"
-                  placeholder="Select Recipe"
-                  class="w-full custom-dropdown small"
-                  overlayClass="custom-dropdown-panel small"
-                  @change="onCassetteChange"
-                />
+                <label class="text-[10px] text-slate-400 block mb-1">CASSETTE RCP</label>
+                <Select v-model="filters.cassetteRcp" :options="cassetteRcps" placeholder="Select Recipe" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onCassetteChange" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-400 block mb-1"
-                  >STAGE GROUP</label
-                >
-                <Select
-                  v-model="filters.stageGroup"
-                  :options="stageGroups"
-                  placeholder="Select Stage"
-                  :disabled="!filters.cassetteRcp"
-                  class="w-full custom-dropdown small"
-                  overlayClass="custom-dropdown-panel small"
-                  @change="onStageGroupChange"
-                />
+                <label class="text-[10px] text-slate-400 block mb-1">STAGE GROUP</label>
+                <Select v-model="filters.stageGroup" :options="stageGroups" placeholder="Select Stage" :disabled="!filters.cassetteRcp" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onStageGroupChange" />
               </div>
             </div>
           </div>
           <div class="h-px bg-slate-100 dark:bg-zinc-800 shrink-0"></div>
+          
           <div class="space-y-2 shrink-0">
-            <div
-              class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-            >
-              <span
-                class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]"
-                >2</span
-              >
+            <div class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              <span class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]">2</span>
               Measurement Point
             </div>
             <div class="pl-2">
-              <div
-                v-if="isPointsLoading"
-                class="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400"
-              >
+              <div v-if="isPointsLoading" class="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400">
                 <i class="pi pi-spin pi-spinner"></i> Loading Points...
               </div>
-              <Select
-                v-else
-                v-model="filters.pointId"
-                :options="pointIds"
-                placeholder="Select Point"
-                :disabled="!filters.stageGroup || pointIds.length === 0"
-                class="w-full custom-dropdown small"
-                overlayClass="custom-dropdown-panel small"
-              />
-              <small
-                v-if="
-                  filters.stageGroup &&
-                  !isPointsLoading &&
-                  pointIds.length === 0
-                "
-                class="text-[10px] text-rose-400 ml-1"
-                >No points found.</small
-              >
+              <Select v-else v-model="filters.pointId" :options="pointIds" placeholder="Select Point" :disabled="!filters.stageGroup || pointIds.length === 0" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
+              <small v-if="filters.stageGroup && !isPointsLoading && pointIds.length === 0" class="text-[10px] text-rose-400 ml-1">No points found.</small>
             </div>
           </div>
           <div class="h-px bg-slate-100 dark:bg-zinc-800 shrink-0"></div>
 
           <div class="flex flex-col flex-1 min-h-0">
             <div class="flex items-center justify-between mb-2 shrink-0">
-              <div
-                class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-              >
-                <span
-                  class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]"
-                  >3</span
-                >
+              <div class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                <span class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]">3</span>
                 Wafers ({{ selectedWafers.length }})
               </div>
-              <button
-                v-if="filters.stageGroup"
-                @click="toggleAllWafers"
-                class="text-[10px] text-indigo-500 hover:text-indigo-600 font-bold transition-colors"
-              >
-                {{
-                  selectedWafers.length === waferList.length &&
-                  waferList.length > 0
-                    ? "Deselect All"
-                    : "Select All"
-                }}
+              <button v-if="filters.stageGroup" @click="toggleAllWafers" class="text-[10px] text-indigo-500 hover:text-indigo-600 font-bold transition-colors">
+                {{ selectedWafers.length === waferList.length && waferList.length > 0 ? "Deselect All" : "Select All" }}
               </button>
             </div>
             <div class="pl-2 flex-1 min-h-0 flex flex-col">
-              <div
-                v-if="!filters.stageGroup"
-                class="text-[10px] text-slate-400 italic py-2"
-              >
-                Select conditions first.
-              </div>
-              <div
-                v-else
-                class="overflow-y-auto custom-scrollbar flex-1 pr-1 space-y-1 h-full"
-              >
-                <div
-                  v-for="w in waferList"
-                  :key="w"
-                  @click="toggleWafer(w)"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all border group"
-                  :class="
-                    selectedWafers.includes(w)
-                      ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800/50'
-                      : 'border-transparent hover:bg-slate-50 dark:hover:bg-zinc-800/50'
-                  "
-                >
-                  <div
-                    class="w-4 h-4 rounded border flex items-center justify-center transition-colors"
-                    :class="
-                      selectedWafers.includes(w)
-                        ? 'bg-indigo-500 border-indigo-500'
-                        : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800'
-                    "
-                  >
-                    <i
-                      v-if="selectedWafers.includes(w)"
-                      class="pi pi-check text-white text-[8px] font-bold"
-                    ></i>
+              <div v-if="!filters.stageGroup" class="text-[10px] text-slate-400 italic py-2">Select conditions first.</div>
+              <div v-else class="overflow-y-auto custom-scrollbar flex-1 pr-1 space-y-1 h-full">
+                <div v-for="w in waferList" :key="w" @click="toggleWafer(w)" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all border group" :class="selectedWafers.includes(w) ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800/50' : 'border-transparent hover:bg-slate-50 dark:hover:bg-zinc-800/50'">
+                  <div class="w-4 h-4 rounded border flex items-center justify-center transition-colors" :class="selectedWafers.includes(w) ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800'">
+                    <i v-if="selectedWafers.includes(w)" class="pi pi-check text-white text-[8px] font-bold"></i>
                   </div>
-                  <span
-                    class="text-xs font-mono font-medium"
-                    :class="
-                      selectedWafers.includes(w)
-                        ? 'text-indigo-700 dark:text-indigo-300'
-                        : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'
-                    "
-                    >Slot #{{ w }}</span
-                  >
+                  <span class="text-xs font-mono font-medium" :class="selectedWafers.includes(w) ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'">Slot #{{ w }}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div
-          class="mt-auto p-3 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900"
-        >
-          <Button
-            label="Analyze Spectrum"
-            icon="pi pi-search"
-            class="w-full !text-xs !font-bold !py-2.5 !rounded-lg !bg-indigo-600 hover:!bg-indigo-700 !border-indigo-600"
-            :loading="isLoading"
-            :disabled="!isReadyToSearch"
-            @click="searchData"
-          />
+        <div class="mt-auto p-3 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900">
+          <Button label="Analyze Spectrum" icon="pi pi-search" class="w-full !text-xs !font-bold !py-2.5 !rounded-lg !bg-indigo-600 hover:!bg-indigo-700 !border-indigo-600" :loading="isLoading" :disabled="!isReadyToSearch" @click="searchData" />
         </div>
       </div>
 
       <div class="flex flex-col flex-1 gap-3 overflow-hidden h-full">
-        <div
-          class="flex-[3] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 relative flex flex-col"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30"
-          >
+        <div class="flex-[3] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 relative flex flex-col">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30">
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-2">
                 <div class="w-1 h-3 bg-indigo-500 rounded-full"></div>
-                <h3
-                  class="text-xs font-bold text-slate-700 dark:text-slate-200"
-                >
-                  Spectrum Trend
-                </h3>
+                <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Spectrum Trend</h3>
               </div>
               <div class="flex items-center gap-2 ml-4">
-                <span class="text-[10px] font-bold text-slate-400"
-                  >Golden Ref (Best GOF):</span
-                >
-                <ToggleSwitch
-                  v-model="showGoldenRef"
-                  class="scale-75"
-                  @change="toggleGoldenRef"
-                />
+                <span class="text-[10px] font-bold text-slate-400">Golden Ref (Best GOF):</span>
+                <ToggleSwitch v-model="showGoldenRef" class="scale-75" @change="toggleGoldenRef" />
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <span
-                v-if="selectedModelWafer"
-                class="flex items-center gap-1 text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-200"
-              >
-                <i class="pi pi-chart-line"></i> Model Fit: Slot #{{
-                  selectedModelWafer
-                }}
-                <i
-                  class="pi pi-times cursor-pointer ml-1 hover:text-amber-800"
-                  @click="clearModelFit"
-                ></i>
+              <span v-if="selectedModelWafer" class="flex items-center gap-1 text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded border border-amber-200">
+                <i class="pi pi-chart-line"></i> Model Fit: Slot #{{ selectedModelWafer }}
+                <i class="pi pi-times cursor-pointer ml-1 hover:text-amber-800" @click="clearModelFit"></i>
               </span>
-              <span
-                v-if="hasSearched"
-                class="text-[10px] text-slate-400 font-mono bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded"
-                >Hover to highlight</span
-              >
+              <span v-if="hasSearched" class="text-[10px] text-slate-400 font-mono bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Hover to highlight</span>
             </div>
           </div>
-          <div
-            class="relative flex-1 w-full min-h-0 bg-slate-50/30 dark:bg-black/20"
-          >
-            <div
-              v-if="!hasSearched"
-              class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60 select-none"
-            >
-              <div
-                class="w-16 h-16 bg-slate-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-3"
-              >
-                <i
-                  class="pi pi-chart-line text-2xl text-slate-300 dark:text-zinc-600"
-                ></i>
+          <div class="relative flex-1 w-full min-h-0 bg-slate-50/30 dark:bg-black/20">
+            <div v-if="!hasSearched" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60 select-none">
+              <div class="w-16 h-16 bg-slate-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-3">
+                <i class="pi pi-chart-line text-2xl text-slate-300 dark:text-zinc-600"></i>
               </div>
               <p class="text-xs font-bold text-slate-500">No Data Displayed</p>
-              <p class="text-[10px]">
-                Select conditions on the left and click Analyze.
-              </p>
+              <p class="text-[10px]">Select conditions on the left and click Analyze.</p>
             </div>
-            <EChart
-              v-else
-              :option="chartOption"
-              class="w-full h-full"
-              @chartCreated="onChartCreated"
-              @zr:mousemove="onChartMouseOver"
-            />
+            <EChart v-else :option="chartOption" class="w-full h-full" @chartCreated="onChartCreated" @zr:mousemove="onChartMouseOver" />
             <transition name="fade">
-              <button
-                v-if="isZoomed"
-                @click="resetZoom"
-                class="absolute top-3 right-3 bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5 transition-all z-10 cursor-pointer"
-              >
+              <button v-if="isZoomed" @click="resetZoom" class="absolute top-3 right-3 bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5 transition-all z-10 cursor-pointer">
                 <i class="pi pi-refresh text-[9px]"></i> Reset Zoom
               </button>
             </transition>
           </div>
         </div>
 
-        <div
-          v-if="hasSearched"
-          class="flex-[2] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col animate-fade-in"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30"
-          >
+        <div v-if="hasSearched" class="flex-[2] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col animate-fade-in">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30">
             <div class="flex items-center gap-2">
               <i class="pi pi-table text-indigo-500 text-xs"></i>
-              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">
-                Measurement Results
-              </h3>
+              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Measurement Results</h3>
             </div>
-            <span class="text-[10px] text-slate-400"
-              >Click row to overlay Model(GEN)</span
-            >
+            <span class="text-[10px] text-slate-400">Click row to overlay Model(GEN)</span>
           </div>
-
           <div class="flex-1 overflow-auto p-0">
-            <DataTable
-              :value="tableData"
-              class="p-datatable-sm text-xs"
-              scrollable
-              scrollHeight="flex"
-              stripedRows
-              rowHover
-              resizableColumns
-              columnResizeMode="expand"
-              showGridlines
-              v-model:selection="selectedTableRow"
-              selectionMode="single"
-              dataKey="waferId"
-              @row-select="onRowSelect"
-              @row-mouseenter="onRowMouseEnter"
-              @row-mouseleave="onRowMouseLeave"
-            >
-              <Column
-                field="lotId"
-                header="Lot ID"
-                class="font-mono text-slate-500"
-                style="min-width: 120px"
-              ></Column>
-
+            <DataTable :value="tableData" class="p-datatable-sm text-xs" scrollable scrollHeight="flex" stripedRows rowHover resizableColumns columnResizeMode="expand" showGridlines v-model:selection="selectedTableRow" selectionMode="single" dataKey="waferId" @row-select="onRowSelect" @row-mouseenter="onRowMouseEnter" @row-mouseleave="onRowMouseLeave">
+              <Column field="lotId" header="Lot ID" class="font-mono text-slate-500" style="min-width: 120px"></Column>
               <Column field="waferId" header="Wafer" style="min-width: 80px">
                 <template #body="slotProps">
-                  <span
-                    class="font-bold text-indigo-600 dark:text-indigo-400"
-                    >{{ slotProps.data.waferId }}</span
-                  >
+                  <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ slotProps.data.waferId }}</span>
                 </template>
               </Column>
-
               <Column field="gof" header="GOF" style="min-width: 90px">
                 <template #body="slotProps">
-                  <span :class="getCellClass('gof', slotProps.data.gof)">
-                    {{ formatValue(slotProps.data.gof) }}
-                  </span>
+                  <span :class="getCellClass('gof', slotProps.data.gof)">{{ formatValue(slotProps.data.gof) }}</span>
                 </template>
               </Column>
-
-              <Column
-                v-for="col in tableColumns"
-                :key="col"
-                :field="col"
-                :header="formatHeader(col)"
-                style="min-width: 100px"
-              >
+              <Column v-for="col in tableColumns" :key="col" :field="col" :header="formatHeader(col)" style="min-width: 100px">
                 <template #body="slotProps">
-                  <span :class="getCellClass(col, slotProps.data[col])">
-                    {{ formatValue(slotProps.data[col]) }}
-                  </span>
+                  <span :class="getCellClass(col, slotProps.data[col])">{{ formatValue(slotProps.data[col]) }}</span>
                 </template>
               </Column>
             </DataTable>
@@ -478,13 +186,8 @@
       </div>
     </div>
 
-    <div
-      v-else
-      class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]"
-    >
-      <div
-        class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
-      >
+    <div v-else class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]">
+      <div class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800">
         <i class="text-4xl pi pi-filter text-slate-300 dark:text-zinc-600"></i>
       </div>
       <p class="text-sm font-bold text-slate-500">Select Global Filters</p>
@@ -513,6 +216,7 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const isLoading = ref(false);
 const isPointsLoading = ref(false);
+const isEqpLoading = ref(false);
 const hasSearched = ref(false);
 
 const sites = ref<string[]>([]);
@@ -559,21 +263,25 @@ const hoveredWaferId = ref<number | null>(null);
 const selectedTableRow = ref();
 const selectedModelWafer = ref<number | null>(null);
 
-// [수정] 노랑색(#FFD700) 계열을 완전히 배제한 Slot 전용 색상 팔레트
 const slotColors = [
-  "#3B82F6", // Blue
-  "#10B981", // Green
-  "#F43F5E", // Rose
-  "#8B5CF6", // Violet
-  "#06B6D4", // Cyan
-  "#EC4899", // Pink
-  "#6366F1", // Indigo
-  "#14B8A6", // Teal
-  "#F97316", // Orange
-  "#64748B", // Slate
-  "#D946EF", // Fuchsia
-  "#0EA5E9", // Sky
+  "#3B82F6", "#10B981", "#F43F5E", "#8B5CF6", "#06B6D4", "#EC4899", "#6366F1", "#14B8A6", "#F97316", "#64748B", "#D946EF", "#0EA5E9",
 ];
+
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return undefined;
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
@@ -599,11 +307,15 @@ onMounted(async () => {
 
     if (targetSdwt && sdwts.value.includes(targetSdwt)) {
       filterStore.selectedSdwt = targetSdwt;
-      // [수정] 객체 파라미터 전달 { sdwt, type: "agent" }
-      eqpIds.value = await equipmentApi.getEqpIds({
-        sdwt: targetSdwt,
-        type: "agent"
-      });
+      isEqpLoading.value = true;
+      try {
+        eqpIds.value = await equipmentApi.getEqpIds({
+          sdwt: targetSdwt,
+          type: "agent"
+        });
+      } finally {
+        isEqpLoading.value = false;
+      }
 
       const savedEqp = localStorage.getItem("spec_eqp");
       if (savedEqp && eqpIds.value.includes(savedEqp)) {
@@ -647,11 +359,15 @@ const onSdwtChange = async () => {
   resetFrom(1);
   if (filterStore.selectedSdwt) {
     localStorage.setItem("spec_sdwt", filterStore.selectedSdwt);
-    // [수정] 객체 파라미터 전달
-    eqpIds.value = await equipmentApi.getEqpIds({
-      sdwt: filterStore.selectedSdwt,
-      type: "agent"
-    });
+    isEqpLoading.value = true;
+    try {
+        eqpIds.value = await equipmentApi.getEqpIds({
+        sdwt: filterStore.selectedSdwt,
+        type: "agent"
+        });
+    } finally {
+        isEqpLoading.value = false;
+    }
   } else {
     localStorage.removeItem("spec_sdwt");
     eqpIds.value = [];
@@ -673,21 +389,23 @@ const onDateChange = () => {
 };
 
 const loadLotIds = async () => {
+  // [수정] toLocalISOString 사용
   lotIds.value = await waferApi.getDistinctValues("lotids", {
     eqpId: filters.eqpId,
-    startDate: filters.startDate?.toISOString(),
-    endDate: filters.endDate?.toISOString(),
+    startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
   });
 };
 
 const onLotChange = async () => {
   resetFrom(3);
   if (filters.lotId) {
+    // [수정] toLocalISOString 사용
     cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
       eqpId: filters.eqpId,
       lotId: filters.lotId,
-      startDate: filters.startDate?.toISOString(),
-      endDate: filters.endDate?.toISOString(),
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
   }
 };
@@ -699,8 +417,8 @@ const onCassetteChange = async () => {
       eqpId: filters.eqpId,
       lotId: filters.lotId,
       cassetteRcp: filters.cassetteRcp,
-      startDate: filters.startDate?.toISOString(),
-      endDate: filters.endDate?.toISOString(),
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
   }
 };
@@ -712,8 +430,8 @@ const onStageGroupChange = async () => {
       lotId: filters.lotId,
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
-      startDate: filters.startDate?.toISOString(),
-      endDate: filters.endDate?.toISOString(),
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
     waferList.value = wafers.sort((a, b) => Number(a) - Number(b));
     selectedWafers.value = wafers.slice(0, 5);
@@ -728,14 +446,13 @@ const loadPoints = async () => {
   pointIds.value = [];
   filters.pointId = "";
   try {
-    // [수정] getPoints -> getDistinctPoints
     const points = await waferApi.getDistinctPoints({
       eqpId: filters.eqpId,
       lotId: filters.lotId,
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
-      startDate: filters.startDate?.toISOString(),
-      endDate: filters.endDate?.toISOString(),
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
     pointIds.value = points;
     if (points.length > 0) filters.pointId = points[0] ?? "";
@@ -801,6 +518,7 @@ const searchData = async () => {
   clearModelFit();
 
   try {
+    // [수정] toLocalISOString 사용 (startDate, endDate는 내부적으로 WaferService에서 사용됨)
     const data = await waferApi.getSpectrumTrend({
       eqpId: filters.eqpId,
       lotId: filters.lotId,
@@ -808,6 +526,8 @@ const searchData = async () => {
       waferIds: selectedWafers.value.join(","),
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
 
     const mappedData = data
@@ -889,7 +609,7 @@ const fetchGoldenRef = async () => {
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
       pointId: filters.pointId,
-      lotId: filters.lotId, // [필수] Best GOF 조회 시 LotID 필요
+      lotId: filters.lotId, 
     });
 
     if (golden && golden.wavelengths && golden.values && golden.wavelengths.length > 0) {
@@ -911,7 +631,6 @@ const fetchGoldenRef = async () => {
         z: 999,
       };
     } else {
-      // 데이터가 없는 경우 조용히 처리
       goldenSeries.value = null;
     }
   } catch (e) {
@@ -968,6 +687,8 @@ const resetFilters = () => {
   localStorage.removeItem("spec_site");
   localStorage.removeItem("spec_sdwt");
   localStorage.removeItem("spec_eqp");
+  filters.startDate = new Date(Date.now() - 7 * 864e5);
+  filters.endDate = new Date();
   resetFrom(0);
 };
 
@@ -1009,7 +730,6 @@ const chartOption = computed(() => {
 
   const series: any[] = [];
 
-  // [수정] Golden Ref를 가장 먼저 추가하되 z-index 높임
   if (showGoldenRef.value && goldenSeries.value) {
     series.push({
       ...goldenSeries.value,
@@ -1024,7 +744,6 @@ const chartOption = computed(() => {
       z: 999,
     });
   } else {
-    // 범례용 더미 시리즈
     series.push({
       id: "golden-ref",
       name: "Golden Ref (Best GOF)",
@@ -1039,7 +758,6 @@ const chartOption = computed(() => {
     });
   }
 
-  // [수정] Slot 데이터에 전용 팔레트 적용 (노랑 제외)
   chartSeries.value.forEach((s, idx) => {
     const isHovered = hoveredWaferId.value === s.waferId;
     const isSelected = selectedModelWafer.value === s.waferId;
@@ -1113,7 +831,6 @@ const chartOption = computed(() => {
         let html = `<div class="font-bold mb-1 border-b border-slate-500/30 pb-1">Wavelength: ${params[0].axisValue} nm</div>`;
 
         params.forEach((p) => {
-          // [수정] 툴팁 색상을 시리즈 색상(p.color)으로 통일
           if (p.seriesName.includes("Golden Ref")) {
             if (!p.value || p.value.length === 0) return;
             html += `<div style="color:#FFD700" class="text-[10px]">● ${p.seriesName}</div>`;
@@ -1219,7 +936,7 @@ const getCellClass = (col: string, val: any) => {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
 :deep(.custom-dropdown .p-select-label) {
-  @apply text-[12px] py-[5px] px-3;
+  @apply text-[13px] py-[5px] px-3;
 }
 :deep(.custom-dropdown.small) {
   @apply h-7;
@@ -1228,7 +945,7 @@ const getCellClass = (col: string, val: any) => {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
 :deep(.date-picker .p-inputtext) {
-  @apply !text-[12px] !py-1 !px-2 !h-7;
+  @apply !text-[13px] !py-1 !px-2 !h-7;
 }
 :deep(.p-select-dropdown) {
   @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
