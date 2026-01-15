@@ -1,184 +1,74 @@
-<!-- frontend/src/views/ProcessMatchingAnalyticsView.vue -->
 <template>
-  <div
-    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden"
-  >
+  <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden">
     <div class="flex items-center gap-3 px-1 mb-2 shrink-0">
-      <div
-        class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
-      >
-        <i
-          class="text-lg text-emerald-500 pi pi-arrows-h dark:text-emerald-400"
-        ></i>
+      <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
+        <i class="text-lg text-emerald-500 pi pi-arrows-h dark:text-emerald-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <h1
-          class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white"
-        >
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Process Matching Analytics
         </h1>
-        <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
-          >Equipment-to-Equipment Correlation Analysis.</span
-        >
+        <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">Equipment-to-Equipment Correlation Analysis.</span>
       </div>
     </div>
 
-    <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300"
-    >
-      <div
-        class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
-      >
+    <div class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300">
+      <div class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide">
         <div class="min-w-[140px] shrink-0">
-          <Select
-            v-model="filterStore.selectedSite"
-            :options="sites"
-            placeholder="Site"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !filterStore.selectedSite }"
-            @change="onSiteChange"
-          />
+          <Select v-model="filterStore.selectedSite" :options="sites" placeholder="Site" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filterStore.selectedSite }" @change="onSiteChange" />
         </div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select
-            v-model="filterStore.selectedSdwt"
-            :options="sdwts"
-            placeholder="SDWT"
-            :disabled="!filterStore.selectedSite"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !filterStore.selectedSdwt }"
-            @change="onSdwtChange"
-          />
+          <Select v-model="filterStore.selectedSdwt" :options="sdwts" placeholder="SDWT" :disabled="!filterStore.selectedSite" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filterStore.selectedSdwt }" @change="onSdwtChange" />
         </div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select
-            v-model="refEqpId"
-            :options="refEqpList"
-            filter
-            placeholder="Ref. EQP (Standard)"
-            :disabled="!filterStore.selectedSdwt"
-            showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !refEqpId }"
-            @change="onRefEqpChange"
-          />
+          <Select v-model="refEqpId" :options="refEqpList" filter placeholder="Ref. EQP (Standard)" :disabled="!filterStore.selectedSdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !refEqpId }" @change="onRefEqpChange" />
         </div>
 
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
         <div class="min-w-[140px] shrink-0">
-          <DatePicker
-            v-model="filters.startDate"
-            showIcon
-            dateFormat="yy-mm-dd"
-            placeholder="Start"
-            class="w-full custom-dropdown small date-picker"
-            :disabled="!refEqpId"
-            @update:model-value="onDateChange"
-          />
+          <DatePicker v-model="filters.startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!refEqpId" @update:model-value="onDateChange" />
         </div>
         <div class="min-w-[140px] shrink-0">
-          <DatePicker
-            v-model="filters.endDate"
-            showIcon
-            dateFormat="yy-mm-dd"
-            placeholder="End"
-            class="w-full custom-dropdown small date-picker"
-            :disabled="!refEqpId"
-            @update:model-value="onDateChange"
-          />
+          <DatePicker v-model="filters.endDate" showIcon dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!refEqpId" @update:model-value="onDateChange" />
         </div>
       </div>
 
-      <div
-        class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800"
-      >
-        <Button
-          icon="pi pi-refresh"
-          text
-          rounded
-          severity="secondary"
-          v-tooltip.bottom="'Reset'"
-          class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
-          @click="resetFilters"
-        />
+      <div class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800">
+        <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors" @click="resetFilters" />
       </div>
     </div>
 
-    <div
-      v-if="refEqpId"
-      class="flex flex-col flex-1 min-h-0 gap-3 pb-2 overflow-hidden lg:flex-row animate-fade-in"
-    >
-      <div
-        class="flex flex-col w-full lg:w-72 shrink-0 bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden h-full"
-      >
-        <div
-          class="p-3 border-b bg-slate-50 dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
-        >
-          <h3
-            class="flex items-center gap-2 text-xs font-bold tracking-wider uppercase text-slate-700 dark:text-slate-300"
-          >
+    <div v-if="refEqpId" class="flex flex-col flex-1 min-h-0 gap-3 pb-2 overflow-hidden lg:flex-row animate-fade-in">
+      <div class="flex flex-col w-full lg:w-72 shrink-0 bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden h-full">
+        <div class="p-3 border-b bg-slate-50 dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
+          <h3 class="flex items-center gap-2 text-xs font-bold tracking-wider uppercase text-slate-700 dark:text-slate-300">
             <i class="pi pi-filter"></i> Analysis Setup
           </h3>
         </div>
 
         <div class="flex-1 p-3 space-y-5 overflow-y-auto custom-scrollbar">
           <div class="space-y-3">
-            <div
-              class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-            >
-              <span
-                class="w-4 h-4 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center text-[9px]"
-                >1</span
-              >
+            <div class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              <span class="w-4 h-4 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center text-[9px]">1</span>
               Target Condition
             </div>
             <div class="pl-2 space-y-2">
               <div>
                 <label class="text-[10px] text-slate-400 block mb-1">CASSETTE RCP</label>
-                <Select
-                  v-model="filters.cassetteRcp"
-                  :options="cassetteRcps"
-                  placeholder="Select Recipe"
-                  filter
-                  :disabled="!refEqpId"
-                  class="w-full custom-dropdown small"
-                  overlayClass="custom-dropdown-panel small"
-                  @change="onCassetteChange"
-                />
+                <Select v-model="filters.cassetteRcp" :options="cassetteRcps" placeholder="Select Recipe" filter :disabled="!refEqpId" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onCassetteChange" />
               </div>
               
               <div>
                 <label class="text-[10px] text-slate-400 block mb-1">STAGE GROUP</label>
-                <Select
-                  v-model="filters.stageGroup"
-                  :options="stageGroups"
-                  placeholder="Select Stage"
-                  :disabled="!filters.cassetteRcp"
-                  class="w-full custom-dropdown small"
-                  overlayClass="custom-dropdown-panel small"
-                  @change="onStageChange"
-                />
+                <Select v-model="filters.stageGroup" :options="stageGroups" placeholder="Select Stage" :disabled="!filters.cassetteRcp" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onStageChange" />
               </div>
               
               <div>
                 <label class="text-[10px] text-slate-400 block mb-1">FILM</label>
-                <Select
-                  v-model="filters.film"
-                  :options="films"
-                  placeholder="Select Film"
-                  :disabled="!filters.stageGroup"
-                  class="w-full custom-dropdown small"
-                  overlayClass="custom-dropdown-panel small"
-                  @change="onFilmChange"
-                />
+                <Select v-model="filters.film" :options="films" placeholder="Select Film" :disabled="!filters.stageGroup" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onFilmChange" />
               </div>
             </div>
           </div>
@@ -187,29 +77,14 @@
 
           <div class="flex flex-col flex-1 min-h-0 space-y-2">
             <div class="flex items-center justify-between">
-              <div
-                class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide"
-              >
-                <span
-                  class="w-4 h-4 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center text-[9px]"
-                  >2</span
-                >
+              <div class="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                <span class="w-4 h-4 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center text-[9px]">2</span>
                 Compare Targets
               </div>
 
-              <div
-                v-if="isListVisible && targetEqps.length > 0"
-                class="flex items-center gap-2"
-              >
-                <button
-                  @click="toggleAllEquipments"
-                  class="text-[10px] font-bold transition-colors text-sky-500 hover:text-sky-600"
-                >
-                  {{
-                    selectedEqps.length === targetEqps.length
-                      ? "Deselect All"
-                      : "Select All"
-                  }}
+              <div v-if="isListVisible && targetEqps.length > 0" class="flex items-center gap-2">
+                <button @click="toggleAllEquipments" class="text-[10px] font-bold transition-colors text-sky-500 hover:text-sky-600">
+                  {{ selectedEqps.length === targetEqps.length ? "Deselect All" : "Select All" }}
                 </button>
                 <span class="text-[10px] font-bold text-slate-400">
                   {{ selectedEqps.length }} / {{ targetEqps.length }}
@@ -221,46 +96,18 @@
               <i class="pi pi-spin pi-spinner text-sky-500"></i>
             </div>
 
-            <div
-              v-else-if="!isListVisible"
-              class="text-[10px] text-slate-400 italic pl-2 py-4 text-center border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-lg"
-            >
+            <div v-else-if="!isListVisible" class="text-[10px] text-slate-400 italic pl-2 py-4 text-center border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-lg">
               <i class="block mb-1 pi pi-exclamation-circle"></i>
               Select full conditions to find matching equipments.
             </div>
 
-            <div
-              v-else-if="targetEqps.length === 0"
-              class="text-[10px] text-slate-400 italic pl-2"
-            >
+            <div v-else-if="targetEqps.length === 0" class="text-[10px] text-slate-400 italic pl-2">
               No matching equipments found.
             </div>
 
-            <div
-              v-else
-              class="flex-1 p-1 overflow-y-auto border rounded-lg custom-scrollbar border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30"
-            >
-              <div
-                v-for="eqp in targetEqps"
-                :key="eqp"
-                @click="toggleEqp(eqp)"
-                class="flex items-center gap-2 px-3 py-2 mb-1 transition-all rounded-md cursor-pointer select-none"
-                :class="[
-                  selectedEqps.includes(eqp)
-                    ? (eqp === refEqpId 
-                        ? 'bg-indigo-500 text-white shadow-sm font-bold ring-1 ring-indigo-400' 
-                        : 'bg-sky-500 text-white shadow-sm font-bold')
-                    : 'hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-400'
-                ]"
-              >
-                <i
-                  :class="
-                    selectedEqps.includes(eqp)
-                      ? 'pi pi-check-circle'
-                      : 'pi pi-circle'
-                  "
-                  class="text-[10px]"
-                ></i>
+            <div v-else class="flex-1 p-1 overflow-y-auto border rounded-lg custom-scrollbar border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30">
+              <div v-for="eqp in targetEqps" :key="eqp" @click="toggleEqp(eqp)" class="flex items-center gap-2 px-3 py-2 mb-1 transition-all rounded-md cursor-pointer select-none" :class="[selectedEqps.includes(eqp) ? (eqp === refEqpId ? 'bg-indigo-500 text-white shadow-sm font-bold ring-1 ring-indigo-400' : 'bg-sky-500 text-white shadow-sm font-bold') : 'hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-400']">
+                <i :class="selectedEqps.includes(eqp) ? 'pi pi-check-circle' : 'pi pi-circle'" class="text-[10px]"></i>
                 <span class="text-xs">{{ eqp }}</span>
                 <span v-if="eqp === refEqpId" class="ml-auto text-[9px] bg-white/20 px-1.5 rounded font-bold border border-white/30">REF</span>
               </div>
@@ -268,27 +115,14 @@
           </div>
         </div>
 
-        <div
-          class="p-3 mt-auto border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900"
-        >
-          <Button
-            label="Analyze Matching"
-            icon="pi pi-chart-bar"
-            class="w-full !text-xs !font-bold !py-2.5 !rounded-lg !bg-sky-600 hover:!bg-sky-700 !border-sky-600"
-            :loading="isDataLoading"
-            :disabled="selectedEqps.length < 1"
-            @click="loadComparisonData"
-          />
+        <div class="p-3 mt-auto border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900">
+          <Button label="Analyze Matching" icon="pi pi-chart-bar" class="w-full !text-xs !font-bold !py-2.5 !rounded-lg !bg-sky-600 hover:!bg-sky-700 !border-sky-600" :loading="isDataLoading" :disabled="selectedEqps.length < 1" @click="loadComparisonData" />
         </div>
       </div>
 
       <div class="flex flex-col flex-1 h-full gap-3 overflow-hidden">
-        <div
-          class="flex-[3] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col relative"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30"
-          >
+        <div class="flex-[3] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col relative">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30">
             <div class="flex items-center gap-2">
               <div class="w-1 h-3 rounded-full bg-sky-500"></div>
               <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -298,20 +132,12 @@
             <div class="flex items-center gap-2">
               <span class="text-[10px] text-slate-400 font-bold">Metric:</span>
               <div class="w-32">
-                <Select
-                  v-model="selectedMetric"
-                  :options="metricOptions"
-                  class="w-full custom-dropdown small"
-                  overlayClass="custom-dropdown-panel small"
-                />
+                <Select v-model="selectedMetric" :options="metricOptions" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
               </div>
             </div>
           </div>
           <div class="relative flex-1 w-full min-h-0">
-            <div
-              v-if="!hasSearched"
-              class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60"
-            >
+            <div v-if="!hasSearched" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60">
               <i class="mb-2 text-3xl pi pi-chart-bar opacity-30"></i>
               <span class="text-xs">Select targets and click Analyze.</span>
             </div>
@@ -319,45 +145,21 @@
           </div>
         </div>
 
-        <div
-          class="flex-[4] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col relative"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30"
-          >
+        <div class="flex-[4] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col relative">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30">
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-2">
                 <div class="w-1 h-3 bg-indigo-500 rounded-full"></div>
-                <h3
-                  class="text-xs font-bold text-slate-700 dark:text-slate-200"
-                >
+                <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">
                   Correlation Cluster
                 </h3>
               </div>
 
               <div class="flex items-center gap-2 pl-3 ml-2 border-l border-slate-200 dark:border-zinc-700">
                 <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mr-1">Analytics:</span>
-                <div 
-                  class="flex items-center gap-1.5"
-                  :class="{ 'opacity-50 pointer-events-none': !hasSearched }"
-                >
-                  <div 
-                    v-for="opt in analyticsOptions" 
-                    :key="opt.code"
-                    @click="hasSearched && toggleAnalytics(opt.code)"
-                    v-tooltip.top="opt.desc"
-                    class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all duration-200 select-none"
-                    :class="[
-                      !hasSearched ? 'cursor-not-allowed bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-300' : 'cursor-pointer',
-                      selectedAnalytics.includes(opt.code) && hasSearched
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500/50 dark:text-indigo-300 shadow-sm' 
-                        : hasSearched ? 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-slate-400 dark:hover:bg-zinc-700' : ''
-                    ]"
-                  >
-                    <i 
-                      class="pi text-[9px]" 
-                      :class="selectedAnalytics.includes(opt.code) && hasSearched ? 'pi-check-circle' : 'pi-circle'"
-                    ></i>
+                <div class="flex items-center gap-1.5" :class="{ 'opacity-50 pointer-events-none': !hasSearched }">
+                  <div v-for="opt in analyticsOptions" :key="opt.code" @click="hasSearched && toggleAnalytics(opt.code)" v-tooltip.top="opt.desc" class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all duration-200 select-none" :class="[!hasSearched ? 'cursor-not-allowed bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-300' : 'cursor-pointer', selectedAnalytics.includes(opt.code) && hasSearched ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500/50 dark:text-indigo-300 shadow-sm' : hasSearched ? 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-slate-400 dark:hover:bg-zinc-700' : '']">
+                    <i class="pi text-[9px]" :class="selectedAnalytics.includes(opt.code) && hasSearched ? 'pi-check-circle' : 'pi-circle'"></i>
                     <span class="text-[10px] font-bold">{{ opt.name }}</span>
                   </div>
                 </div>
@@ -368,54 +170,31 @@
               <div class="flex items-center gap-1">
                 <span class="text-[10px] text-slate-400 font-bold">X:</span>
                 <div class="w-28">
-                  <Select
-                    v-model="scatterX"
-                    :options="scatterOptions"
-                    class="w-full custom-dropdown small"
-                    overlayClass="custom-dropdown-panel small"
-                  />
+                  <Select v-model="scatterX" :options="scatterOptions" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
                 </div>
               </div>
               <div class="flex items-center gap-1">
                 <span class="text-[10px] text-slate-400 font-bold">Y:</span>
                 <div class="w-28">
-                  <Select
-                    v-model="scatterY"
-                    :options="scatterOptions"
-                    class="w-full custom-dropdown small"
-                    overlayClass="custom-dropdown-panel small"
-                  />
+                  <Select v-model="scatterY" :options="scatterOptions" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
                 </div>
               </div>
             </div>
           </div>
           <div class="relative flex-1 w-full min-h-0">
-            <div
-              v-if="!hasSearched"
-              class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60"
-            >
+            <div v-if="!hasSearched" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60">
               <i class="mb-2 text-3xl pi pi-chart-scatter opacity-30"></i>
               <span class="text-xs">Scatter plot will appear here.</span>
             </div>
             
-            <EChart 
-              v-else 
-              :key="selectedAnalytics.sort().join(',')" 
-              :option="scatterOption" 
-              class="w-full h-full" 
-            />
+            <EChart v-else :key="selectedAnalytics.sort().join(',')" :option="scatterOption" class="w-full h-full" />
           </div>
         </div>
       </div>
     </div>
 
-    <div
-      v-else
-      class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]"
-    >
-      <div
-        class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
-      >
+    <div v-else class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]">
+      <div class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800">
         <i class="text-4xl pi pi-filter text-slate-300 dark:text-zinc-600"></i>
       </div>
       <p class="text-sm font-bold text-slate-500">Select Global Filters</p>
@@ -433,12 +212,10 @@ import { waferApi } from "@/api/wafer";
 import { equipmentApi } from "@/api/equipment"; 
 import EChart from "@/components/common/EChart.vue";
 
-// Components
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 
-// Type Definitions
 interface ComparisonRow {
   eqpid: string;
   lotid: string;
@@ -455,7 +232,6 @@ interface FilterState {
   film?: string;
 }
 
-// Stores & State
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const isEqpLoading = ref(false);
@@ -473,7 +249,6 @@ const analyticsOptions = ref([
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-// Reference EQP State
 const refEqpId = ref<string>("");
 const refEqpList = ref<string[]>([]);
 
@@ -514,7 +289,23 @@ const isListVisible = computed(() => {
   return true;
 });
 
-// Lifecycle Hooks
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+// isEndDate = true 이면 23:59:59.999 로 설정
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return undefined;
+  const d = new Date(date);
+  
+  if (isEndDate) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+
+  const offset = d.getTimezoneOffset() * 60000;
+  const localDate = new Date(d.getTime() - offset);
+  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
+
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   
@@ -632,17 +423,17 @@ const resetConditions = () => {
   targetEqps.value = [];
   selectedEqps.value = [];
   
-  // [수정] 조건 초기화 시 차트 데이터도 함께 초기화하여 오해 방지
   rawData.value = [];
   hasSearched.value = false;
 };
 
+// [수정] getBaseParams에 toLocalISOString 적용
 const getBaseParams = () => ({
   site: filterStore.selectedSite || "",
   sdwt: filterStore.selectedSdwt || "",
   eqpId: refEqpId.value || "",
-  startDate: filters.startDate ? new Date(filters.startDate).toISOString() : "",
-  endDate: filters.endDate ? new Date(filters.endDate).toISOString() : "",
+  startDate: filters.startDate ? toLocalISOString(filters.startDate) : "",
+  endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : "",
 });
 
 const loadOptions = async () => {
@@ -659,7 +450,6 @@ const onCassetteChange = async () => {
   selectedEqps.value = [];
   targetEqps.value = [];
   
-  // [수정] 필터 변경 시 차트 데이터 초기화 (분석 대기 상태로 전환)
   rawData.value = [];
   hasSearched.value = false;
   
@@ -675,7 +465,6 @@ const onStageChange = async () => {
   targetEqps.value = [];
   selectedEqps.value = [];
 
-  // [수정] 필터 변경 시 차트 데이터 초기화
   rawData.value = [];
   hasSearched.value = false;
 
@@ -702,7 +491,6 @@ const onFilmChange = async () => {
   targetEqps.value = [];
   selectedEqps.value = [];
   
-  // [수정] 필터 변경 시 차트 데이터 초기화 (재조회 필요)
   rawData.value = [];
   hasSearched.value = false;
 
