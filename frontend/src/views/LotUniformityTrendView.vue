@@ -90,7 +90,6 @@
             placeholder="Start"
             class="w-full custom-dropdown small date-picker"
             :disabled="!filters.eqpId"
-            @update:model-value="onDateChange"
           />
         </div>
         <div class="min-w-[140px] shrink-0">
@@ -101,7 +100,6 @@
             placeholder="End"
             class="w-full custom-dropdown small date-picker"
             :disabled="!filters.eqpId"
-            @update:model-value="onDateChange"
           />
         </div>
       </div>
@@ -114,8 +112,7 @@
           rounded
           class="!bg-teal-600 !border-teal-600 hover:!bg-teal-700 !w-8 !h-8 !text-xs !shadow-sm"
           v-tooltip.bottom="'Search Options'"
-          :disabled="!filters.lotId"
-          :loading="isTopLoading"
+          :disabled="!filters.lotId || isTopLoading"
           @click="onTopSearch"
         />
         <Button
@@ -218,14 +215,12 @@
                 ? '!bg-gradient-to-br !from-indigo-500 !to-indigo-600 hover:!from-indigo-600 hover:!to-indigo-700 !text-white !cursor-pointer'
                 : '!bg-slate-100 dark:!bg-zinc-800 !text-slate-400 !cursor-not-allowed'
             "
-            :loading="isLoading"
-            :disabled="!isReadyToSearch"
+            :disabled="!isReadyToSearch || isLoading"
             @click="searchData"
             v-tooltip.left="'Generate Trend Chart'"
           >
             <i
               class="text-2xl pi pi-chart-line mb-1"
-              :class="{ 'animate-pulse': isLoading }"
             ></i>
             <span>Analyze</span>
           </Button>
@@ -239,7 +234,7 @@
     >
       <div
         v-if="isLoading"
-        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-2xl border border-transparent"
+        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-transparent"
       >
         <div class="relative">
           <div
@@ -331,7 +326,7 @@
 
         <div class="relative flex-1 w-full min-h-0">
           <EChart
-            v-if="!isLoading && chartSeries.length > 0"
+            v-if="chartSeries.length > 0"
             :option="lineChartOption"
             class="w-full h-full"
             @click="onLineChartClick"
@@ -481,7 +476,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -502,6 +497,7 @@ const hasSearched = ref(false);
 const mapMode = ref<"point" | "heatmap">("point");
 const selectedWaferId = ref<number | null>(null);
 
+// Spatial Analysis States
 const isSpatialView = ref(false);
 const viewAngle = ref(0);
 
@@ -547,6 +543,33 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   const localDate = new Date(d.getTime() - offset);
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
+
+// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+watch(
+  [() => filters.startDate, () => filters.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+
+      // 보정 로직
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
+           filters.endDate = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
+           filters.startDate = new Date(newEnd);
+        }
+        return; // 보정 발생 시 로딩 중단
+      }
+    }
+
+    if (filters.eqpId) {
+        loadLotIds();
+    }
+  }
+);
 
 const steps = computed(() => [
   {
@@ -744,28 +767,28 @@ const onEqpChange = () => {
   }
 };
 
+// [수정] EQP 변경 시 초기화
 const onLotChange = () => {
   clearStepsFrom(1);
   hasTopSearched.value = false;
 };
 
-const onDateChange = () => {
-  if (filters.eqpId) loadLotIds();
-};
-
 const onTopSearch = async () => {
   if (!filters.lotId) return;
+  
+  // [수정] 차트 영역 먼저 보여주고, 로딩 오버레이 띄움
+  hasTopSearched.value = true;
   isTopLoading.value = true;
+  
   try {
     clearStepsFrom(1);
     await loadCassettes();
-    hasTopSearched.value = true;
   } finally {
     isTopLoading.value = false;
   }
 };
 
-// [수정] 날짜/시간 시차 해결을 위해 toLocalISOString 사용
+// [수정] API 호출 시 toLocalISOString 사용
 const loadLotIds = async () => {
   const params = {
       eqpId: filters.eqpId,
@@ -843,8 +866,10 @@ const selectFilm = async (val: string) => {
 
 const searchData = async () => {
   if (!isReadyToSearch.value) return;
-  isLoading.value = true;
+  
   hasSearched.value = true;
+  isLoading.value = true;
+  
   selectedWaferId.value = null;
   chartSeries.value = [];
 
