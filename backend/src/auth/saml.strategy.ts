@@ -4,13 +4,13 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, SamlConfig, Profile } from '@node-saml/passport-saml';
 import { User } from './auth.interface';
 
-// [수정] AD Profile 인터페이스에 CompName 추가
+// [수정] AD Profile 인터페이스 정의 (Claim URL 매핑용)
 interface AdProfile extends Profile {
   'http://schemas.sec.com/2018/05/identity/claims/LoginId'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/CompId'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/CompName'?: string; // [추가] 회사명 Claim
   'http://schemas.sec.com/2018/05/identity/claims/DeptId'?: string;
-  'http://schemas.sec.com/2018/05/identity/claims/DeptName'?: string; // 부서명 Claim
+  'http://schemas.sec.com/2018/05/identity/claims/DeptName'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Username'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/Mail'?: string;
   'http://schemas.sec.com/2018/05/identity/claims/UserId'?: string;
@@ -25,7 +25,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
   private readonly logger = new Logger(SamlStrategy.name);
 
   constructor() {
-    // ... (기존 생성자 코드 유지) ...
+    // SAML 설정 구성
     const samlConfig: SamlConfig = {
       entryPoint: process.env.SAML_ENTRY_POINT || '',
       issuer: process.env.SAML_ISSUER || '',
@@ -43,6 +43,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       privateKey: process.env.SAML_SP_PRIVATE_KEY || undefined,
     };
 
+    // 필수 설정 검증
     if (
       !samlConfig.entryPoint ||
       !samlConfig.idpCert ||
@@ -55,7 +56,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
     }
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error   
+    // @ts-expect-error
     super(samlConfig);
   }
 
@@ -66,22 +67,22 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
     }
 
     // ---------------------------------------------------------
-    // [중요] AD에서 넘어오는 전체 데이터 로그 출력 (디버깅용)
-    // 서버 로그에서 CompName, DeptName의 정확한 키(Key)와 값을 확인하세요.
+    // [디버깅] AD Claim 데이터 확인
     // ---------------------------------------------------------
     this.logger.log('=== [AD Claims Debug] ===');
     this.logger.log(JSON.stringify(profile, null, 2));
     this.logger.log('=========================');
 
-    // 데이터 추출
+    // Claim 데이터 추출
     const rawCompId = profile['http://schemas.sec.com/2018/05/identity/claims/CompId'];
     
-    // [추가] 회사명 추출 (Claim URL은 로그 확인 후 필요시 수정)
-    const rawCompName = profile['http://schemas.sec.com/2018/05/identity/claims/CompName']; 
+    // [추가] 회사명 추출 (로그 확인 후 키값이 다르면 수정 필요)
+    const rawCompName = profile['http://schemas.sec.com/2018/05/identity/claims/CompName'];
 
     const rawDeptId = profile['http://schemas.sec.com/2018/05/identity/claims/DeptId'];
     const rawDeptName = profile['http://schemas.sec.com/2018/05/identity/claims/DeptName'];
 
+    // 사용자 ID 추출 우선순위
     const userId =
       profile['http://schemas.sec.com/2018/05/identity/claims/LoginId'] ||
       profile['http://schemas.sec.com/2018/05/identity/claims/UserId'] ||
@@ -89,32 +90,36 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
       profile.sAMAccountName ||
       '';
 
+    // 이메일 추출 우선순위
     const email =
       profile['http://schemas.sec.com/2018/05/identity/claims/Mail'] ||
       profile.mail ||
       profile.email ||
       '';
 
+    // 이름 추출 우선순위
     const name =
       profile['http://schemas.sec.com/2018/05/identity/claims/Username'] ||
       profile.displayName ||
       profile.cn ||
       '';
 
+    // 그룹 정보 배열 처리
     const groups = profile.memberOf
       ? Array.isArray(profile.memberOf)
         ? profile.memberOf
         : [profile.memberOf]
       : [];
 
+    // [핵심] User 객체 생성 (auth.interface.ts와 일치해야 함)
     const user: User = {
       userId: typeof userId === 'string' ? userId : '',
       email: typeof email === 'string' ? email : '',
-      name: typeof name === 'string' ? name : '',
-      department: rawDeptId || '',       // 부서 코드
-      departmentName: rawDeptName || '', // 부서 명
-      companyCode: typeof rawCompId === 'string' ? rawCompId : '', // 회사 코드
-      companyName: typeof rawCompName === 'string' ? rawCompName : '', // [추가] 회사 명
+      name: typeof name === 'string' ? name : '',             // 에러 발생 지점 해결
+      department: rawDeptId || '',
+      departmentName: rawDeptName || '',
+      companyCode: typeof rawCompId === 'string' ? rawCompId : '',
+      companyName: typeof rawCompName === 'string' ? rawCompName : '', // 에러 발생 지점 해결
       groups: groups,
       sessionIndex: profile.sessionIndex,
     };
@@ -133,5 +138,4 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
     }
     return this.generateServiceProviderMetadata(null, signingCert);
   }
-}
 }
