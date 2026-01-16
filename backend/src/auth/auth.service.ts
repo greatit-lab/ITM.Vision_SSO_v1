@@ -31,7 +31,7 @@ export class AuthService {
 
     let isWhitelisted = false;
 
-    // 1. Whitelist Check (Access Code)
+    // 1. Whitelist Check
     try {
       if (user.companyCode) {
         const companyAuth = await this.api.request<{ isActive: string }>(
@@ -60,7 +60,7 @@ export class AuthService {
       this.logger.error(`[Whitelist Check Error] ${e}`);
     }
 
-    // 2. User Sync (Create or Update)
+    // 2. User Sync
     let dbLoginId = rawUserId;
     try {
       const syncedUser = await this.api.request<{ loginId: string }>(
@@ -81,7 +81,6 @@ export class AuthService {
     let hasGuestAccess = false;
 
     try {
-      // (1) Admin Check
       const adminUser = await this.api.request<{ role: string }>(
         this.DOMAIN,
         'get',
@@ -94,7 +93,6 @@ export class AuthService {
       if (adminUser) {
         role = adminUser.role.toUpperCase();
       } else {
-        // (2) Guest Check
         const guestUser = await this.api.request<{ grantedRole: string }>(
           this.DOMAIN,
           'get',
@@ -117,7 +115,6 @@ export class AuthService {
     const isAllowed = isWhitelisted || isAdmin || hasGuestAccess;
 
     if (!isAllowed) {
-      // 신청 상태 확인
       try {
         const lastRequest = await this.api.request<{ status: string }>(
           this.DOMAIN,
@@ -140,7 +137,6 @@ export class AuthService {
         if (e instanceof ForbiddenException) throw e;
         this.logger.error(`[Request Check Error] ${e}`);
       }
-
       throw new ForbiddenException('AccessDenied');
     }
 
@@ -148,20 +144,24 @@ export class AuthService {
     let contextSite = '';
     let contextSdwt = '';
     try {
+      // [수정] user/context -> context (Data API 경로 일치)
       const userContext = await this.api.request<{
-        sdwtInfo: { site: string; sdwt: string };
+        site: string; // Data API 응답 구조에 맞춰 수정
+        sdwt: string;
       }>(
         this.DOMAIN,
         'get',
-        'user/context',
+        'context', // user/context 아님
         undefined,
         { loginId: dbLoginId },
         { returnNullOn404: true },
       );
 
-      if (userContext?.sdwtInfo) {
-        contextSite = userContext.sdwtInfo.site;
-        contextSdwt = userContext.sdwtInfo.sdwt;
+      // Data API가 { site, sdwt } 형태로 바로 반환하는지, { sdwtInfo: { site, sdwt } }인지 확인 필요
+      // 현재 Data API 코드는 { site, sdwt }를 바로 반환함
+      if (userContext) {
+        contextSite = userContext.site;
+        contextSdwt = userContext.sdwt;
       }
     } catch (e) {
       this.logger.warn(`[Context Load Error] ${e}`);
@@ -194,15 +194,32 @@ export class AuthService {
   // [Other Methods]
   // ==========================
 
+  // [추가] Context 조회 메서드
+  async getUserContext(loginId: string) {
+    try {
+      // Data API: GET /api/auth/context?loginId=...
+      return await this.api.request(this.DOMAIN, 'get', 'context', undefined, {
+        loginId,
+      });
+    } catch (e) {
+      this.logger.error(`[getUserContext] Failed: ${e}`);
+      return null;
+    }
+  }
+
+  // [수정] Context 저장 메서드
   async saveUserContext(loginId: string, site: string, sdwt: string) {
     try {
-      return await this.api.request(this.DOMAIN, 'post', 'user/context', {
+      // [수정] user/context -> context (Data API 경로 일치)
+      // Data API: POST /api/auth/context
+      return await this.api.request(this.DOMAIN, 'post', 'context', {
         loginId,
         site,
         sdwt,
       });
     } catch (e) {
-      throw new NotFoundException(`Invalid Site or SDWT or User: ${e}`);
+      this.logger.error(`[saveUserContext] Failed: ${e}`);
+      throw new NotFoundException(`Failed to save context: ${e}`);
     }
   }
 
