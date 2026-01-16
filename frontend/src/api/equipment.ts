@@ -1,11 +1,10 @@
 // frontend/src/api/equipment.ts
 import http from './http';
 
-// 1. 인프라 관리용 장비 인터페이스 (RefEquipment 매핑)
+// [수정] eqpid -> eqpId (Backend Data API의 CamelCase 응답과 일치시킴)
 export interface Equipment {
-  eqpid: string;
+  eqpId: string;
   sdwt?: string;
-  // 필요한 경우 RefEquipment 테이블의 추가 컬럼 정의 (예: site, line 등)
   [key: string]: any;
 }
 
@@ -15,7 +14,7 @@ export interface EquipmentDto {
   pcName: string;
   isOnline: boolean;
   ipAddress: string;
-  lastContact: string | null; // JSON 변환 시 Date는 string으로 옴
+  lastContact: string | null;
   os: string;
   systemType: string;
   timezone: string;
@@ -103,7 +102,6 @@ export async function deleteEquipment(eqpId: string): Promise<void> {
   await http.delete(`/equipment/${eqpId}`);
 }
 
-// [수정] View에서 import { equipmentApi } 로 사용할 수 있도록 객체 export 추가
 export const equipmentApi = {
   getInfraList,
   getEquipmentDetails,
