@@ -544,6 +544,21 @@ onMounted(() => {
   fetchAllData();
 });
 
+// [Helper Function] KST 시간을 UTC 값으로 보이게 변환하여 DB에 그대로 저장되게 함
+// 예: KST 23:59:59 -> (9시간을 더함) -> UTC 23:59:59로 변환
+const convertToKstDB = (date: Date): Date => {
+  const target = new Date(date);
+  // 1. KST 기준으로 23:59:59 설정
+  target.setHours(23, 59, 59, 0); 
+  
+  // 2. 현재 브라우저의 타임존 오프셋(한국은 -540분)을 구함
+  // offset 값이 -540이면, 빼기 연산을 통해 +540분(9시간)을 더해줌
+  const offset = target.getTimezoneOffset() * 60000;
+  
+  // 3. 9시간을 더해서 UTC 기준으로도 23:59:59가 되는 Date 객체 생성
+  return new Date(target.getTime() - offset);
+};
+
 // Actions & Dialog Logic
 const approveDialogVisible = ref(false);
 const selectedRequest = ref<any>(null);
@@ -560,11 +575,8 @@ const openApproveDialog = (req: any) => {
 const confirmApprove = async () => {
   if (!selectedRequest.value || !approveValidUntil.value) return;
   try {
-    // [중요 개선] 반올림 방지를 위해 밀리초를 0으로 설정
-    // 23:59:59.000 KST -> DB 저장 시 14:59:59.000 UTC
-    // 이렇게 해야 DB에서 다음 날 00:00:00으로 반올림되는 것을 방지할 수 있습니다.
-    const validDate = new Date(approveValidUntil.value);
-    validDate.setHours(23, 59, 59, 0); 
+    // [수정] DB에 저장될 때도 23:59:59로 보이도록 시간 강제 변환
+    const validDate = convertToKstDB(approveValidUntil.value);
 
     await AdminApi.approveGuestRequest({
       reqId: selectedRequest.value.reqId,
@@ -622,9 +634,8 @@ const saveManualGuest = async () => {
   if (!newManualGuest.value.loginId || !newManualGuest.value.validUntil)
     return alert("필수 입력 누락");
   try {
-    // [중요 개선] 수동 등록 시에도 동일하게 23:59:59.000 설정
-    const validDate = new Date(newManualGuest.value.validUntil);
-    validDate.setHours(23, 59, 59, 0);
+    // [수정] DB에 저장될 때도 23:59:59로 보이도록 시간 강제 변환
+    const validDate = convertToKstDB(newManualGuest.value.validUntil);
 
     await AdminApi.addGuest({
       ...newManualGuest.value,
