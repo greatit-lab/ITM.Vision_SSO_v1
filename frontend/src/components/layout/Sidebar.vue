@@ -8,10 +8,11 @@
       class="shrink-0 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.25,0.8,0.25,1)] border-b border-slate-100 dark:border-white/5 relative group cursor-default"
       :class="isOpen ? 'max-h-8 py-0 opacity-100' : 'max-h-0 opacity-0 border-none'"
     >
-      <div class="absolute inset-0 bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 dark:from-white/5 dark:via-indigo-500/10 dark:to-white/5"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-indigo-50/90 dark:from-indigo-500/15 dark:via-purple-500/10 dark:to-indigo-500/15"></div>
+      
       <div class="relative flex items-center justify-center w-full h-8 gap-2">
         <i class="pi pi-verified text-[10px] text-indigo-500 animate-pulse"></i>
-        <span class="text-[9px] font-extrabold text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase drop-shadow-sm">
+        <span class="text-[9px] font-extrabold text-indigo-900/60 dark:text-indigo-200/60 tracking-[0.3em] uppercase drop-shadow-sm">
           테스트팀
         </span>
       </div>
@@ -72,9 +73,23 @@
       :class="isOpen ? 'p-4' : 'py-4 flex flex-col items-center justify-center'"
     >
       <div
-        class="flex items-center p-2.5 rounded-xl transition-all duration-300 cursor-pointer group hover:bg-white dark:hover:bg-white/10 hover:shadow-md border border-transparent hover:border-slate-100 dark:hover:border-white/5"
+        class="relative flex items-center p-2.5 rounded-xl transition-all duration-300 cursor-pointer group hover:bg-white dark:hover:bg-white/10 hover:shadow-md border border-transparent hover:border-slate-100 dark:hover:border-white/5"
         :class="isOpen ? 'w-full gap-3.5' : 'justify-center w-auto aspect-square gap-0'"
       >
+        
+        <div 
+          v-if="!hasContext && isOpen" 
+          class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-max max-w-[200px] z-50"
+        >
+          <div class="animate-[bounce_3s_infinite]">
+            <div class="relative bg-indigo-600 text-white text-[11px] leading-relaxed font-medium py-2 px-3 rounded-lg shadow-xl text-center border border-indigo-500/50 backdrop-blur-sm">
+              <span class="block mb-0.5 font-bold text-indigo-100">⚠️ Profile Settings 에서</span>
+              관심 Site / Sdwt 지정필요.
+              <div class="absolute w-2.5 h-2.5 bg-indigo-600 rotate-45 -bottom-1 left-1/2 -translate-x-1/2 border-b border-r border-indigo-500/50"></div>
+            </div>
+          </div>
+        </div>
+
         <div
           class="relative flex items-center justify-center text-base font-bold text-white transition-transform duration-300 shadow-lg w-9 h-9 rounded-xl shrink-0 group-hover:scale-105 group-hover:rotate-3"
           :class="roleAvatarClass"
@@ -88,9 +103,9 @@
           class="flex flex-col min-w-0 overflow-hidden transition-all duration-300"
           :class="isOpen ? 'opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-4 hidden'"
         >
-          <p class="text-base font-bold leading-tight truncate transition-colors text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
-             :title="contextInfo || authStore.userName">
-            {{ contextInfo || authStore.userName }}
+          <p class="text-sm font-bold leading-tight truncate transition-colors"
+             :class="hasContext ? 'text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400' : 'text-slate-400 dark:text-slate-500 italic font-medium cursor-help'">
+            {{ displayInfo }}
           </p>
           <p class="text-[11px] font-bold truncate mt-0.5" :class="getRoleTextColor(userRole)">
             {{ userRole }}
@@ -126,10 +141,12 @@ const roleInitial = computed(() => {
 // Context 정보 존재 여부 확인
 const hasContext = computed(() => !!authStore.user?.site && !!authStore.user?.sdwt);
 
-// 원본 기능 복원: Site / SDWT 형식의 문자열 생성
-const contextInfo = computed(() => {
-  if (hasContext.value) return `${authStore.user?.site} / ${authStore.user?.sdwt}`;
-  return "";
+// "No Site / No Sdwt" 적용
+const displayInfo = computed(() => {
+  if (hasContext.value) {
+    return `${authStore.user?.site} / ${authStore.user?.sdwt}`;
+  }
+  return "No Site / No Sdwt";
 });
 
 const roleAvatarClass = computed(() => {
