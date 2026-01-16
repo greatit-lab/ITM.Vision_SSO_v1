@@ -47,21 +47,18 @@ export class MenuService {
 
   // 1. 내 메뉴 조회
   async getMyMenus(role: string): Promise<MenuNode[]> {
-    // [디버깅 로그] 2단계: Data API 호출 직전 확인
     this.logger.warn(`[DEBUG-SSO-2] Calling Data-API with Query Param: ?role=${role}`);
 
-    // Data API 호출: GET /menu/my?role=ADMIN
     return this.api.request<MenuNode[]>(
       this.DOMAIN,
       'get',
       'my',
-      undefined, // body
-      { role }   // params (Query String)
+      undefined, 
+      { role }   
     ).then(res => {
         this.logger.warn(`[DEBUG-SSO-5] Data-API Response Received. Items: ${Array.isArray(res) ? res.length : 'Not Array'}`);
         return res || [];
     }).catch((err: unknown) => {
-        // [수정] err 타입을 unknown으로 지정하고 안전하게 메시지 추출 (ESLint 오류 해결)
         const errorMessage = err instanceof Error ? err.message : String(err);
         this.logger.error(`[DEBUG-SSO-ERROR] Data-API Call Failed: ${errorMessage}`);
         return [];
@@ -81,7 +78,8 @@ export class MenuService {
   }
 
   async updateMenu(id: number, data: UpdateMenuDto) {
-    return this.api.request(this.DOMAIN, 'patch', String(id), data);
+    // [수정] Data API가 @Put(':id')을 사용하므로 patch -> put 으로 변경해야 함
+    return this.api.request(this.DOMAIN, 'put', String(id), data);
   }
 
   async deleteMenu(id: number) {
