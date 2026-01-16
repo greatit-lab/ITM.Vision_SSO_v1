@@ -40,14 +40,17 @@
                     <div class="flex-1"><InputText v-model="filters.sdwt" placeholder="SDWT" class="!py-1.5 w-full text-xs" /></div>
                     <Button icon="pi pi-filter-slash" severity="secondary" outlined size="small" class="!py-1.5 !px-3" @click="resetFilter" />
                   </div>
-                  <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      </div>
+                  
+                  <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span class="hidden sm:inline font-bold">Page Unit</span>
+                      <Dropdown v-model="eqpRows" :options="[20, 50, 100]" class="!text-xs w-20" />
+                  </div>
                 </div>
 
                 <div class="flex-1 overflow-hidden border rounded-lg border-slate-200 dark:border-zinc-800 min-h-0 relative">
                   <div class="absolute inset-0">
-                    <DataTable :value="filteredEquipments" paginator :rows="eqpRows" v-model:first="eqpFirst" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm [&_.p-paginator]:hidden" stripedRows :loading="loading" tableStyle="min-width: 80rem" removableSort sortField="eqpid" :sortOrder="1">
-                      <Column field="eqpid" header="EQP ID" sortable style="min-width: 120px; font-weight: bold"></Column>
+                    <DataTable :value="filteredEquipments" paginator :rows="eqpRows" v-model:first="eqpFirst" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm [&_.p-paginator]:hidden" stripedRows :loading="loading" tableStyle="min-width: 80rem" removableSort sortField="eqpId" :sortOrder="1">
+                      <Column field="eqpId" header="EQP ID" sortable style="min-width: 120px; font-weight: bold"></Column>
                       <Column field="lineCode" header="Line Code" sortable style="min-width: 100px"></Column>
                       <Column field="indexLine" header="Index Line" sortable style="min-width: 100px"></Column>
                       <Column field="maker" header="Maker" sortable style="min-width: 100px"></Column>
@@ -64,7 +67,7 @@
                              text rounded severity="danger" 
                              size="small" 
                              class="!w-6 !h-6" 
-                             @click="removeEquipment(data.eqpid)" 
+                             @click="removeEquipment(data.eqpId)" 
                            />
                         </template>
                       </Column>
@@ -189,7 +192,10 @@
     <Dialog v-model:visible="sevDialog.visible" modal :header="sevDialog.isEdit ? '에러 심각도 수정' : '에러 심각도 추가'" :style="{ width: '30rem' }">
       <div class="flex flex-col gap-4 pt-2">
         <div class="flex flex-col gap-1"><label class="text-xs font-bold">Error ID</label><InputText v-model="sevForm.errorId" :disabled="sevDialog.isEdit" class="!text-sm" /></div>
-        <div class="flex flex-col gap-1"><label class="text-xs font-bold">Severity</label><Dropdown v-model="sevForm.severity" :options="['High', 'Medium', 'Low', 'Info']" class="!text-sm w-full" /></div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-bold">Severity</label>
+            <Dropdown v-model="sevForm.severity" :options="severityOptions" class="!text-sm w-full" />
+        </div>
       </div>
       <template #footer>
         <Button label="취소" text severity="secondary" @click="sevDialog.visible = false" />
@@ -227,10 +233,7 @@ import Dialog from "primevue/dialog";
 import Checkbox from "primevue/checkbox";
 import Dropdown from "primevue/dropdown";
 
-// [변경] 기존 InfraApi 대신 새로 만든 equipment API 사용 (Tab 0 용)
 import * as EquipmentApi from "@/api/equipment"; 
-
-// 기존 API 유지 (Tab 1, 2 용)
 import * as InfraApi from "@/api/infra";
 import * as AdminApi from "@/api/admin";
 
@@ -245,7 +248,6 @@ const sdwts = ref([]);
 const severities = ref([]);
 const metrics = ref([]);
 
-// --- Pagination Variables ---
 const eqpRows = ref(20);
 const eqpFirst = ref(0);
 const sdwtRows = ref(20);
@@ -256,18 +258,18 @@ const metricsMultiSortMeta = ref([
   { field: 'metricName', order: 1 as const }
 ]);
 
-// --- Tab 0: Equipment Logic (새 API 적용) ---
+// --- Tab 0: Equipment Logic ---
 const filters = reactive({ eqpId: "", indexLine: "", sdwt: "" });
 const filteredEquipments = computed(() => {
   if (!equipments.value) return [];
   return equipments.value.filter((item: any) => {
+    // [수정] eqpId (CamelCase)로 필터링
     const fEqp = filters.eqpId.toLowerCase();
     const fIdx = filters.indexLine.toLowerCase();
     const fSdwt = filters.sdwt.toLowerCase();
     
-    // DB에서 가져온 데이터 필드명에 맞춤 (API 응답이 snake_case일 수 있으므로 매핑 필요 시 주의)
-    // RefEquipment 모델: eqpid, indexLine, sdwt 필드 존재함
-    return (!fEqp || item.eqpid?.toLowerCase().includes(fEqp)) &&
+    // Backend API 수정으로 'eqpId'가 반환되므로 이를 사용
+    return (!fEqp || item.eqpId?.toLowerCase().includes(fEqp)) &&
            (!fIdx || item.indexLine?.toLowerCase().includes(fIdx)) &&
            (!fSdwt || item.sdwt?.toLowerCase().includes(fSdwt));
   });
@@ -275,16 +277,15 @@ const filteredEquipments = computed(() => {
 
 const resetFilter = () => { filters.eqpId = ""; filters.indexLine = ""; filters.sdwt = ""; };
 
-// [추가] 장비 삭제 기능
 const removeEquipment = async (eqpId: string) => {
   if (!confirm(`정말로 장비 [${eqpId}]를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
     return;
   }
   try {
     loading.value = true;
-    await EquipmentApi.deleteEquipment(eqpId); // 신규 API 호출
+    await EquipmentApi.deleteEquipment(eqpId);
     alert('삭제되었습니다.');
-    await loadEquipments(); // 목록 갱신
+    await loadEquipments();
   } catch (error) {
     console.error('Failed to delete equipment:', error);
     alert('삭제 중 오류가 발생했습니다.');
@@ -326,16 +327,29 @@ const removeSdwt = async (id: string) => {
 
 // --- Tab 2: Severity & Metric Logic ---
 const sevDialog = reactive({ visible: false, isEdit: false });
-const sevForm = reactive({ errorId: '', severity: 'Medium' });
+const sevForm = reactive({ errorId: '', severity: 'Error' }); 
 const metDialog = reactive({ visible: false, isEdit: false });
 const metForm = reactive({ metricName: '', isExcluded: false });
+
+// [수정] Severity 동적 옵션: 현재 값이 목록에 없어도 드롭다운에 표시되도록 처리
+const severityOptions = computed(() => {
+   const base = ['Error', 'Severe'];
+   if (sevForm.severity && !base.includes(sevForm.severity)) {
+      return [...base, sevForm.severity];
+   }
+   return base;
+});
 
 const openSeverityDialog = (item?: any) => {
   sevDialog.visible = true;
   sevDialog.isEdit = !!item;
-  if (item) Object.assign(sevForm, item);
-  else Object.assign(sevForm, { errorId: '', severity: 'Medium' });
+  if (item) {
+    Object.assign(sevForm, item);
+  } else {
+    Object.assign(sevForm, { errorId: '', severity: 'Error' });
+  }
 };
+
 const saveSeverity = async () => {
   try {
     if (sevDialog.isEdit) await AdminApi.updateSeverity(sevForm.errorId, sevForm);
@@ -351,8 +365,8 @@ const removeSeverity = async (id: string) => {
   }
 };
 const getSeverityClass = (sev: string) => {
-  if (sev === 'High') return 'text-red-600 font-bold';
-  if (sev === 'Medium') return 'text-orange-500 font-bold';
+  if (sev === 'Severe' || sev === 'High') return 'text-red-600 font-bold';
+  if (sev === 'Error' || sev === 'Medium') return 'text-orange-500 font-bold';
   return 'text-green-600';
 };
 
@@ -384,12 +398,10 @@ const removeMetric = async (name: string) => {
 };
 
 // --- Data Fetching ---
-// [변경] Tab 0: 장비 목록 조회를 신규 API (getInfraList)로 교체
 const loadEquipments = async () => { 
   try {
-    // getInfraList는 배열을 직접 반환하도록 수정되었으므로 .data 없이 받을 수 있음 (api/equipment.ts 확인 필요)
-    // 만약 axios response 그대로라면 .data가 맞음. 여기선 안전하게 처리.
     const response = await EquipmentApi.getInfraList();
+    // API 응답 구조에 따라 배열 직접 반환 또는 .data 사용 (안전하게 처리)
     equipments.value = Array.isArray(response) ? response : (response as any).data || [];
   } catch (e) {
     console.error("Equipment load failed", e);
@@ -431,7 +443,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 공통 스타일 유지 */
 :deep(.p-datatable-sm .p-datatable-thead > tr > th) {
   @apply bg-white dark:bg-[#111111] text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase border-b border-slate-100 dark:border-zinc-800;
 }
