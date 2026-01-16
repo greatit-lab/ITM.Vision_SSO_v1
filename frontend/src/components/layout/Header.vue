@@ -15,16 +15,74 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <button 
-          class="relative p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-          v-tooltip.bottom="notificationTooltip"
-        >
-           <i class="pi pi-bell text-lg"></i>
-           <span 
-             v-if="hasNotification"
-             class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-zinc-900 animate-pulse"
-           ></span>
-        </button>
+        
+        <div class="relative" ref="notificationRef">
+          <button 
+            @click="toggleNotifications"
+            class="relative p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none"
+            :class="{ 'bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400': showNotifications }"
+          >
+             <i class="pi pi-bell text-lg"></i>
+             <span 
+               v-if="hasNotification"
+               class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-zinc-900 animate-pulse"
+             ></span>
+          </button>
+
+          <transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="transform scale-95 opacity-0 translate-y-2"
+            enter-to-class="transform scale-100 opacity-100 translate-y-0"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="transform scale-100 opacity-100 translate-y-0"
+            leave-to-class="transform scale-95 opacity-0 translate-y-2"
+          >
+            <div 
+              v-if="showNotifications"
+              class="absolute right-0 w-80 mt-2 origin-top-right bg-white border shadow-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none z-50 overflow-hidden"
+            >
+              <div class="px-4 py-3 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Notifications</h3>
+              </div>
+              
+              <div class="max-h-64 overflow-y-auto">
+                <div v-if="guestNotification" class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b border-slate-50 dark:border-zinc-800/50 transition-colors">
+                  <div class="flex items-start gap-3">
+                    <div class="mt-0.5 text-amber-500 bg-amber-50 dark:bg-amber-900/20 p-1.5 rounded-full">
+                      <i class="pi pi-clock text-xs"></i>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">게스트 권한 만료 안내</p>
+                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        계정 유효기간이 <span class="font-bold text-rose-500">{{ guestNotification.dDay }}</span>일 남았습니다.<br/>
+                        만료일: {{ guestNotification.date }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="pendingRequestCount > 0" class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b border-slate-50 dark:border-zinc-800/50 transition-colors">
+                  <div class="flex items-start gap-3">
+                    <div class="mt-0.5 text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 p-1.5 rounded-full">
+                      <i class="pi pi-user-plus text-xs"></i>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">승인 대기 요청</p>
+                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        현재 <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ pendingRequestCount }}</span>건의 요청이 대기 중입니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="!hasNotification" class="px-4 py-8 text-center">
+                  <i class="pi pi-bell-slash text-slate-300 dark:text-zinc-600 text-2xl mb-2"></i>
+                  <p class="text-xs text-slate-400 dark:text-zinc-500">새로운 알림이 없습니다.</p>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
 
         <button 
           v-if="isAdminOrManager"
@@ -59,7 +117,7 @@
 
         <div class="relative ml-2" ref="dropdownRef">
           <button
-            @click="toggleDropdown"
+            @click="toggleUserDropdown"
             class="flex items-center gap-2.5 pl-2 pr-1 py-1 transition-all duration-200 rounded-full group hover:bg-slate-100 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
             v-tooltip.bottom="authStore.user?.departmentName || 'No Department'"
           >
@@ -84,7 +142,7 @@
             leave-to-class="transform scale-95 opacity-0 translate-y-2"
           >
             <div
-              v-if="isDropdownOpen"
+              v-if="isUserDropdownOpen"
               class="absolute right-0 w-52 mt-2 origin-top-right bg-white border shadow-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none z-50 overflow-hidden"
             >
               <div class="py-1">
@@ -202,9 +260,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { storeToRefs } from "pinia"; // [추가] 반응형 유지를 위해 사용
+import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useMenuStore } from "@/stores/menu"; 
 import { dashboardApi } from "@/api/dashboard"; 
@@ -215,11 +273,15 @@ import type { MenuNode } from "@/api/menu";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const { user } = storeToRefs(authStore); // [수정] storeToRefs로 user 반응형 연결
+const { user } = storeToRefs(authStore);
 const menuStore = useMenuStore(); 
 
-const isDropdownOpen = ref(false);
+// [수정] 드롭다운 상태 관리 분리
+const isUserDropdownOpen = ref(false); // 사용자 메뉴용
+const showNotifications = ref(false); // 알림 메뉴용
+
 const dropdownRef = ref<HTMLElement | null>(null);
+const notificationRef = ref<HTMLElement | null>(null);
 
 const isDark = ref(false);
 const isProfileModalOpen = ref(false);
@@ -229,7 +291,6 @@ const sdwts = ref<string[]>([]);
 const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
-const alertShown = ref(false); 
 
 const userAvatarInitial = computed(() => {
   const userId = user.value?.userId;
@@ -310,12 +371,27 @@ const toggleTheme = () => {
   document.documentElement.classList.toggle("dark", isDark.value);
 };
 
-const toggleDropdown = () => isDropdownOpen.value = !isDropdownOpen.value;
+// [수정] 드롭다운 토글 로직 분리
+const toggleUserDropdown = () => {
+  isUserDropdownOpen.value = !isUserDropdownOpen.value;
+  if(isUserDropdownOpen.value) showNotifications.value = false;
+};
+
+const toggleNotifications = () => {
+  showNotifications.value = !showNotifications.value;
+  if(showNotifications.value) isUserDropdownOpen.value = false;
+};
+
 const handleLogout = () => authStore.logout();
 
 const handleClickOutside = (event: MouseEvent) => {
-  if (isDropdownOpen.value && dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    isDropdownOpen.value = false;
+  // 사용자 메뉴 닫기 처리
+  if (isUserDropdownOpen.value && dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    isUserDropdownOpen.value = false;
+  }
+  // 알림 메뉴 닫기 처리
+  if (showNotifications.value && notificationRef.value && !notificationRef.value.contains(event.target as Node)) {
+    showNotifications.value = false;
   }
 };
 
@@ -345,7 +421,7 @@ const clearSdwt = () => {
 };
 
 const openProfileSettings = async () => {
-  isDropdownOpen.value = false;
+  isUserDropdownOpen.value = false;
   isProfileModalOpen.value = true;
   selectedSite.value = "";
   selectedSdwt.value = "";
@@ -395,19 +471,12 @@ const fetchNotifications = async () => {
 };
 
 // ========================================================
-// [핵심] 게스트 D-Day 계산 (Computed with Debugging)
+// [핵심] 게스트 알림 데이터 계산 (Computed)
 // ========================================================
 
-const guestDdayComputed = computed(() => {
-  const currentUser = user.value; // storeToRefs로 가져온 반응형 user 객체 사용
+const guestNotification = computed(() => {
+  const currentUser = user.value;
   
-  // [디버깅 로그] 사용자 정보가 제대로 들어오는지 콘솔 확인 (F12)
-  console.log(">>> [Debug] Checking Guest Info:", {
-     role: currentUser?.role,
-     validUntil: currentUser?.validUntil
-  });
-
-  // role이 GUEST(대소문자 무시)이고 validUntil이 있어야 함
   if (currentUser?.role?.toUpperCase() !== 'GUEST' || !currentUser.validUntil) {
     return null;
   }
@@ -416,60 +485,35 @@ const guestDdayComputed = computed(() => {
     const today = new Date();
     const validUntil = new Date(currentUser.validUntil);
     
-    // 시간 제거 후 날짜만 비교
+    // 시간 포맷팅 (YYYY-MM-DD)
+    const dateStr = validUntil.toISOString().split('T')[0];
+
+    // 날짜 비교
     today.setHours(0,0,0,0);
     validUntil.setHours(0,0,0,0);
 
     const diffTime = validUntil.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays >= 0) return `D-${diffDays}`;
-    return "만료됨";
+    
+    // 만료되지 않았으면 정보 반환
+    if (diffDays >= 0) {
+      return {
+        dDay: diffDays,
+        date: dateStr
+      };
+    }
+    return null;
   } catch (e) {
-    console.error(">>> [Error] Date parsing failed:", e);
     return null;
   }
 });
 
-// 알림 표시 여부
+// 알림 표시 여부 (Red Dot Control)
 const hasNotification = computed(() => {
-  const isGuestWithExpiry = user.value?.role?.toUpperCase() === 'GUEST' && !!guestDdayComputed.value;
-  const hasPendingRequests = pendingRequestCount.value > 0;
-  return hasPendingRequests || isGuestWithExpiry;
+  return (pendingRequestCount.value > 0) || (!!guestNotification.value);
 });
 
-// Tooltip 메시지
-const notificationTooltip = computed(() => {
-  // 게스트인 경우
-  if (user.value?.role?.toUpperCase() === 'GUEST' && guestDdayComputed.value) {
-    const validUntil = user.value.validUntil;
-    const dateStr = validUntil ? new Date(validUntil).toISOString().split('T')[0] : '';
-    return `게스트 권한 만료: ${guestDdayComputed.value} (${dateStr})`;
-  }
-  // 관리자인 경우
-  if (pendingRequestCount.value > 0) {
-    return `${pendingRequestCount.value}건의 승인 대기 요청`;
-  }
-  return '알림 없음';
-});
-
-// 최초 접속 시 1회 Alert 표시 (Watch)
-watch(
-  () => [user.value?.role, user.value?.validUntil],
-  ([role, validUntil]) => {
-    if (!alertShown.value && (role as string)?.toUpperCase() === 'GUEST' && validUntil && guestDdayComputed.value) {
-      alertShown.value = true;
-      const dateStr = new Date(validUntil as string).toISOString().split('T')[0];
-      const dDayStr = guestDdayComputed.value.replace('D-', '');
-      
-      // alert는 브라우저 차단 가능성이 있으므로 setTimeout으로 한 틱 뒤에 실행
-      setTimeout(() => {
-         alert(`[게스트 권한 알림]\n권한 유효기간이 ${dDayStr}일 남았습니다.\n만료일: ${dateStr}`);
-      }, 100);
-    }
-  },
-  { immediate: true }
-);
+// [삭제됨] watch 블록 (alert 발생 코드 제거)
 
 onMounted(() => {
   if (document.documentElement.classList.contains("dark")) isDark.value = true;
