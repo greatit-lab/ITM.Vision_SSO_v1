@@ -487,7 +487,6 @@ const filterSdwt = ref("");
 // 필터링된 유저 목록 computed 속성
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
-    // 1. User ID 필터 (대소문자 무시)
     const matchId =
       !filterUserId.value ||
       (user.loginId &&
@@ -495,13 +494,11 @@ const filteredUsers = computed(() => {
           .toLowerCase()
           .includes(filterUserId.value.toLowerCase()));
 
-    // 2. Site 필터 (대소문자 무시)
     const site = user.context?.sdwtInfo?.site || "";
     const matchSite =
       !filterSite.value ||
       site.toLowerCase().includes(filterSite.value.toLowerCase());
 
-    // 3. SDWT 필터 (대소문자 무시)
     const sdwt = user.context?.sdwtInfo?.sdwt || "";
     const matchSdwt =
       !filterSdwt.value ||
@@ -511,14 +508,12 @@ const filteredUsers = computed(() => {
   });
 });
 
-// 필터 초기화 함수
 const clearFilters = () => {
   filterUserId.value = "";
   filterSite.value = "";
   filterSdwt.value = "";
 };
 
-// 검색어 하이라이팅 헬퍼 함수
 const highlightText = (text: string, query: string) => {
   if (!text) return "";
   if (!query) return text;
@@ -565,9 +560,15 @@ const openApproveDialog = (req: any) => {
 const confirmApprove = async () => {
   if (!selectedRequest.value || !approveValidUntil.value) return;
   try {
+    // [중요 개선] 반올림 방지를 위해 밀리초를 0으로 설정
+    // 23:59:59.000 KST -> DB 저장 시 14:59:59.000 UTC
+    // 이렇게 해야 DB에서 다음 날 00:00:00으로 반올림되는 것을 방지할 수 있습니다.
+    const validDate = new Date(approveValidUntil.value);
+    validDate.setHours(23, 59, 59, 0); 
+
     await AdminApi.approveGuestRequest({
       reqId: selectedRequest.value.reqId,
-      validUntil: approveValidUntil.value,
+      validUntil: validDate,
       approverId: authStore.user?.userId || "Admin",
     });
     approveDialogVisible.value = false;
@@ -592,7 +593,6 @@ const rejectRequest = async (reqId: number) => {
 
 // Manual Add
 const manualDialogVisible = ref(false);
-// [수정] validUntil 타입을 명시적으로 Date | null로 지정하여 TS 오류 해결
 const newManualGuest = ref<{
   loginId: string;
   deptName: string;
@@ -622,11 +622,13 @@ const saveManualGuest = async () => {
   if (!newManualGuest.value.loginId || !newManualGuest.value.validUntil)
     return alert("필수 입력 누락");
   try {
-    // [수정] validUntil이 null이 아님을 확신할 수 있으므로 강제 형변환이나 ! 연산자 사용
-    // 혹은 객체를 명시적으로 생성하여 전달
+    // [중요 개선] 수동 등록 시에도 동일하게 23:59:59.000 설정
+    const validDate = new Date(newManualGuest.value.validUntil);
+    validDate.setHours(23, 59, 59, 0);
+
     await AdminApi.addGuest({
       ...newManualGuest.value,
-      validUntil: newManualGuest.value.validUntil! // Non-null assertion
+      validUntil: validDate 
     });
     manualDialogVisible.value = false;
     fetchAllData();
