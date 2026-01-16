@@ -18,7 +18,7 @@ import {
   UpdateCfgServerDto,
 } from './dto/admin.dto';
 
-// [추가] Data API 반환 타입 정의 (ESLint 'no-unsafe-return' 해결용)
+// Data API 반환 타입 정의 (ESLint 'no-unsafe-return' 해결용)
 export interface AdminUserResult {
   loginId: string;
   role?: string;
@@ -61,11 +61,10 @@ export class AdminService {
   }
 
   async addAdmin(data: CreateAdminDto): Promise<AdminUserResult | null> {
-    return this.api.request<AdminUserResult>(this.DOMAIN, 'post', 'admins', data); // admins로 통일 권장
+    return this.api.request<AdminUserResult>(this.DOMAIN, 'post', 'admins', data);
   }
 
   async deleteAdmin(loginId: string): Promise<AdminUserResult | null> {
-    // [수정] users -> admins (Data API 경로와 일치시킴)
     return this.api.request<AdminUserResult>(this.DOMAIN, 'delete', `admins/${loginId}`);
   }
 
@@ -194,29 +193,32 @@ export class AdminService {
   }
 
   // ==========================================
-  // [System Config]
+  // [System Config] (추가된 부분)
   // ==========================================
   async getNewServerConfig(): Promise<GenericResult | null> {
     return this.api.request<GenericResult>(this.DOMAIN, 'get', 'new-server');
   }
 
   async updateNewServerConfig(data: UpdateNewServerDto): Promise<GenericResult | null> {
+    // Put 요청으로 생성/수정(Upsert) 처리
     return this.api.request<GenericResult>(this.DOMAIN, 'put', 'new-server', data);
   }
 
   async getCfgServers(): Promise<GenericResult[] | null> {
-    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'cfg-servers');
+    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'servers');
   }
 
+  // 개별 서버 추가는 Data API Controller에 구현되지 않았으므로 생략 (요구사항 없음)
   async createCfgServer(data: CreateCfgServerDto): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'cfg-servers', data);
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'servers', data);
   }
 
   async updateCfgServer(eqpid: string, data: UpdateCfgServerDto): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'put', `cfg-servers/${eqpid}`, data);
+    return this.api.request<GenericResult>(this.DOMAIN, 'put', `servers/${eqpid}`, data);
   }
 
+  // 삭제 기능은 Data API Controller에 구현되지 않았으므로 생략
   async deleteCfgServer(eqpid: string): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'delete', `cfg-servers/${eqpid}`);
+    return this.api.request<GenericResult>(this.DOMAIN, 'delete', `servers/${eqpid}`);
   }
 }
