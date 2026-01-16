@@ -33,7 +33,7 @@
           
           <TabPanel value="0" class="h-full flex flex-col overflow-hidden min-h-0">
              <div class="flex flex-col h-full gap-3 p-4 min-h-0">
-                <div class="flex flex-wrap items-end justify-between gap-3 p-2 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-[#111111] shrink-0">
+                <div class="flex flex-wrap items-center justify-between gap-3 p-2 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-[#111111] shrink-0">
                   <div class="flex items-center gap-2 flex-1 max-w-2xl">
                     <div class="flex-1"><InputText v-model="filters.eqpId" placeholder="EQP ID" class="!py-1.5 w-full text-xs" /></div>
                     <div class="flex-1"><InputText v-model="filters.indexLine" placeholder="Index Line" class="!py-1.5 w-full text-xs" /></div>
@@ -41,9 +41,35 @@
                     <Button icon="pi pi-filter-slash" severity="secondary" outlined size="small" class="!py-1.5 !px-3" @click="resetFilter" />
                   </div>
                   
-                  <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <span class="hidden sm:inline font-bold">Page Unit</span>
-                      <Dropdown v-model="eqpRows" :options="[20, 50, 100]" class="!text-xs w-20" />
+                  <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold hidden sm:inline">Rows:</span>
+                      <select v-model="eqpRows" @change="eqpFirst = 0" class="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 py-0.5 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer text-xs">
+                        <option :value="10">10</option>
+                        <option :value="20">20</option>
+                        <option :value="50">50</option>
+                        <option :value="100">100</option>
+                      </select>
+                    </div>
+                    
+                    <span class="font-bold min-w-[80px] text-right font-mono">
+                      {{ filteredEquipments.length === 0 ? 0 : eqpFirst + 1 }} - {{ Math.min(eqpFirst + eqpRows, filteredEquipments.length) }} / {{ filteredEquipments.length }}
+                    </span>
+                    
+                    <div class="flex items-center gap-1">
+                      <button @click="eqpFirst = 0" :disabled="eqpFirst === 0" class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 cursor-pointer disabled:cursor-default" title="First Page">
+                        <i class="pi pi-angle-double-left text-[10px] font-bold"></i>
+                      </button>
+                      <button @click="prevPage" :disabled="eqpFirst === 0" class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 cursor-pointer disabled:cursor-default" title="Previous Page">
+                        <i class="pi pi-angle-left text-[10px] font-bold"></i>
+                      </button>
+                      <button @click="nextPage" :disabled="eqpFirst + eqpRows >= filteredEquipments.length" class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 cursor-pointer disabled:cursor-default" title="Next Page">
+                        <i class="pi pi-angle-right text-[10px] font-bold"></i>
+                      </button>
+                      <button @click="lastPage" :disabled="eqpFirst + eqpRows >= filteredEquipments.length" class="p-1 transition-colors rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 cursor-pointer disabled:cursor-default" title="Last Page">
+                        <i class="pi pi-angle-double-right text-[10px] font-bold"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -263,12 +289,10 @@ const filters = reactive({ eqpId: "", indexLine: "", sdwt: "" });
 const filteredEquipments = computed(() => {
   if (!equipments.value) return [];
   return equipments.value.filter((item: any) => {
-    // [수정] eqpId (CamelCase)로 필터링
     const fEqp = filters.eqpId.toLowerCase();
     const fIdx = filters.indexLine.toLowerCase();
     const fSdwt = filters.sdwt.toLowerCase();
     
-    // Backend API 수정으로 'eqpId'가 반환되므로 이를 사용
     return (!fEqp || item.eqpId?.toLowerCase().includes(fEqp)) &&
            (!fIdx || item.indexLine?.toLowerCase().includes(fIdx)) &&
            (!fSdwt || item.sdwt?.toLowerCase().includes(fSdwt));
@@ -276,6 +300,11 @@ const filteredEquipments = computed(() => {
 });
 
 const resetFilter = () => { filters.eqpId = ""; filters.indexLine = ""; filters.sdwt = ""; };
+
+// [추가] 커스텀 페이지네이션 핸들러
+const prevPage = () => { if (eqpFirst.value > 0) eqpFirst.value -= eqpRows.value; };
+const nextPage = () => { if (eqpFirst.value + eqpRows.value < filteredEquipments.value.length) eqpFirst.value += eqpRows.value; };
+const lastPage = () => { eqpFirst.value = Math.floor(Math.max(filteredEquipments.value.length - 1, 0) / eqpRows.value) * eqpRows.value; };
 
 const removeEquipment = async (eqpId: string) => {
   if (!confirm(`정말로 장비 [${eqpId}]를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
@@ -331,7 +360,6 @@ const sevForm = reactive({ errorId: '', severity: 'Error' });
 const metDialog = reactive({ visible: false, isEdit: false });
 const metForm = reactive({ metricName: '', isExcluded: false });
 
-// [수정] Severity 동적 옵션: 현재 값이 목록에 없어도 드롭다운에 표시되도록 처리
 const severityOptions = computed(() => {
    const base = ['Error', 'Severe'];
    if (sevForm.severity && !base.includes(sevForm.severity)) {
@@ -401,7 +429,6 @@ const removeMetric = async (name: string) => {
 const loadEquipments = async () => { 
   try {
     const response = await EquipmentApi.getInfraList();
-    // API 응답 구조에 따라 배열 직접 반환 또는 .data 사용 (안전하게 처리)
     equipments.value = Array.isArray(response) ? response : (response as any).data || [];
   } catch (e) {
     console.error("Equipment load failed", e);
