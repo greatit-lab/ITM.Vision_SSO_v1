@@ -57,14 +57,14 @@
           </div>
         </button>
 
-        <div class="relative ml-2">
+        <div class="relative ml-2" ref="dropdownRef">
           <button
             @click="toggleDropdown"
             class="flex items-center gap-2.5 pl-2 pr-1 py-1 transition-all duration-200 rounded-full group hover:bg-slate-100 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
             v-tooltip.bottom="authStore.user?.departmentName || 'No Department'"
           >
-            <span class="hidden text-xs font-bold text-slate-700 dark:text-slate-200 sm:block">
-              {{ authStore.userName }}
+            <span class="hidden text-sm font-bold text-slate-700 dark:text-slate-200 sm:block">
+              {{ authStore.userName }}님
             </span>
             <div
               class="flex items-center justify-center w-7 h-7 text-xs font-bold text-white shadow-md rounded-full ring-2 ring-white dark:ring-zinc-900 transition-all"
@@ -134,10 +134,10 @@
                     <p class="text-xs text-slate-500 dark:text-slate-400">{{ authStore.user?.email }}</p>
                   </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="grid grid-cols-[7fr_3fr] gap-3 text-xs">
                   <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-800">
                     <span class="block text-slate-400 font-semibold mb-0.5">Department</span>
-                    <span class="text-slate-700 dark:text-slate-200 font-medium">{{ authStore.user?.departmentName || '-' }}</span>
+                    <span class="text-slate-700 dark:text-slate-200 font-medium truncate" :title="authStore.user?.departmentName">{{ authStore.user?.departmentName || '-' }}</span>
                   </div>
                    <div class="p-2 bg-white dark:bg-zinc-800 rounded-lg border border-slate-100 dark:border-zinc-800">
                     <span class="block text-slate-400 font-semibold mb-0.5">Role</span>
@@ -148,23 +148,60 @@
             </div>
 
             <form @submit.prevent="saveProfileSettings" class="space-y-4">
-              <div>
+              <div class="relative">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Default Site</label>
-                <select v-model="selectedSite" @change="handleSiteChange" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-medium appearance-none cursor-pointer">
-                  <option value="" disabled>Select Site</option>
-                  <option v-for="site in sites" :key="site" :value="site">{{ site }}</option>
-                </select>
+                <div class="relative group">
+                  <select 
+                    v-model="selectedSite" 
+                    @change="handleSiteChange" 
+                    class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-medium appearance-none cursor-pointer pr-8"
+                  >
+                    <option value="" disabled>Select Site</option>
+                    <option v-for="site in sites" :key="site" :value="site">{{ site }}</option>
+                  </select>
+                  
+                  <div 
+                    v-if="selectedSite"
+                    @click="clearSite"
+                    class="absolute top-1/2 right-8 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer p-1 transition-colors z-10"
+                    title="Clear Selection"
+                  >
+                    <i class="pi pi-times text-[10px]"></i>
+                  </div>
+                </div>
               </div>
-              <div>
+
+              <div class="relative">
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Default SDWT</label>
-                <select v-model="selectedSdwt" :disabled="!selectedSite" class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-medium appearance-none cursor-pointer disabled:opacity-50">
-                   <option value="" disabled>Select SDWT</option>
-                   <option v-for="sdwt in sdwts" :key="sdwt" :value="sdwt">{{ sdwt }}</option>
-                </select>
+                <div class="relative group">
+                  <select 
+                    v-model="selectedSdwt" 
+                    :disabled="!selectedSite" 
+                    class="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-medium appearance-none cursor-pointer disabled:opacity-50 pr-8"
+                  >
+                     <option value="" disabled>Select SDWT</option>
+                     <option v-for="sdwt in sdwts" :key="sdwt" :value="sdwt">{{ sdwt }}</option>
+                  </select>
+
+                  <div 
+                    v-if="selectedSdwt"
+                    @click="clearSdwt"
+                    class="absolute top-1/2 right-8 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer p-1 transition-colors z-10"
+                    title="Clear Selection"
+                  >
+                    <i class="pi pi-times text-[10px]"></i>
+                  </div>
+                </div>
               </div>
+
               <div class="pt-4 flex gap-3">
                 <button type="button" @click="closeProfileSettings" class="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all">Cancel</button>
-                <button type="submit" :disabled="isSaving || !selectedSite || !selectedSdwt" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-500/30 transition-all transform active:scale-95 disabled:opacity-70">
+                
+                <button 
+                  type="submit" 
+                  :disabled="isSaving || !selectedSite || !selectedSdwt" 
+                  class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-500/30 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
                   <i v-if="isSaving" class="pi pi-spin pi-spinner mr-2"></i>
                   {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </button>
@@ -178,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useMenuStore } from "@/stores/menu"; 
@@ -193,6 +230,8 @@ const authStore = useAuthStore();
 const menuStore = useMenuStore(); 
 
 const isDropdownOpen = ref(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+
 const isDark = ref(false);
 const isProfileModalOpen = ref(false);
 const isSaving = ref(false);
@@ -202,13 +241,11 @@ const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
 
-// UserId의 첫 글자(대문자)
 const userAvatarInitial = computed(() => {
   const userId = authStore.user?.userId;
   return userId ? userId.charAt(0).toUpperCase() : 'U';
 });
 
-// UserId에 따른 색상 생성
 const getUserAvatarColor = (userId?: string) => {
   if (!userId) return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
   const charCode = userId.charAt(0).toUpperCase().charCodeAt(0);
@@ -234,7 +271,6 @@ const getRoleTextColor = (role?: string) => {
   return 'text-slate-600';
 }
 
-// Breadcrumb Logic
 const pageTitleParts = computed(() => {
   const findBreadcrumb = (nodes: MenuNode[], targetPath: string, parents: string[]): string | null => {
     for (const node of nodes) {
@@ -288,36 +324,113 @@ const toggleTheme = () => {
 const toggleDropdown = () => isDropdownOpen.value = !isDropdownOpen.value;
 const handleLogout = () => authStore.logout();
 
+const handleClickOutside = (event: MouseEvent) => {
+  if (
+    isDropdownOpen.value &&
+    dropdownRef.value &&
+    !dropdownRef.value.contains(event.target as Node)
+  ) {
+    isDropdownOpen.value = false;
+  }
+};
+
+const loadSdwts = async (site: string) => {
+  try {
+    const res = await dashboardApi.getSdwts(site);
+    sdwts.value = res;
+  } catch (e) {
+    console.error(">>> [Debug] Failed to load Sdwts:", e);
+    sdwts.value = [];
+  }
+};
+
+const handleSiteChange = async () => {
+  selectedSdwt.value = ""; 
+  
+  if (selectedSite.value) {
+    await loadSdwts(selectedSite.value);
+  } else {
+    sdwts.value = [];
+  }
+};
+
+const clearSite = () => {
+  selectedSite.value = "";
+  selectedSdwt.value = "";
+  sdwts.value = [];
+};
+
+const clearSdwt = () => {
+  selectedSdwt.value = "";
+};
+
 const openProfileSettings = async () => {
   isDropdownOpen.value = false;
   isProfileModalOpen.value = true;
-  if (authStore.user?.site) selectedSite.value = authStore.user.site;
+  
+  selectedSite.value = "";
+  selectedSdwt.value = "";
+
   try {
-    // API Check
-    if (sites.value.length === 0) sites.value = await dashboardApi.getSites();
-    if (selectedSite.value) await handleSiteChange(); 
-    if (authStore.user?.sdwt) selectedSdwt.value = authStore.user.sdwt;
-  } catch (e) { console.error(e); }
+    if (sites.value.length === 0) {
+       sites.value = await dashboardApi.getSites();
+    }
+
+    let dbContext = null;
+    const loginId = authStore.user?.userId;
+    if (loginId) {
+      try {
+        const res = await http.get('/auth/context', { params: { loginId } });
+        dbContext = res.data; 
+      } catch (e) {
+        console.warn(">>> [Debug] Failed to fetch user context:", e);
+      }
+    }
+
+    const targetSite = dbContext?.site || authStore.user?.site;
+    const targetSdwt = dbContext?.sdwt || authStore.user?.sdwt;
+
+    if (targetSite) {
+      selectedSite.value = targetSite;
+      await loadSdwts(targetSite);
+      
+      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+         selectedSdwt.value = targetSdwt;
+      }
+    }
+
+  } catch (e) { 
+    console.error(">>> [Debug] Error in openProfileSettings:", e); 
+  }
 };
 
 const closeProfileSettings = () => isProfileModalOpen.value = false;
-const handleSiteChange = async () => {
-  selectedSdwt.value = ""; 
-  if (!selectedSite.value) return;
-  try { sdwts.value = await dashboardApi.getSdwts(selectedSite.value); } catch (e) { console.error(e); }
-};
 
 const saveProfileSettings = async () => {
   if (!selectedSite.value || !selectedSdwt.value) return;
+
   isSaving.value = true;
+
   try {
-    await http.post('/auth/context', { site: selectedSite.value, sdwt: selectedSdwt.value });
+    await http.post('/auth/context', { 
+      loginId: authStore.user?.userId,
+      site: selectedSite.value, 
+      sdwt: selectedSdwt.value 
+    });
+    
     if (authStore.user) {
       authStore.setUser({ ...authStore.user, site: selectedSite.value, sdwt: selectedSdwt.value });
     }
+    
+    alert("Profile settings have been saved successfully.\n사용자 설정이 성공적으로 저장되었습니다.");
+    
     closeProfileSettings();
+    
     if (route.name === 'home') window.location.reload();
-  } catch (e) { alert("Failed to save settings."); } 
+  } catch (e) { 
+    alert("Failed to save settings."); 
+    console.error(e);
+  } 
   finally { isSaving.value = false; }
 };
 
@@ -333,6 +446,11 @@ const fetchNotifications = async () => {
 onMounted(() => {
   if (document.documentElement.classList.contains("dark")) isDark.value = true;
   fetchNotifications();
+  document.addEventListener("click", handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
 });
 </script>
 
