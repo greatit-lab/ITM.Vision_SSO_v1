@@ -58,12 +58,14 @@ export class EquipmentService {
    */
 
   async getInfraList(): Promise<RefEquipment[]> {
+    // [수정 완료] 기존 'infra' -> '' (빈 문자열)로 변경
+    // Data API의 Controller가 @Get() (루트)로 매핑되어 있기 때문입니다.
     const result = await this.dataApiService.request<RefEquipment[]>(
-      'equipment', // Domain defined in Data API
+      'equipment', 
       'get',
-      'infra',
+      '', 
     );
-    return result || []; // null일 경우 빈 배열 반환 안전장치
+    return result || []; 
   }
 
   async getDetails(
@@ -76,8 +78,8 @@ export class EquipmentService {
       'equipment',
       'get',
       'details',
-      undefined, // data (body) 없음
-      params,    // query string
+      undefined, 
+      params,    
     );
     return result || [];
   }
@@ -114,7 +116,7 @@ export class EquipmentService {
       eqpId,
       undefined,
       undefined,
-      { returnNullOn404: true }, // 404 발생 시 에러 대신 null 반환
+      { returnNullOn404: true }, 
     );
   }
 
