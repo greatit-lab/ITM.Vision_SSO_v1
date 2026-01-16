@@ -17,17 +17,17 @@
       <div class="flex items-center gap-3">
         <button 
           class="relative p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-          v-tooltip.bottom="pendingRequestCount > 0 ? `${pendingRequestCount}건의 승인 대기 요청` : '알림 없음'"
+          v-tooltip.bottom="notificationTooltip"
         >
            <i class="pi pi-bell text-lg"></i>
            <span 
-             v-if="pendingRequestCount > 0"
+             v-if="hasNotification"
              class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-zinc-900 animate-pulse"
            ></span>
         </button>
 
         <button 
-          v-if="authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER'"
+          v-if="isAdminOrManager"
           @click="handleAdminClick"
           class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
           v-tooltip.bottom="'Admin Management'"
@@ -159,13 +159,7 @@
                     <option value="" disabled>Select Site</option>
                     <option v-for="site in sites" :key="site" :value="site">{{ site }}</option>
                   </select>
-                  
-                  <div 
-                    v-if="selectedSite"
-                    @click="clearSite"
-                    class="absolute top-1/2 right-8 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer p-1 transition-colors z-10"
-                    title="Clear Selection"
-                  >
+                  <div v-if="selectedSite" @click="clearSite" class="absolute top-1/2 right-8 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer p-1 transition-colors z-10" title="Clear Selection">
                     <i class="pi pi-times text-[10px]"></i>
                   </div>
                 </div>
@@ -182,13 +176,7 @@
                      <option value="" disabled>Select SDWT</option>
                      <option v-for="sdwt in sdwts" :key="sdwt" :value="sdwt">{{ sdwt }}</option>
                   </select>
-
-                  <div 
-                    v-if="selectedSdwt"
-                    @click="clearSdwt"
-                    class="absolute top-1/2 right-8 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer p-1 transition-colors z-10"
-                    title="Clear Selection"
-                  >
+                  <div v-if="selectedSdwt" @click="clearSdwt" class="absolute top-1/2 right-8 -translate-y-1/2 text-slate-400 hover:text-rose-500 cursor-pointer p-1 transition-colors z-10" title="Clear Selection">
                     <i class="pi pi-times text-[10px]"></i>
                   </div>
                 </div>
@@ -196,7 +184,6 @@
 
               <div class="pt-4 flex gap-3">
                 <button type="button" @click="closeProfileSettings" class="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all">Cancel</button>
-                
                 <button 
                   type="submit" 
                   :disabled="isSaving || !selectedSite || !selectedSdwt" 
@@ -215,8 +202,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { storeToRefs } from "pinia"; // [추가] 반응형 유지를 위해 사용
 import { useAuthStore } from "@/stores/auth";
 import { useMenuStore } from "@/stores/menu"; 
 import { dashboardApi } from "@/api/dashboard"; 
@@ -227,6 +215,7 @@ import type { MenuNode } from "@/api/menu";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { user } = storeToRefs(authStore); // [수정] storeToRefs로 user 반응형 연결
 const menuStore = useMenuStore(); 
 
 const isDropdownOpen = ref(false);
@@ -240,9 +229,10 @@ const sdwts = ref<string[]>([]);
 const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
+const alertShown = ref(false); 
 
 const userAvatarInitial = computed(() => {
-  const userId = authStore.user?.userId;
+  const userId = user.value?.userId;
   return userId ? userId.charAt(0).toUpperCase() : 'U';
 });
 
@@ -271,12 +261,15 @@ const getRoleTextColor = (role?: string) => {
   return 'text-slate-600';
 }
 
+const isAdminOrManager = computed(() => {
+  return authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER';
+});
+
 const pageTitleParts = computed(() => {
   const findBreadcrumb = (nodes: MenuNode[], targetPath: string, parents: string[]): string | null => {
     for (const node of nodes) {
       const nodePath = (node.routerPath || '').replace(/\/$/, '');
       const target = targetPath.replace(/\/$/, '');
-      
       if (nodePath && nodePath === target) {
         return [...parents, node.label].join(' / ');
       }
@@ -287,22 +280,18 @@ const pageTitleParts = computed(() => {
     }
     return null;
   };
-
   let fullTitle = "Overview";
   const path = route.path;
-
   if (path.startsWith('/admin')) {
     if (path.includes('/menus')) fullTitle = "Management / Menus";
     else if (path.includes('/users')) fullTitle = "Management / Users";
     else if (path.includes('/infra')) fullTitle = "Management / Infra";
     else if (path.includes('/system')) fullTitle = "Management / System";
     else fullTitle = "Management";
-  } 
-  else if (menuStore.menus.length > 0) {
+  } else if (menuStore.menus.length > 0) {
     const breadcrumb = findBreadcrumb(menuStore.menus, route.path, []);
     if (breadcrumb) fullTitle = breadcrumb;
   }
-
   if (fullTitle.includes(" / ")) {
     const parts = fullTitle.split(" / ");
     const current = parts.pop();
@@ -325,11 +314,7 @@ const toggleDropdown = () => isDropdownOpen.value = !isDropdownOpen.value;
 const handleLogout = () => authStore.logout();
 
 const handleClickOutside = (event: MouseEvent) => {
-  if (
-    isDropdownOpen.value &&
-    dropdownRef.value &&
-    !dropdownRef.value.contains(event.target as Node)
-  ) {
+  if (isDropdownOpen.value && dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
     isDropdownOpen.value = false;
   }
 };
@@ -339,19 +324,14 @@ const loadSdwts = async (site: string) => {
     const res = await dashboardApi.getSdwts(site);
     sdwts.value = res;
   } catch (e) {
-    console.error(">>> [Debug] Failed to load Sdwts:", e);
     sdwts.value = [];
   }
 };
 
 const handleSiteChange = async () => {
   selectedSdwt.value = ""; 
-  
-  if (selectedSite.value) {
-    await loadSdwts(selectedSite.value);
-  } else {
-    sdwts.value = [];
-  }
+  if (selectedSite.value) await loadSdwts(selectedSite.value);
+  else sdwts.value = [];
 };
 
 const clearSite = () => {
@@ -367,71 +347,42 @@ const clearSdwt = () => {
 const openProfileSettings = async () => {
   isDropdownOpen.value = false;
   isProfileModalOpen.value = true;
-  
   selectedSite.value = "";
   selectedSdwt.value = "";
-
   try {
-    if (sites.value.length === 0) {
-       sites.value = await dashboardApi.getSites();
-    }
-
+    if (sites.value.length === 0) sites.value = await dashboardApi.getSites();
     let dbContext = null;
     const loginId = authStore.user?.userId;
     if (loginId) {
       try {
         const res = await http.get('/auth/context', { params: { loginId } });
         dbContext = res.data; 
-      } catch (e) {
-        console.warn(">>> [Debug] Failed to fetch user context:", e);
-      }
+      } catch (e) {}
     }
-
     const targetSite = dbContext?.site || authStore.user?.site;
     const targetSdwt = dbContext?.sdwt || authStore.user?.sdwt;
-
     if (targetSite) {
       selectedSite.value = targetSite;
       await loadSdwts(targetSite);
-      
-      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
-         selectedSdwt.value = targetSdwt;
-      }
+      if (targetSdwt && sdwts.value.includes(targetSdwt)) selectedSdwt.value = targetSdwt;
     }
-
-  } catch (e) { 
-    console.error(">>> [Debug] Error in openProfileSettings:", e); 
-  }
+  } catch (e) {}
 };
 
 const closeProfileSettings = () => isProfileModalOpen.value = false;
 
 const saveProfileSettings = async () => {
   if (!selectedSite.value || !selectedSdwt.value) return;
-
   isSaving.value = true;
-
   try {
-    await http.post('/auth/context', { 
-      loginId: authStore.user?.userId,
-      site: selectedSite.value, 
-      sdwt: selectedSdwt.value 
-    });
-    
-    if (authStore.user) {
-      authStore.setUser({ ...authStore.user, site: selectedSite.value, sdwt: selectedSdwt.value });
-    }
-    
+    await http.post('/auth/context', { loginId: authStore.user?.userId, site: selectedSite.value, sdwt: selectedSdwt.value });
+    if (authStore.user) authStore.setUser({ ...authStore.user, site: selectedSite.value, sdwt: selectedSdwt.value });
     alert("Profile settings have been saved successfully.\n사용자 설정이 성공적으로 저장되었습니다.");
-    
     closeProfileSettings();
-    
     if (route.name === 'home') window.location.reload();
   } catch (e) { 
     alert("Failed to save settings."); 
-    console.error(e);
-  } 
-  finally { isSaving.value = false; }
+  } finally { isSaving.value = false; }
 };
 
 const fetchNotifications = async () => {
@@ -439,9 +390,86 @@ const fetchNotifications = async () => {
     try {
       const res = await AdminApi.getGuestRequests();
       pendingRequestCount.value = res.data.filter((req: any) => req.status === 'PENDING').length;
-    } catch (e) { console.error(e); }
+    } catch (e) {}
   }
 };
+
+// ========================================================
+// [핵심] 게스트 D-Day 계산 (Computed with Debugging)
+// ========================================================
+
+const guestDdayComputed = computed(() => {
+  const currentUser = user.value; // storeToRefs로 가져온 반응형 user 객체 사용
+  
+  // [디버깅 로그] 사용자 정보가 제대로 들어오는지 콘솔 확인 (F12)
+  console.log(">>> [Debug] Checking Guest Info:", {
+     role: currentUser?.role,
+     validUntil: currentUser?.validUntil
+  });
+
+  // role이 GUEST(대소문자 무시)이고 validUntil이 있어야 함
+  if (currentUser?.role?.toUpperCase() !== 'GUEST' || !currentUser.validUntil) {
+    return null;
+  }
+
+  try {
+    const today = new Date();
+    const validUntil = new Date(currentUser.validUntil);
+    
+    // 시간 제거 후 날짜만 비교
+    today.setHours(0,0,0,0);
+    validUntil.setHours(0,0,0,0);
+
+    const diffTime = validUntil.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays >= 0) return `D-${diffDays}`;
+    return "만료됨";
+  } catch (e) {
+    console.error(">>> [Error] Date parsing failed:", e);
+    return null;
+  }
+});
+
+// 알림 표시 여부
+const hasNotification = computed(() => {
+  const isGuestWithExpiry = user.value?.role?.toUpperCase() === 'GUEST' && !!guestDdayComputed.value;
+  const hasPendingRequests = pendingRequestCount.value > 0;
+  return hasPendingRequests || isGuestWithExpiry;
+});
+
+// Tooltip 메시지
+const notificationTooltip = computed(() => {
+  // 게스트인 경우
+  if (user.value?.role?.toUpperCase() === 'GUEST' && guestDdayComputed.value) {
+    const validUntil = user.value.validUntil;
+    const dateStr = validUntil ? new Date(validUntil).toISOString().split('T')[0] : '';
+    return `게스트 권한 만료: ${guestDdayComputed.value} (${dateStr})`;
+  }
+  // 관리자인 경우
+  if (pendingRequestCount.value > 0) {
+    return `${pendingRequestCount.value}건의 승인 대기 요청`;
+  }
+  return '알림 없음';
+});
+
+// 최초 접속 시 1회 Alert 표시 (Watch)
+watch(
+  () => [user.value?.role, user.value?.validUntil],
+  ([role, validUntil]) => {
+    if (!alertShown.value && (role as string)?.toUpperCase() === 'GUEST' && validUntil && guestDdayComputed.value) {
+      alertShown.value = true;
+      const dateStr = new Date(validUntil as string).toISOString().split('T')[0];
+      const dDayStr = guestDdayComputed.value.replace('D-', '');
+      
+      // alert는 브라우저 차단 가능성이 있으므로 setTimeout으로 한 틱 뒤에 실행
+      setTimeout(() => {
+         alert(`[게스트 권한 알림]\n권한 유효기간이 ${dDayStr}일 남았습니다.\n만료일: ${dateStr}`);
+      }, 100);
+    }
+  },
+  { immediate: true }
+);
 
 onMounted(() => {
   if (document.documentElement.classList.contains("dark")) isDark.value = true;
