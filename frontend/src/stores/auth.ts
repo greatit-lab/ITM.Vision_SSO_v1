@@ -14,9 +14,14 @@ export interface UserInfo {
   groups: string | string[];
   role?: string;
   sessionIndex?: string;
+  
   // 사용자 컨텍스트
   site?: string;
   sdwt?: string;
+  
+  // [추가] 게스트 유효기간
+  validUntil?: string;
+
   [key: string]: any;
 }
 
@@ -130,7 +135,7 @@ export const useAuthStore = defineStore("auth", () => {
       role: "USER",      
       
       // 초기 데이터 자동 조회를 위한 기본값 설정
-      site: "Demo",     
+      site: "Demo",      
       sdwt: "User"        
     };
     
@@ -145,7 +150,7 @@ export const useAuthStore = defineStore("auth", () => {
     userInitial,
     isAdmin,
     isSuperAdmin,
-    isDemo, // [추가] export
+    isDemo, 
     userDetailTooltip,
     setAuth,
     setToken,
