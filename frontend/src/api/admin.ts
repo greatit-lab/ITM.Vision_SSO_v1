@@ -2,7 +2,7 @@
 import http from './http';
 
 // ==========================================
-// [Interfaces] 데이터 타입 정의 (View에서 사용)
+// [Interfaces] 데이터 타입 정의
 // ==========================================
 
 export interface NewServerConfig {
@@ -18,12 +18,15 @@ export interface NewServerConfig {
   description?: string;
 }
 
+// [수정] Site, SDWT 필드 추가 (필터링 및 테이블 표시에 사용)
 export interface AgentServerConfig {
   eqpid: string;
   agentDbHost?: string;
   agentFtpHost?: string;
   updateFlag: string; // 'yes' | 'no'
   update?: string;
+  site?: string; // 추가됨
+  sdwt?: string; // 추가됨
 }
 
 // ==========================================
