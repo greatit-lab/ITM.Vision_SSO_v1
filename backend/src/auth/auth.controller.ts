@@ -1,4 +1,4 @@
-// [전체 코드 교체] backend/src/auth/auth.controller.ts
+// backend/src/auth/auth.controller.ts
 import {
   Controller,
   Get,
@@ -7,6 +7,7 @@ import {
   UseGuards,
   Req,
   Res,
+  Query,
   ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -19,19 +20,17 @@ interface RequestWithUser extends Request {
   user: User;
 }
 
-// 에러 처리를 위한 헬퍼 인터페이스
 interface ErrorWithStatus {
   message?: string;
   status?: number;
   constructor?: { name: string };
 }
 
-// [수정] Validation 에러 방지를 위해 필드를 선택적(Optional)으로 변경
 export class GuestRequestDto {
-  loginId: string; // ID는 필수
-  deptName?: string; // Optional
-  deptCode?: string; // Optional
-  reason?: string; // Optional
+  loginId: string;
+  deptName?: string;
+  deptCode?: string;
+  reason?: string;
 }
 
 @Controller('auth')
@@ -89,12 +88,11 @@ export class AuthController {
           errorType = 'Rejected';
         }
 
-        // [수정] deptCode(부서코드) 및 deptName 전달
         const params = new URLSearchParams({
           error: errorType,
           loginId: req.user.userId || '',
-          deptCode: req.user.department || '', // AD DeptID -> deptCode
-          deptName: req.user.departmentName || '', // AD DeptName -> deptName
+          deptCode: req.user.department || '',
+          deptName: req.user.departmentName || '',
         });
 
         return res.redirect(`${frontendUrl}?${params.toString()}`);
@@ -119,11 +117,27 @@ export class AuthController {
 
   @Post('guest-request')
   async requestGuestAccess(@Body() body: GuestRequestDto) {
-    // [디버깅] 프론트엔드에서 넘어온 데이터 확인용 로그
     console.log('[SSO Controller] Guest Request Body:', body);
     return this.authService.createGuestRequest(body);
   }
 
+  // =========================================================
+  // [수정 및 추가] Context 관련 핸들러
+  // =========================================================
+
+  /**
+   * [추가] 사용자 Context (Site/SDWT) 조회
+   * 프론트엔드의 GET /api/auth/context 요청을 처리
+   */
+  @Get('context')
+  async getUserContext(@Query('loginId') loginId: string) {
+    // loginId가 쿼리 파라미터로 전달됨
+    return await this.authService.getUserContext(loginId);
+  }
+
+  /**
+   * [기존 유지] 사용자 Context 저장
+   */
   @Post('context')
   @UseGuards(AuthGuard('jwt'))
   async saveContext(
@@ -131,7 +145,7 @@ export class AuthController {
     @Body() body: { site: string; sdwt: string },
   ) {
     return await this.authService.saveUserContext(
-      req.user.userId,
+      req.user.userId, // JWT에서 추출한 안전한 ID 사용
       body.site,
       body.sdwt,
     );
