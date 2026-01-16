@@ -55,10 +55,12 @@ export class AdminService {
     return this.api.request<AdminUserResult[]>(this.DOMAIN, 'get', 'users');
   }
 
+  // [수정] Data API 엔드포인트와 일치시킴 (GET admin/admins)
   async getAllAdmins(): Promise<AdminUserResult[] | null> {
     return this.api.request<AdminUserResult[]>(this.DOMAIN, 'get', 'admins');
   }
 
+  // [수정] Data API 엔드포인트와 일치시킴 (POST admin/users)
   async addAdmin(data: CreateAdminDto): Promise<AdminUserResult | null> {
     return this.api.request<AdminUserResult>(this.DOMAIN, 'post', 'users', data);
   }
@@ -78,11 +80,11 @@ export class AdminService {
     return this.api.request<GuestAccessResult>(this.DOMAIN, 'post', 'guest/access', data);
   }
 
-  // [수정] 경로: access-codes -> guest/access, 메서드: patch -> put
+  // [수정] 경로 통일: access-codes -> guest/access, 메서드 patch -> put
   async updateAccessCode(compid: string, data: UpdateAccessCodeDto): Promise<GuestAccessResult | null> {
     return this.api.request<GuestAccessResult>(
       this.DOMAIN,
-      'put',
+      'put', 
       `guest/access/${compid}`,
       data,
     );
@@ -133,17 +135,14 @@ export class AdminService {
   // [Infra] Error Severity
   // ==========================================
   async getSeverities(): Promise<GenericResult[] | null> {
-    // [수정] severities -> severity
     return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'severity');
   }
 
   async createSeverity(data: CreateSeverityDto): Promise<GenericResult | null> {
-    // [수정] severities -> severity
     return this.api.request<GenericResult>(this.DOMAIN, 'post', 'severity', data);
   }
 
   async updateSeverity(errorId: string, data: UpdateSeverityDto): Promise<GenericResult | null> {
-    // [수정] patch -> put, severities -> severity
     return this.api.request<GenericResult>(
       this.DOMAIN,
       'put',
@@ -153,7 +152,6 @@ export class AdminService {
   }
 
   async deleteSeverity(errorId: string): Promise<GenericResult | null> {
-    // [수정] severities -> severity
     return this.api.request<GenericResult>(
       this.DOMAIN,
       'delete',
@@ -173,7 +171,6 @@ export class AdminService {
   }
 
   async updateMetric(metricName: string, data: UpdateMetricDto): Promise<GenericResult | null> {
-    // [수정] patch -> put
     return this.api.request<GenericResult>(
       this.DOMAIN,
       'put',
@@ -205,7 +202,6 @@ export class AdminService {
   }
 
   async updateNewServerConfig(data: UpdateNewServerDto): Promise<GenericResult | null> {
-    // [수정] patch -> put
     return this.api.request<GenericResult>(this.DOMAIN, 'put', 'new-server', data);
   }
 
@@ -218,7 +214,6 @@ export class AdminService {
   }
 
   async updateCfgServer(eqpid: string, data: UpdateCfgServerDto): Promise<GenericResult | null> {
-    // [수정] patch -> put
     return this.api.request<GenericResult>(this.DOMAIN, 'put', `cfg-servers/${eqpid}`, data);
   }
 
