@@ -13,7 +13,7 @@
       <div class="relative flex items-center justify-center w-full h-8 gap-2">
         <i class="pi pi-verified text-[10px] text-indigo-500 animate-pulse"></i>
         <span class="text-[9px] font-extrabold text-indigo-900/60 dark:text-indigo-200/60 tracking-[0.3em] uppercase drop-shadow-sm">
-          테스트팀
+          테스트기술팀
         </span>
       </div>
     </div>
@@ -37,7 +37,7 @@
           :class="isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-90 w-0 hidden'"
         >
           <span class="text-xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-700 to-slate-500 dark:from-white dark:via-slate-200 dark:to-slate-400 whitespace-nowrap drop-shadow-sm font-sans">
-            ITM Vision
+            I:Vision
           </span>
           <span class="text-[10px] font-bold tracking-widest text-indigo-500 dark:text-indigo-400 uppercase mt-0.5 whitespace-nowrap opacity-90">
             Data Intelligence
@@ -200,3 +200,4 @@ onMounted(async () => {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+
