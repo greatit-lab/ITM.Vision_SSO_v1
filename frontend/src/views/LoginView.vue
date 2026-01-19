@@ -176,7 +176,6 @@
             </div>
           </div>
 
-
           <div class="flex flex-col gap-1">
             <label class="text-xs font-bold text-slate-500"
               >사유 (Reason) <span class="text-red-500">*</span></label
@@ -300,9 +299,23 @@ const getMessageByError = (type: string | null) => {
   return "현재 시스템 접근 권한이 없습니다.";
 };
 
+/**
+ * [수정된 핵심 로직]
+ * 기존 localhost 하드코딩을 제거하고 .env 설정값을 사용합니다.
+ */
 const startSsoLogin = () => {
   isLoading.value = true;
-  window.location.href = "https://localhost:8082/api/auth/login";
+  
+  // 1. .env 파일에 정의된 VITE_API_BASE_URL을 가져옵니다.
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  // 2. 환경변수가 있으면 그것을 사용하고, 없으면 상대경로(/api)를 사용합니다.
+  const targetUrl = apiBaseUrl 
+      ? `${apiBaseUrl}/auth/login` 
+      : '/api/auth/login';
+
+  // 3. 페이지 이동
+  window.location.href = targetUrl;
 };
 
 const submitGuestRequest = async () => {
