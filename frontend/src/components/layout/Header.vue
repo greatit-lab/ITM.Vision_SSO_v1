@@ -22,11 +22,11 @@
             class="relative p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none"
             :class="{ 'bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400': showNotifications }"
           >
-             <i class="pi pi-bell text-lg"></i>
-             <span 
-               v-if="hasNotification"
-               class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-zinc-900 animate-pulse"
-             ></span>
+              <i class="pi pi-bell text-lg"></i>
+              <span 
+                v-if="hasNotification"
+                class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-zinc-900 animate-pulse"
+              ></span>
           </button>
 
           <transition
@@ -115,13 +115,12 @@
           </div>
         </button>
 
-        <div class="relative ml-2" ref="dropdownRef">
+        <div class="relative ml-2 group" ref="dropdownRef">
           <button
             @click="toggleUserDropdown"
             class="flex items-center gap-2.5 pl-2 pr-1 py-1 transition-all duration-200 rounded-full group hover:bg-slate-100 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
-            v-tooltip.bottom="authStore.user?.departmentName || 'No Department'"
           >
-            <span class="hidden text-sm font-bold text-slate-700 dark:text-slate-200 sm:block">
+          <span class="hidden text-sm font-bold text-slate-700 dark:text-slate-200 sm:block">
               {{ authStore.userName }}님
             </span>
             <div
@@ -132,6 +131,13 @@
             </div>
             <i class="text-[10px] pi pi-chevron-down text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
           </button>
+
+          <div 
+            v-if="!isUserDropdownOpen"
+            class="absolute top-full right-0 mt-2 hidden group-hover:block z-50 px-2 py-1.5 text-xs font-medium text-white bg-slate-800 dark:bg-zinc-700 rounded-md shadow-lg break-words whitespace-normal max-w-[200px] w-max text-center"
+          >
+            {{ authStore.user?.departmentName || 'No Department' }}
+          </div>
 
           <transition
             enter-active-class="transition duration-200 ease-out"
@@ -476,7 +482,7 @@ const fetchNotifications = async () => {
 
 const guestNotification = computed(() => {
   const currentUser = user.value;
-  
+   
   if (currentUser?.role?.toUpperCase() !== 'GUEST' || !currentUser.validUntil) {
     return null;
   }
