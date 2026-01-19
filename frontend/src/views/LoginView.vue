@@ -28,7 +28,7 @@
         <h1
           class="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-indigo-900 to-slate-800 dark:from-white dark:via-indigo-200 dark:to-slate-200"
         >
-          ITM Vision AD
+          I:Vision AD
         </h1>
         
         <p class="mt-2 text-xs font-bold tracking-widest uppercase text-slate-500 dark:text-slate-400">
