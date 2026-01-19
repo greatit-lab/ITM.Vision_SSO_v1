@@ -21,9 +21,10 @@ import { InfraModule } from './infra/infra.module';
 @Module({
   imports: [
     // 1. 환경 변수 설정 (Global)
+    // [개선] 운영 서버(PM2)에서 .env 파일 인식을 강화하기 위해 경로 명시
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.development', '.env.production', '.env'],
+      envFilePath: ['.env.production', '.env', '.env.development'],
     }),
 
     // 2. 공통 모듈 (DataApiService 포함 - 핵심 통신 모듈)
