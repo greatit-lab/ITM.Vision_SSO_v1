@@ -1,3 +1,4 @@
+<!-- frontend/src/views/EquipmentHealthView.vue -->
 <template>
   <div
     class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden"
