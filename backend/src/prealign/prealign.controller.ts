@@ -6,6 +6,7 @@ import { PreAlignService, PreAlignData } from './prealign.service';
 export class PreAlignController {
   constructor(private readonly preAlignService: PreAlignService) {}
 
+  // 1. PreAlign 트렌드 데이터 조회 (Web -> Backend -> Data-API)
   @Get('trend')
   async getTrend(
     @Query('site') site: string,
@@ -14,7 +15,7 @@ export class PreAlignController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ): Promise<PreAlignData[]> {
-    return await this.preAlignService.getTrend(
+    return this.preAlignService.getTrend(
       site,
       sdwt,
       eqpId,
