@@ -24,13 +24,13 @@
         </div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select v-model="filters.eqpId" :options="eqpIds" filter placeholder="EQP ID" :disabled="!filterStore.selectedSdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.eqpId }" @change="onEqpChange" />
+          <Select v-model="filters.eqpId" :options="eqpIds" filter resetFilterOnHide placeholder="EQP ID" :disabled="!filterStore.selectedSdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.eqpId }" @change="onEqpChange" />
         </div>
 
         <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select v-model="filters.lotId" :options="lotIds" filter placeholder="Lot ID" :disabled="!filters.eqpId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.lotId }" @change="onLotChange" />
+          <Select v-model="filters.lotId" :options="lotIds" filter resetFilterOnHide placeholder="Lot ID" :disabled="!filters.eqpId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.lotId }" @change="onLotChange" />
         </div>
 
         <div class="min-w-[140px] shrink-0">
