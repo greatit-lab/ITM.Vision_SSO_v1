@@ -203,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch, nextTick } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -234,8 +234,17 @@ const hasSearched = ref(false);
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
+// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
+// 이렇게 초기화해야 DatePicker로 날짜를 다시 선택했을 때의 값(자정 기준)과 일치성이 높아집니다.
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+
 const filters = reactive({
-  eqpId: "", lotId: "", waferId: "", startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date(),
+  eqpId: "", lotId: "", waferId: "", 
+  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
+  endDate: new Date(),     // EndDate는 toLocalISOString에서 true 처리 시 23:59:59로 보정됨
   cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
 });
 
@@ -277,7 +286,7 @@ let themeObserver: MutationObserver | null = null;
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
-// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+// [추가] 통합 날짜 보정 및 로직
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -288,24 +297,21 @@ watch(
       // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
            filters.endDate = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
            filters.startDate = new Date(newEnd);
         }
-        return; // 보정 발생 시 로딩 중단
+        return; 
       }
     }
 
     if (filters.eqpId) {
-        onDateChange(); // 기존 날짜 변경 로직 호출
+        onDateChange(); 
     }
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
-// isEndDate = true 이면 23:59:59.999 로 설정
+// [핵심] 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
@@ -321,7 +327,6 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-// TS2532 오류 해결
 const availableStatFields = computed(() => {
   const pd = pointData.value;
   if (!pd || !pd.headers) return [];
@@ -338,7 +343,6 @@ const availableStatFields = computed(() => {
   );
 });
 
-// TS2532 오류 해결
 const calculateColumnPrecisions = () => {
   const pd = pointData.value;
   if (!pd || !Array.isArray(pd.headers) || !Array.isArray(pd.data)) {
@@ -402,7 +406,6 @@ onMounted(async () => {
       const savedEqpId = localStorage.getItem("wafer_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         filters.eqpId = savedEqpId;
-        // [수정] 초기 로딩 시 Primary Option 로드
         await loadLotOptions();
         await loadCassetteOptions();
       }
@@ -471,7 +474,6 @@ const spectrumOption = computed(() => {
   };
 });
 
-// [수정] onSiteChange - 사이트 변경 시 하위 필터 모두 초기화
 const onSiteChange = async () => {
   if (filterStore.selectedSite) { 
     localStorage.setItem("wafer_site", filterStore.selectedSite); 
@@ -498,7 +500,6 @@ const onSiteChange = async () => {
   films.value = [];
 };
 
-// [수정] onSdwtChange - SDWT 변경 시 하위 필터 모두 초기화
 const onSdwtChange = () => {
   if (filterStore.selectedSdwt) { 
     localStorage.setItem("wafer_sdwt", filterStore.selectedSdwt); 
@@ -530,8 +531,8 @@ const loadEqpIds = async () => {
   } finally { isEqpLoading.value = false; }
 };
 
-// [수정] onEqpChange - 장비 변경 시 하위 필터 초기화 및 Level 1 로드
-const onEqpChange = () => {
+// [수정] onEqpChange에 async/await 및 nextTick 적용
+const onEqpChange = async () => {
   if (filters.eqpId) { 
     localStorage.setItem("wafer_eqpid", filters.eqpId); 
     filters.lotId = ""; 
@@ -539,6 +540,9 @@ const onEqpChange = () => {
     filters.cassetteRcp = ""; 
     filters.stageGroup = ""; 
     filters.film = "";
+
+    // [핵심] Vue Reactivity 업데이트 보장 후 호출
+    await nextTick();
     loadLotOptions(); 
     loadCassetteOptions();
   } else { 
@@ -557,16 +561,12 @@ const onEqpChange = () => {
   }
 };
 
-// [수정] onLotChange - Lot 변경 시 Wafer 로드 (Cassette/Stage 리셋 방지)
 const onLotChange = () => { 
   filters.waferId = ""; 
-  
-  // Lot이 변경되면 기존 상세 필터 선택값은 무효화될 수 있으므로 초기화
   filters.cassetteRcp = "";
   filters.stageGroup = "";
   filters.film = "";
   
-  // 목록 초기화
   waferIds.value = [];
   cassetteRcps.value = [];
   stageGroups.value = [];
@@ -574,15 +574,12 @@ const onLotChange = () => {
 
   if (filters.lotId) {
     loadWaferOptions(); 
-    // Lot 기준 하위 필터 목록 재로드
     loadCassetteOptions(); 
   } else {
-    // Lot이 해제되면 장비 기준으로 다시 로드
     loadCassetteOptions();
   }
 };
 
-// [수정] onCassetteRcpChange - Cassette 변경 시 Stage 로드
 const onCassetteRcpChange = () => {
   filters.stageGroup = "";
   filters.film = "";
@@ -594,7 +591,6 @@ const onCassetteRcpChange = () => {
   }
 };
 
-// [수정] onStageGroupChange - Stage 변경 시 Film 로드
 const onStageGroupChange = () => {
   filters.film = "";
   films.value = [];
@@ -608,12 +604,10 @@ const onFilmChange = () => {
   // Final selection
 };
 
-// [수정] 날짜 변경 시 Level 1 부터 다시 로드
 const onDateChange = () => {
     if (filters.eqpId) {
         loadLotOptions();
         loadCassetteOptions();
-        // 하위 필터가 선택되어 있다면 그에 맞는 목록도 갱신 시도
         if (filters.lotId) loadWaferOptions();
         if (filters.cassetteRcp) loadStageOptions();
         if (filters.stageGroup) loadFilmOptions();
@@ -622,7 +616,6 @@ const onDateChange = () => {
 
 // --- Option Loading Functions (Separated Logic) ---
 
-// 1. Lot Options
 const loadLotOptions = async () => {
   if (!filters.eqpId) return;
   const params = { 
@@ -636,12 +629,11 @@ const loadLotOptions = async () => {
   } catch (error) { console.error("Failed to load lot options:", error); }
 };
 
-// 2. Cassette Options (LotID 포함하여 필터링)
 const loadCassetteOptions = async () => {
   if (!filters.eqpId) return;
   const params = { 
     eqpId: filters.eqpId, 
-    lotId: filters.lotId, // [핵심] Lot ID 포함
+    lotId: filters.lotId, 
     startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
     endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
   };
@@ -651,7 +643,6 @@ const loadCassetteOptions = async () => {
   } catch (error) { console.error("Failed to load cassette options:", error); }
 };
 
-// 3. Wafer Options
 const loadWaferOptions = async () => {
     if (!filters.eqpId || !filters.lotId) return;
     const params = {
@@ -666,7 +657,6 @@ const loadWaferOptions = async () => {
     } catch (error) { console.error("Failed to load wafer options:", error); }
 }
 
-// 4. Stage Options (LotID 포함)
 const loadStageOptions = async () => {
     if (!filters.eqpId || !filters.cassetteRcp) return;
     const params = {
@@ -682,12 +672,11 @@ const loadStageOptions = async () => {
     } catch (error) { console.error("Failed to load stage options:", error); }
 }
 
-// 5. Film Options (LotID 포함)
 const loadFilmOptions = async () => {
     if (!filters.eqpId || !filters.cassetteRcp || !filters.stageGroup) return;
     const params = {
         eqpId: filters.eqpId,
-        lotId: filters.lotId, // [핵심] Lot ID 포함
+        lotId: filters.lotId, 
         cassetteRcp: filters.cassetteRcp,
         stageGroup: filters.stageGroup,
         startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
@@ -704,7 +693,6 @@ const searchData = async () => { first.value = 0; await loadDataGrid(); };
 const loadDataGrid = async () => {
   isLoading.value = true; hasSearched.value = true; selectedRow.value = null;
   try {
-    // [수정] toLocalISOString 사용
     const res = await waferApi.getFlatData({
       eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId,
       startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
@@ -869,8 +857,10 @@ const resetFilters = () => {
   flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; 
   resetDetails(); 
   
-  // 날짜 초기화
-  filters.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // 날짜 초기화 (일주일 전 자정)
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  filters.startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   filters.endDate = new Date();
 };
 
@@ -912,4 +902,3 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
-
