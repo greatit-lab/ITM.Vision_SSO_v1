@@ -1,27 +1,23 @@
 // backend/src/lamplife/lamplife.controller.ts
 import { Controller, Get, Post, Body, Query } from '@nestjs/common';
-import { LampLifeService } from './lamplife.service';
+import { LamplifeService } from './lamplife.service';
 
 @Controller('lamplife')
-export class LampLifeController {
-  constructor(private readonly lampLifeService: LampLifeService) {}
+export class LamplifeController {
+  constructor(private readonly lamplifeService: LamplifeService) {}
 
-  // 1. 램프 수명 현황 조회
-  // [수정] 기본 경로('/')로 매핑하여 GET /api/lamplife 요청 처리
-  @Get() 
-  async getLampLifeStatus(
-    @Query('site') site?: string,
+  // [수정] 프론트엔드 요청(GET /api/lamplife)을 받아 Data-API로 중계
+  @Get()
+  getLampLifeStatus(
+    @Query('site') site: string,
     @Query('sdwt') sdwt?: string,
   ) {
-    return this.lampLifeService.getLampLifeStatus(site, sdwt);
+    return this.lamplifeService.getLampLifeStatus(site, sdwt);
   }
 
-  // 2. 램프 교체 이력 등록
+  // [수정] 교체 이력 등록 중계
   @Post('replacement')
-  async registerReplacement(
-    @Body('eqpId') eqpId: string,
-    @Body('date') date?: string,
-  ) {
-    return this.lampLifeService.registerReplacement(eqpId, date);
+  registerReplacement(@Body() body: { eqpId: string; date?: string }) {
+    return this.lamplifeService.registerReplacement(body);
   }
 }
