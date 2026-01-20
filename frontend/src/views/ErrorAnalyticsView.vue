@@ -228,7 +228,6 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-// [추가] 날짜 자동 보정 로직
 watch(
   [() => filter.startDate, () => filter.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -277,7 +276,6 @@ watch(() => filter.site, (n) => n ? localStorage.setItem(LS_KEYS.SITE, n) : loca
 watch(() => filter.sdwt, (n) => n ? localStorage.setItem(LS_KEYS.SDWT, n) : localStorage.removeItem(LS_KEYS.SDWT));
 watch(() => filter.eqpId, (n) => n ? localStorage.setItem(LS_KEYS.EQPID, n) : localStorage.removeItem(LS_KEYS.EQPID));
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -322,13 +320,11 @@ const onEqpIdChange = () => {
 };
 
 const getEffectiveParams = () => {
-  // [수정] toLocalISOString 사용하여 시차 보정
   let startStr = toLocalISOString(filter.startDate);
-  let endStr = toLocalISOString(filter.endDate, true); // Full Day
+  let endStr = toLocalISOString(filter.endDate, true);
   let eqps = filter.eqpId;
 
   if (gridFilter.date) {
-    // 드릴다운 시 해당 날짜의 전체 범위
     const d = new Date(gridFilter.date);
     startStr = toLocalISOString(d);
     endStr = toLocalISOString(d, true);
@@ -352,7 +348,6 @@ const search = async () => {
   gridFilter.date = null;
   gridFilter.eqpId = null;
   
-  // [수정] 차트 영역 먼저 표시 후 로딩 오버레이
   hasSearched.value = true;
   isLoading.value = true;
   
@@ -397,6 +392,7 @@ const updateTrendData = async () => {
   }
 };
 
+// [수정] TS2339 오류 해결: any 타입 단언으로 응답 처리 유연성 확보
 const loadGridData = async () => {
   isGridLoading.value = true;
   try {
@@ -407,9 +403,13 @@ const loadGridData = async () => {
     };
     const res = await getErrorLogs(params);
     
-    if (res && res.data) {
-      logs.value = Array.isArray(res.data.items) ? res.data.items : [];
-      totalRecords.value = res.data.totalItems || 0;
+    // API 응답이 AxiosResponse 래퍼일 수도 있고, 인터셉터에 의해 이미 풀린 데이터일 수도 있음
+    const responseData = res as any;
+    const data = (responseData && responseData.data) ? responseData.data : responseData;
+
+    if (data && Array.isArray(data.items)) {
+      logs.value = data.items;
+      totalRecords.value = data.totalItems || 0;
     } else {
       logs.value = [];
       totalRecords.value = 0;
