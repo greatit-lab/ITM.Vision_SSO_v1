@@ -21,13 +21,13 @@
             <Select v-model="filterStore.selectedSdwt" :options="sdwts" placeholder="SDWT" showClear :disabled="!filterStore.selectedSite" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filterStore.selectedSdwt }" @change="onSdwtChange" />
           </div>
           <div class="min-w-[160px] shrink-0">
-            <Select v-model="filters.eqpId" :options="eqpIds" filter placeholder="EQP ID" :disabled="!filterStore.selectedSdwt" :loading="isEqpLoading" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onEqpChange" />
+            <Select v-model="filters.eqpId" :options="eqpIds" filter resetFilterOnHide placeholder="EQP ID" :disabled="!filterStore.selectedSdwt" :loading="isEqpLoading" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onEqpChange" />
           </div>
           <div class="min-w-[160px] shrink-0">
-            <Select v-model="filters.lotId" :options="lotIds" filter placeholder="Lot ID" :disabled="!filters.eqpId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onLotChange" />
+            <Select v-model="filters.lotId" :options="lotIds" filter resetFilterOnHide placeholder="Lot ID" :disabled="!filters.eqpId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onLotChange" />
           </div>
           <div class="min-w-[100px] shrink-0">
-            <Select v-model="filters.waferId" :options="waferIds" filter placeholder="Wafer" :disabled="!filters.lotId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
+            <Select v-model="filters.waferId" :options="waferIds" filter resetFilterOnHide placeholder="Wafer" :disabled="!filters.lotId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
           </div>
           <div class="min-w-[130px] shrink-0">
             <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
@@ -912,3 +912,4 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
+
