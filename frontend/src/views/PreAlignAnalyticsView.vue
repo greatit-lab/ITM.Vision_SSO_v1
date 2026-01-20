@@ -1,7 +1,7 @@
 <!-- frontend/src/views/PreAlignAnalyticsView.vue -->
 <template>
   <div
-    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B]"
+    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] pb-4"
   >
     <div class="flex items-center gap-2 px-1 mb-2 shrink-0">
       <div
@@ -114,178 +114,196 @@
       </div>
     </div>
 
-    <div class="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
-      <div
-        class="relative flex flex-col h-[52%] bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+    <div class="flex-1 min-h-0 overflow-hidden relative">
+      
+      <div 
+        v-if="!hasSearched" 
+        class="flex flex-col items-center justify-center h-full bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm opacity-80"
       >
-        <div
-          class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0"
-        >
-          <div class="flex items-center gap-2">
-            <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
-            <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-              {{ searchedEqpId ? `${searchedEqpId} - ` : "" }}Trend Analysis
-            </h3>
-            <span
-              v-if="hasSearched"
-              class="text-xs font-medium text-slate-400 dark:text-slate-500 ml-2"
-            >
-              ({{ chartData.length.toLocaleString() }} points)
-            </span>
-          </div>
+        <div class="p-6 rounded-full bg-slate-50 dark:bg-zinc-800/50 mb-4 animate-fade-in">
+           <i class="text-5xl pi pi-search text-slate-300 dark:text-zinc-600"></i>
         </div>
-        <div class="relative flex-1 w-full min-h-0 group">
-          <div
-            v-if="isLoading"
-            class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
-          >
-            <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
-          </div>
-          
-          <EChart
-            v-if="!isLoading && hasSearched && chartData.length > 0"
-            :option="trendOption"
-            class="w-full h-full"
-            autoresize
-            @chartCreated="onChartCreated"
-          />
-
-          <div
-            v-else-if="!isLoading && hasSearched && chartData.length === 0"
-            class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60"
-          >
-            <i class="mb-2 text-3xl pi pi-exclamation-circle opacity-30"></i>
-            <span class="text-xs">No data found.</span>
-          </div>
-          <div
-            v-else
-            class="absolute inset-0 flex flex-col items-center justify-center opacity-50 select-none"
-          >
-            <div
-              class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
-            >
-              <i
-                class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-chart-line"
-              ></i>
-            </div>
-            <p class="text-sm font-bold text-slate-500">Ready to Analyze</p>
-          </div>
-
-          <transition name="fade">
-            <button
-              v-if="isZoomed"
-              @click="resetZoom"
-              class="absolute top-2 right-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1 transition-colors z-20 cursor-pointer"
-            >
-              <i class="pi pi-refresh" style="font-size: 0.7rem"></i>
-              Reset Zoom
-            </button>
-          </transition>
-        </div>
+        <h2 class="text-lg font-bold text-slate-600 dark:text-slate-300">Ready to Analyze</h2>
+        <p class="text-sm text-slate-400 mt-2">Select Equipment ID and Date Range to start.</p>
       </div>
 
-      <div class="flex flex-1 gap-3 min-h-0">
+      <div v-else class="flex flex-col h-full gap-3">
+        
         <div
-          class="relative flex flex-col flex-1 bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+          class="relative flex flex-col h-[calc(60%-20px)] bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
         >
           <div
-            class="flex items-center px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0"
+            class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0"
           >
-            <div class="w-1 h-4 bg-blue-500 rounded-full mr-2"></div>
-            <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-              Wafer Centering (X vs Y)
-            </h3>
+            <div class="flex items-center gap-2">
+              <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+                {{ searchedEqpId ? `${searchedEqpId} - ` : "" }}Trend Analysis
+              </h3>
+              <span
+                v-if="!isLoading"
+                class="text-xs font-medium text-slate-400 dark:text-slate-500 ml-2"
+              >
+                ({{ chartData.length.toLocaleString() }} points)
+              </span>
+            </div>
           </div>
-          <div class="relative flex-1 w-full min-h-0 p-2">
+          <div class="relative flex-1 w-full min-h-0 group">
+            <div
+              v-if="isLoading"
+              class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
+            >
+              <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
+            </div>
+            
+            <div
+              v-else-if="chartData.length === 0"
+              class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60"
+            >
+              <i class="mb-2 text-3xl pi pi-exclamation-circle opacity-30"></i>
+              <span class="text-xs">No data found.</span>
+            </div>
+
             <EChart
-              v-if="!isLoading && hasSearched && chartData.length > 0"
-              :option="scatterOption"
+              v-else
+              :option="trendOption"
               class="w-full h-full"
               autoresize
+              @chartCreated="onChartCreated"
             />
-            <div
-               v-else
-               class="flex items-center justify-center h-full text-xs text-slate-400"
-            >
-               Scatter Plot Area
-            </div>
+
+            <transition name="fade">
+              <button
+                v-if="isZoomed && !isLoading && chartData.length > 0"
+                @click="resetZoom"
+                class="absolute top-2 right-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1 transition-colors z-20 cursor-pointer"
+              >
+                <i class="pi pi-refresh" style="font-size: 0.7rem"></i>
+                Reset Zoom
+              </button>
+            </transition>
           </div>
         </div>
 
-        <div
-          class="relative flex flex-col flex-1 bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
-        >
+        <div class="grid grid-cols-3 gap-3 flex-1 min-h-0">
+          
           <div
-            class="flex items-center justify-between px-4 py-1.5 border-b border-slate-100 dark:border-zinc-800 shrink-0"
+            class="relative flex flex-col bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
           >
-            <div class="flex items-center">
-              <div 
-                class="w-1 h-4 rounded-full mr-2"
-                :class="activeTab === 'Notch' ? 'bg-amber-500' : 'bg-emerald-500'"
-              ></div>
-              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-                {{ activeTab === 'Notch' ? 'Correlation Analysis' : 'Distribution & Stats' }}
-              </h3>
+            <div class="flex flex-col px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+              <div class="flex items-center gap-2">
+                <div class="w-1 h-4 bg-blue-500 rounded-full"></div>
+                <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+                  Wafer Centering
+                </h3>
+              </div>
+              <span class="text-[10px] text-slate-400 mt-0.5">
+                웨이퍼 중심 위치 분포 (X/Y 축 치우침 확인)
+              </span>
             </div>
-            <div class="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
-              <button
-                v-for="tab in ['X', 'Y', 'Notch']"
-                :key="tab"
-                @click="activeTab = tab"
-                :class="[
-                  'px-3 py-1 text-[11px] font-bold rounded-md transition-all',
-                  activeTab === tab
-                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-                ]"
-              >
-                {{ tab }}
-              </button>
+            <div class="relative flex-1 w-full min-h-0 p-2">
+              <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
+                 <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
+              </div>
+              <div v-else-if="chartData.length === 0" class="flex items-center justify-center h-full text-xs text-slate-400 opacity-60">
+                 No data found
+              </div>
+              <EChart v-else :option="scatterOption" class="w-full h-full" autoresize />
             </div>
           </div>
 
-          <div class="flex flex-col flex-1 min-h-0 p-3 overflow-hidden">
-             <div class="grid grid-cols-4 gap-2 mb-3 shrink-0" v-if="activeTab !== 'Notch' && currentStats">
-                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
-                   <span class="text-[10px] text-slate-400 uppercase font-bold">Avg</span>
-                   <span class="text-sm font-mono font-bold text-slate-700 dark:text-slate-200">{{ currentStats.avg }}</span>
+          <div
+            class="relative flex flex-col bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+          >
+            <div class="flex flex-col px-4 py-1.5 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-1 h-4 bg-emerald-500 rounded-full"></div>
+                  <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Distribution & Stats
+                  </h3>
                 </div>
-                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
-                   <span class="text-[10px] text-slate-400 uppercase font-bold">Std Dev</span>
-                   <span class="text-sm font-mono font-bold text-rose-500">{{ currentStats.std }}</span>
+                <div class="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                  <button
+                    v-for="tab in ['X', 'Y']"
+                    :key="tab"
+                    @click="activeTab = tab"
+                    :class="[
+                      'px-3 py-0.5 text-[10px] font-bold rounded-md transition-all',
+                      activeTab === tab
+                        ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                    ]"
+                  >
+                    {{ tab }}
+                  </button>
                 </div>
-                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
-                   <span class="text-[10px] text-slate-400 uppercase font-bold">Min</span>
-                   <span class="text-sm font-mono font-bold text-blue-500">{{ currentStats.min }}</span>
-                </div>
-                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
-                   <span class="text-[10px] text-slate-400 uppercase font-bold">Max</span>
-                   <span class="text-sm font-mono font-bold text-blue-500">{{ currentStats.max }}</span>
-                </div>
-             </div>
-             
-             <div class="mb-2 shrink-0 px-1" v-if="activeTab === 'Notch' && hasSearched">
-                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <i class="pi pi-info-circle"></i>
-                    <span>Check for rotation-induced position shifts (Cross-Coupling).</span>
-                </div>
-             </div>
+              </div>
+              <span class="text-[10px] text-slate-400 mt-0.5">
+                X/Y 축 데이터 정규 분포 및 통계 확인
+              </span>
+            </div>
 
-             <div class="flex-1 min-h-0 w-full relative">
-                <EChart
-                  v-if="!isLoading && hasSearched && chartData.length > 0"
-                  :option="distributionChartOption"
-                  class="w-full h-full"
-                  autoresize
-                />
-                <div
-                   v-else
-                   class="flex items-center justify-center h-full text-xs text-slate-400"
-                >
-                   Chart Area
-                </div>
-             </div>
+            <div class="flex flex-col flex-1 min-h-0 p-3 overflow-hidden relative">
+               <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-b-xl">
+                 <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
+               </div>
+
+               <div v-else-if="chartData.length === 0" class="flex items-center justify-center h-full text-xs text-slate-400 opacity-60">
+                  No data found
+               </div>
+
+               <template v-else>
+                 <div class="grid grid-cols-4 gap-2 mb-2 shrink-0" v-if="currentStats">
+                    <div class="p-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                       <span class="text-[9px] text-slate-400 uppercase font-bold">Avg</span>
+                       <span class="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">{{ currentStats.avg }}</span>
+                    </div>
+                    <div class="p-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                       <span class="text-[9px] text-slate-400 uppercase font-bold">Std</span>
+                       <span class="text-xs font-mono font-bold text-rose-500">{{ currentStats.std }}</span>
+                    </div>
+                    <div class="p-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                       <span class="text-[9px] text-slate-400 uppercase font-bold">Min</span>
+                       <span class="text-xs font-mono font-bold text-blue-500">{{ currentStats.min }}</span>
+                    </div>
+                    <div class="p-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                       <span class="text-[9px] text-slate-400 uppercase font-bold">Max</span>
+                       <span class="text-xs font-mono font-bold text-blue-500">{{ currentStats.max }}</span>
+                    </div>
+                 </div>
+                 <div class="flex-1 min-h-0 w-full relative">
+                    <EChart :option="histogramOption" class="w-full h-full" autoresize />
+                 </div>
+               </template>
+            </div>
           </div>
+
+          <div
+            class="relative flex flex-col bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+          >
+            <div class="flex flex-col px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+              <div class="flex items-center gap-2">
+                <div class="w-1 h-4 bg-amber-500 rounded-full"></div>
+                <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+                  Notch Analysis
+                </h3>
+              </div>
+              <span class="text-[10px] text-slate-400 mt-0.5">
+                Notch 회전 각도와 위치 변동 간 상관관계
+              </span>
+            </div>
+            <div class="relative flex-1 w-full min-h-0 p-2">
+              <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
+                 <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
+              </div>
+              <div v-else-if="chartData.length === 0" class="flex items-center justify-center h-full text-xs text-slate-400 opacity-60">
+                 No data found
+              </div>
+              <EChart v-else :option="notchChartOption" class="w-full h-full" autoresize />
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -345,7 +363,7 @@ const searchedEqpId = ref("");
 const isZoomed = ref(false);
 
 // UI State
-const activeTab = ref('X'); // 'X', 'Y', 'Notch'
+const activeTab = ref('X'); 
 
 // Chart Instance
 let chartInstance: ECharts | null = null;
@@ -480,7 +498,7 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
 // --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
-  // ... (기존 로직 동일: 로컬스토리지 복원 등)
+  
   let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
   let targetSdwt = "";
 
@@ -609,7 +627,6 @@ const trendOption = computed(() => {
          return html;
       }
     },
-    // [수정] 범례 좌측으로 이동 (right: 10 -> 80)
     legend: { show: true, top: 0, right: 80, textStyle: { color: textColor }, itemGap: 10 },
     grid: { left: 50, right: 50, top: 30, bottom: 25, containLabel: false },
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
@@ -618,7 +635,6 @@ const trendOption = computed(() => {
       axisLabel: { 
         color: textColor, 
         fontSize: 10,
-        // [유지] 시간 포맷 (mm-dd hh:mm)
         formatter: (value: any) => {
            const date = new Date(value);
            const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -636,7 +652,6 @@ const trendOption = computed(() => {
       { type: "value", name: "Notch", position: "right", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { show: false } }
     ],
     series: [
-      // [수정] 점 크기 작게 조정 (symbolSize: 2 추가)
       { name: "X", type: "line", data: chartData.value.map(d => [d.timestamp, d.xmm]), yAxisIndex: 0, showSymbol: false, symbolSize: 2, itemStyle: { color: "#3b82f6" }, lineStyle: { width: 1 } },
       { name: "Y", type: "line", data: chartData.value.map(d => [d.timestamp, d.ymm]), yAxisIndex: 0, showSymbol: false, symbolSize: 2, itemStyle: { color: "#10b981" }, lineStyle: { width: 1 } },
       { name: "Notch", type: "line", data: chartData.value.map(d => [d.timestamp, d.notch]), yAxisIndex: 1, showSymbol: false, symbolSize: 2, itemStyle: { color: "#f59e0b" }, lineStyle: { width: 1 } },
@@ -644,7 +659,7 @@ const trendOption = computed(() => {
   };
 });
 
-// 2. Scatter Plot (X vs Y) - Bottom Left
+// 2. Scatter Plot (Wafer Centering) - Bottom Left
 const scatterOption = computed(() => {
   const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
   const data = chartData.value.map(d => [d.xmm, d.ymm]);
@@ -692,53 +707,10 @@ const scatterOption = computed(() => {
   };
 });
 
-// 3. Distribution & Correlation Chart - Bottom Right
-const distributionChartOption = computed(() => {
+// 3. Distribution & Stats Chart - Bottom Middle
+const histogramOption = computed(() => {
    const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
    
-   if (activeTab.value === 'Notch') {
-      const dataX = chartData.value.map(d => [d.notch, d.xmm]);
-      const dataY = chartData.value.map(d => [d.notch, d.ymm]);
-      
-      return {
-         backgroundColor: "transparent",
-         tooltip: {
-            trigger: 'item',
-            backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
-            formatter: (p: any) => {
-               return `<div class="text-xs font-bold mb-1">${p.seriesName}</div>
-                       <div class="text-xs">Notch: ${p.value[0].toFixed(4)}</div>
-                       <div class="text-xs">Shift: ${p.value[1].toFixed(4)} mm</div>`;
-            }
-         },
-         legend: { show: true, top: 0, right: 10, textStyle: { color: textColor }, itemGap: 10 },
-         grid: { left: 40, right: 40, top: 30, bottom: 30, containLabel: true },
-         xAxis: {
-            type: 'value', name: 'Notch(deg)', nameLocation: 'middle', nameGap: 22,
-            scale: true,
-            axisLabel: { color: textColor, fontSize: 10 },
-            splitLine: { lineStyle: { color: gridColor } },
-            axisLine: { lineStyle: { color: textColor } }
-         },
-         yAxis: {
-            type: 'value', name: 'Shift(mm)',
-            axisLabel: { color: textColor, fontSize: 10 },
-            splitLine: { lineStyle: { color: gridColor } },
-            axisLine: { lineStyle: { color: textColor } }
-         },
-         series: [
-            { 
-               name: 'vs X', type: 'scatter', symbolSize: 4, 
-               data: dataX, itemStyle: { color: '#3b82f6', opacity: 0.6 } 
-            },
-            { 
-               name: 'vs Y', type: 'scatter', symbolSize: 4, 
-               data: dataY, itemStyle: { color: '#10b981', opacity: 0.6 } 
-            }
-         ]
-      };
-   }
-
    let values: number[] = [];
    let color = '#3b82f6';
 
@@ -778,6 +750,52 @@ const distributionChartOption = computed(() => {
       }]
    };
 });
+
+// 4. Notch Analysis Chart - Bottom Right
+const notchChartOption = computed(() => {
+   const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
+   
+   const dataX = chartData.value.map(d => [d.notch, d.xmm]);
+   const dataY = chartData.value.map(d => [d.notch, d.ymm]);
+   
+   return {
+      backgroundColor: "transparent",
+      tooltip: {
+         trigger: 'item',
+         backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
+         formatter: (p: any) => {
+            return `<div class="text-xs font-bold mb-1">${p.seriesName}</div>
+                    <div class="text-xs">Notch: ${p.value[0].toFixed(4)}</div>
+                    <div class="text-xs">Shift: ${p.value[1].toFixed(4)} mm</div>`;
+         }
+      },
+      legend: { show: true, top: 0, right: 10, textStyle: { color: textColor }, itemGap: 10 },
+      grid: { left: 40, right: 40, top: 30, bottom: 30, containLabel: true },
+      xAxis: {
+         type: 'value', name: 'Notch(deg)', nameLocation: 'middle', nameGap: 22,
+         scale: true,
+         axisLabel: { color: textColor, fontSize: 10 },
+         splitLine: { lineStyle: { color: gridColor } },
+         axisLine: { lineStyle: { color: textColor } }
+      },
+      yAxis: {
+         type: 'value', name: 'Shift(mm)',
+         axisLabel: { color: textColor, fontSize: 10 },
+         splitLine: { lineStyle: { color: gridColor } },
+         axisLine: { lineStyle: { color: textColor } }
+      },
+      series: [
+         { 
+            name: 'vs X', type: 'scatter', symbolSize: 4, 
+            data: dataX, itemStyle: { color: '#3b82f6', opacity: 0.6 } 
+         },
+         { 
+            name: 'vs Y', type: 'scatter', symbolSize: 4, 
+            data: dataY, itemStyle: { color: '#10b981', opacity: 0.6 } 
+         }
+      ]
+   };
+});
 </script>
 
 <style scoped>
@@ -804,5 +822,13 @@ const distributionChartOption = computed(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
