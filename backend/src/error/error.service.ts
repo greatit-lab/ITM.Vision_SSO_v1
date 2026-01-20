@@ -14,7 +14,7 @@ export interface ErrorLog {
 }
 
 export interface ErrorListResponse {
-  total: number;
+  totalItems: number; // [수정] total -> totalItems (Frontend/Data-API 규격 통일)
   items: ErrorLog[];
 }
 
@@ -67,6 +67,7 @@ export class ErrorService {
 
     try {
       // [수정] 제네릭 타입 명시 (<ErrorListResponse>)
+      // Data-API는 { totalItems, items } 형태를 반환함
       const result = await this.dataApiService.request<ErrorListResponse>(
         this.DOMAIN,
         'get',
@@ -74,11 +75,16 @@ export class ErrorService {
         undefined,
         queryParams,
       );
-      return result || { total: 0, items: [] };
+
+      // [수정] as any 제거 및 안전한 접근
+      // result가 없거나 속성이 없을 경우 기본값 할당
+      return {
+        totalItems: result?.totalItems ?? 0,
+        items: result?.items ?? []
+      };
     } catch (e) {
-      // [수정] e를 사용하여 unused-vars 해결 및 로깅
       this.logger.warn(`Failed to get error list: ${e instanceof Error ? e.message : String(e)}`);
-      return { total: 0, items: [] };
+      return { totalItems: 0, items: [] };
     }
   }
 
