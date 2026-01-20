@@ -62,6 +62,7 @@
             :disabled="!filter.sdwt"
             showClear
             filter
+            resetFilterOnHide
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
             :class="{ '!text-slate-400': !filter.eqpId }"
