@@ -20,13 +20,13 @@
         <span
           class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
         >
-          Precision alignment trend analysis.
+          Precision alignment trend & distribution analysis.
         </span>
       </div>
     </div>
 
     <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0 transition-colors duration-300"
+      class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0"
     >
       <div
         class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
@@ -114,79 +114,179 @@
       </div>
     </div>
 
-    <div
-      class="flex flex-col h-[726px] shrink-0 overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl animate-fade-in relative"
-    >
+    <div class="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
       <div
-        class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0"
+        class="relative flex flex-col h-[52%] bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
       >
-        <div class="flex items-center gap-2">
-          <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
-          <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-            {{ searchedEqpId ? `${searchedEqpId} - ` : "" }}Alignment Trend
-          </h3>
-          <span
-            v-if="hasSearched"
-            class="text-xs font-medium text-slate-400 dark:text-slate-500 ml-2"
+        <div
+          class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0"
+        >
+          <div class="flex items-center gap-2">
+            <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+            <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+              {{ searchedEqpId ? `${searchedEqpId} - ` : "" }}Trend Analysis
+            </h3>
+            <span
+              v-if="hasSearched"
+              class="text-xs font-medium text-slate-400 dark:text-slate-500 ml-2"
+            >
+              ({{ chartData.length.toLocaleString() }} points)
+            </span>
+          </div>
+        </div>
+        <div class="relative flex-1 w-full min-h-0 group">
+          <div
+            v-if="isLoading"
+            class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
           >
-            ({{ chartData.length.toLocaleString() }} points)
-          </span>
+            <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
+          </div>
+          
+          <EChart
+            v-if="!isLoading && hasSearched && chartData.length > 0"
+            :option="trendOption"
+            class="w-full h-full"
+            autoresize
+            @chartCreated="onChartCreated"
+          />
+
+          <div
+            v-else-if="!isLoading && hasSearched && chartData.length === 0"
+            class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60"
+          >
+            <i class="mb-2 text-3xl pi pi-exclamation-circle opacity-30"></i>
+            <span class="text-xs">No data found.</span>
+          </div>
+          <div
+            v-else
+            class="absolute inset-0 flex flex-col items-center justify-center opacity-50 select-none"
+          >
+            <div
+              class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
+            >
+              <i
+                class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-chart-line"
+              ></i>
+            </div>
+            <p class="text-sm font-bold text-slate-500">Ready to Analyze</p>
+          </div>
+
+          <transition name="fade">
+            <button
+              v-if="isZoomed"
+              @click="resetZoom"
+              class="absolute top-2 right-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1 transition-colors z-20 cursor-pointer"
+            >
+              <i class="pi pi-refresh" style="font-size: 0.7rem"></i>
+              Reset Zoom
+            </button>
+          </transition>
         </div>
       </div>
 
-      <div class="relative flex-1 w-full min-h-0 group">
+      <div class="flex flex-1 gap-3 min-h-0">
         <div
-          v-if="isLoading"
-          class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
-        >
-          <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
-          <p class="mt-4 text-xs font-medium text-slate-400 animate-pulse">
-            Loading Data...
-          </p>
-        </div>
-
-        <EChart
-          v-if="!isLoading && hasSearched && chartData.length > 0"
-          :option="chartOption"
-          class="w-full h-full"
-          @chartCreated="onChartCreated"
-        />
-
-        <div
-          v-else-if="!isLoading && hasSearched && chartData.length === 0"
-          class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60"
-        >
-          <i class="mb-2 text-3xl pi pi-exclamation-circle opacity-30"></i>
-          <span class="text-xs">No data found for the selected criteria.</span>
-        </div>
-
-        <div
-          v-else
-          class="absolute inset-0 flex flex-col items-center justify-center opacity-50 select-none"
+          class="relative flex flex-col flex-1 bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
         >
           <div
-            class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
+            class="flex items-center px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0"
           >
-            <i
-              class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-chart-line"
-            ></i>
+            <div class="w-1 h-4 bg-blue-500 rounded-full mr-2"></div>
+            <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+              Wafer Centering (X vs Y)
+            </h3>
           </div>
-          <p class="text-sm font-bold text-slate-500">Ready to Analyze</p>
-          <p class="mt-1 text-xs text-slate-400">
-            Select an equipment and date range to view trends.
-          </p>
+          <div class="relative flex-1 w-full min-h-0 p-2">
+            <EChart
+              v-if="!isLoading && hasSearched && chartData.length > 0"
+              :option="scatterOption"
+              class="w-full h-full"
+              autoresize
+            />
+            <div
+               v-else
+               class="flex items-center justify-center h-full text-xs text-slate-400"
+            >
+               Scatter Plot Area
+            </div>
+          </div>
         </div>
 
-        <transition name="fade">
-          <button
-            v-if="isZoomed"
-            @click="resetZoom"
-            class="absolute top-2 right-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1 transition-colors z-20 cursor-pointer"
+        <div
+          class="relative flex flex-col flex-1 bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl"
+        >
+          <div
+            class="flex items-center justify-between px-4 py-1.5 border-b border-slate-100 dark:border-zinc-800 shrink-0"
           >
-            <i class="pi pi-refresh" style="font-size: 0.7rem"></i>
-            Reset Zoom
-          </button>
-        </transition>
+            <div class="flex items-center">
+              <div 
+                class="w-1 h-4 rounded-full mr-2"
+                :class="activeTab === 'Notch' ? 'bg-amber-500' : 'bg-emerald-500'"
+              ></div>
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
+                {{ activeTab === 'Notch' ? 'Correlation Analysis' : 'Distribution & Stats' }}
+              </h3>
+            </div>
+            <div class="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
+              <button
+                v-for="tab in ['X', 'Y', 'Notch']"
+                :key="tab"
+                @click="activeTab = tab"
+                :class="[
+                  'px-3 py-1 text-[11px] font-bold rounded-md transition-all',
+                  activeTab === tab
+                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ]"
+              >
+                {{ tab }}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-col flex-1 min-h-0 p-3 overflow-hidden">
+             <div class="grid grid-cols-4 gap-2 mb-3 shrink-0" v-if="activeTab !== 'Notch' && currentStats">
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                   <span class="text-[10px] text-slate-400 uppercase font-bold">Avg</span>
+                   <span class="text-sm font-mono font-bold text-slate-700 dark:text-slate-200">{{ currentStats.avg }}</span>
+                </div>
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                   <span class="text-[10px] text-slate-400 uppercase font-bold">Std Dev</span>
+                   <span class="text-sm font-mono font-bold text-rose-500">{{ currentStats.std }}</span>
+                </div>
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                   <span class="text-[10px] text-slate-400 uppercase font-bold">Min</span>
+                   <span class="text-sm font-mono font-bold text-blue-500">{{ currentStats.min }}</span>
+                </div>
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 flex flex-col items-center">
+                   <span class="text-[10px] text-slate-400 uppercase font-bold">Max</span>
+                   <span class="text-sm font-mono font-bold text-blue-500">{{ currentStats.max }}</span>
+                </div>
+             </div>
+             
+             <div class="mb-2 shrink-0 px-1" v-if="activeTab === 'Notch' && hasSearched">
+                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <i class="pi pi-info-circle"></i>
+                    <span>Check for rotation-induced position shifts (Cross-Coupling).</span>
+                </div>
+             </div>
+
+             <div class="flex-1 min-h-0 w-full relative">
+                <EChart
+                  v-if="!isLoading && hasSearched && chartData.length > 0"
+                  :option="distributionChartOption"
+                  class="w-full h-full"
+                  autoresize
+                />
+                <div
+                   v-else
+                   class="flex items-center justify-center h-full text-xs text-slate-400"
+                >
+                   Chart Area
+                </div>
+             </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -199,14 +299,12 @@ import {
   onMounted,
   computed,
   onUnmounted,
-  nextTick,
   watch,
 } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getEqpIds } from "@/api/equipment";
-// [수정] 타입까지 함께 import (중복 정의 제거)
-import { getPreAlignData, type PreAlignData } from "@/api/prealign"; 
+import { getPreAlignData, type PreAlignData } from "@/api/prealign";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
 
@@ -215,9 +313,6 @@ import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import ProgressSpinner from "primevue/progressspinner";
-
-// [수정] 로컬 인터페이스 정의 삭제 (api/prealign.ts의 타입을 사용)
-// interface PreAlignData { ... } <--- 삭제됨
 
 // --- Store & Constants ---
 const authStore = useAuthStore();
@@ -248,6 +343,11 @@ const searchedEqpId = ref("");
 
 // Zoom State
 const isZoomed = ref(false);
+
+// UI State
+const activeTab = ref('X'); // 'X', 'Y', 'Notch'
+
+// Chart Instance
 let chartInstance: ECharts | null = null;
 
 // Theme detection
@@ -260,240 +360,10 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize();
-  }
-};
-
-// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
-watch(
-  [() => filter.startDate, () => filter.endDate],
-  ([newStart, newEnd], [oldStart, oldEnd]) => {
-    if (newStart && newEnd) {
-      const startMs = newStart.getTime();
-      const endMs = newEnd.getTime();
-
-      // 보정 로직
-      if (startMs > endMs) {
-        if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
-           filter.endDate = new Date(newStart);
-        } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
-           filter.startDate = new Date(newEnd);
-        }
-      }
-    }
-  }
-);
-
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
-const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
-  if (!date) return "";
-  const d = new Date(date);
-  
-  if (isEndDate) {
-    d.setHours(23, 59, 59, 999);
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-
-  const offset = d.getTimezoneOffset() * 60000;
-  const localDate = new Date(d.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
-};
-
-// --- Lifecycle ---
-onMounted(async () => {
-  sites.value = await dashboardApi.getSites();
-
-  // 1. 초기 필터 결정 (우선순위: LocalStorage > Auth)
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
-  let targetSdwt = "";
-
-  if (targetSite) {
-     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
-  } else {
-     targetSite = authStore.user?.site || "";
-     targetSdwt = authStore.user?.sdwt || "";
-  }
-
-  // 2. Site 적용 및 SDWT 로드
-  if (targetSite && sites.value.includes(targetSite)) {
-    filter.site = targetSite;
-    try {
-      sdwts.value = await dashboardApi.getSdwts(targetSite);
-
-      // 3. SDWT 적용 및 장비 목록 로드
-      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
-        filter.sdwt = targetSdwt;
-        
-        isEqpLoading.value = true;
-        try {
-          eqpIds.value = await getEqpIds({
-            sdwt: targetSdwt,
-            type: "prealign"
-          });
-        } finally {
-          isEqpLoading.value = false;
-        }
-
-        // 4. EQP ID 복원 및 자동 검색
-        const savedEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
-        if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
-          filter.eqpId = savedEqpId;
-          search(); 
-        }
-      } else {
-         filter.sdwt = "";
-         filter.eqpId = "";
-      }
-    } catch (e) {
-      console.error("Failed to restore filter state:", e);
-      isEqpLoading.value = false;
-    }
-  }
-
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-
-  window.addEventListener("resize", handleResize);
-});
-
-onUnmounted(() => {
-  themeObserver.disconnect();
-  window.removeEventListener("resize", handleResize);
-});
-
-// --- Watchers for Persistence ---
-watch(
-  () => filter.site,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.SITE, newVal);
-    else localStorage.removeItem(LS_KEYS.SITE);
-  }
-);
-
-watch(
-  () => filter.sdwt,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.SDWT, newVal);
-    else localStorage.removeItem(LS_KEYS.SDWT);
-  }
-);
-
-watch(
-  () => filter.eqpId,
-  (newVal) => {
-    if (newVal) localStorage.setItem(LS_KEYS.EQPID, newVal);
-    else localStorage.removeItem(LS_KEYS.EQPID);
-  }
-);
-
-// --- Handlers ---
-const onSiteChange = async () => {
-  if (filter.site) {
-    sdwts.value = await dashboardApi.getSdwts(filter.site);
-  } else {
-    sdwts.value = [];
-  }
-  filter.sdwt = "";
-  filter.eqpId = "";
-  eqpIds.value = [];
-  
-  resetView();
-};
-
-const onSdwtChange = async () => {
-  if (filter.sdwt) {
-    isEqpLoading.value = true;
-    try {
-      eqpIds.value = await getEqpIds({
-        sdwt: filter.sdwt,
-        type: "prealign"
-      });
-    } finally {
-      isEqpLoading.value = false;
-    }
-  } else {
-    eqpIds.value = [];
-  }
-  filter.eqpId = "";
-  resetView();
-};
-
-const onEqpIdChange = () => {
-  // [수정] EQP 변경 시 뷰 초기화
-  resetView();
-};
-
-const resetView = () => {
-  hasSearched.value = false;
-  chartData.value = [];
-  searchedEqpId.value = "";
-  isZoomed.value = false;
-};
-
-const search = async () => {
-  if (!filter.eqpId || !filter.startDate || !filter.endDate) return;
-
-  // [수정] 차트 영역을 먼저 보여주고, 로딩 오버레이 표시
-  hasSearched.value = true;
-  isLoading.value = true;
-  isZoomed.value = false;
-  searchedEqpId.value = filter.eqpId;
-  chartData.value = []; // 이전 데이터 클리어
-
-  try {
-    // [수정] toLocalISOString 사용하여 날짜 포맷 및 시차 보정
-    const res = await getPreAlignData({
-      site: filter.site,
-      sdwt: filter.sdwt,
-      eqpId: filter.eqpId,
-      startDate: toLocalISOString(filter.startDate),
-      endDate: toLocalISOString(filter.endDate, true) // Full Day End
-    });
-    
-    // 데이터 바인딩
-    const data = (res && res.data) ? res.data : res;
-    chartData.value = Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error("Failed to load PreAlign data:", e);
-    chartData.value = [];
-  } finally {
-    isLoading.value = false;
-    if (chartInstance) {
-      nextTick(() => {
-        chartInstance?.resize();
-      });
-    }
-  }
-};
-
-const reset = () => {
-  filter.site = "";
-  filter.sdwt = "";
-  filter.eqpId = "";
-  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  filter.endDate = new Date();
-
-  sdwts.value = [];
-  eqpIds.value = [];
-  
-  resetView();
-};
-
-// --- Chart Helper (Zoom & Resize) ---
+// Chart Event Handlers
 const onChartCreated = (instance: any) => {
   chartInstance = instance;
-
-  nextTick(() => {
-    instance.resize();
-  });
-
+  
   instance.on("dataZoom", () => {
     const opt = instance.getOption();
     if (opt.dataZoom && opt.dataZoom[0]) {
@@ -515,193 +385,424 @@ const resetZoom = () => {
   }
 };
 
-// --- ECharts Config ---
-const chartOption = computed(() => {
-  const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value
-    ? "rgba(255, 255, 255, 0.1)"
-    : "rgba(0, 0, 0, 0.1)";
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize();
+  }
+};
 
-  const xmmData = chartData.value.map((d) => [d.timestamp, d.xmm]);
-  const ymmData = chartData.value.map((d) => [d.timestamp, d.ymm]);
-  const notchData = chartData.value.map((d) => [d.timestamp, d.notch]);
+// [Helper] Statistics Calculation
+const calculateStats = (values: number[]) => {
+  if (values.length === 0) return { avg: '-', std: '-', min: '-', max: '-' };
+  
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const avg = sum / values.length;
+  
+  const squareDiffs = values.map(v => Math.pow(v - avg, 2));
+  const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / values.length;
+  const std = Math.sqrt(avgSquareDiff);
 
+  return {
+    min: min.toFixed(3),
+    max: max.toFixed(3),
+    avg: avg.toFixed(3),
+    std: std.toFixed(4)
+  };
+};
+
+const currentStats = computed(() => {
+  if (chartData.value.length === 0) return null;
+  let values: number[] = [];
+  
+  if (activeTab.value === 'X') values = chartData.value.map(d => d.xmm);
+  else if (activeTab.value === 'Y') values = chartData.value.map(d => d.ymm);
+  else return null; 
+  
+  return calculateStats(values);
+});
+
+// [Helper] Histogram Binning
+const getHistogramData = (values: number[], bins: number = 20) => {
+   if (values.length === 0) return { category: [], data: [] };
+
+   const min = Math.min(...values);
+   const max = Math.max(...values);
+   const range = max - min;
+   const interval = range / bins;
+   
+   if (range === 0) return { category: [min.toFixed(3)], data: [values.length] };
+
+   const category: string[] = [];
+   const data = new Array(bins).fill(0);
+
+   for (let i = 0; i < bins; i++) {
+      const start = min + i * interval;
+      const end = start + interval;
+      category.push(((start + end) / 2).toFixed(3));
+   }
+
+   values.forEach(v => {
+      let idx = Math.floor((v - min) / interval);
+      if (idx >= bins) idx = bins - 1; 
+      data[idx]++;
+   });
+
+   return { category, data };
+};
+
+
+// [추가] 통합 날짜 보정 로직
+watch(
+  [() => filter.startDate, () => filter.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) filter.endDate = new Date(newStart);
+        else if (endMs !== oldEnd?.getTime()) filter.startDate = new Date(newEnd);
+      }
+    }
+  }
+);
+
+const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isEndDate) d.setHours(23, 59, 59, 999);
+  else d.setHours(0, 0, 0, 0);
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace('T', ' '); 
+};
+
+// --- Lifecycle ---
+onMounted(async () => {
+  sites.value = await dashboardApi.getSites();
+  // ... (기존 로직 동일: 로컬스토리지 복원 등)
+  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSdwt = "";
+
+  if (targetSite) {
+     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  } else {
+     targetSite = authStore.user?.site || "";
+     targetSdwt = authStore.user?.sdwt || "";
+  }
+
+  if (targetSite && sites.value.includes(targetSite)) {
+    filter.site = targetSite;
+    try {
+      sdwts.value = await dashboardApi.getSdwts(targetSite);
+      if (targetSdwt && sdwts.value.includes(targetSdwt)) {
+        filter.sdwt = targetSdwt;
+        isEqpLoading.value = true;
+        try {
+          eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "prealign" });
+        } finally {
+          isEqpLoading.value = false;
+        }
+        const savedEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
+        if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
+          filter.eqpId = savedEqpId;
+          search(); 
+        }
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  window.addEventListener("resize", handleResize);
+});
+
+onUnmounted(() => {
+  themeObserver.disconnect();
+  window.removeEventListener("resize", handleResize);
+});
+
+// Watchers
+watch(() => filter.site, (v) => v ? localStorage.setItem(LS_KEYS.SITE, v) : localStorage.removeItem(LS_KEYS.SITE));
+watch(() => filter.sdwt, (v) => v ? localStorage.setItem(LS_KEYS.SDWT, v) : localStorage.removeItem(LS_KEYS.SDWT));
+watch(() => filter.eqpId, (v) => v ? localStorage.setItem(LS_KEYS.EQPID, v) : localStorage.removeItem(LS_KEYS.EQPID));
+
+// Handlers
+const onSiteChange = async () => {
+  filter.site ? (sdwts.value = await dashboardApi.getSdwts(filter.site)) : (sdwts.value = []);
+  filter.sdwt = ""; filter.eqpId = ""; eqpIds.value = []; resetView();
+};
+
+const onSdwtChange = async () => {
+  if (filter.sdwt) {
+    isEqpLoading.value = true;
+    try { eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "prealign" }); }
+    finally { isEqpLoading.value = false; }
+  } else { eqpIds.value = []; }
+  filter.eqpId = ""; resetView();
+};
+
+const onEqpIdChange = () => resetView();
+const resetView = () => { hasSearched.value = false; chartData.value = []; searchedEqpId.value = ""; isZoomed.value = false; };
+
+const search = async () => {
+  if (!filter.eqpId || !filter.startDate || !filter.endDate) return;
+  hasSearched.value = true;
+  isLoading.value = true;
+  searchedEqpId.value = filter.eqpId;
+  chartData.value = [];
+  isZoomed.value = false;
+
+  try {
+    const res = await getPreAlignData({
+      site: filter.site,
+      sdwt: filter.sdwt,
+      eqpId: filter.eqpId,
+      startDate: toLocalISOString(filter.startDate),
+      endDate: toLocalISOString(filter.endDate, true)
+    });
+    const data = (res && res.data) ? res.data : res;
+    chartData.value = Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error("Failed to load PreAlign data:", e);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const reset = () => {
+  filter.site = ""; filter.sdwt = ""; filter.eqpId = "";
+  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  filter.endDate = new Date();
+  sdwts.value = []; eqpIds.value = [];
+  resetView();
+};
+
+// --- Chart Options ---
+const commonChartConfig = computed(() => {
+   const isDark = isDarkMode.value;
+   return {
+      textColor: isDark ? "#cbd5e1" : "#475569",
+      gridColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
+      tooltipBg: isDark ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)",
+      tooltipBorder: isDark ? "#3f3f46" : "#e2e8f0",
+      tooltipText: isDark ? "#fff" : "#1e293b",
+   }
+});
+
+// 1. Trend Chart
+const trendOption = computed(() => {
+  const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
   return {
     backgroundColor: "transparent",
     tooltip: {
       trigger: "axis",
-      backgroundColor: isDarkMode.value
-        ? "rgba(24, 24, 27, 0.9)"
-        : "rgba(255, 255, 255, 0.95)",
-      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
-      textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" },
+      backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
       formatter: (params: any) => {
-        if (!params || !params[0]) return "";
-
-        const date = new Date(params[0].value[0]);
-        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${String(
-          date.getHours()
-        ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-
-        let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1 text-xs">${dateStr}</div>`;
-        params.forEach((p: any) => {
-          const val = p.value[1] !== undefined ? p.value[1].toFixed(4) : "-";
-          const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:8px;height:8px;background-color:${p.color};"></span>`;
-          html += `<div class="flex justify-between gap-4 text-xs mt-1"><span>${colorDot} ${p.seriesName}</span><span class="font-mono font-bold">${val}</span></div>`;
-        });
-        return html;
-      },
+         if (!params[0]) return "";
+         const date = new Date(params[0].value[0]);
+         const dateStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1 text-xs">${dateStr}</div>`;
+         params.forEach((p: any) => {
+            const val = p.value[1] !== undefined ? p.value[1].toFixed(4) : "-";
+            html += `<div class="flex justify-between gap-4 text-xs mt-1"><span style="color:${p.color}">● ${p.seriesName}</span><span class="font-mono font-bold">${val}</span></div>`;
+         });
+         return html;
+      }
     },
-    legend: {
-      show: true,
-      top: 5,
-      left: "auto",
-      right: 80,
-      textStyle: { color: textColor },
-      itemGap: 15,
-      selectedMode: true,
-    },
-    grid: {
-      left: 60,
-      right: 60,
-      top: 50,
-      bottom: 80,
-      containLabel: false,
-    },
-    dataZoom: [
-      { type: "inside", xAxisIndex: [0], filterMode: "filter" },
-      {
-        type: "slider",
-        xAxisIndex: [0],
-        filterMode: "filter",
-        height: 20,
-        bottom: 10,
-        borderColor: "transparent",
-        backgroundColor: isDarkMode.value ? "#18181b" : "#f1f5f9",
-      },
-    ],
+    // [수정] 범례 좌측으로 이동 (right: 10 -> 80)
+    legend: { show: true, top: 0, right: 80, textStyle: { color: textColor }, itemGap: 10 },
+    grid: { left: 50, right: 50, top: 30, bottom: 25, containLabel: false },
+    dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
     xAxis: {
-      type: "time",
-      boundaryGap: false,
-      axisLabel: {
-        color: textColor,
+      type: "time", boundaryGap: false,
+      axisLabel: { 
+        color: textColor, 
         fontSize: 10,
-        hideOverlap: true,
-        formatter: (value: number) => {
-          const date = new Date(value);
-          const mm = String(date.getMonth() + 1).padStart(2, "0");
-          const dd = String(date.getDate()).padStart(2, "0");
-          const hh = String(date.getHours()).padStart(2, "0");
-          const min = String(date.getMinutes()).padStart(2, "0");
-
-          return `${mm}-${dd} ${hh}:${min}`;
-        },
+        // [유지] 시간 포맷 (mm-dd hh:mm)
+        formatter: (value: any) => {
+           const date = new Date(value);
+           const mm = String(date.getMonth() + 1).padStart(2, '0');
+           const dd = String(date.getDate()).padStart(2, '0');
+           const hh = String(date.getHours()).padStart(2, '0');
+           const min = String(date.getMinutes()).padStart(2, '0');
+           return `${mm}-${dd} ${hh}:${min}`;
+        }
       },
       axisLine: { lineStyle: { color: gridColor } },
       splitLine: { show: false },
     },
     yAxis: [
-      {
-        type: "value",
-        name: "Position (mm)",
-        nameTextStyle: {
-          color: textColor,
-          align: "left",
-          padding: [0, 0, 0, -30],
-        },
-        position: "left",
-        axisLabel: { color: textColor, fontSize: 10 },
-        splitLine: { lineStyle: { color: gridColor } },
-        axisLine: { show: true, lineStyle: { color: gridColor } },
-      },
-      {
-        type: "value",
-        name: "Notch",
-        nameTextStyle: {
-          color: textColor,
-          align: "right",
-          padding: [0, -30, 0, 0],
-        },
-        position: "right",
-        axisLabel: { color: textColor, fontSize: 10 },
-        splitLine: { show: false },
-        axisLine: { show: true, lineStyle: { color: gridColor } },
-      },
+      { type: "value", name: "Pos(mm)", position: "left", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
+      { type: "value", name: "Notch", position: "right", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { show: false } }
     ],
     series: [
-      {
-        name: "X (mm)",
-        type: "line",
-        data: xmmData,
-        yAxisIndex: 0,
-        showSymbol: true,
-        symbolSize: 2,
-        itemStyle: { color: "#3b82f6" },
-        lineStyle: { width: 1.5 },
-      },
-      {
-        name: "Y (mm)",
-        type: "line",
-        data: ymmData,
-        yAxisIndex: 0,
-        showSymbol: true,
-        symbolSize: 2,
-        itemStyle: { color: "#10b981" },
-        lineStyle: { width: 1.5 },
-      },
-      {
-        name: "Notch",
-        type: "line",
-        data: notchData,
-        yAxisIndex: 1,
-        showSymbol: true,
-        symbolSize: 2,
-        itemStyle: { color: "#f59e0b" },
-        lineStyle: { width: 1.5 },
-      },
+      // [수정] 점 크기 작게 조정 (symbolSize: 2 추가)
+      { name: "X", type: "line", data: chartData.value.map(d => [d.timestamp, d.xmm]), yAxisIndex: 0, showSymbol: false, symbolSize: 2, itemStyle: { color: "#3b82f6" }, lineStyle: { width: 1 } },
+      { name: "Y", type: "line", data: chartData.value.map(d => [d.timestamp, d.ymm]), yAxisIndex: 0, showSymbol: false, symbolSize: 2, itemStyle: { color: "#10b981" }, lineStyle: { width: 1 } },
+      { name: "Notch", type: "line", data: chartData.value.map(d => [d.timestamp, d.notch]), yAxisIndex: 1, showSymbol: false, symbolSize: 2, itemStyle: { color: "#f59e0b" }, lineStyle: { width: 1 } },
     ],
   };
+});
+
+// 2. Scatter Plot (X vs Y) - Bottom Left
+const scatterOption = computed(() => {
+  const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
+  const data = chartData.value.map(d => [d.xmm, d.ymm]);
+  
+  let maxVal = 1;
+  if (chartData.value.length > 0) {
+     const maxAbs = Math.max(
+        ...chartData.value.map(d => Math.max(Math.abs(d.xmm), Math.abs(d.ymm)))
+     );
+     maxVal = maxAbs * 1.1; 
+  }
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: {
+       trigger: 'item',
+       backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
+       formatter: (p: any) => {
+          return `<div class="text-xs font-bold mb-1">Point Data</div>
+                  <div class="text-xs">X: ${p.value[0].toFixed(4)}</div>
+                  <div class="text-xs">Y: ${p.value[1].toFixed(4)}</div>`;
+       }
+    },
+    grid: { left: 40, right: 40, top: 30, bottom: 30, containLabel: true },
+    xAxis: { 
+       type: 'value', name: 'X (mm)', nameLocation: 'middle', nameGap: 20,
+       min: -maxVal, max: maxVal,
+       axisLabel: { color: textColor, fontSize: 10 },
+       splitLine: { lineStyle: { color: gridColor } },
+       axisLine: { onZero: true, lineStyle: { color: textColor } }
+    },
+    yAxis: { 
+       type: 'value', name: 'Y (mm)', nameLocation: 'middle', nameGap: 30,
+       min: -maxVal, max: maxVal,
+       axisLabel: { color: textColor, fontSize: 10 },
+       splitLine: { lineStyle: { color: gridColor } },
+       axisLine: { onZero: true, lineStyle: { color: textColor } }
+    },
+    series: [{
+       type: 'scatter',
+       symbolSize: 4,
+       data: data,
+       itemStyle: { color: '#3b82f6', opacity: 0.6 }
+    }]
+  };
+});
+
+// 3. Distribution & Correlation Chart - Bottom Right
+const distributionChartOption = computed(() => {
+   const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
+   
+   if (activeTab.value === 'Notch') {
+      const dataX = chartData.value.map(d => [d.notch, d.xmm]);
+      const dataY = chartData.value.map(d => [d.notch, d.ymm]);
+      
+      return {
+         backgroundColor: "transparent",
+         tooltip: {
+            trigger: 'item',
+            backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
+            formatter: (p: any) => {
+               return `<div class="text-xs font-bold mb-1">${p.seriesName}</div>
+                       <div class="text-xs">Notch: ${p.value[0].toFixed(4)}</div>
+                       <div class="text-xs">Shift: ${p.value[1].toFixed(4)} mm</div>`;
+            }
+         },
+         legend: { show: true, top: 0, right: 10, textStyle: { color: textColor }, itemGap: 10 },
+         grid: { left: 40, right: 40, top: 30, bottom: 30, containLabel: true },
+         xAxis: {
+            type: 'value', name: 'Notch(deg)', nameLocation: 'middle', nameGap: 22,
+            scale: true,
+            axisLabel: { color: textColor, fontSize: 10 },
+            splitLine: { lineStyle: { color: gridColor } },
+            axisLine: { lineStyle: { color: textColor } }
+         },
+         yAxis: {
+            type: 'value', name: 'Shift(mm)',
+            axisLabel: { color: textColor, fontSize: 10 },
+            splitLine: { lineStyle: { color: gridColor } },
+            axisLine: { lineStyle: { color: textColor } }
+         },
+         series: [
+            { 
+               name: 'vs X', type: 'scatter', symbolSize: 4, 
+               data: dataX, itemStyle: { color: '#3b82f6', opacity: 0.6 } 
+            },
+            { 
+               name: 'vs Y', type: 'scatter', symbolSize: 4, 
+               data: dataY, itemStyle: { color: '#10b981', opacity: 0.6 } 
+            }
+         ]
+      };
+   }
+
+   let values: number[] = [];
+   let color = '#3b82f6';
+
+   if (activeTab.value === 'X') { values = chartData.value.map(d => d.xmm); color='#3b82f6'; }
+   else if (activeTab.value === 'Y') { values = chartData.value.map(d => d.ymm); color='#10b981'; }
+   
+   const { category, data } = getHistogramData(values, 25);
+
+   return {
+      backgroundColor: "transparent",
+      tooltip: {
+         trigger: 'axis',
+         backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
+         formatter: (p: any) => {
+            return `<div class="text-xs">Range: ${p[0].name}</div>
+                    <div class="text-xs font-bold">Count: ${p[0].value}</div>`;
+         }
+      },
+      grid: { left: 10, right: 10, top: 20, bottom: 20, containLabel: true },
+      xAxis: {
+         type: 'category',
+         data: category,
+         axisLabel: { color: textColor, fontSize: 9, interval: 'auto' },
+         axisTick: { alignWithLabel: true },
+         axisLine: { lineStyle: { color: gridColor } }
+      },
+      yAxis: {
+         type: 'value',
+         splitLine: { show: false },
+         axisLabel: { show: false }
+      },
+      series: [{
+         type: 'bar',
+         data: data,
+         itemStyle: { color: color, borderRadius: [2, 2, 0, 0] },
+         barWidth: '90%'
+      }]
+   };
 });
 </script>
 
 <style scoped>
-:deep(.p-select),
-:deep(.custom-dropdown) {
+/* 기존 스타일 유지 */
+:deep(.p-select), :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
-:deep(.custom-dropdown .p-select-label) {
-  @apply text-[13px] py-[5px] px-3;
-}
-:deep(.custom-input-text.small) {
-  @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0;
-}
-:deep(.date-picker .p-inputtext) {
-  @apply !text-[13px] !py-1 !px-2 !h-7;
-}
-:deep(.custom-dropdown.small) {
-  @apply h-7;
-}
-:deep(.custom-dropdown:hover) {
-  @apply !bg-slate-200 dark:!bg-zinc-800;
-}
-:deep(.p-select-dropdown) {
-  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
-}
-:deep(.p-select-dropdown svg) {
-  @apply w-3 h-3;
+:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
+:deep(.custom-input-text.small) { @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0; }
+:deep(.date-picker .p-inputtext) { @apply !text-[13px] !py-1 !px-2 !h-7; }
+:deep(.custom-dropdown.small) { @apply h-7; }
+:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
+:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
+:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Transition for fade effect */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
