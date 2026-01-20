@@ -66,6 +66,7 @@
             :options="eqpIds"
             :loading="isEqpIdLoading"
             filter
+            resetFilterOnHide
             placeholder="Select EQP"
             showClear
             class="w-full custom-dropdown small"
@@ -920,3 +921,4 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
+
