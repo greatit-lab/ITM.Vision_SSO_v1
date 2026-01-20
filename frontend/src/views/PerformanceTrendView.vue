@@ -82,6 +82,7 @@
             v-model="selectedEqpId"
             :options="eqpIds"
             filter
+            resetFilterOnHide
             placeholder="Select EQP"
             showClear
             class="w-full custom-dropdown small"
@@ -1222,3 +1223,4 @@ const fmt = (val: number | string | undefined, digits: number) => {
   padding: 4px 8px !important;
 }
 </style>
+
