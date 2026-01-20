@@ -57,6 +57,7 @@
             v-model="filters.eqpId"
             :options="eqpIds"
             filter
+            resetFilterOnHide
             placeholder="EQP ID"
             :disabled="!filterStore.selectedSdwt"
             :loading="isEqpLoading"
@@ -71,6 +72,7 @@
             v-model="filters.lotId"
             :options="lotIds"
             filter
+            resetFilterOnHide
             placeholder="Lot ID"
             :disabled="!filters.eqpId"
             showClear
