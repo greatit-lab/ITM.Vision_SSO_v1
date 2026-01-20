@@ -32,7 +32,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
     const entryPoint = configService.get<string>('SAML_ENTRY_POINT');
     const issuer = configService.get<string>('SAML_ISSUER');
     const callbackUrl = configService.get<string>('SAML_CALLBACK_URL');
-    const idpCert = configService.get<string>('SAML_CERT');
+    const idpCert = configService.get<string>('SAML_IDP_CERT');
     const logoutUrl = configService.get<string>('SAML_LOGOUT_URL');
     const privateKey = configService.get<string>('SAML_SP_PRIVATE_KEY');
 
