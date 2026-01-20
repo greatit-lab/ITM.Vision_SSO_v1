@@ -66,6 +66,7 @@
             :disabled="!selectedSdwt || equipmentList.length === 0"
             showClear
             filter
+            resetFilterOnHide
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
             @change="onEqpIdChange"
@@ -797,3 +798,4 @@ const copyToClipboard = async (text: string) => {
   @apply w-3 h-3;
 }
 </style>
+
