@@ -59,6 +59,7 @@
             v-model="filter.eqpId"
             :options="eqpIds"
             filter
+            resetFilterOnHide
             placeholder="EQP ID"
             :disabled="!filter.sdwt"
             :loading="isEqpLoading"
@@ -204,7 +205,8 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getEqpIds } from "@/api/equipment";
-import httpData from "@/api/http-data";
+// [수정] 타입까지 함께 import (중복 정의 제거)
+import { getPreAlignData, type PreAlignData } from "@/api/prealign"; 
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
 
@@ -214,13 +216,8 @@ import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import ProgressSpinner from "primevue/progressspinner";
 
-interface PreAlignData {
-  timestamp: string;
-  eqpId: string;
-  xmm: number;
-  ymm: number;
-  notch: number;
-}
+// [수정] 로컬 인터페이스 정의 삭제 (api/prealign.ts의 타입을 사용)
+// interface PreAlignData { ... } <--- 삭제됨
 
 // --- Store & Constants ---
 const authStore = useAuthStore();
@@ -452,18 +449,17 @@ const search = async () => {
 
   try {
     // [수정] toLocalISOString 사용하여 날짜 포맷 및 시차 보정
-    const res = await httpData.get<PreAlignData[]>("/prealign/trend", {
-      params: {
-        site: filter.site,
-        sdwt: filter.sdwt,
-        eqpId: filter.eqpId,
-        startDate: toLocalISOString(filter.startDate),
-        endDate: toLocalISOString(filter.endDate, true) // Full Day End
-      }
+    const res = await getPreAlignData({
+      site: filter.site,
+      sdwt: filter.sdwt,
+      eqpId: filter.eqpId,
+      startDate: toLocalISOString(filter.startDate),
+      endDate: toLocalISOString(filter.endDate, true) // Full Day End
     });
     
     // 데이터 바인딩
-    chartData.value = res.data || [];
+    const data = (res && res.data) ? res.data : res;
+    chartData.value = Array.isArray(data) ? data : [];
   } catch (e) {
     console.error("Failed to load PreAlign data:", e);
     chartData.value = [];
