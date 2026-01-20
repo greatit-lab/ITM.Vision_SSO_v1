@@ -63,6 +63,7 @@
             :disabled="!filter.sdwt"
             showClear
             filter
+            resetFilterOnHide
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
             @change="onEqpIdChange"
@@ -80,6 +81,7 @@
             :disabled="!filter.eqpId"
             showClear
             filter
+            resetFilterOnHide
             class="w-full custom-dropdown small"
             :class="{'!border-amber-500 ring-1 ring-amber-500/20': !filter.recipe && filter.eqpId}"
             overlayClass="custom-dropdown-panel small"
