@@ -23,7 +23,7 @@
       :class="isOpen ? 'px-5 justify-start' : 'px-0 justify-center'"
     >
       <div class="flex items-center gap-3 overflow-hidden" @click="$router.push('/')">
-        <div class="relative group cursor-pointer">
+        <div class="relative group cursor-pointer shrink-0">
           <div class="absolute transition-opacity duration-500 rounded-full opacity-0 -inset-2 blur-lg group-hover:opacity-100"></div>
           <img
             :src="logoUrl"
@@ -36,9 +36,12 @@
           class="flex flex-col transition-all duration-300 origin-left cursor-pointer"
           :class="isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-90 w-0 hidden'"
         >
-          <span class="text-xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-700 to-slate-500 dark:from-white dark:via-slate-200 dark:to-slate-400 whitespace-nowrap drop-shadow-sm font-sans">
-            I:Vision
-          </span>
+          <img 
+            :src="logoTextUrl" 
+            alt="I:Vision" 
+            class="h-[18px] w-auto object-contain object-left mix-blend-multiply dark:invert dark:mix-blend-normal dark:brightness-200"
+          />
+          
           <span class="text-[10px] font-bold tracking-widest text-indigo-500 dark:text-indigo-400 uppercase mt-0.5 whitespace-nowrap opacity-90">
             Data Intelligence
           </span>
@@ -119,6 +122,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import logoUrl from "@/assets/ITM_Vision.png";
+import logoTextUrl from "@/assets/logo_text.png"; // 저장된 텍스트 로고 이미지
+
 import SidebarItem from "./SidebarItem.vue";
 import { useMenuStore } from "@/stores/menu";
 import { useAuthStore } from "@/stores/auth";
@@ -149,20 +154,22 @@ const displayInfo = computed(() => {
   return "No Site / No Sdwt";
 });
 
+// [유지] 권한별 아바타 색상 매핑
 const roleAvatarClass = computed(() => {
   const r = userRole.value.toUpperCase();
   if (r === 'ADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
-  if (r === 'MANAGER') return 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30';
-  if (r === 'USER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
-  if (r === 'GUEST') return 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30';
+  if (r === 'MANAGER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
+  if (r === 'USER') return 'bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30';
+  if (r === 'GUEST') return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
+  
   return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
 });
 
 const getRoleTextColor = (role?: string) => {
   const r = role?.toUpperCase();
   if (r === 'ADMIN') return 'text-rose-500 dark:text-rose-400';
-  if (r === 'MANAGER') return 'text-indigo-500 dark:text-indigo-400';
-  if (r === 'USER') return 'text-emerald-500 dark:text-emerald-400';
+  if (r === 'MANAGER') return 'text-emerald-500 dark:text-emerald-400';
+  if (r === 'USER') return 'text-violet-500 dark:text-violet-400';
   return 'text-slate-500';
 };
 
@@ -200,4 +207,3 @@ onMounted(async () => {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
-
