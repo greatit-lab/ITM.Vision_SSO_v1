@@ -64,6 +64,7 @@
             :options="eqpIds"
             :loading="isEqpIdLoading"
             filter
+            resetFilterOnHide
             placeholder="All Equipments"
             showClear
             class="w-full custom-dropdown small"
