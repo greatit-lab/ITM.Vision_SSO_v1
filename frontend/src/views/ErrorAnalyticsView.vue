@@ -20,7 +20,7 @@
           <Select v-model="filter.sdwt" :options="sdwts" placeholder="SDWT" :disabled="!filter.site" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" showClear @change="onSdwtChange" />
         </div>
         <div class="min-w-[160px] shrink-0">
-          <Select v-model="filter.eqpId" :options="eqpIds" filter placeholder="EQP ID" :disabled="!filter.sdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onEqpIdChange" />
+          <Select v-model="filter.eqpId" :options="eqpIds" filter resetFilterOnHide placeholder="EQP ID" :disabled="!filter.sdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onEqpIdChange" />
         </div>
 
         <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
@@ -513,3 +513,4 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
