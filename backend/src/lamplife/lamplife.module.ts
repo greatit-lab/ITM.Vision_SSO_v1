@@ -1,17 +1,12 @@
 // backend/src/lamplife/lamplife.module.ts
 import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { LampLifeController } from './lamplife.controller';
-import { LampLifeService } from './lamplife.service';
+import { LamplifeController } from './lamplife.controller'; // [수정] LampLife -> Lamplife
+import { LamplifeService } from './lamplife.service';       // [수정] LampLife -> Lamplife
+import { CommonModule } from '../common/common.module';
 
 @Module({
-  imports: [
-    HttpModule.register({
-      timeout: 30000,
-      maxRedirects: 5,
-    }),
-  ],
-  controllers: [LampLifeController],
-  providers: [LampLifeService],
+  imports: [CommonModule],
+  controllers: [LamplifeController], // [수정] 클래스명 일치
+  providers: [LamplifeService],       // [수정] 클래스명 일치
 })
 export class LampLifeModule {}
