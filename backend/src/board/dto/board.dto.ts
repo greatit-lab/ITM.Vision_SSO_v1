@@ -21,6 +21,11 @@ export class CreatePostDto {
   @IsString()
   @IsOptional()
   isSecret?: string;
+
+  // [추가] 팝업 여부 필드
+  @IsString()
+  @IsOptional()
+  isPopup?: string;
 }
 
 export class CreateCommentDto {
