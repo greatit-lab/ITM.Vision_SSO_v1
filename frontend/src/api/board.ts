@@ -11,6 +11,7 @@ export interface BoardPost {
   isSecret: string; // 'Y' | 'N'
   status: string;   // 'OPEN' | 'ANSWERED'
   createdAt: string;
+  updatedAt?: string;
   _count?: {
     comments: number;
   };
@@ -39,6 +40,16 @@ export const boardApi = {
   // 게시글 작성
   createPost: (data: { title: string; content: string; authorId: string; category?: string; isSecret?: string }) => {
     return http.post('/board', data);
+  },
+
+  // [추가] 게시글 수정
+  updatePost: (id: number, data: { title: string; content: string; category?: string; isSecret?: string }) => {
+    return http.put(`/board/${id}`, data);
+  },
+
+  // [추가] 게시글 상태 변경 (답변완료 처리)
+  updateStatus: (id: number, status: string) => {
+    return http.patch(`/board/${id}/status`, { status });
   },
 
   // 게시글 삭제
