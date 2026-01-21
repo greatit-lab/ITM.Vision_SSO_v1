@@ -90,34 +90,58 @@
               :class="isPostAuthorComment(comment.authorId) ? 'justify-end' : 'justify-start'"
             >
                 <div 
-                    class="flex items-center gap-2 max-w-[95%]"
+                    class="flex items-start gap-2 max-w-[95%]"
                     :class="{'flex-row-reverse': isPostAuthorComment(comment.authorId)}"
                 >
-                    <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm border border-white dark:border-zinc-700"
+                    <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm border border-white dark:border-zinc-700 mt-1"
                       :class="getCommentAvatarClass(comment.authorId, comment.user?.role)">
                         {{ getAuthorInitial(comment.authorId, comment.user?.role) }}
                     </div>
 
                     <div 
-                        class="px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2 flex-wrap"
+                        class="px-3 py-2 rounded-xl text-xs shadow-sm group"
                         :class="isPostAuthorComment(comment.authorId) 
-                            ? 'bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-tr-none flex-row-reverse' 
+                            ? 'bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-tr-none' 
                             : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'"
                     >
-                        <span class="font-bold flex items-center gap-1 shrink-0" :class="isAdminRole(comment.user?.role) ? 'text-indigo-700' : 'text-slate-800'">
-                           {{ getAuthorName(comment.authorId, comment.user?.role) }}
-                           <i v-if="isPostAuthorComment(comment.authorId)" class="pi pi-star-fill text-[9px] text-amber-500" title="작성자"></i>
-                        </span>
-                        
-                        <span class="text-[10px] opacity-60 shrink-0">
-                            {{ formatDate(comment.createdAt) }}
-                        </span>
+                        <div v-if="editingCommentId !== comment.commentId">
+                            <div class="flex items-center gap-2 mb-1" :class="isPostAuthorComment(comment.authorId) ? 'flex-row-reverse' : ''">
+                                <span class="font-bold flex items-center gap-1 shrink-0" :class="isAdminRole(comment.user?.role) ? 'text-indigo-700' : 'text-slate-800'">
+                                  {{ getAuthorName(comment.authorId, comment.user?.role) }}
+                                  <i v-if="isPostAuthorComment(comment.authorId)" class="pi pi-star-fill text-[9px] text-amber-500" title="작성자"></i>
+                                </span>
+                                
+                                <span class="text-[10px] opacity-60 shrink-0">
+                                    {{ formatDate(comment.createdAt) }}
+                                </span>
 
-                        <span class="w-[1px] h-3 bg-slate-300 dark:bg-slate-600 mx-1 shrink-0"></span>
+                                <div v-if="isMyComment(comment.authorId)" class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                                    <button @click="startEdit(comment)" class="text-slate-400 hover:text-indigo-600 transition-colors" title="수정">
+                                        <i class="pi pi-pencil text-[10px]"></i>
+                                    </button>
+                                    <button @click="requestDeleteComment(comment.commentId)" class="text-slate-400 hover:text-rose-600 transition-colors" title="삭제">
+                                        <i class="pi pi-trash text-[10px]"></i>
+                                    </button>
+                                </div>
+                            </div>
 
-                        <span class="whitespace-pre-wrap leading-snug break-all">
-                            {{ comment.content }}
-                        </span>
+                            <div class="whitespace-pre-wrap leading-snug break-all" :class="isPostAuthorComment(comment.authorId) ? 'text-right' : 'text-left'">
+                                {{ comment.content }}
+                            </div>
+                        </div>
+
+                        <div v-else class="min-w-[200px]">
+                            <textarea 
+                                v-model="editContent" 
+                                rows="2" 
+                                class="w-full p-2 bg-white border border-indigo-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-100 mb-2 resize-none"
+                            ></textarea>
+                            <div class="flex justify-end gap-2">
+                                <button @click="cancelEdit" class="text-[10px] text-slate-500 hover:text-slate-700">취소</button>
+                                <button @click="saveEdit(comment.commentId)" class="px-2 py-1 bg-indigo-600 text-white rounded text-[10px] font-bold hover:bg-indigo-700">저장</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -165,6 +189,10 @@ const post = ref<any>(null);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
 
+// 댓글 수정 관련 상태
+const editingCommentId = ref<number | null>(null);
+const editContent = ref('');
+
 const isAuthorOrAdmin = computed(() => {
   if (!post.value || !authStore.user) return false;
   const postAuthor = String(post.value.authorId);
@@ -176,7 +204,11 @@ const isPostAuthorComment = (commentAuthorId: string) => {
   return post.value && String(commentAuthorId) === String(post.value.authorId);
 };
 
-// [추가] 권한 체크 및 표시 함수들
+const isMyComment = (commentAuthorId: string) => {
+  if (!authStore.user) return false;
+  return String(commentAuthorId) === String(authStore.user.userId);
+};
+
 const isAdminRole = (role?: string) => {
   return role === 'ADMIN' || role === 'MANAGER';
 };
@@ -243,11 +275,47 @@ const submitComment = async () => {
       content: newComment.value
     });
     newComment.value = '';
-    await fetchPost();
+    await fetchPost(); // 댓글 작성 후 목록 갱신
   } catch (e) {
     alert("댓글 등록에 실패했습니다.");
   } finally {
     isSubmittingComment.value = false;
+  }
+};
+
+// --- 댓글 수정/삭제 로직 ---
+
+const startEdit = (comment: any) => {
+  editingCommentId.value = comment.commentId;
+  editContent.value = comment.content;
+};
+
+const cancelEdit = () => {
+  editingCommentId.value = null;
+  editContent.value = '';
+};
+
+const saveEdit = async (commentId: number) => {
+  if (!editContent.value.trim()) return;
+  
+  try {
+    await boardApi.updateComment(commentId, editContent.value);
+    // UI 업데이트 (API 재호출 대신 로컬 업데이트로 반응성 향상 가능하나, 안전하게 재호출)
+    await fetchPost();
+    cancelEdit();
+  } catch (e) {
+    alert("댓글 수정에 실패했습니다.");
+  }
+};
+
+const requestDeleteComment = async (commentId: number) => {
+  if (!confirm("정말로 댓글을 삭제하시겠습니까?")) return;
+  
+  try {
+    await boardApi.deleteComment(commentId);
+    await fetchPost(); // 목록 갱신
+  } catch (e) {
+    alert("댓글 삭제에 실패했습니다.");
   }
 };
 
