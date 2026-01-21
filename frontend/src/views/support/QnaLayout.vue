@@ -1,20 +1,30 @@
 <!-- frontend/src/views/support/QnaLayout.vue -->
 <template>
-  <div class="w-full min-h-full bg-slate-50 dark:bg-[#09090b] p-3 lg:p-4">
-    <div class="max-w-[95%] mx-auto grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
+  <div class="w-full h-[calc(100vh-4rem)] bg-slate-50 dark:bg-[#09090b] p-4 lg:p-6 flex flex-col overflow-hidden">
+    
+    <div class="flex items-center gap-3 mb-6 shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center shadow-sm text-indigo-600 dark:text-indigo-400">
+        <i class="pi pi-comments text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-slate-900 dark:text-white leading-tight">Q&A Board</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          문의사항 및 요청사항을 확인하세요.
+        </p>
+      </div>
+    </div>
+
+    <div class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
       
-      <aside class="space-y-4 lg:sticky lg:top-20">
-         <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-            <div class="p-4 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-900 dark:to-indigo-800">
+      <aside class="flex flex-col gap-4 max-h-full overflow-hidden">
+         <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col min-h-0 overflow-hidden shrink-0">
+            <div class="p-4 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-900 dark:to-indigo-800 shrink-0">
                <h3 class="font-bold text-white flex items-center gap-2 text-sm">
                  <i class="pi pi-megaphone"></i> 공지사항 (Notice)
                </h3>
-               <p class="text-indigo-100 text-[11px] mt-1 opacity-80 font-light">
-                 시스템 주요 소식을 확인하세요.
-               </p>
             </div>
             
-            <div class="divide-y divide-slate-100 dark:divide-zinc-800 max-h-[400px] overflow-y-auto">
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800 overflow-y-auto custom-scrollbar max-h-[300px] lg:max-h-[calc(100vh-250px)]">
                <div v-if="loading" class="p-6 text-center text-slate-400 text-xs">
                  <i class="pi pi-spin pi-spinner"></i>
                </div>
@@ -41,7 +51,7 @@
                </div>
             </div>
 
-            <div v-if="isAdmin" class="p-2 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800">
+            <div v-if="isAdmin" class="p-2 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800 shrink-0">
                <button 
                 @click="writeNotice" 
                 class="w-full py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1"
@@ -51,7 +61,7 @@
             </div>
          </div>
 
-         <div class="p-3 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+         <div class="p-3 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 shrink-0">
             <h4 class="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-1">도움이 필요하신가요?</h4>
             <p class="text-[11px] text-indigo-600/80 dark:text-indigo-400/70 leading-relaxed">
               버그 제보는 'Bug Report' 카테고리를 이용해 주세요.
@@ -59,7 +69,7 @@
          </div>
       </aside>
 
-      <main class="min-w-0">
+      <main class="h-full min-w-0 overflow-hidden flex flex-col relative">
          <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
                <component :is="Component" />
@@ -121,4 +131,9 @@ onMounted(() => {
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
 </style>
