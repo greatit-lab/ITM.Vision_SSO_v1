@@ -9,7 +9,11 @@ import router from './router';
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura'; // (PrimeVue 4 사용 시) 또는 사용하는 테마
 import 'primeicons/primeicons.css';
-import './style.css'; // Tailwind 등 스타일
+
+// [New] Quill Editor CSS (게시판 에디터 스타일 필수)
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
+
+import './style.css'; // Tailwind 등 사용자 정의 스타일
 
 // [필수] 서비스 플러그인 추가
 import ConfirmationService from 'primevue/confirmationservice';
@@ -26,14 +30,14 @@ app.use(router);
 // PrimeVue 설정
 app.use(PrimeVue, {
     theme: {
-        preset: Aura, // 사용 중인 테마에 맞게 설정 (없으면 생략 가능)
+        preset: Aura, // 사용 중인 테마에 맞게 설정
         options: {
             darkModeSelector: '.dark',
         }
     }
 });
 
-// [중요] 서비스 등록 (이 부분이 없어서 오류 발생)
+// [중요] 서비스 등록
 app.use(ConfirmationService);
 app.use(ToastService);
 
