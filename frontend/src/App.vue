@@ -23,6 +23,15 @@
       </div>
     </main>
   </div>
+
+  <div v-if="popups.length > 0">
+    <NoticePopup 
+      v-for="popup in popups" 
+      :key="popup.postId" 
+      :notice="popup"
+      @close="removePopup(popup.postId)"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -32,13 +41,20 @@ import { useAuthStore } from "@/stores/auth";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import Header from "@/components/layout/Header.vue";
 
-// [추가] PrimeVue 전역 컴포넌트 Import
+// PrimeVue 전역 컴포넌트 Import
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
+
+// [추가] 팝업 관련 Import
+import { boardApi } from '@/api/board';
+import NoticePopup from '@/components/common/NoticePopup.vue';
 
 const route = useRoute();
 const authStore = useAuthStore();
 const isSidebarOpen = ref(true);
+
+// [추가] 팝업 목록 상태
+const popups = ref<any[]>([]);
 
 const isLoginPage = computed(() => route.path === "/login");
 
@@ -50,8 +66,44 @@ const handleSidebarToggle = (event: Event) => {
   isSidebarOpen.value = customEvent.detail;
 };
 
+// [추가] 팝업 표시 여부 체크 (LocalStorage 확인)
+const checkPopupVisibility = (notice: any) => {
+  const storageKey = `notice_hide_${notice.postId}`;
+  const hideUntil = localStorage.getItem(storageKey);
+  
+  if (hideUntil) {
+    const now = new Date();
+    const expiryDate = new Date(hideUntil);
+    // 현재 시간이 유효기간보다 크면(지났으면) 다시 보여줌
+    return now > expiryDate;
+  }
+  return true; // 설정값이 없으면 보여줌
+};
+
+// [추가] 팝업 데이터 조회
+const fetchPopups = async () => {
+  try {
+    const res = await boardApi.getPopups();
+    // API 응답 구조에 따라 데이터 추출 (배열인지 확인)
+    const allPopups = Array.isArray(res.data) ? res.data : (res.data.data || []);
+    
+    // 로컬 스토리지 체크 후 보여줄 것만 필터링
+    popups.value = allPopups.filter(checkPopupVisibility);
+  } catch (e) {
+    console.error("Failed to fetch popups", e);
+  }
+};
+
+// [추가] 팝업 닫기 핸들러
+const removePopup = (id: number) => {
+  popups.value = popups.value.filter(p => p.postId !== id);
+};
+
 onMounted(() => {
   window.addEventListener("sidebar-toggle", handleSidebarToggle);
+  
+  // [추가] 앱 실행 시 팝업 공지 불러오기
+  fetchPopups();
 });
 
 onUnmounted(() => {
