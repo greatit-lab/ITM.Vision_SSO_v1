@@ -41,7 +41,7 @@
       <div class="flex items-center justify-between p-2.5 bg-white border-b border-slate-100 dark:border-zinc-800 dark:bg-zinc-900 shrink-0">
         <div class="flex items-center gap-2 pl-2">
           <div class="w-1 h-3 bg-indigo-500 rounded-full"></div>
-          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Post List</h3>
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Board List</h3>
         </div>
         
         <div class="flex items-center gap-3 pr-2 text-xs text-slate-500 dark:text-slate-400">
@@ -168,7 +168,7 @@ const filter = reactive({
 const categories = [
   { label: '전체', value: 'ALL' },
   { label: 'Q&A', value: 'QNA' },
-  { label: '버그신고', value: 'BUG' },
+  { label: 'Bug Report', value: 'BUG' },
 ];
 
 const fetchPosts = async () => {
