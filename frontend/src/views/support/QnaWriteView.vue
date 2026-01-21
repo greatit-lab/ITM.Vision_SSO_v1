@@ -68,18 +68,34 @@
       </div>
 
       <div class="p-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between shrink-0 z-10">
-        <div class="flex items-center gap-2">
-          <input 
-            type="checkbox" 
-            id="isSecret" 
-            v-model="form.isSecret"
-            true-value="Y"
-            false-value="N"
-            class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-          >
-          <label for="isSecret" class="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none flex items-center gap-1.5">
-            <i class="pi pi-lock text-[10px]"></i> 비밀글
-          </label>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="isSecret" 
+              v-model="form.isSecret"
+              true-value="Y"
+              false-value="N"
+              class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            >
+            <label for="isSecret" class="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none flex items-center gap-1.5">
+              <i class="pi pi-lock text-[10px]"></i> 비밀글
+            </label>
+          </div>
+
+          <div v-if="isAdmin && form.category === 'NOTICE'" class="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="isPopup" 
+              v-model="form.isPopup"
+              true-value="Y"
+              false-value="N"
+              class="w-4 h-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+            >
+            <label for="isPopup" class="text-xs font-bold text-rose-600 cursor-pointer select-none flex items-center gap-1.5">
+              <i class="pi pi-megaphone text-[10px]"></i> 팝업 공지
+            </label>
+          </div>
         </div>
 
         <div class="flex gap-2">
@@ -125,7 +141,8 @@ const form = reactive({
   title: '',
   category: 'QNA',
   content: '',
-  isSecret: 'N'
+  isSecret: 'N',
+  isPopup: 'N' // [추가] 초기값
 });
 
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER');
@@ -148,6 +165,7 @@ const loadPostData = async (id: number) => {
     form.category = post.category;
     form.content = post.content;
     form.isSecret = post.isSecret;
+    form.isPopup = post.isPopup || 'N'; // [추가] 팝업 설정 불러오기
     
     const currentUserId = authStore.user?.userId;
     const isAuthor = String(post.authorId) === String(currentUserId);
