@@ -14,23 +14,24 @@ import { HealthModule } from './health/health.module';
 import { LampLifeModule } from './lamplife/lamplife.module';
 import { MenuModule } from './menu/menu.module';
 import { PerformanceModule } from './performance/performance.module';
-import { PreAlignModule } from './prealign/prealign.module';
+// [수정] 대소문자 수정 (PrealignModule -> PreAlignModule)
+import { PreAlignModule } from './prealign/prealign.module'; 
 import { WaferModule } from './wafer/wafer.module';
 import { InfraModule } from './infra/infra.module';
+import { BoardModule } from './board/board.module';
 
 @Module({
   imports: [
     // 1. 환경 변수 설정 (Global)
-    // [개선] 운영 서버(PM2)에서 .env 파일 인식을 강화하기 위해 경로 명시
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.production', '.env', '.env.development'],
     }),
 
-    // 2. 공통 모듈 (DataApiService 포함 - 핵심 통신 모듈)
+    // 2. 공통 모듈
     CommonModule,
 
-    // 3. 비즈니스 모듈 (이제 모두 Data API를 바라봄)
+    // 3. 비즈니스 모듈
     AdminModule,
     AuthModule,
     DashboardModule,
@@ -41,9 +42,10 @@ import { InfraModule } from './infra/infra.module';
     LampLifeModule,
     MenuModule,
     PerformanceModule,
-    PreAlignModule,
+    PreAlignModule, // [수정] 클래스명 일치시킴
     WaferModule,
     InfraModule,
+    BoardModule,
   ],
   controllers: [],
   providers: [],
