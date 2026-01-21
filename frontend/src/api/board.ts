@@ -1,5 +1,5 @@
 // frontend/src/api/board.ts
-import http from './http';
+import http from "./http";
 
 export interface BoardPost {
   postId: number;
@@ -9,7 +9,8 @@ export interface BoardPost {
   authorId: string;
   views: number;
   isSecret: string; // 'Y' | 'N'
-  status: string;   // 'OPEN' | 'ANSWERED'
+  isPopup?: string; // 'Y' | 'N' [추가]
+  status: string; // 'OPEN' | 'ANSWERED'
   createdAt: string;
   updatedAt?: string;
   _count?: {
@@ -28,8 +29,18 @@ export interface Comment {
 
 export const boardApi = {
   // 게시글 목록 조회
-  getPosts: (params: { page: number; limit: number; category?: string; search?: string }) => {
-    return http.get('/board', { params });
+  getPosts: (params: {
+    page: number;
+    limit: number;
+    category?: string;
+    search?: string;
+  }) => {
+    return http.get("/board", { params });
+  },
+
+  // [추가] 팝업 공지 조회
+  getPopups: () => {
+    return http.get("/board/popups");
   },
 
   // 게시글 상세 조회
@@ -38,18 +49,34 @@ export const boardApi = {
   },
 
   // 게시글 작성
-  createPost: (data: { title: string; content: string; authorId: string; category?: string; isSecret?: string }) => {
-    return http.post('/board', data);
+  createPost: (data: {
+    title: string;
+    content: string;
+    authorId: string;
+    category?: string;
+    isSecret?: string;
+    isPopup?: string;
+  }) => {
+    return http.post("/board", data);
   },
 
-  // [추가] 게시글 수정
-  updatePost: (id: number, data: { title: string; content: string; category?: string; isSecret?: string }) => {
+  // 게시글 수정
+  updatePost: (
+    id: number,
+    data: {
+      title: string;
+      content: string;
+      category?: string;
+      isSecret?: string;
+      isPopup?: string;
+    },
+  ) => {
     return http.put(`/board/${id}`, data);
   },
 
-  // [추가] 게시글 상태 변경 (답변완료 처리)
+  // 게시글 상태 변경
   updateStatus: (id: number, status: string) => {
-    return http.patch(`/board/${id}/status`, { status });
+    return http.put(`/board/${id}/status`, { status });
   },
 
   // 게시글 삭제
@@ -58,7 +85,22 @@ export const boardApi = {
   },
 
   // 댓글 작성
-  createComment: (data: { postId: number; authorId: string; content: string; parentId?: number }) => {
-    return http.post('/board/comment', data);
-  }
+  createComment: (data: {
+    postId: number;
+    authorId: string;
+    content: string;
+    parentId?: number;
+  }) => {
+    return http.post("/board/comment", data);
+  },
+
+  // 댓글 수정
+  updateComment(commentId: number, content: string) {
+    return http.put(`/board/comment/${commentId}`, { content });
+  },
+
+  // 댓글 삭제
+  deleteComment(commentId: number) {
+    return http.delete(`/board/comment/${commentId}`);
+  },
 };
