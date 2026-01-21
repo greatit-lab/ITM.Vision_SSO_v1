@@ -1,11 +1,11 @@
 <!-- frontend/src/views/support/QnaLayout.vue -->
 <template>
-  <div class="min-h-screen bg-slate-50 dark:bg-[#09090b] p-4 lg:p-8">
-    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
+  <div class="w-full min-h-full bg-slate-50 dark:bg-[#09090b] p-3 lg:p-4">
+    <div class="max-w-[95%] mx-auto grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
       
-      <aside class="space-y-6 lg:sticky lg:top-24">
+      <aside class="space-y-4 lg:sticky lg:top-20">
          <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-            <div class="p-5 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-900 dark:to-indigo-800">
+            <div class="p-4 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-900 dark:to-indigo-800">
                <h3 class="font-bold text-white flex items-center gap-2 text-sm">
                  <i class="pi pi-megaphone"></i> 공지사항 (Notice)
                </h3>
@@ -26,13 +26,13 @@
                  v-for="notice in notices" 
                  :key="notice.postId"
                  @click="goToDetail(notice.postId)"
-                 class="p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors group"
+                 class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors group"
                >
-                  <div class="flex items-start gap-3">
+                  <div class="flex items-start gap-2">
                      <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0 animate-pulse" v-if="isNew(notice.createdAt)"></span>
                      <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600 flex-shrink-0" v-else></span>
                      <div>
-                        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 leading-snug mb-1 line-clamp-2">
+                        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 leading-snug mb-0.5 line-clamp-2">
                            {{ notice.title }}
                         </h4>
                         <span class="text-[10px] text-slate-400 block">{{ formatDate(notice.createdAt) }}</span>
@@ -41,7 +41,7 @@
                </div>
             </div>
 
-            <div v-if="isAdmin" class="p-3 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800">
+            <div v-if="isAdmin" class="p-2 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800">
                <button 
                 @click="writeNotice" 
                 class="w-full py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1"
@@ -51,10 +51,10 @@
             </div>
          </div>
 
-         <div class="p-4 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+         <div class="p-3 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
             <h4 class="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-1">도움이 필요하신가요?</h4>
             <p class="text-[11px] text-indigo-600/80 dark:text-indigo-400/70 leading-relaxed">
-              버그 제보는 'Bug Report' 카테고리를 이용해 주시면 빠르게 처리됩니다.
+              버그 제보는 'Bug Report' 카테고리를 이용해 주세요.
             </p>
          </div>
       </aside>
@@ -87,7 +87,6 @@ const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.use
 const fetchNotices = async () => {
   loading.value = true;
   try {
-    // NOTICE 카테고리만 5개 조회
     const res = await boardApi.getPosts({ page: 1, limit: 5, category: 'NOTICE' });
     notices.value = res.data.data || res.data;
   } catch (e) {
@@ -102,7 +101,6 @@ const goToDetail = (id: number) => {
 };
 
 const writeNotice = () => {
-  // 글쓰기 페이지로 이동 (Category=NOTICE 쿼리 파라미터 전달 가능)
   router.push({ name: 'qna-write', query: { category: 'NOTICE' } });
 };
 
