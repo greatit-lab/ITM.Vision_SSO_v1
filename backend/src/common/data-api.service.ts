@@ -33,7 +33,6 @@ export class DataApiService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    // [개선] 환경변수 로드 (AppModule이 .env를 잘 로드하면 여기서 문제없음)
     this.dataApiHost = this.configService.get<string>('DATA_API_HOST') || '';
 
     if (!this.dataApiHost) {
@@ -45,6 +44,7 @@ export class DataApiService {
     );
   }
 
+  // [중요] 기존 서비스들과 호환되도록 public request 메서드 유지
   async request<T>(
     domain: string,
     method: 'get' | 'post' | 'patch' | 'delete' | 'put',
@@ -72,7 +72,6 @@ export class DataApiService {
           httpAgent: this.httpAgent,
           httpsAgent: this.httpsAgent,
           proxy: false,
-          // [★핵심 개선] PDF 변환 등 오래 걸리는 작업을 위해 타임아웃 100초로 연장
           timeout: 100000, 
         }),
       );
@@ -126,7 +125,8 @@ export class DataApiService {
         `[Data API Error] ${statusCode} ${url} | ${errorMessage}`,
       );
     } else {
-      const sysMessage = error instanceof Error ? error.message : String(error);
+      const sysMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`[System Error] ${url} | ${sysMessage}`);
       errorMessage = sysMessage;
     }
