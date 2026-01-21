@@ -16,6 +16,26 @@
 
       <div class="flex items-center gap-3">
         
+        <div class="flex items-center gap-1 mr-1">
+          <button 
+            @click="router.push('/support/qna')"
+            class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none"
+            v-tooltip.bottom="'Q&A Board'"
+          >
+            <i class="pi pi-question-circle text-lg"></i>
+          </button>
+          
+          <button 
+            @click="router.push('/support/manual')"
+            class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-none"
+            v-tooltip.bottom="'User Manual & Downloads'"
+          >
+            <i class="pi pi-book text-lg"></i>
+          </button>
+        </div>
+
+        <div class="h-4 border-l border-slate-300 dark:border-zinc-700 mx-1"></div>
+
         <div class="relative" ref="notificationRef">
           <button 
             @click="toggleNotifications"
@@ -282,7 +302,7 @@ const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 const menuStore = useMenuStore(); 
 
-// [수정] 드롭다운 상태 관리 분리
+// [수정] 드롭다운 상태 관리
 const isUserDropdownOpen = ref(false); // 사용자 메뉴용
 const showNotifications = ref(false); // 알림 메뉴용
 
@@ -355,6 +375,11 @@ const pageTitleParts = computed(() => {
     else if (path.includes('/infra')) fullTitle = "Management / Infra";
     else if (path.includes('/system')) fullTitle = "Management / System";
     else fullTitle = "Management";
+  } else if (path.startsWith('/support')) {
+    // [New] Support Title Handling
+    if (path.includes('/qna')) fullTitle = "Support / Q&A Board";
+    else if (path.includes('/manual')) fullTitle = "Support / User Manual";
+    else fullTitle = "Support";
   } else if (menuStore.menus.length > 0) {
     const breadcrumb = findBreadcrumb(menuStore.menus, route.path, []);
     if (breadcrumb) fullTitle = breadcrumb;
@@ -377,7 +402,7 @@ const toggleTheme = () => {
   document.documentElement.classList.toggle("dark", isDark.value);
 };
 
-// [수정] 드롭다운 토글 로직 분리
+// [수정] 드롭다운 토글 로직
 const toggleUserDropdown = () => {
   isUserDropdownOpen.value = !isUserDropdownOpen.value;
   if(isUserDropdownOpen.value) showNotifications.value = false;
@@ -391,11 +416,9 @@ const toggleNotifications = () => {
 const handleLogout = () => authStore.logout();
 
 const handleClickOutside = (event: MouseEvent) => {
-  // 사용자 메뉴 닫기 처리
   if (isUserDropdownOpen.value && dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
     isUserDropdownOpen.value = false;
   }
-  // 알림 메뉴 닫기 처리
   if (showNotifications.value && notificationRef.value && !notificationRef.value.contains(event.target as Node)) {
     showNotifications.value = false;
   }
@@ -476,10 +499,6 @@ const fetchNotifications = async () => {
   }
 };
 
-// ========================================================
-// [핵심] 게스트 알림 데이터 계산 (Computed)
-// ========================================================
-
 const guestNotification = computed(() => {
   const currentUser = user.value;
    
@@ -490,18 +509,12 @@ const guestNotification = computed(() => {
   try {
     const today = new Date();
     const validUntil = new Date(currentUser.validUntil);
-    
-    // 시간 포맷팅 (YYYY-MM-DD)
     const dateStr = validUntil.toISOString().split('T')[0];
-
-    // 날짜 비교
     today.setHours(0,0,0,0);
     validUntil.setHours(0,0,0,0);
-
     const diffTime = validUntil.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // 만료되지 않았으면 정보 반환
     if (diffDays >= 0) {
       return {
         dDay: diffDays,
@@ -514,12 +527,9 @@ const guestNotification = computed(() => {
   }
 });
 
-// 알림 표시 여부 (Red Dot Control)
 const hasNotification = computed(() => {
   return (pendingRequestCount.value > 0) || (!!guestNotification.value);
 });
-
-// [삭제됨] watch 블록 (alert 발생 코드 제거)
 
 onMounted(() => {
   if (document.documentElement.classList.contains("dark")) isDark.value = true;
