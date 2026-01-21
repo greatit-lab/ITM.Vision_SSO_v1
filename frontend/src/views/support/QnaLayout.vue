@@ -64,7 +64,7 @@
          <div class="p-3 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 shrink-0">
             <h4 class="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-1">도움이 필요하신가요?</h4>
             <p class="text-[11px] text-indigo-600/80 dark:text-indigo-400/70 leading-relaxed">
-              버그 제보는 'Bug Report' 카테고리를 이용해 주세요.
+              서비스 사용 중 발생된 버그 제보는<br />'Bug Report' 카테고리를 이용해 주세요.
             </p>
          </div>
       </aside>
