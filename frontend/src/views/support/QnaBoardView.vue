@@ -154,7 +154,7 @@ import { boardApi, type BoardPost } from '@/api/board';
 
 const router = useRouter();
 const loading = ref(false);
-const posts = ref<any[]>([]); // 타입 유연성을 위해 any 사용 (user relation 포함)
+const posts = ref<any[]>([]); 
 
 const rowsPerPage = ref(15);
 const totalRecords = ref(0);
@@ -196,16 +196,24 @@ const fetchPosts = async () => {
   }
 };
 
-// [추가] 권한별 작성자 이름 표시 함수
+// [수정] 대소문자 구분 없이 권한 체크
+const isAdminRole = (role?: string) => {
+  if (!role) return false;
+  const upperRole = role.toUpperCase();
+  return upperRole === 'ADMIN' || upperRole === 'MANAGER';
+};
+
+// [수정] 권한별 작성자 이름 표시 함수 (아이디 대신 권한명)
 const getAuthorName = (authorId: string, role?: string) => {
-  if (role === 'ADMIN') return 'ADMIN';
-  if (role === 'MANAGER') return 'MANAGER';
+  if (isAdminRole(role)) {
+    return role?.toUpperCase(); // ADMIN or MANAGER
+  }
   return authorId;
 };
 
-// [추가] 권한별 텍스트 스타일
+// [수정] 권한별 텍스트 스타일
 const getAuthorClass = (role?: string) => {
-  if (role === 'ADMIN' || role === 'MANAGER') {
+  if (isAdminRole(role)) {
     return 'text-indigo-600 dark:text-indigo-400 font-bold';
   }
   return 'text-slate-600 dark:text-slate-400';
