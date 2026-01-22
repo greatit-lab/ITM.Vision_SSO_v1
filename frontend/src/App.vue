@@ -35,7 +35,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+// [수정] watch 추가 Import
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Sidebar from "@/components/layout/Sidebar.vue";
@@ -45,7 +46,7 @@ import Header from "@/components/layout/Header.vue";
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 
-// [추가] 팝업 관련 Import
+// 팝업 관련 Import
 import { boardApi } from '@/api/board';
 import NoticePopup from '@/components/common/NoticePopup.vue';
 
@@ -53,7 +54,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 const isSidebarOpen = ref(true);
 
-// [추가] 팝업 목록 상태
+// 팝업 목록 상태
 const popups = ref<any[]>([]);
 
 const isLoginPage = computed(() => route.path === "/login");
@@ -66,7 +67,7 @@ const handleSidebarToggle = (event: Event) => {
   isSidebarOpen.value = customEvent.detail;
 };
 
-// [추가] 팝업 표시 여부 체크 (LocalStorage 확인)
+// 팝업 표시 여부 체크 (LocalStorage 확인)
 const checkPopupVisibility = (notice: any) => {
   const storageKey = `notice_hide_${notice.postId}`;
   const hideUntil = localStorage.getItem(storageKey);
@@ -80,8 +81,14 @@ const checkPopupVisibility = (notice: any) => {
   return true; // 설정값이 없으면 보여줌
 };
 
-// [추가] 팝업 데이터 조회
+// [수정] 팝업 데이터 조회 (인증 상태 체크 추가)
 const fetchPopups = async () => {
+  // AD 인증(로그인) 전이라면 팝업을 조회하지 않음
+  if (!authStore.isAuthenticated) {
+    popups.value = [];
+    return;
+  }
+
   try {
     const res = await boardApi.getPopups();
     // API 응답 구조에 따라 데이터 추출 (배열인지 확인)
@@ -94,7 +101,21 @@ const fetchPopups = async () => {
   }
 };
 
-// [추가] 팝업 닫기 핸들러
+// [추가] 로그인 상태 변경 감지 (로그인 직후 팝업 표시)
+watch(
+  () => authStore.isAuthenticated,
+  (isAuth) => {
+    if (isAuth) {
+      // 로그인이 감지되면 팝업 조회
+      fetchPopups();
+    } else {
+      // 로그아웃 시 팝업 제거
+      popups.value = [];
+    }
+  }
+);
+
+// 팝업 닫기 핸들러
 const removePopup = (id: number) => {
   popups.value = popups.value.filter(p => p.postId !== id);
 };
@@ -102,7 +123,7 @@ const removePopup = (id: number) => {
 onMounted(() => {
   window.addEventListener("sidebar-toggle", handleSidebarToggle);
   
-  // [추가] 앱 실행 시 팝업 공지 불러오기
+  // 앱 실행 시 팝업 공지 불러오기 (이미 로그인된 경우 실행됨)
   fetchPopups();
 });
 
