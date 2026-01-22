@@ -248,13 +248,27 @@ watch(
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || authStore.user?.site || "";
-  let targetSdwt = targetSite ? (localStorage.getItem(LS_KEYS.SDWT) || "") : (authStore.user?.sdwt || "");
+  
+  // [수정] 사용자 컨텍스트 반영 로직 수정
+  // 기존: localStorage || authStore || "" 로 Site 설정 후, SDWT는 Site 존재 여부에 따라 LS 검색.
+  // 변경: 명확한 분기 처리. LS에 Site가 있으면 LS SDWT, 없으면 Auth Site/SDWT 사용
+  let targetSite = localStorage.getItem(LS_KEYS.SITE);
+  let targetSdwt = "";
+
+  if (targetSite) {
+    // LocalStorage 우선
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  } else {
+    // Auth Store fallback
+    targetSite = authStore.user?.site || "";
+    targetSdwt = authStore.user?.sdwt || "";
+  }
 
   if (targetSite && sites.value.includes(targetSite)) {
     filter.site = targetSite;
     try {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
+      
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
         eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "error" });
@@ -263,7 +277,11 @@ onMounted(async () => {
         if (initEqpId && eqpIds.value.includes(initEqpId)) {
           filter.eqpId = initEqpId;
         }
-        if (filter.sdwt) search();
+        
+        // 자동 검색 실행
+        if (filter.sdwt) {
+            search();
+        }
       }
     } catch (e) {
       console.error("Failed to restore filter state:", e);
@@ -392,7 +410,6 @@ const updateTrendData = async () => {
   }
 };
 
-// [수정] TS2339 오류 해결: any 타입 단언으로 응답 처리 유연성 확보
 const loadGridData = async () => {
   isGridLoading.value = true;
   try {
@@ -403,7 +420,7 @@ const loadGridData = async () => {
     };
     const res = await getErrorLogs(params);
     
-    // API 응답이 AxiosResponse 래퍼일 수도 있고, 인터셉터에 의해 이미 풀린 데이터일 수도 있음
+    // API 응답 유연성 확보
     const responseData = res as any;
     const data = (responseData && responseData.data) ? responseData.data : responseData;
 
@@ -513,4 +530,3 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
