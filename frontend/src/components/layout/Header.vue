@@ -163,7 +163,7 @@
             class="flex items-center gap-2.5 pl-2 pr-1 py-1 transition-all duration-200 rounded-full group hover:bg-slate-100 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
           >
           <span class="hidden text-sm font-bold text-slate-700 dark:text-slate-200 sm:block">
-              {{ authStore.userName }}님
+              {{ authStore.userName }} 님
             </span>
             <div
               class="flex items-center justify-center w-7 h-7 text-xs font-bold text-white shadow-md rounded-full ring-2 ring-white dark:ring-zinc-900 transition-all"
