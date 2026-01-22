@@ -110,7 +110,7 @@
                </div>
                <div class="flex-1 overflow-hidden border rounded-lg border-slate-200 dark:border-zinc-800 min-h-0 relative">
                   <div class="absolute inset-0">
-                    <DataTable :value="sdwts" paginator :rows="sdwtRows" v-model:first="sdwtFirst" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm compact-table [&_.p-paginator]:hidden" stripedRows :loading="loading" removableSort sortField="id" :sortOrder="1">
+                    <DataTable :value="sdwts" scrollable scrollHeight="100%" class="h-full text-xs p-datatable-sm compact-table" stripedRows :loading="loading" removableSort sortField="id" :sortOrder="1">
                       <Column field="id" header="ID (PK)" sortable style="width: 10%; font-weight: bold"></Column>
                       <Column field="sdwt" header="SDWT Name" sortable style="width: 15%; color: #2563eb"></Column>
                       <Column field="site" header="Site" sortable style="width: 10%"></Column>
@@ -119,7 +119,9 @@
                       <Column field="isUse" header="Use" align="center" style="width: 10%">
                         <template #body="{ data }"><span :class="data.isUse === 'Y' ? 'text-green-600 font-bold' : 'text-slate-400'">{{ data.isUse }}</span></template>
                       </Column>
-                      <Column field="update" header="Updated" style="width: 15%"><template #body="{ data }">{{ formatDateTime(data.update) }}</template></Column>
+                      <Column field="update" header="Updated" style="width: 15%">
+                        <template #body="{ data }">{{ formatDateTime(data.update) }}</template>
+                      </Column>
                       <Column header="Action" align="center" style="width: 100px; min-width: 100px;">
                         <template #body="{ data }">
                           <div class="flex items-center justify-center gap-2 flex-nowrap w-full">
@@ -276,8 +278,6 @@ const metrics = ref([]);
 
 const eqpRows = ref(20);
 const eqpFirst = ref(0);
-const sdwtRows = ref(20);
-const sdwtFirst = ref(0);
 
 const metricsMultiSortMeta = ref([
   { field: 'isExcluded', order: -1 as const },
@@ -301,7 +301,6 @@ const filteredEquipments = computed(() => {
 
 const resetFilter = () => { filters.eqpId = ""; filters.indexLine = ""; filters.sdwt = ""; };
 
-// [추가] 커스텀 페이지네이션 핸들러
 const prevPage = () => { if (eqpFirst.value > 0) eqpFirst.value -= eqpRows.value; };
 const nextPage = () => { if (eqpFirst.value + eqpRows.value < filteredEquipments.value.length) eqpFirst.value += eqpRows.value; };
 const lastPage = () => { eqpFirst.value = Math.floor(Math.max(filteredEquipments.value.length - 1, 0) / eqpRows.value) * eqpRows.value; };
@@ -447,11 +446,17 @@ const refreshCurrentTab = () => {
   else if(activeTab.value === '2') Promise.all([loadSeverities(), loadMetrics()]).finally(() => loading.value = false);
 };
 
+// [시간 표시 로직 수정]
+// 서버에서 받은 시간(UTC 기준)을 브라우저의 로컬 시간대(KST)로 변환하지 않고
+// 원본 시간 그대로(UTC 값) 표시하도록 getUTC* 메서드를 사용합니다.
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  
+  // 기존: d.getHours() -> 브라우저가 KST(+9)를 자동 적용하여 21:00으로 표시됨
+  // 수정: d.getUTCHours() -> UTC 시간 그대로 12:00으로 표시됨
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 };
 
 watch(activeTab, (newVal) => {
