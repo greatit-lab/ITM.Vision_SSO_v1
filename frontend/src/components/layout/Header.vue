@@ -61,11 +61,12 @@
               v-if="showNotifications"
               class="absolute right-0 w-80 mt-2 origin-top-right bg-white border shadow-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none z-50 overflow-hidden"
             >
-              <div class="px-4 py-3 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50">
+              <div class="px-4 py-3 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50 flex justify-between items-center">
                 <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Notifications</h3>
+                <span v-if="hasNotification" @click="fetchNotifications" class="text-[10px] text-indigo-500 hover:text-indigo-700 cursor-pointer"><i class="pi pi-refresh"></i> Refresh</span>
               </div>
               
-              <div class="max-h-64 overflow-y-auto">
+              <div class="max-h-80 overflow-y-auto">
                 <div v-if="guestNotification" class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b border-slate-50 dark:border-zinc-800/50 transition-colors">
                   <div class="flex items-start gap-3">
                     <div class="mt-0.5 text-amber-500 bg-amber-50 dark:bg-amber-900/20 p-1.5 rounded-full">
@@ -91,6 +92,27 @@
                       <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         현재 <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ pendingRequestCount }}</span>건의 요청이 대기 중입니다.
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  v-for="alert in qnaAlerts" 
+                  :key="alert.id"
+                  @click="handleAlertClick(alert)"
+                  class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b border-slate-50 dark:border-zinc-800/50 transition-colors cursor-pointer"
+                  :class="{'bg-blue-50/50 dark:bg-blue-900/10': !alert.isRead}"
+                >
+                  <div class="flex items-start gap-3">
+                    <div class="mt-0.5 text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-full">
+                      <i class="pi pi-comment text-xs"></i>
+                    </div>
+                    <div>
+                      <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">문의 답변 등록</p>
+                      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                        {{ alert.message }}
+                      </p>
+                      <p class="text-[10px] text-slate-400 mt-1">{{ formatDate(alert.createdAt) }}</p>
                     </div>
                   </div>
                 </div>
@@ -294,6 +316,7 @@ import { useMenuStore } from "@/stores/menu";
 import { dashboardApi } from "@/api/dashboard"; 
 import * as AdminApi from "@/api/admin";
 import http from "@/api/http"; 
+import httpData from "@/api/http-data"; // [추가] Data API 호출용
 import type { MenuNode } from "@/api/menu"; 
 
 const route = useRoute();
@@ -302,9 +325,8 @@ const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 const menuStore = useMenuStore(); 
 
-// [수정] 드롭다운 상태 관리
-const isUserDropdownOpen = ref(false); // 사용자 메뉴용
-const showNotifications = ref(false); // 알림 메뉴용
+const isUserDropdownOpen = ref(false); 
+const showNotifications = ref(false); 
 
 const dropdownRef = ref<HTMLElement | null>(null);
 const notificationRef = ref<HTMLElement | null>(null);
@@ -317,6 +339,9 @@ const sdwts = ref<string[]>([]);
 const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
+
+// [신규] Q&A 알림 상태
+const qnaAlerts = ref<any[]>([]);
 
 const userAvatarInitial = computed(() => {
   const userId = user.value?.userId;
@@ -376,7 +401,6 @@ const pageTitleParts = computed(() => {
     else if (path.includes('/system')) fullTitle = "Management / System";
     else fullTitle = "Management";
   } else if (path.startsWith('/support')) {
-    // [New] Support Title Handling
     if (path.includes('/qna')) fullTitle = "Support / Q&A Board";
     else if (path.includes('/manual')) fullTitle = "Support / User Manual";
     else fullTitle = "Support";
@@ -402,15 +426,18 @@ const toggleTheme = () => {
   document.documentElement.classList.toggle("dark", isDark.value);
 };
 
-// [수정] 드롭다운 토글 로직
 const toggleUserDropdown = () => {
   isUserDropdownOpen.value = !isUserDropdownOpen.value;
   if(isUserDropdownOpen.value) showNotifications.value = false;
 };
 
+// [수정] 알림 토글 시 목록 갱신
 const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value;
-  if(showNotifications.value) isUserDropdownOpen.value = false;
+  if(showNotifications.value) {
+    isUserDropdownOpen.value = false;
+    fetchNotifications(); // 열릴 때 최신 데이터 조회
+  }
 };
 
 const handleLogout = () => authStore.logout();
@@ -490,12 +517,25 @@ const saveProfileSettings = async () => {
   } finally { isSaving.value = false; }
 };
 
+// 통합 알림 조회 함수
 const fetchNotifications = async () => {
+  // 1. 관리자 권한 - 승인 대기 요청
   if (authStore.user?.role === 'ADMIN') {
     try {
       const res = await AdminApi.getGuestRequests();
       pendingRequestCount.value = res.data.filter((req: any) => req.status === 'PENDING').length;
     } catch (e) {}
+  }
+
+  // 2. [신규] Q&A 알림 (모든 사용자)
+  if (authStore.isAuthenticated) {
+    try {
+      // Alert API 호출 (Data API 8081)
+      const res = await httpData.get('/alert'); 
+      qnaAlerts.value = res.data;
+    } catch (e) {
+      // console.error("Failed to fetch alerts"); // 조용히 실패
+    }
   }
 };
 
@@ -527,17 +567,56 @@ const guestNotification = computed(() => {
   }
 });
 
+// 알림 여부 (배지 표시용)
 const hasNotification = computed(() => {
-  return (pendingRequestCount.value > 0) || (!!guestNotification.value);
+  const hasPending = pendingRequestCount.value > 0;
+  const hasGuest = !!guestNotification.value;
+  const hasUnreadAlerts = qnaAlerts.value.some(a => !a.isRead);
+  return hasPending || hasGuest || hasUnreadAlerts;
 });
+
+// [신규] 알림 클릭 처리
+const handleAlertClick = async (alert: any) => {
+  try {
+    // 읽음 처리
+    if (!alert.isRead) {
+      await httpData.post(`/alert/${alert.id}/read`);
+      alert.isRead = true; // UI 즉시 반영
+    }
+    
+    // 링크 이동
+    if (alert.link) {
+      showNotifications.value = false;
+      router.push(alert.link);
+    }
+  } catch (error) {
+    console.error('Error reading alert', error);
+  }
+};
+
+// [신규] 날짜 포맷팅
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+// 폴링용 타이머
+let pollingInterval: any = null;
 
 onMounted(() => {
   if (document.documentElement.classList.contains("dark")) isDark.value = true;
-  fetchNotifications();
+  
+  if (authStore.isAuthenticated) {
+    fetchNotifications();
+    // 30초마다 폴링하여 알림 갱신
+    pollingInterval = setInterval(fetchNotifications, 30000);
+  }
+  
   document.addEventListener("click", handleClickOutside);
 });
 
 onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval);
   document.removeEventListener("click", handleClickOutside);
 });
 </script>
