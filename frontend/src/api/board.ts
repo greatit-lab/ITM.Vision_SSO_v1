@@ -8,9 +8,9 @@ export interface BoardPost {
   content: string;
   authorId: string;
   views: number;
-  isSecret: string; // 'Y' | 'N'
-  isPopup?: string; // 'Y' | 'N' [추가]
-  status: string; // 'OPEN' | 'ANSWERED'
+  isSecret: string;
+  isPopup?: string;
+  status: string;
   createdAt: string;
   updatedAt?: string;
   _count?: {
@@ -38,7 +38,7 @@ export const boardApi = {
     return http.get("/board", { params });
   },
 
-  // [추가] 팝업 공지 조회
+  // 팝업 공지 조회
   getPopups: () => {
     return http.get("/board/popups");
   },
@@ -84,12 +84,13 @@ export const boardApi = {
     return http.delete(`/board/${id}`);
   },
 
-  // 댓글 작성
+  // 댓글 작성 (상태 변경 옵션 추가)
   createComment: (data: {
     postId: number;
     authorId: string;
     content: string;
     parentId?: number;
+    status?: string; // [추가] 게시글 상태 동시 변경용
   }) => {
     return http.post("/board/comment", data);
   },
