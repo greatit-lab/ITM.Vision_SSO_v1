@@ -33,7 +33,7 @@
               :class="isAdminRole(post.user?.role) ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-zinc-600'">
               {{ getAuthorInitial(post.authorId, post.user?.role) }}
             </div>
-            <span class="font-medium" :class="isAdminRole(post.user?.role) ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'">
+            <span class="font-medium" :class="isAdminRole(post.user?.role) ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-700 dark:text-slate-300'">
               {{ getAuthorName(post.authorId, post.user?.role) }}
             </span>
         </div>
@@ -102,13 +102,15 @@
                         class="px-3 py-2 rounded-xl text-xs shadow-sm group"
                         :class="isPostAuthorComment(comment.authorId) 
                             ? 'bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-tr-none' 
-                            : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'"
+                            : (isAdminRole(comment.user?.role) ? 'bg-indigo-600 border border-indigo-600 text-white rounded-tl-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none')"
                     >
                         <div v-if="editingCommentId !== comment.commentId">
                             <div class="flex items-center gap-2 mb-1" :class="isPostAuthorComment(comment.authorId) ? 'flex-row-reverse' : ''">
-                                <span class="font-bold flex items-center gap-1 shrink-0" :class="isAdminRole(comment.user?.role) ? 'text-indigo-700' : 'text-slate-800'">
+                                <span class="font-bold flex items-center gap-1 shrink-0" 
+                                      :class="isAdminRole(comment.user?.role) && !isPostAuthorComment(comment.authorId) ? 'text-indigo-100' : (isAdminRole(comment.user?.role) ? 'text-indigo-700' : 'text-slate-800')">
                                   {{ getAuthorName(comment.authorId, comment.user?.role) }}
                                   <i v-if="isPostAuthorComment(comment.authorId)" class="pi pi-star-fill text-[9px] text-amber-500" title="작성자"></i>
+                                  <i v-if="isAdminRole(comment.user?.role)" class="pi pi-verified text-[9px]" title="관리자/매니저"></i>
                                 </span>
                                 
                                 <span class="text-[10px] opacity-60 shrink-0">
@@ -116,10 +118,10 @@
                                 </span>
 
                                 <div v-if="isMyComment(comment.authorId)" class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                                    <button @click="startEdit(comment)" class="text-slate-400 hover:text-indigo-600 transition-colors" title="수정">
+                                    <button @click="startEdit(comment)" class="hover:text-indigo-300 transition-colors" title="수정">
                                         <i class="pi pi-pencil text-[10px]"></i>
                                     </button>
-                                    <button @click="requestDeleteComment(comment.commentId)" class="text-slate-400 hover:text-rose-600 transition-colors" title="삭제">
+                                    <button @click="requestDeleteComment(comment.commentId)" class="hover:text-rose-300 transition-colors" title="삭제">
                                         <i class="pi pi-trash text-[10px]"></i>
                                     </button>
                                 </div>
@@ -134,11 +136,11 @@
                             <textarea 
                                 v-model="editContent" 
                                 rows="2" 
-                                class="w-full p-2 bg-white border border-indigo-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-100 mb-2 resize-none"
+                                class="w-full p-2 bg-white border border-indigo-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-100 mb-2 resize-none text-slate-900"
                             ></textarea>
                             <div class="flex justify-end gap-2">
-                                <button @click="cancelEdit" class="text-[10px] text-slate-500 hover:text-slate-700">취소</button>
-                                <button @click="saveEdit(comment.commentId)" class="px-2 py-1 bg-indigo-600 text-white rounded text-[10px] font-bold hover:bg-indigo-700">저장</button>
+                                <button @click="cancelEdit" class="text-[10px] opacity-70 hover:opacity-100">취소</button>
+                                <button @click="saveEdit(comment.commentId)" class="px-2 py-1 bg-white text-indigo-600 rounded text-[10px] font-bold hover:bg-indigo-50 shadow-sm">저장</button>
                             </div>
                         </div>
 
@@ -148,25 +150,34 @@
         </div>
 
         <div class="p-3 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-            <div class="flex gap-2">
-                <div class="flex-1">
-                    <textarea 
-                    v-model="newComment"
-                    rows="1"
-                    placeholder="댓글을 입력하세요..." 
-                    class="w-full px-4 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 resize-none text-sm transition-all shadow-sm"
-                    @keydown.enter.prevent="submitComment"
-                    style="min-height: 42px;"
-                    ></textarea>
+            <div class="flex flex-col gap-2">
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <textarea 
+                        v-model="newComment"
+                        rows="1"
+                        :placeholder="isAdminRole(authStore.user?.role) ? '답변을 입력하세요...' : '댓글을 입력하세요...'" 
+                        class="w-full px-4 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 resize-none text-sm transition-all shadow-sm"
+                        @keydown.enter.prevent="submitComment"
+                        style="min-height: 42px;"
+                        ></textarea>
+                    </div>
+                    <button 
+                        @click="submitComment"
+                        :disabled="!newComment.trim() || isSubmittingComment"
+                        class="flex-shrink-0 w-12 h-auto flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:shadow-none"
+                    >
+                        <i v-if="isSubmittingComment" class="pi pi-spin pi-spinner text-xs"></i>
+                        <i v-else class="pi pi-send text-sm"></i>
+                    </button>
                 </div>
-                <button 
-                    @click="submitComment"
-                    :disabled="!newComment.trim() || isSubmittingComment"
-                    class="flex-shrink-0 w-12 h-auto flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:shadow-none"
-                >
-                    <i v-if="isSubmittingComment" class="pi pi-spin pi-spinner text-xs"></i>
-                    <i v-else class="pi pi-send text-sm"></i>
-                </button>
+                
+                <div v-if="isAdminRole(authStore.user?.role) && post.status !== 'ANSWERED'" class="flex items-center justify-end gap-2 px-1">
+                    <label class="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" v-model="markAsAnswered" class="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                        <span class="text-xs text-slate-500 font-bold group-hover:text-indigo-600 transition-colors">답변 완료 처리 (상태 변경)</span>
+                    </label>
+                </div>
             </div>
         </div>
     </div>
@@ -175,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { boardApi } from '@/api/board';
@@ -189,7 +200,8 @@ const post = ref<any>(null);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
 
-// 댓글 수정 관련 상태
+const markAsAnswered = ref(true);
+
 const editingCommentId = ref<number | null>(null);
 const editContent = ref('');
 
@@ -197,7 +209,7 @@ const isAuthorOrAdmin = computed(() => {
   if (!post.value || !authStore.user) return false;
   const postAuthor = String(post.value.authorId);
   const currentUserId = String(authStore.user.userId);
-  return postAuthor === currentUserId || authStore.user.role === 'ADMIN' || authStore.user.role === 'MANAGER';
+  return postAuthor === currentUserId || isAdminRole(authStore.user.role);
 });
 
 const isPostAuthorComment = (commentAuthorId: string) => {
@@ -210,29 +222,36 @@ const isMyComment = (commentAuthorId: string) => {
 };
 
 const isAdminRole = (role?: string) => {
-  return role === 'ADMIN' || role === 'MANAGER';
+  if (!role) return false;
+  const upperRole = role.toUpperCase();
+  return upperRole === 'ADMIN' || upperRole === 'MANAGER';
 };
 
 const getAuthorName = (authorId: string, role?: string) => {
-  if (role === 'ADMIN') return 'ADMIN';
-  if (role === 'MANAGER') return 'MANAGER';
+  if (isAdminRole(role)) {
+    return role?.toUpperCase();
+  }
   return authorId;
 };
 
 const getAuthorInitial = (authorId: string, role?: string) => {
-  if (role === 'ADMIN') return 'A';
-  if (role === 'MANAGER') return 'M';
+  if (isAdminRole(role)) {
+     return role?.charAt(0).toUpperCase();
+  }
   return authorId ? authorId.charAt(0).toUpperCase() : '?';
 };
 
 const getCommentAvatarClass = (authorId: string, role?: string) => {
-  if (isAdminRole(role)) return 'bg-indigo-100 text-indigo-700';
-  if (isPostAuthorComment(authorId)) return 'bg-indigo-600 text-white';
+  if (isAdminRole(role)) return 'bg-indigo-600 text-white';
+  if (isPostAuthorComment(authorId)) return 'bg-indigo-500 text-white';
   return 'bg-slate-200 text-slate-600';
 };
 
 const fetchPost = async () => {
   const id = Number(route.params.id);
+  if (!id) return;
+
+  loading.value = true;
   try {
     const res = await boardApi.getPost(id);
     post.value = res.data;
@@ -259,6 +278,7 @@ const deletePost = async () => {
   }
 };
 
+// [수정] 댓글 등록 로직 개선 (하나의 트랜잭션 호출)
 const submitComment = async () => {
   if (!newComment.value.trim()) return;
   
@@ -269,21 +289,26 @@ const submitComment = async () => {
 
   isSubmittingComment.value = true;
   try {
+    // 관리자가 '답변 완료' 체크 시 status 파라미터 전달
+    const statusParam = (isAdminRole(authStore.user.role) && markAsAnswered.value) ? 'ANSWERED' : undefined;
+
+    // 댓글 등록 + 상태 변경을 한 번에 요청 (Atomic)
     await boardApi.createComment({
       postId: post.value.postId,
       authorId: authStore.user.userId,
-      content: newComment.value
+      content: newComment.value,
+      status: statusParam // backend에서 트랜잭션 처리
     });
+
     newComment.value = '';
-    await fetchPost(); // 댓글 작성 후 목록 갱신
+    await fetchPost(); // 목록 갱신
   } catch (e) {
-    alert("댓글 등록에 실패했습니다.");
+    alert("댓글/답변 등록에 실패했습니다.");
+    console.error(e);
   } finally {
     isSubmittingComment.value = false;
   }
 };
-
-// --- 댓글 수정/삭제 로직 ---
 
 const startEdit = (comment: any) => {
   editingCommentId.value = comment.commentId;
@@ -300,7 +325,6 @@ const saveEdit = async (commentId: number) => {
   
   try {
     await boardApi.updateComment(commentId, editContent.value);
-    // UI 업데이트 (API 재호출 대신 로컬 업데이트로 반응성 향상 가능하나, 안전하게 재호출)
     await fetchPost();
     cancelEdit();
   } catch (e) {
@@ -313,7 +337,7 @@ const requestDeleteComment = async (commentId: number) => {
   
   try {
     await boardApi.deleteComment(commentId);
-    await fetchPost(); // 목록 갱신
+    await fetchPost(); 
   } catch (e) {
     alert("댓글 삭제에 실패했습니다.");
   }
@@ -329,15 +353,19 @@ const getCategoryColor = (cat: string) => {
   }
 };
 
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) fetchPost();
+  }
+);
+
 onMounted(() => {
   fetchPost();
 });
 </script>
 
 <style scoped>
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
