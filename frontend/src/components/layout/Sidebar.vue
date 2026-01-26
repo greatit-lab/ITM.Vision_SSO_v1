@@ -12,7 +12,8 @@
       
       <div class="relative flex items-center justify-center w-full h-8 gap-2">
         <i class="pi pi-verified text-[10px] text-indigo-500 animate-pulse"></i>
-        <span class="text-[9px] font-extrabold text-indigo-900/60 dark:text-indigo-200/60 tracking-[0.3em] uppercase drop-shadow-sm">
+        
+        <span class="text-[12px] font-bold text-indigo-900/70 dark:text-indigo-200/70 tracking-[0.08em] leading-tight uppercase drop-shadow-sm">
           테스트기술팀
         </span>
       </div>
@@ -122,7 +123,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import logoUrl from "@/assets/ITM_Vision.png";
-import logoTextUrl from "@/assets/logo_text.png"; // 저장된 텍스트 로고 이미지
+import logoTextUrl from "@/assets/logo_text.png"; 
 
 import SidebarItem from "./SidebarItem.vue";
 import { useMenuStore } from "@/stores/menu";
