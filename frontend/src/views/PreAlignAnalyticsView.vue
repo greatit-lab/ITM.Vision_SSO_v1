@@ -148,7 +148,8 @@
               </span>
             </div>
           </div>
-          <div class="relative flex-1 w-full min-h-0 group">
+          
+          <div class="relative flex-1 w-full min-h-0 group overflow-hidden">
             <div
               v-if="isLoading"
               class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
@@ -168,7 +169,6 @@
               v-else
               :option="trendOption"
               class="w-full h-full"
-              autoresize
               @chartCreated="onChartCreated"
             />
 
@@ -201,14 +201,14 @@
                 웨이퍼 중심 위치 분포 (X/Y 축 치우침 확인)
               </span>
             </div>
-            <div class="relative flex-1 w-full min-h-0 p-2">
+            <div class="relative w-full h-[260px] p-2 overflow-hidden">
               <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
                  <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
               </div>
               <div v-else-if="chartData.length === 0" class="flex items-center justify-center h-full text-xs text-slate-400 opacity-60">
                  No data found
               </div>
-              <EChart v-else :option="scatterOption" class="w-full h-full" autoresize />
+              <EChart v-else :option="scatterOption" class="w-full h-full" />
             </div>
           </div>
 
@@ -244,7 +244,7 @@
               </span>
             </div>
 
-            <div class="flex flex-col flex-1 min-h-0 p-3 overflow-hidden relative">
+            <div class="flex flex-col w-full h-[260px] p-3 overflow-hidden relative">
                <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm rounded-b-xl">
                  <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
                </div>
@@ -272,8 +272,8 @@
                        <span class="text-xs font-mono font-bold text-blue-500">{{ currentStats.max }}</span>
                     </div>
                  </div>
-                 <div class="flex-1 min-h-0 w-full relative">
-                    <EChart :option="histogramOption" class="w-full h-full" autoresize />
+                 <div class="flex-1 min-h-0 w-full relative overflow-hidden">
+                    <EChart :option="histogramOption" class="w-full h-full" />
                  </div>
                </template>
             </div>
@@ -293,14 +293,14 @@
                 Notch 회전 각도와 위치 변동 간 상관관계
               </span>
             </div>
-            <div class="relative flex-1 w-full min-h-0 p-2">
+            <div class="relative w-full h-[260px] p-2 overflow-hidden">
               <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
                  <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="4" />
               </div>
               <div v-else-if="chartData.length === 0" class="flex items-center justify-center h-full text-xs text-slate-400 opacity-60">
                  No data found
               </div>
-              <EChart v-else :option="notchChartOption" class="w-full h-full" autoresize />
+              <EChart v-else :option="notchChartOption" class="w-full h-full" />
             </div>
           </div>
 
@@ -318,6 +318,7 @@ import {
   computed,
   onUnmounted,
   watch,
+  nextTick, // [추가]
 } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -365,8 +366,9 @@ const isZoomed = ref(false);
 // UI State
 const activeTab = ref('X'); 
 
-// Chart Instance
+// Chart Instance & Observer
 let chartInstance: ECharts | null = null;
+let resizeObserver: ResizeObserver | null = null; // [추가]
 
 // Theme detection
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
@@ -378,9 +380,22 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-// Chart Event Handlers
+// [수정] Chart Event Handlers: Manual Resize Observer 적용
 const onChartCreated = (instance: any) => {
   chartInstance = instance;
+  
+  // 수동 리사이징 옵저버 등록 (Chrome 무한 루프 방지)
+  resizeObserver = new ResizeObserver(() => {
+    chartInstance?.resize();
+  });
+
+  // 부모 요소 감지
+  nextTick(() => {
+    const el = instance.getDom();
+    if (el?.parentElement) {
+      resizeObserver?.observe(el.parentElement);
+    }
+  });
   
   instance.on("dataZoom", () => {
     const opt = instance.getOption();
@@ -537,6 +552,9 @@ onMounted(async () => {
 onUnmounted(() => {
   themeObserver.disconnect();
   window.removeEventListener("resize", handleResize);
+  // [추가] 옵저버 해제
+  resizeObserver?.disconnect();
+  resizeObserver = null;
 });
 
 // Watchers
@@ -687,14 +705,24 @@ const scatterOption = computed(() => {
     xAxis: { 
        type: 'value', name: 'X (mm)', nameLocation: 'middle', nameGap: 20,
        min: -maxVal, max: maxVal,
-       axisLabel: { color: textColor, fontSize: 10 },
+       axisLabel: { 
+         color: textColor, 
+         fontSize: 10,
+         // [수정] 소수점 3자리 Formatter
+         formatter: (value: number) => value.toFixed(3)
+       },
        splitLine: { lineStyle: { color: gridColor } },
        axisLine: { onZero: true, lineStyle: { color: textColor } }
     },
     yAxis: { 
        type: 'value', name: 'Y (mm)', nameLocation: 'middle', nameGap: 30,
        min: -maxVal, max: maxVal,
-       axisLabel: { color: textColor, fontSize: 10 },
+       axisLabel: { 
+         color: textColor, 
+         fontSize: 10,
+         // [수정] 소수점 3자리 Formatter
+         formatter: (value: number) => value.toFixed(3)
+       },
        splitLine: { lineStyle: { color: gridColor } },
        axisLine: { onZero: true, lineStyle: { color: textColor } }
     },
