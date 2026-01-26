@@ -11,6 +11,9 @@ export interface WaferFlatDataDto {
   stageRcp: string;
   stageGroup: string;
   film: string;
+  // [추가] 데이터 존재 여부 플래그
+  hasWaferMap?: boolean;
+  hasSpectrum?: boolean;
 }
 
 export interface StatisticItem {
@@ -55,7 +58,6 @@ export interface LotUniformitySeriesDto {
   dataPoints: LotUniformityPointDto[];
 }
 
-// [추가] OpticalTrendDto 인터페이스 정의 (Backend의 OpticalTrendResponse와 일치)
 export interface OpticalTrendDto {
   ts: string;
   lotId: string;
@@ -199,7 +201,6 @@ export const waferApi = {
     return data;
   },
 
-  // [중요] params 객체 하나만 전달받도록 정의 (metric 포함)
   getLotUniformityTrend: async (params: WaferQueryParams) => {
     const { data } = await http.get<LotUniformitySeriesDto[]>("/wafer/lot-uniformity-trend", {
       params,
@@ -219,7 +220,6 @@ export const waferApi = {
     return data;
   },
 
-  // [수정] OpticalTrendDto[] 반환 타입 명시
   getOpticalTrend: async (params: WaferQueryParams) => {
     const { data } = await http.get<OpticalTrendDto[]>("/wafer/optical-trend", { params });
     return data;
