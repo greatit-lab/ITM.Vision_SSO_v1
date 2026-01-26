@@ -76,9 +76,24 @@
           <div class="relative flex-1 overflow-auto">
             <DataTable :value="flatData" v-model:selection="selectedRow" selectionMode="single" :metaKeySelection="false" dataKey="servTs" @rowSelect="onRowSelect" @rowUnselect="onRowUnselect" :loading="isLoading" class="absolute inset-0 text-sm p-datatable-sm custom-datatable" stripedRows>
               <template #empty><div class="flex flex-col items-center justify-center h-full text-slate-400"><i class="mb-2 text-3xl opacity-30 pi pi-filter-slash"></i><p class="font-medium">No data found.</p></div></template>
+              
               <Column field="servTs" header="DATE TIME" style="min-width: 160px" frozen :bodyStyle="{ paddingLeft: '16px' }" headerStyle="padding-left: 16px"><template #body="{ data }"><span class="font-mono">{{ formatDate(data.servTs) }}</span></template></Column>
               <Column field="lotId" header="LOT ID" style="min-width: 130px"><template #body="{ data }"><span class="font-bold text-slate-600 dark:text-slate-300">{{ data.lotId }}</span></template></Column>
               <Column field="waferId" header="WAFER" style="min-width: 80px"><template #body="{ data }"><span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-xs font-mono font-bold border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-300">{{ data.waferId }}</span></template></Column>
+              
+              <Column header="DATA INFO" style="min-width: 90px" bodyStyle="text-align: center">
+                <template #body="{ data }">
+                  <div class="flex items-center justify-center gap-2">
+                    <i class="pi pi-file-pdf text-[13px] transition-colors" 
+                       :class="data.hasWaferMap ? 'text-rose-500 cursor-pointer hover:text-rose-600' : 'text-slate-200 dark:text-zinc-700 cursor-default'" 
+                       v-tooltip.top="data.hasWaferMap ? 'Wafer Map Available' : 'No Map'"></i>
+                    <i class="pi pi-chart-line text-[13px] transition-colors" 
+                       :class="data.hasSpectrum ? 'text-blue-500 cursor-pointer hover:text-blue-600' : 'text-slate-200 dark:text-zinc-700 cursor-default'" 
+                       v-tooltip.top="data.hasSpectrum ? 'Spectrum Data Available' : 'No Spectrum'"></i>
+                  </div>
+                </template>
+              </Column>
+
               <Column field="cassetteRcp" header="CASSETTE RCP" style="min-width: 140px"></Column>
               <Column field="stageRcp" header="STAGE RCP" style="min-width: 140px"></Column>
               <Column field="stageGroup" header="STAGE GROUP" style="min-width: 120px"></Column>
@@ -235,7 +250,6 @@ const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
 // [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
-// 이렇게 초기화해야 DatePicker로 날짜를 다시 선택했을 때의 값(자정 기준)과 일치성이 높아집니다.
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
@@ -541,7 +555,6 @@ const onEqpChange = async () => {
     filters.stageGroup = ""; 
     filters.film = "";
 
-    // [핵심] Vue Reactivity 업데이트 보장 후 호출
     await nextTick();
     loadLotOptions(); 
     loadCassetteOptions();
@@ -737,6 +750,11 @@ const onRowSelect = async (event: any) => {
   const row = event.data; selectedRow.value = row;
   resetDetails(); 
   
+  // [UX 개선] 이미 hasWaferMap, hasSpectrum으로 존재 여부를 알고 있으므로
+  // 선택 시 바로 PDF 및 Spectrum을 로드하지는 않되, UI상 '존재한다'는 상태는 유지됩니다.
+  // 다만 실제 로드는 사용자 요청(포인트 클릭 등)이나 상세 조회 로직에 따릅니다.
+  pdfExists.value = !!row.hasWaferMap;
+
   isStatsLoading.value = true; isPointsLoading.value = true; 
   
   try {
@@ -745,13 +763,17 @@ const onRowSelect = async (event: any) => {
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
     
-    const pdfRes = await waferApi.checkPdf({
-        eqpId: row.eqpId,
-        lotId: row.lotId,
-        waferId: row.waferId,
-        dateTime: row.dateTime
-    });
-    pdfExists.value = pdfRes.exists;
+    // 이전에 호출하던 waferApi.checkPdf는 이미 getFlatData에서 수행되었으므로 생략 가능하나
+    // 상세 검증을 위해 유지하거나 제거해도 무방합니다. (여기서는 안전하게 유지)
+    if (!pdfExists.value) {
+       const pdfRes = await waferApi.checkPdf({
+           eqpId: row.eqpId,
+           lotId: row.lotId,
+           waferId: row.waferId,
+           dateTime: row.dateTime
+       });
+       pdfExists.value = pdfRes.exists;
+    }
 
   } catch (error) { console.error("Failed to load details:", error); } finally { isStatsLoading.value = false; isPointsLoading.value = false; }
 };
@@ -779,8 +801,6 @@ const loadPointImage = async (pointValue: number) => {
         pointNumber: pointValue
     });
     
-    console.log("PDF Image Response:", res);
-
     let base64Image = "";
     if (typeof res === 'string') {
         base64Image = res;
@@ -802,6 +822,13 @@ const loadPointImage = async (pointValue: number) => {
 
 const loadSpectrumData = async (pointValue: number) => {
   if (!selectedRow.value) return;
+  
+  // [UX 개선] Spectrum 데이터가 없다고 표시되어 있으면 요청 스킵 가능
+  // if (!selectedRow.value.hasSpectrum) {
+  //    spectrumData.value = [];
+  //    return;
+  // }
+
   spectrumData.value = []; isSpectrumLoading.value = true;
   try {
     const params = { eqpId: selectedRow.value.eqpId, ts: selectedRow.value.dateTime, lotId: selectedRow.value.lotId, waferId: String(selectedRow.value.waferId), pointNumber: pointValue };
@@ -857,7 +884,6 @@ const resetFilters = () => {
   flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; 
   resetDetails(); 
   
-  // 날짜 초기화 (일주일 전 자정)
   const now = new Date();
   now.setHours(0,0,0,0);
   filters.startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
