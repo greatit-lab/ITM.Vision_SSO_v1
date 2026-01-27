@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { NestApplicationOptions } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { json, urlencoded } from 'express'; // [추가] express 모듈
 
 // [중요] 한국 시간대(KST)로 설정 (웹 조회 시 시간 차이 해결)
 process.env.TZ = 'Asia/Seoul';
@@ -36,6 +37,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
   });
+
+  // [추가] 요청 본문(Body) 크기 제한을 50MB로 증가
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // [중요] Frontend 요청 경로(/api/...)와 일치시키기 위해 Global Prefix 설정
   app.setGlobalPrefix('api');
