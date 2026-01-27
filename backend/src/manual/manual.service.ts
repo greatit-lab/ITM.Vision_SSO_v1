@@ -1,9 +1,8 @@
 // backend/src/manual/manual.service.ts
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { Injectable } from '@nestjs/common';
+import { DataApiService } from '../common/data-api.service';
 
-// [Type Definition] 데이터 구조 정의 (ESLint 'any' 방지용)
+// [Type Definition]
 export interface ManualItem {
   id: string;
   title: string;
@@ -17,39 +16,29 @@ export interface ManualItem {
 
 @Injectable()
 export class ManualService {
-  constructor(private readonly httpService: HttpService) {}
+  // Data API의 도메인 Prefix 정의
+  private readonly DOMAIN = 'manual';
 
-  // Data API 주소 (환경변수 사용 권장)
-  private readonly DATA_API_URL = 'http://localhost:8081/manual';
+  constructor(private readonly dataApiService: DataApiService) {}
 
-  // [GET]
+  // [GET] 매뉴얼 목록 조회
   async findAll(): Promise<ManualItem[]> {
-    try {
-      // 제네릭을 사용하여 리턴 타입 명시
-      const response = await firstValueFrom(
-        this.httpService.get<ManualItem[]>(this.DATA_API_URL),
-      );
-      return response.data;
-    } catch (error) {
-      // Error 타입 단언 (unsafe member access 방지)
-      const err = error as Error;
-      console.error('Data API connection error:', err.message);
-      // 빈 배열을 반환하거나 에러를 다시 던짐
-      throw new InternalServerErrorException('Failed to fetch manuals');
-    }
+    // DataApiService가 환경변수(DATA_API_HOST)와 /api 프리픽스를 자동으로 처리함
+    const result = await this.dataApiService.request<ManualItem[]>(
+      this.DOMAIN,
+      'get',
+    );
+    return result || [];
   }
 
-  // [PUT]
+  // [PUT] 매뉴얼 전체 저장
   async saveAll(sections: ManualItem[]): Promise<ManualItem[]> {
-    try {
-      const response = await firstValueFrom(
-        this.httpService.put<ManualItem[]>(this.DATA_API_URL, { sections }),
-      );
-      return response.data;
-    } catch (error) {
-      const err = error as Error;
-      console.error('Data API save error:', err.message);
-      throw new InternalServerErrorException('Failed to save manuals');
-    }
+    const result = await this.dataApiService.request<ManualItem[]>(
+      this.DOMAIN,
+      'put',
+      undefined, // endpoint (기본 루트)
+      { sections }, // Body
+    );
+    return result || [];
   }
 }
