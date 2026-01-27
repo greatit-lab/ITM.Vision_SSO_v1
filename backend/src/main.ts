@@ -5,17 +5,17 @@ import { NestApplicationOptions } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { json, urlencoded } from 'express';
+import { DateTransformInterceptor } from './common/interceptors/date-transform.interceptor';
+import { DateInputPipe } from './common/pipes/date-input.pipe';
 
-// [중요] 한국 시간대(KST)로 설정
-process.env.TZ = 'Asia/Seoul';
+// [핵심 수정] process.env.TZ 설정 삭제함
+// 서버를 UTC 환경으로 두어야 DB 데이터를 원본 그대로(Raw Data) 가져올 수 있습니다.
 
 async function bootstrap() {
-  // NestJS의 httpsOptions 타입을 그대로 사용
   let httpsOptions: NestApplicationOptions['httpsOptions'] = undefined;
 
   // 개발 환경일 때만 HTTPS 적용
   if (process.env.NODE_ENV !== 'production') {
-    // backend 폴더 실행 기준(process.cwd())에서 상위(../)로 올라가 frontend/cert 폴더 참조
     const keyPath = path.join(process.cwd(), '../frontend/cert/private.key');
     const certPath = path.join(process.cwd(), '../frontend/cert/cert.pem');
 
@@ -31,27 +31,27 @@ async function bootstrap() {
     }
   }
 
-  // [핵심 수정] bodyParser: false 추가
-  // httpsOptions 설정과 함께 BodyParser 비활성화 옵션을 전달해야
-  // 아래의 50MB 제한 설정이 정상적으로 작동합니다.
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
     bodyParser: false, 
   });
 
-  // [설정] 요청 본문(Body) 크기 제한을 50MB로 증가
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
-  // [중요] Frontend 요청 경로(/api/...)와 일치시키기 위해 Global Prefix 설정
   app.setGlobalPrefix('api');
+
+  // Input Pipe: 요청 데이터의 날짜 문자열 -> Date 변환
+  app.useGlobalPipes(new DateInputPipe());
+
+  // Output Interceptor: 응답 데이터의 Date -> 문자열 변환 (UTC 기준 포맷팅)
+  app.useGlobalInterceptors(new DateTransformInterceptor());
 
   app.enableCors({
     origin: true,
     credentials: true,
   });
 
-  // .env.development에 설정된 포트 사용 (기본 44364)
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
