@@ -200,7 +200,10 @@
                     : 'text-slate-700 dark:text-white'
                 "
               >
-                {{ summary.onlineAgentCount }} <span class="text-xs font-medium opacity-70">/ {{ summary.totalEqpCount }}</span>
+                {{ summary.onlineAgentCount }}
+                <span class="text-xs font-medium opacity-70"
+                  >/ {{ summary.totalEqpCount }}</span
+                >
               </p>
             </div>
             <div
@@ -243,8 +246,7 @@
                   activeFilter === 'Offline'
                     ? 'text-white'
                     : 'text-slate-700 dark:text-white',
-                  activeFilter !== 'Offline' &&
-                  summary.inactiveAgentCount > 0
+                  activeFilter !== 'Offline' && summary.inactiveAgentCount > 0
                     ? '!text-rose-500'
                     : '',
                 ]"
@@ -826,6 +828,7 @@ const loadData = async (showLoading = true) => {
   }
   hasSearched.value = true;
 
+  // [중요 수정] 요약 정보를 먼저 받아오되, Agent List 로딩 후 덮어쓸 예정
   dashboardApi
     .getSummary(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((res: any) => {
@@ -841,15 +844,34 @@ const loadData = async (showLoading = true) => {
       isSummaryLoading.value = false;
     });
 
+  // Agent Status 조회 및 Summary 동기화
   dashboardApi
     .getAgentStatus(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((data) => {
       agentList.value = data || [];
+      
+      // [데이터 정합성 보장] 
+      // API에서 받아온 Summary 대신, 실제 로드된 Agent List 기준으로 Summary를 재계산합니다.
+      // 이렇게 하면 리스트와 카드의 숫자가 100% 일치하게 됩니다.
+      const total = agentList.value.length;
+      const online = agentList.value.filter(a => a.isOnline).length;
+      const offline = total - online;
+      
+      summary.value = {
+        ...summary.value,
+        totalEqpCount: total,
+        onlineAgentCount: online,
+        inactiveAgentCount: offline,
+        serverHealth: total > 0 ? Math.round((online / total) * 100) : 0
+      };
+
       startAutoRefresh();
     })
     .catch((e) => {
       console.error("Agent status load failed", e);
       agentList.value = [];
+      // 에러 시에도 카드를 0으로 초기화
+      summary.value = { ...summary.value, totalEqpCount:0, onlineAgentCount:0, inactiveAgentCount:0, serverHealth:0 };
     })
     .finally(() => {
       isTableLoading.value = false;
@@ -1273,5 +1295,3 @@ body .p-tooltip .p-tooltip-arrow {
   font-size: 12px !important;
 }
 </style>
-
-
