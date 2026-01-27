@@ -4,9 +4,9 @@ import { AppModule } from './app.module';
 import { NestApplicationOptions } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { json, urlencoded } from 'express'; // [추가] express 모듈
+import { json, urlencoded } from 'express';
 
-// [중요] 한국 시간대(KST)로 설정 (웹 조회 시 시간 차이 해결)
+// [중요] 한국 시간대(KST)로 설정
 process.env.TZ = 'Asia/Seoul';
 
 async function bootstrap() {
@@ -15,12 +15,10 @@ async function bootstrap() {
 
   // 개발 환경일 때만 HTTPS 적용
   if (process.env.NODE_ENV !== 'production') {
-    // [경로 수정] backend 폴더 실행 기준(process.cwd())에서
-    // 상위(../)로 올라가 frontend/cert 폴더의 파일을 찾습니다.
+    // backend 폴더 실행 기준(process.cwd())에서 상위(../)로 올라가 frontend/cert 폴더 참조
     const keyPath = path.join(process.cwd(), '../frontend/cert/private.key');
     const certPath = path.join(process.cwd(), '../frontend/cert/cert.pem');
 
-    // 파일이 실제로 존재하는지 확인
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
       console.log(`[HTTPS] Found certificates at: ${keyPath}`);
       httpsOptions = {
@@ -28,17 +26,20 @@ async function bootstrap() {
         cert: fs.readFileSync(certPath),
       };
     } else {
-      // 파일이 없으면 경고 메시지를 띄우고 HTTP로 실행
       console.warn(`[HTTPS] Certificates not found at: ${keyPath}`);
       console.warn('[HTTPS] Starting in HTTP mode (SAML might fail).');
     }
   }
 
+  // [핵심 수정] bodyParser: false 추가
+  // httpsOptions 설정과 함께 BodyParser 비활성화 옵션을 전달해야
+  // 아래의 50MB 제한 설정이 정상적으로 작동합니다.
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
+    bodyParser: false, 
   });
 
-  // [추가] 요청 본문(Body) 크기 제한을 50MB로 증가
+  // [설정] 요청 본문(Body) 크기 제한을 50MB로 증가
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
@@ -50,14 +51,12 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // [삭제됨] prismaService.enableShutdownHooks(app); -> 더 이상 필요 없음 (삭제 완료)
-
-  // .env.development에 설정된 포트(44364) 사용 (없으면 3000)
+  // .env.development에 설정된 포트 사용 (기본 44364)
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
-  // 로그 출력 시 실제 접속 경로(api 포함) 명시
-  console.log(`Application is running on: https://localhost:${port}/api`);
+  const protocol = httpsOptions ? 'https' : 'http';
+  console.log(`Application is running on: ${protocol}://localhost:${port}/api`);
 }
 
 void bootstrap();
