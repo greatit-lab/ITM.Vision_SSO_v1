@@ -492,12 +492,35 @@ const fetchData = async () => {
       sdwt: filter.sdwt,
     });
     const rawData = res.data || [];
+    
+    // [중요] 현재 Web 시간 기준으로 경과 시간(Life Usage) 계산
+    const now = new Date(); // Web Client Time
 
-    allLamps.value = rawData.map((l: LampLife) => ({
-      ...l,
-      usageRatio: l.lifespanHour > 0 ? (l.ageHour / l.lifespanHour) * 100 : 0,
-      status: getStatus(l.ageHour, l.lifespanHour),
-    }));
+    allLamps.value = rawData.map((l: LampLife) => {
+      // 1. lastChanged가 유효하다면, 현재 시간 - lastChanged로 시간 계산
+      let calculatedAge = l.ageHour; // 기본값은 DB 값
+      
+      if (l.lastChanged) {
+        const lastChangedDate = new Date(l.lastChanged);
+        if (!isNaN(lastChangedDate.getTime())) {
+          // 밀리초 차이 계산
+          const diffMs = now.getTime() - lastChangedDate.getTime();
+          // 시간 단위 변환 (ms -> hour)
+          calculatedAge = Math.floor(diffMs / (1000 * 60 * 60));
+        }
+      }
+      
+      // 음수 방지
+      calculatedAge = Math.max(0, calculatedAge);
+
+      // 2. 계산된 시간(calculatedAge)을 사용하여 usageRatio 및 status 결정
+      return {
+        ...l,
+        ageHour: calculatedAge, // 화면 표시용 ageHour 교체
+        usageRatio: l.lifespanHour > 0 ? (calculatedAge / l.lifespanHour) * 100 : 0,
+        status: getStatus(calculatedAge, l.lifespanHour),
+      };
+    });
   } catch (e) {
     console.error(e);
     allLamps.value = [];
@@ -523,18 +546,20 @@ const getStatus = (age: number, lifespan: number) => {
   return "Good";
 };
 
-// 날짜 포맷팅 함수
+// [수정] 날짜 포맷팅 함수 (UTC 기준 사용하여 DB 원본값 유지)
 const formatDate = (dateString: string | null | undefined) => {
   if (!dateString) return "-";
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return dateString;
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
+  // [수정] getHours() -> getUTCHours() 로 변경하여
+  // 브라우저의 시간대 자동 변환(+9h)을 막고 DB 문자열 그대로 보여줌
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(date.getUTCSeconds()).padStart(2, "0");
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
