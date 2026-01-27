@@ -14,15 +14,17 @@ import { HealthModule } from './health/health.module';
 import { LampLifeModule } from './lamplife/lamplife.module';
 import { MenuModule } from './menu/menu.module';
 import { PerformanceModule } from './performance/performance.module';
-// [수정] 대소문자 수정 (PrealignModule -> PreAlignModule)
 import { PreAlignModule } from './prealign/prealign.module'; 
 import { WaferModule } from './wafer/wafer.module';
 import { InfraModule } from './infra/infra.module';
 import { BoardModule } from './board/board.module';
+// [추가] 새로 생성한 모듈 Import
+import { ManualModule } from './manual/manual.module';
+import { AlertModule } from './alert/alert.module';
 
 @Module({
   imports: [
-    // 1. 환경 변수 설정 (Global)
+    // 1. 환경 변수 설정
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.production', '.env', '.env.development'],
@@ -42,10 +44,12 @@ import { BoardModule } from './board/board.module';
     LampLifeModule,
     MenuModule,
     PerformanceModule,
-    PreAlignModule, // [수정] 클래스명 일치시킴
+    PreAlignModule,
     WaferModule,
     InfraModule,
     BoardModule,
+    ManualModule, // [필수] 매뉴얼 기능 활성화
+    AlertModule,  // [필수] 알림 기능 활성화 (404 해결)
   ],
   controllers: [],
   providers: [],
