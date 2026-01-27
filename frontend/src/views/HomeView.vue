@@ -611,7 +611,7 @@
                       : 'text-rose-500'
                   "
                 >
-                  {{ formatDate(agent.lastContact) }}
+                  {{ agent.lastContact || "-" }}
                 </span>
               </div>
             </div>
@@ -702,7 +702,6 @@ const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">(
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-// Summary 초기값 설정
 const summary = ref<
   DashboardSummaryDto & {
     totalServers: number;
@@ -734,13 +733,10 @@ let refreshTimer: number | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-// onMounted 로직 (기존 코드 100% 보존)
 onMounted(async () => {
   try {
-    // 1. Site 목록 로드
     sites.value = await dashboardApi.getSites();
 
-    // 2. 초기 필터 값 결정 (우선순위: Store > LocalStorage > Auth)
     let targetSite = filterStore.selectedSite;
     let targetSdwt = filterStore.selectedSdwt;
 
@@ -756,15 +752,13 @@ onMounted(async () => {
       targetSdwt = authStore.user?.sdwt || "";
     }
 
-    // 3. Site 적용 및 SDWT 로드
     if (targetSite && sites.value.includes(targetSite)) {
       filterStore.selectedSite = targetSite;
       sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-      // 4. SDWT 적용 및 데이터 로드
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filterStore.selectedSdwt = targetSdwt;
-        await loadData(true); // 데이터 자동 조회
+        await loadData(true);
       } else {
         filterStore.selectedSdwt = "";
       }
@@ -828,7 +822,6 @@ const loadData = async (showLoading = true) => {
   }
   hasSearched.value = true;
 
-  // [중요 수정] 요약 정보를 먼저 받아오되, Agent List 로딩 후 덮어쓸 예정
   dashboardApi
     .getSummary(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((res: any) => {
@@ -844,15 +837,11 @@ const loadData = async (showLoading = true) => {
       isSummaryLoading.value = false;
     });
 
-  // Agent Status 조회 및 Summary 동기화
   dashboardApi
     .getAgentStatus(filterStore.selectedSite, filterStore.selectedSdwt)
     .then((data) => {
       agentList.value = data || [];
       
-      // [데이터 정합성 보장] 
-      // API에서 받아온 Summary 대신, 실제 로드된 Agent List 기준으로 Summary를 재계산합니다.
-      // 이렇게 하면 리스트와 카드의 숫자가 100% 일치하게 됩니다.
       const total = agentList.value.length;
       const online = agentList.value.filter(a => a.isOnline).length;
       const offline = total - online;
@@ -870,7 +859,6 @@ const loadData = async (showLoading = true) => {
     .catch((e) => {
       console.error("Agent status load failed", e);
       agentList.value = [];
-      // 에러 시에도 카드를 0으로 초기화
       summary.value = { ...summary.value, totalEqpCount:0, onlineAgentCount:0, inactiveAgentCount:0, serverHealth:0 };
     })
     .finally(() => {
@@ -959,7 +947,6 @@ const chartOption = computed(() => {
         let html = `<div class="font-bold mb-1" style="color:${tooltipText}">${params[0].axisValueLabel}</div>`;
         params.forEach((p: any) => {
           const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
-          // [수정] undefined check
           const val = typeof p.value === "number" ? p.value.toFixed(2) : "-";
           html += `<div style="color:${tooltipText}">${colorDot} ${p.seriesName}: ${val}%</div>`;
         });
@@ -981,15 +968,27 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      // [수정] 명시적 데이터 할당
+      // [핵심 수정] 서버에서 온 UTC 문자열("26-01-27 23:29:00")을 
+      // 강제로 UTC로 해석하여 로컬 시간(KST)으로 변환 ("26-01-28 08:29")
       data: timestamps.map((t: string) => {
-        const d = new Date(t);
-        if (isNaN(d.getTime())) return t;
-        return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-          d.getDate()
-        ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
-          d.getMinutes()
-        ).padStart(2, "0")}`;
+        if (!t) return "";
+        
+        // 1. "26-01-27 23:29:00" -> ISO 포맷 "2026-01-27T23:29:00Z" 로 변환
+        // (서버가 UTC 시간을 보내고 있으므로 끝에 'Z'를 붙여 UTC임을 명시)
+        const year = "20" + t.substring(0, 2);
+        const rest = t.substring(2).replace(" ", "T");
+        const utcStr = `${year}${rest}Z`; 
+        
+        const date = new Date(utcStr);
+        
+        // 2. 브라우저의 로컬 시간대(KST)로 포맷팅
+        const yy = date.getFullYear().toString().slice(2);
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const dd = String(date.getDate()).padStart(2, "0");
+        const hh = String(date.getHours()).padStart(2, "0");
+        const min = String(date.getMinutes()).padStart(2, "0");
+        
+        return `${yy}-${mm}-${dd} ${hh}:${min}`;
       }),
       axisLabel: { color: textColor },
       axisLine: { lineStyle: { color: gridColor } },
@@ -1211,18 +1210,6 @@ const getClockDriftColor = (s: number | null | undefined) => {
   if (absDrift > 1800) return "text-red-500 dark:text-red-400 font-bold";
   if (absDrift > 600) return "text-orange-500 dark:text-orange-400 font-bold";
   return "text-slate-600 dark:text-slate-300";
-};
-
-const formatDate = (d: string | null) => {
-  if (!d) return "-";
-  const date = new Date(d);
-  const yy = date.getUTCFullYear().toString().slice(2);
-  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(date.getUTCDate()).padStart(2, "0");
-  const hh = String(date.getUTCHours()).padStart(2, "0");
-  const min = String(date.getUTCMinutes()).padStart(2, "0");
-  const ss = String(date.getUTCSeconds()).padStart(2, "0");
-  return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
 };
 </script>
 
