@@ -2,10 +2,10 @@
 import { Module } from '@nestjs/common';
 import { AlertController } from './alert.controller';
 import { AlertService } from './alert.service';
-import { CommonModule } from '../common/common.module';
+import { CommonModule } from '../common/common.module'; // [필수] DataApiService 사용
 
 @Module({
-  imports: [CommonModule], // DataApiService 사용을 위해 필수
+  imports: [CommonModule],
   controllers: [AlertController],
   providers: [AlertService],
 })
