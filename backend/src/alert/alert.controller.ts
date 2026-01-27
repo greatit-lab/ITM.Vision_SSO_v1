@@ -1,10 +1,10 @@
 // backend/src/alert/alert.controller.ts
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { AlertService } from './alert.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 
-// [Type Definition] Request 객체 확장 (User 정보 포함)
+// Request 객체 타입 정의 (User 정보 포함)
 interface RequestWithUser extends Request {
   user?: {
     userId: string;
@@ -13,19 +13,27 @@ interface RequestWithUser extends Request {
 }
 
 @Controller('alert')
+@UseGuards(JwtAuthGuard) // [중요] Frontend의 요청은 인증 필요
 export class AlertController {
   constructor(private readonly alertService: AlertService) {}
 
-  @UseGuards(JwtAuthGuard)
+  // 1. 내 알림 조회
   @Get()
-  async getAlerts(@Req() req: RequestWithUser) {
-    // 이제 req.user가 타입핑되어 있으므로 unsafe access 오류가 사라집니다.
-    const userId = req.user?.userId;
-    
-    // Authorization 헤더에서 토큰 추출
-    const token = req.headers.authorization;
-    
-    // userId는 string | undefined 타입이므로 서비스 메서드와 호환됩니다.
-    return await this.alertService.getAlerts(userId, token);
+  async getMyAlerts(@Req() req: RequestWithUser) {
+    const userId = req.user?.userId || '';
+    return this.alertService.getMyAlerts(userId);
+  }
+
+  // 2. 안 읽은 개수 조회
+  @Get('unread-count')
+  async getUnreadCount(@Req() req: RequestWithUser) {
+    const userId = req.user?.userId || '';
+    return this.alertService.getUnreadCount(userId);
+  }
+
+  // 3. 읽음 처리
+  @Post(':id/read')
+  async readAlert(@Param('id', ParseIntPipe) id: number) {
+    return this.alertService.readAlert(id);
   }
 }
