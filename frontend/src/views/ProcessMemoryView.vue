@@ -347,6 +347,7 @@ import { equipmentApi } from "@/api/equipment";
 import { performanceApi, type ProcessMemoryDataDto } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
+import dayjs from "dayjs";
 
 // UI Components
 import Select from "primevue/select";
@@ -364,7 +365,14 @@ interface ProcessStat {
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const selectedEqpId = ref("");
-const startDate = ref(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+// [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 7일 전 설정
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
+
+const startDate = ref(sevenDaysAgo);
 const endDate = ref(new Date());
 
 const sites = ref<string[]>([]);
@@ -398,20 +406,29 @@ const colorPalette = [
   "#84cc16",
 ];
 
-// [추가] 날짜 유효성 검사 (Start가 End보다 뒤면 자동 조정)
-watch(startDate, (newStart) => {
-  if (newStart && endDate.value && newStart > endDate.value) {
-    endDate.value = new Date(newStart);
-  }
-});
+// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
+watch(
+  [startDate, endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
 
-watch(endDate, (newEnd) => {
-  if (newEnd && startDate.value && newEnd < startDate.value) {
-    startDate.value = new Date(newEnd);
+      // 시작일이 종료일보다 늦어지면
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경된 경우 -> 종료일을 시작일로 맞춤
+           endDate.value = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경된 경우 -> 시작일을 종료일로 맞춤
+           startDate.value = new Date(newEnd);
+        }
+      }
+    }
   }
-});
+);
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+// [핵심] 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -425,6 +442,18 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
+
+// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
+const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
+  let str = String(ts || "");
+  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
+  
+  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
+  if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
+      str = "20" + str;
+  }
+  return dayjs(str);
 };
 
 // --- Lifecycle ---
@@ -523,7 +552,7 @@ const onEqpIdChange = () => {
   } else {
     localStorage.removeItem("process_eqpid");
   }
-  // [수정] EQP 변경 시 뷰 초기화 (데이터 제거 및 초기 상태로 전환)
+  // [수정] EQP 변경 시 뷰 초기화
   resetView();
 };
 
@@ -549,8 +578,6 @@ const loadEqpIds = async () => {
 const searchData = async () => {
   if (!selectedEqpId.value) return;
   
-  // [수정] 로딩 시작 시 hasSearched를 true로 하여 레이아웃을 보여주고,
-  // 오버레이를 통해 로딩 상태를 표시함
   hasSearched.value = true;
   isLoading.value = true;
   isZoomed.value = false;
@@ -561,6 +588,7 @@ const searchData = async () => {
   processStats.value = [];
 
   try {
+    // [수정] toLocalISOString 사용
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
 
@@ -603,107 +631,99 @@ const processData = (data: ProcessMemoryDataDto[]) => {
     return;
   }
 
+  // [수정] 안전한 날짜 파싱 (parseSafeDate 사용)
   let maxTs = 0;
   if (data.length > 0) {
     maxTs = data.reduce((max, d) => {
-      const ts = new Date(d.timestamp).getTime();
+      const dt = parseSafeDate(d.timestamp);
+      const ts = dt.isValid() ? dt.valueOf() : 0;
       return ts > max ? ts : max;
     }, 0);
   }
 
-  const procMap = new Map<
-    string,
-    { max: number; latest: number; dataPoints: number }
-  >();
-
-  data.forEach((d) => {
-    const memVal = Number(d.memoryUsageMB) || 0;
-
-    if (!procMap.has(d.processName)) {
-      procMap.set(d.processName, { max: 0, latest: 0, dataPoints: 0 });
-    }
-    const entry = procMap.get(d.processName)!;
-    entry.max = Math.max(entry.max, memVal);
-    entry.dataPoints++;
-
-    if (new Date(d.timestamp).getTime() === maxTs) {
-      entry.latest = memVal;
-    }
+  // [수정] 데이터 그룹화 (Bucketing) 로직 추가
+  // Raw Data가 초 단위로 들어올 수 있으므로, 분 단위로 그룹화하여 차트 X축 정렬
+  const bucketMap = new Map<string, Record<string, number>>();
+  
+  data.forEach(d => {
+     const dt = parseSafeDate(d.timestamp);
+     if(!dt.isValid()) return;
+     
+     // 분 단위로 Key 생성 (YYYY-MM-DD HH:mm)
+     const key = dt.format('YYYY-MM-DD HH:mm');
+     
+     if(!bucketMap.has(key)) bucketMap.set(key, {});
+     const bucket = bucketMap.get(key)!;
+     
+     // 해당 시간대(분)의 해당 프로세스 MAX 메모리 사용량 저장
+     const currentVal = bucket[d.processName] || 0;
+     bucket[d.processName] = Math.max(currentVal, Number(d.memoryUsageMB) || 0);
   });
 
-  const allProcs = Array.from(procMap.entries()).map(([name, stats]) => ({
-    name,
-    ...stats,
-  }));
+  // Bucketed Data를 시간순 정렬
+  const sortedKeys = Array.from(bucketMap.keys()).sort();
+  xAxisData.value = sortedKeys; // X축 라벨
+
+  // Top Process 선정 (전체 기간 Max 기준)
+  const procStatsMap = new Map<string, { max: number; sum: number; count: number; last: number }>();
   
-  const topByMax = [...allProcs].sort((a, b) => b.max - a.max).slice(0, 5);
-  const topByLatest = [...allProcs]
-    .sort((a, b) => b.latest - a.latest)
-    .slice(0, 5);
-  const targetProcesses = new Set([
-    ...topByMax.map((p) => p.name),
-    ...topByLatest.map((p) => p.name),
-  ]);
-
-  displayedProcessCount.value = targetProcesses.size;
-
-  const timeMap = new Map<string, any>();
-  
-  data.forEach((d) => {
-    if (!targetProcesses.has(d.processName)) return;
-    
-    const ts = new Date(d.timestamp);
-    if (isNaN(ts.getTime())) return;
-    const tsKey = ts.toISOString(); 
-
-    if (!timeMap.has(tsKey)) timeMap.set(tsKey, { timestamp: tsKey });
-    timeMap.get(tsKey)[d.processName] = Number(d.memoryUsageMB) || 0;
+  data.forEach(d => {
+      const val = Number(d.memoryUsageMB) || 0;
+      if(!procStatsMap.has(d.processName)) {
+          procStatsMap.set(d.processName, { max: 0, sum: 0, count: 0, last: 0 });
+      }
+      const stat = procStatsMap.get(d.processName)!;
+      stat.max = Math.max(stat.max, val);
+      stat.sum += val;
+      stat.count++;
+      
+      // Last Value 갱신 (최대 시간과 일치하는 경우)
+      const dt = parseSafeDate(d.timestamp);
+      if (dt.isValid() && dt.valueOf() === maxTs) {
+          stat.last = val;
+      }
   });
 
-  const sortedData = Array.from(timeMap.values()).sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  // Top 5 선정
+  const allProcs = Array.from(procStatsMap.entries()).map(([name, stat]) => ({ name, ...stat }));
+  const topProcs = allProcs.sort((a, b) => b.max - a.max).slice(0, 5);
+  const targetNames = new Set(topProcs.map(p => p.name));
+  
+  displayedProcessCount.value = targetNames.size;
 
-  xAxisData.value = sortedData.map(d => d.timestamp);
-
+  // Chart Series 구성
   const series: any[] = [];
   const stats: ProcessStat[] = [];
-  const sortedTargetProcs = Array.from(targetProcesses).sort();
+  const sortedTargetProcs = Array.from(targetNames).sort();
 
   sortedTargetProcs.forEach((name, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? "#8b5cf6";
     
-    const seriesData = sortedData.map(d => d[name] ?? 0);
+    // 각 시간대별 해당 프로세스 값 추출
+    const seriesData = sortedKeys.map(key => {
+        const bucket = bucketMap.get(key);
+        return bucket ? (bucket[name] || 0) : 0;
+    });
 
     series.push({
       name: name,
       type: "line",
       smooth: true,
-      showSymbol: true,
+      showSymbol: false, // 데이터가 많을 수 있으므로 심볼 숨김
       symbolSize: 2,
       itemStyle: { color: color },
       lineStyle: { width: 2 },
       data: seriesData, 
     });
-
-    const pData = data.filter((d) => d.processName === name);
-    const sum = pData.reduce(
-      (acc, cur) => acc + (Number(cur.memoryUsageMB) || 0),
-      0
-    );
-    const max = pData.reduce((acc, cur) => Math.max(acc, Number(cur.memoryUsageMB) || 0), 0);
     
-    const last = pData.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )[0]?.memoryUsageMB || 0;
+    const statEntry = procStatsMap.get(name)!;
 
     stats.push({
       name,
       color,
-      max,
-      avg: pData.length > 0 ? sum / pData.length : 0,
-      last: Number(last) || 0,
+      max: statEntry.max,
+      avg: statEntry.sum / statEntry.count,
+      last: statEntry.last,
     });
   });
 
@@ -723,16 +743,19 @@ const resetFilters = () => {
   eqpIds.value = [];
   resetView();
   
-  endDate.value = new Date();
-  startDate.value = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 7일 전 설정
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0); 
+  const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
+  
+  endDate.value = now;
+  startDate.value = sevenDaysAgo;
 };
 
 const formattedPeriod = computed(() => {
   if (!startDate.value || !endDate.value) return "";
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
+  const fmt = (d: Date) => dayjs(d).format('YYYY-MM-DD');
   return `${fmt(startDate.value)} ~ ${fmt(endDate.value)}`;
 });
 
@@ -760,17 +783,8 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         if (!params || !params.length) return "";
         
-        const rawLabel = params[0].axisValue;
-        if (!rawLabel) return "";
-
-        const d = new Date(rawLabel);
-        const timeStr = isNaN(d.getTime())
-          ? rawLabel
-          : `${String(d.getHours()).padStart(2, "0")}:${String(
-              d.getMinutes()
-            ).padStart(2, "0")}`;
-
-        let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
+        const rawLabel = params[0].axisValue; // YYYY-MM-DD HH:mm
+        let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${rawLabel}</div>`;
         
         const sortedParams = [...params].sort(
           (a, b) => (b.value || 0) - (a.value || 0)
@@ -815,14 +829,8 @@ const chartOption = computed(() => {
         color: textColor,
         fontSize: 10,
         formatter: (value: string) => {
-          if (!value) return '';
-          const d = new Date(value);
-          if (isNaN(d.getTime())) return value;
-          return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-            d.getDate()
-          ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
-            d.getMinutes()
-          ).padStart(2, "0")}`;
+           // 분 단위 데이터이므로, 적절히 포맷팅 (예: 날짜+시간)
+           return value ? value.substring(5) : value; // MM-DD HH:mm
         },
       },
       axisLine: { lineStyle: { color: gridColor } },
@@ -921,4 +929,3 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
-
