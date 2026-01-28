@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import dayjs from 'dayjs'; // [추가]
 
 const props = defineProps<{
   notice: any
@@ -52,7 +53,12 @@ const visible = ref(true);
 const hideToday = ref(false);
 const hideWeek = ref(false);
 
-const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString();
+// [수정] 날짜 포맷 통일 (YYYY-MM-DD)
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '-';
+  const date = dayjs(dateStr);
+  return date.isValid() ? date.format('YYYY-MM-DD') : '-';
+};
 
 const closePopup = () => {
   visible.value = false;
