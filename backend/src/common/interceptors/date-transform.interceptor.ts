@@ -29,9 +29,10 @@ export class DateTransformInterceptor implements NestInterceptor {
 
     // 1. Date 객체인 경우: UTC 기준 문자열로 변환 (DB 값 그대로 유지)
     if (value instanceof Date) {
+      // [핵심 수정] 'YY' -> 'YYYY'로 변경하여 연도 4자리 포맷 준수
       // .utc()를 사용하여 서버 로컬 시간대(KST)의 간섭을 받지 않고
       // Date 객체가 가진 시간 숫자 그대로를 문자열로 출력합니다.
-      return dayjs(value).utc().format('YY-MM-DD HH:mm:ss');
+      return dayjs(value).utc().format('YYYY-MM-DD HH:mm:ss');
     }
 
     // 2. 배열인 경우: 내부 아이템 재귀 변환
