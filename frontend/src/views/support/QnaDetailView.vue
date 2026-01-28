@@ -190,6 +190,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { boardApi } from '@/api/board';
+import dayjs from 'dayjs'; // [추가] 날짜 포맷팅
 
 const route = useRoute();
 const router = useRouter();
@@ -278,7 +279,6 @@ const deletePost = async () => {
   }
 };
 
-// [수정] 댓글 등록 로직 개선 (하나의 트랜잭션 호출)
 const submitComment = async () => {
   if (!newComment.value.trim()) return;
   
@@ -289,19 +289,17 @@ const submitComment = async () => {
 
   isSubmittingComment.value = true;
   try {
-    // 관리자가 '답변 완료' 체크 시 status 파라미터 전달
     const statusParam = (isAdminRole(authStore.user.role) && markAsAnswered.value) ? 'ANSWERED' : undefined;
 
-    // 댓글 등록 + 상태 변경을 한 번에 요청 (Atomic)
     await boardApi.createComment({
       postId: post.value.postId,
       authorId: authStore.user.userId,
       content: newComment.value,
-      status: statusParam // backend에서 트랜잭션 처리
+      status: statusParam 
     });
 
     newComment.value = '';
-    await fetchPost(); // 목록 갱신
+    await fetchPost(); 
   } catch (e) {
     alert("댓글/답변 등록에 실패했습니다.");
     console.error(e);
@@ -343,7 +341,12 @@ const requestDeleteComment = async (commentId: number) => {
   }
 };
 
-const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString();
+// [수정] 날짜 포맷 통일 (YYYY-MM-DD HH:mm) 및 안전성 확보
+const formatDate = (dateStr: string | Date) => {
+  if (!dateStr) return '-';
+  const date = dayjs(dateStr);
+  return date.isValid() ? date.format('YYYY-MM-DD HH:mm') : '-';
+};
 
 const getCategoryColor = (cat: string) => {
   switch (cat) {
