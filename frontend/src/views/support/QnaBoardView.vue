@@ -151,6 +151,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { boardApi, type BoardPost } from '@/api/board';
+import dayjs from 'dayjs';
 
 const router = useRouter();
 const loading = ref(false);
@@ -196,22 +197,19 @@ const fetchPosts = async () => {
   }
 };
 
-// [수정] 대소문자 구분 없이 권한 체크
 const isAdminRole = (role?: string) => {
   if (!role) return false;
   const upperRole = role.toUpperCase();
   return upperRole === 'ADMIN' || upperRole === 'MANAGER';
 };
 
-// [수정] 권한별 작성자 이름 표시 함수 (아이디 대신 권한명)
 const getAuthorName = (authorId: string, role?: string) => {
   if (isAdminRole(role)) {
-    return role?.toUpperCase(); // ADMIN or MANAGER
+    return role?.toUpperCase(); 
   }
   return authorId;
 };
 
-// [수정] 권한별 텍스트 스타일
 const getAuthorClass = (role?: string) => {
   if (isAdminRole(role)) {
     return 'text-indigo-600 dark:text-indigo-400 font-bold';
@@ -247,7 +245,12 @@ const goToDetail = (post: BoardPost) => {
   router.push({ name: 'qna-detail', params: { id: post.postId } });
 };
 
-const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString();
+// [수정] 날짜 포맷 안전 처리 (Invalid Date 방지)
+const formatDate = (dateStr: string | Date) => {
+  if (!dateStr) return '-';
+  const date = dayjs(dateStr);
+  return date.isValid() ? date.format('YYYY-MM-DD') : '-';
+};
 
 const getCategoryColor = (cat: string) => {
   switch (cat) {
