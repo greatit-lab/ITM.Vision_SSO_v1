@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 
 // [수정] ESLint unsafe-* 해결을 위한 명시적 인덱스 시그니처 인터페이스
 interface RawDataApiItem {
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface ErrorLog {
@@ -80,19 +80,16 @@ export class ErrorService {
     if (!item) return undefined;
 
     // 1. 명확한 키 우선 확인 (타입 단언으로 unsafe-return 해결)
-    if (typeof item['timeStamp'] === 'string' || item['timeStamp'] instanceof Date) return item['timeStamp'];
-    if (typeof item['timestamp'] === 'string' || item['timestamp'] instanceof Date) return item['timestamp'];
-    if (typeof item['time_stamp'] === 'string' || item['time_stamp'] instanceof Date) return item['time_stamp'];
+    if (item['timeStamp']) return item['timeStamp'] as string | Date;
+    if (item['timestamp']) return item['timestamp'] as string | Date;
+    if (item['time_stamp']) return item['time_stamp'] as string | Date;
 
     // 2. 키 목록을 순회하며 'timestamp'가 포함된 키 찾기
     const keys = Object.keys(item);
     const targetKey = keys.find(k => k.toLowerCase().replace(/_/g, '') === 'timestamp');
     
     if (targetKey) {
-        const val = item[targetKey];
-        if (typeof val === 'string' || val instanceof Date) {
-            return val;
-        }
+        return item[targetKey] as string | Date;
     }
     return undefined;
   }
