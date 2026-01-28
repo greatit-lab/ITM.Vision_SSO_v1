@@ -228,13 +228,19 @@ const stageGroups = ref<string[]>([]);
 const waferList = ref<string[]>([]);
 const pointIds = ref<string[]>([]);
 
+// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+
 const filters = reactive({
   eqpId: "",
   lotId: "",
   cassetteRcp: "",
   stageGroup: "",
   pointId: "",
-  startDate: new Date(Date.now() - 7 * 864e5),
+  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
   endDate: new Date(),
 });
 
@@ -267,7 +273,7 @@ const slotColors = [
   "#3B82F6", "#10B981", "#F43F5E", "#8B5CF6", "#06B6D4", "#EC4899", "#6366F1", "#14B8A6", "#F97316", "#64748B", "#D946EF", "#0EA5E9",
 ];
 
-// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+// [추가] 통합 날짜 보정 및 로직
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -278,13 +284,11 @@ watch(
       // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
            filters.endDate = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
            filters.startDate = new Date(newEnd);
         }
-        return; // 보정 발생 시 로딩 중단
+        return; 
       }
     }
 
@@ -710,7 +714,11 @@ const resetFilters = () => {
   localStorage.removeItem("spec_site");
   localStorage.removeItem("spec_sdwt");
   localStorage.removeItem("spec_eqp");
-  filters.startDate = new Date(Date.now() - 7 * 864e5);
+  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0); 
+  filters.startDate = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
   filters.endDate = new Date();
   resetFrom(0);
 };
