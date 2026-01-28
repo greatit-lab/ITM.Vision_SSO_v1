@@ -10,19 +10,20 @@ export interface EquipmentHealthDto {
     performance: number;
     component: number;
     stability: number;
-    optical: number; // [추가] 백엔드 연동
+    optical: number; 
   };
   details: {
     errorCount: number;
     avgResourceUsage: number;
     lampUsageRatio: number;
     tempVolatility: number;
-    avgIntensity: number; // [추가]
-    snrValue: number;     // [추가]
+    avgIntensity: number; 
+    snrValue: number;    
   };
 }
 
 export const healthApi = {
+  // [수정] baseDate 제거
   getSummary: async (site: string, sdwt?: string) => {
     const params = { site, sdwt };
     const { data } = await http.get<EquipmentHealthDto[]>("/Health/summary", { params });
