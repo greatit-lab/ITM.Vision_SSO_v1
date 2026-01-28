@@ -215,6 +215,7 @@
             <EChart
               v-if="chartData.length > 0"
               :option="cpuOption"
+              class="w-full h-full"
               @chartCreated="(inst) => onChartInit('cpu', inst)"
             />
             <div
@@ -251,6 +252,7 @@
             <EChart
               v-if="chartData.length > 0"
               :option="memOption"
+              class="w-full h-full"
               @chartCreated="(inst) => onChartInit('mem', inst)"
             />
             <div
@@ -287,6 +289,7 @@
             <EChart
               v-if="chartData.length > 0"
               :option="cpuTempFanOption"
+              class="w-full h-full"
               @chartCreated="(inst) => onChartInit('dual', inst)"
             />
             <div
@@ -323,6 +326,7 @@
             <EChart
               v-if="chartData.length > 0"
               :option="gpuOption"
+              class="w-full h-full"
               @chartCreated="(inst) => onChartInit('gpu', inst)"
             />
             <div
@@ -435,7 +439,7 @@
 
     <div
       v-else
-      class="flex flex-col items-center justify-center flex-1 min-h-[400px] opacity-50 select-none"
+      class="flex flex-col items-center justify-center flex-1 min-h-[400px] text-slate-400 opacity-50 select-none"
     >
       <div
         class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
@@ -444,7 +448,9 @@
           class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-chart-line"
         ></i>
       </div>
-      <p class="text-sm font-bold text-slate-500">Ready to analyze.</p>
+      <p class="text-sm font-bold text-slate-500">
+        Ready to Analyze Performance
+      </p>
       <p class="mt-1 text-xs text-slate-400">
         Select Equipment and Time Range to view performance trends.
       </p>
@@ -464,6 +470,8 @@ import {
 } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
+// [추가] dayjs 도입
+import dayjs from "dayjs";
 
 // PrimeVue
 import Select from "primevue/select";
@@ -485,7 +493,14 @@ interface PerformanceSummary {
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const selectedEqpId = ref("");
-const startDate = ref(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+// [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 24시간(1일) 전 설정
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0); 
+const oneDayAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
+
+const startDate = ref(oneDayAgo);
 const endDate = ref(new Date());
 const intervalSeconds = ref(0);
 
@@ -524,18 +539,27 @@ const intervalOptions = [
   { label: "5 Min", value: 300 },
 ];
 
-// [추가] 날짜 자동 보정 로직
-watch(startDate, (newStart) => {
-  if (newStart && endDate.value && newStart > endDate.value) {
-    endDate.value = new Date(newStart);
-  }
-});
+// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
+watch(
+  [startDate, endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart && newEnd) {
+      const startMs = newStart.getTime();
+      const endMs = newEnd.getTime();
 
-watch(endDate, (newEnd) => {
-  if (newEnd && startDate.value && newEnd < startDate.value) {
-    startDate.value = new Date(newEnd);
+      // 시작일이 종료일보다 늦어지면
+      if (startMs > endMs) {
+        if (startMs !== oldStart?.getTime()) {
+           // 시작일이 변경된 경우 -> 종료일을 시작일로 맞춤
+           endDate.value = new Date(newStart);
+        } else if (endMs !== oldEnd?.getTime()) {
+           // 종료일이 변경된 경우 -> 시작일을 종료일로 맞춤
+           startDate.value = new Date(newEnd);
+        }
+      }
+    }
   }
-});
+);
 
 // [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결)
 const toLocalISOString = (date: Date) => {
@@ -543,6 +567,7 @@ const toLocalISOString = (date: Date) => {
   const d = new Date(date);
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
+  // YYYY-MM-DD HH:mm:ss 포맷
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
@@ -645,7 +670,6 @@ const onEqpIdChange = () => {
     localStorage.removeItem("performance_eqpid");
   }
   
-  // [수정] EQP ID 변경 시 초기화
   hasSearched.value = false;
   chartData.value = [];
   summaryData.value = [];
@@ -668,9 +692,12 @@ const resetFilters = () => {
   hasSearched.value = false;
   intervalSeconds.value = 0;
   
-  // 날짜 초기화
+  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0); 
+  startDate.value = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
   endDate.value = new Date();
-  startDate.value = new Date(Date.now() - 24 * 60 * 60 * 1000);
 };
 
 const loadEqpIds = async () => {
@@ -693,10 +720,11 @@ const loadEqpIds = async () => {
 const getTooltipFormatter = (unitMap: Record<string, string>) => {
   return (params: any) => {
     if (!params || !params[0]) return "";
-    const xDate = new Date(params[0].axisValueLabel);
-    const timeStr = isNaN(xDate.getTime())
-      ? params[0].axisValueLabel
-      : xDate.toLocaleTimeString("en-GB", { hour12: false });
+    
+    // [수정] dayjs 포맷팅 적용 (MM-DD HH:mm:ss)
+    const timeStr = dayjs(params[0].axisValueLabel).isValid() 
+        ? dayjs(params[0].axisValueLabel).format('MM-DD HH:mm:ss') 
+        : params[0].axisValueLabel;
 
     let html = `<div class="mb-1 font-bold">${timeStr}</div>`;
 
@@ -783,13 +811,9 @@ const commonChartOption = () => {
         color: textColor,
         fontSize: 10,
         formatter: (value: string) => {
-          const d = new Date(value);
-          if (isNaN(d.getTime())) return value;
-          return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-            d.getDate()
-          ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
-            d.getMinutes()
-          ).padStart(2, "0")}`;
+          // [수정] dayjs 포맷팅 적용 (유효한 날짜면 포맷팅, 아니면 그대로)
+          const d = dayjs(value);
+          return d.isValid() ? d.format('MM-DD HH:mm') : value;
         },
       },
       axisLine: { lineStyle: { color: gridColor } },
@@ -1052,11 +1076,9 @@ const updateRealtimeDates = () => {
 const searchData = async (silent = false) => {
   if (!selectedEqpId.value) return;
   
-  // [수정] 차트 영역을 먼저 보여주고, 로딩 오버레이 표시
   hasSearched.value = true;
   if (!silent) isLoading.value = true;
 
-  // 데이터 초기화
   chartData.value = [];
   summaryData.value = [];
 
@@ -1091,11 +1113,20 @@ const searchData = async (silent = false) => {
     chartData.value = rawData
       .filter((d) => d.timestamp)
       .map((d) => {
-        let ts = String(d.timestamp || "");
-        if (ts.includes(".")) {
-          ts = ts.split(".")[0] ?? ts;
+        // [수정] "Invalid Date" 방지 로직 강화
+        // 1. 문자열 변환 및 Null Safety
+        let rawTs = String(d.timestamp || "");
+        
+        // 2. 'Z' 제거 (UTC 강제 변환 방지 -> 로컬 시간으로 해석 유도)
+        if (rawTs.includes("Z")) {
+            rawTs = rawTs.replace("Z", "");
         }
-        if (ts.includes("Z")) ts = ts.replace("Z", "");
+        
+        // 3. Dayjs 파싱
+        const parsed = dayjs(rawTs);
+        
+        // 4. 포맷팅 (유효하지 않으면 원본 또는 빈 문자열)
+        const ts = parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : rawTs;
 
         return {
           eqpId: d.eqpId || "",
@@ -1148,14 +1179,11 @@ const calculateSummary = (data: PerformanceDataPointDto[]) => {
   ];
 };
 
+// [수정] dayjs 사용 및 안전한 포맷팅
 const formatDate = (dateStr: string | undefined) => {
   if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  const parsed = dayjs(dateStr);
+  return parsed.isValid() ? parsed.format('MM-DD HH:mm:ss') : dateStr;
 };
 
 const fmt = (val: number | string | undefined, digits: number) => {
@@ -1223,4 +1251,3 @@ const fmt = (val: number | string | undefined, digits: number) => {
   padding: 4px 8px !important;
 }
 </style>
-
