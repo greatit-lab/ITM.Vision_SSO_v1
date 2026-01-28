@@ -198,7 +198,7 @@
                 </h3>
               </div>
               <span class="text-[10px] text-slate-400 mt-0.5">
-                웨이퍼 중심 위치 분포 (X/Y 축 치우침 확인)
+                Wafer Center Position Distribution
               </span>
             </div>
             <div class="relative w-full h-[260px] p-2 overflow-hidden">
@@ -240,7 +240,7 @@
                 </div>
               </div>
               <span class="text-[10px] text-slate-400 mt-0.5">
-                X/Y 축 데이터 정규 분포 및 통계 확인
+                X/Y Axis Distribution & Statistics
               </span>
             </div>
 
@@ -290,7 +290,7 @@
                 </h3>
               </div>
               <span class="text-[10px] text-slate-400 mt-0.5">
-                Notch 회전 각도와 위치 변동 간 상관관계
+                Correlation: Notch Angle vs Shift
               </span>
             </div>
             <div class="relative w-full h-[260px] p-2 overflow-hidden">
@@ -318,7 +318,7 @@ import {
   computed,
   onUnmounted,
   watch,
-  nextTick, // [추가]
+  nextTick,
 } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -326,6 +326,8 @@ import { getEqpIds } from "@/api/equipment";
 import { getPreAlignData, type PreAlignData } from "@/api/prealign";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
+// [추가] Day.js 도입
+import dayjs from "dayjs";
 
 // Components
 import Select from "primevue/select";
@@ -342,11 +344,17 @@ const LS_KEYS = {
 };
 
 // --- State ---
+// [수정] 날짜 초기화: '오늘 00:00:00' 기준 7일 전
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0); 
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
+
 const filter = reactive({
   site: "",
   sdwt: "",
   eqpId: "",
-  startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  startDate: sevenDaysAgo,
   endDate: new Date(),
 });
 
@@ -368,7 +376,7 @@ const activeTab = ref('X');
 
 // Chart Instance & Observer
 let chartInstance: ECharts | null = null;
-let resizeObserver: ResizeObserver | null = null; // [추가]
+let resizeObserver: ResizeObserver | null = null;
 
 // Theme detection
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
@@ -380,16 +388,25 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
+// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
+const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
+  let str = String(ts || "");
+  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
+  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
+  if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
+      str = "20" + str;
+  }
+  return dayjs(str);
+};
+
 // [수정] Chart Event Handlers: Manual Resize Observer 적용
 const onChartCreated = (instance: any) => {
   chartInstance = instance;
   
-  // 수동 리사이징 옵저버 등록 (Chrome 무한 루프 방지)
   resizeObserver = new ResizeObserver(() => {
     chartInstance?.resize();
   });
 
-  // 부모 요소 감지
   nextTick(() => {
     const el = instance.getDom();
     if (el?.parentElement) {
@@ -501,6 +518,7 @@ watch(
   }
 );
 
+// [핵심] 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -552,7 +570,6 @@ onMounted(async () => {
 onUnmounted(() => {
   themeObserver.disconnect();
   window.removeEventListener("resize", handleResize);
-  // [추가] 옵저버 해제
   resizeObserver?.disconnect();
   resizeObserver = null;
 });
@@ -597,7 +614,18 @@ const search = async () => {
       endDate: toLocalISOString(filter.endDate, true)
     });
     const data = (res && res.data) ? res.data : res;
-    chartData.value = Array.isArray(data) ? data : [];
+    
+    // [수정] 데이터 매핑 및 날짜 포맷팅 (Short Year 보정)
+    chartData.value = (Array.isArray(data) ? data : []).map(d => ({
+        ...d,
+        timestamp: parseSafeDate(d.timestamp).isValid() 
+             ? parseSafeDate(d.timestamp).format('YYYY-MM-DD HH:mm:ss')
+             : d.timestamp
+    })).sort((a, b) => {
+        // 시간순 정렬
+        return dayjs(a.timestamp).valueOf() - dayjs(b.timestamp).valueOf();
+    });
+
   } catch (e) {
     console.error("Failed to load PreAlign data:", e);
   } finally {
@@ -607,8 +635,13 @@ const search = async () => {
 
 const reset = () => {
   filter.site = ""; filter.sdwt = ""; filter.eqpId = "";
-  filter.startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // [수정] 초기화 시 오늘 00:00:00 기준 7일 전
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0); 
+  filter.startDate = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
   filter.endDate = new Date();
+  
   sdwts.value = []; eqpIds.value = [];
   resetView();
 };
@@ -635,8 +668,8 @@ const trendOption = computed(() => {
       backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
       formatter: (params: any) => {
          if (!params[0]) return "";
-         const date = new Date(params[0].value[0]);
-         const dateStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+         // [수정] dayjs 포맷팅 사용
+         const dateStr = dayjs(params[0].axisValue).format('MM-DD HH:mm');
          let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1 text-xs">${dateStr}</div>`;
          params.forEach((p: any) => {
             const val = p.value[1] !== undefined ? p.value[1].toFixed(4) : "-";
@@ -649,18 +682,13 @@ const trendOption = computed(() => {
     grid: { left: 50, right: 50, top: 30, bottom: 25, containLabel: false },
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
     xAxis: {
-      type: "time", boundaryGap: false,
+      type: "category", // [수정] Time 축을 Category로 변경하여 날짜 문자열 그대로 표시
+      boundaryGap: false,
+      data: chartData.value.map(d => d.timestamp),
       axisLabel: { 
         color: textColor, 
         fontSize: 10,
-        formatter: (value: any) => {
-           const date = new Date(value);
-           const mm = String(date.getMonth() + 1).padStart(2, '0');
-           const dd = String(date.getDate()).padStart(2, '0');
-           const hh = String(date.getHours()).padStart(2, '0');
-           const min = String(date.getMinutes()).padStart(2, '0');
-           return `${mm}-${dd} ${hh}:${min}`;
-        }
+        formatter: (value: any) => dayjs(value).format('MM-DD HH:mm')
       },
       axisLine: { lineStyle: { color: gridColor } },
       splitLine: { show: false },
@@ -708,7 +736,6 @@ const scatterOption = computed(() => {
        axisLabel: { 
          color: textColor, 
          fontSize: 10,
-         // [수정] 소수점 3자리 Formatter
          formatter: (value: number) => value.toFixed(3)
        },
        splitLine: { lineStyle: { color: gridColor } },
@@ -720,7 +747,6 @@ const scatterOption = computed(() => {
        axisLabel: { 
          color: textColor, 
          fontSize: 10,
-         // [수정] 소수점 3자리 Formatter
          formatter: (value: number) => value.toFixed(3)
        },
        splitLine: { lineStyle: { color: gridColor } },
