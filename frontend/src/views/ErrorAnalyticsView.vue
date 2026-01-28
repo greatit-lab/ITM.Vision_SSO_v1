@@ -139,12 +139,11 @@
                 <p class="font-medium">No logs found.</p>
               </div>
             </template>
-            <Column field="timeStamp" header="Time" style="min-width: 140px">
+            <Column field="timeStamp" header="Time" style="min-width: 160px">
               <template #body="{ data }">
-                <div class="flex flex-col">
-                  <span class="font-bold text-slate-700 dark:text-slate-300">{{ formatDate(data.timeStamp).split(" ")[0] }}</span>
-                  <span class="text-slate-400 font-mono">{{ formatDate(data.timeStamp).split(" ")[1] }}</span>
-                </div>
+                <span class="font-bold text-slate-700 dark:text-slate-300 font-mono">
+                  {{ formatDate(data.timeStamp, false, true) }}
+                </span>
               </template>
             </Column>
             <Column field="eqpId" header="EQP ID" style="min-width: 120px">
@@ -249,17 +248,12 @@ watch(
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   
-  // [수정] 사용자 컨텍스트 반영 로직 수정
-  // 기존: localStorage || authStore || "" 로 Site 설정 후, SDWT는 Site 존재 여부에 따라 LS 검색.
-  // 변경: 명확한 분기 처리. LS에 Site가 있으면 LS SDWT, 없으면 Auth Site/SDWT 사용
   let targetSite = localStorage.getItem(LS_KEYS.SITE);
   let targetSdwt = "";
 
   if (targetSite) {
-    // LocalStorage 우선
     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
   } else {
-    // Auth Store fallback
     targetSite = authStore.user?.site || "";
     targetSdwt = authStore.user?.sdwt || "";
   }
@@ -278,7 +272,6 @@ onMounted(async () => {
           filter.eqpId = initEqpId;
         }
         
-        // 자동 검색 실행
         if (filter.sdwt) {
             search();
         }
@@ -294,7 +287,8 @@ watch(() => filter.site, (n) => n ? localStorage.setItem(LS_KEYS.SITE, n) : loca
 watch(() => filter.sdwt, (n) => n ? localStorage.setItem(LS_KEYS.SDWT, n) : localStorage.removeItem(LS_KEYS.SDWT));
 watch(() => filter.eqpId, (n) => n ? localStorage.setItem(LS_KEYS.EQPID, n) : localStorage.removeItem(LS_KEYS.EQPID));
 
-const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+// 날짜 문자열 생성 로직
+const toDateTimeString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
   if (isEndDate) {
@@ -302,9 +296,15 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   } else {
     d.setHours(0, 0, 0, 0);
   }
-  const offset = d.getTimezoneOffset() * 60000;
-  const localDate = new Date(d.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+  
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  
+  return `${yy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 };
 
 const resetView = () => {
@@ -338,14 +338,14 @@ const onEqpIdChange = () => {
 };
 
 const getEffectiveParams = () => {
-  let startStr = toLocalISOString(filter.startDate);
-  let endStr = toLocalISOString(filter.endDate, true);
+  let startStr = toDateTimeString(filter.startDate);
+  let endStr = toDateTimeString(filter.endDate, true);
   let eqps = filter.eqpId;
 
   if (gridFilter.date) {
     const d = new Date(gridFilter.date);
-    startStr = toLocalISOString(d);
-    endStr = toLocalISOString(d, true);
+    startStr = toDateTimeString(d);
+    endStr = toDateTimeString(d, true);
   }
   
   if (gridFilter.eqpId) {
@@ -420,7 +420,6 @@ const loadGridData = async () => {
     };
     const res = await getErrorLogs(params);
     
-    // API 응답 유연성 확보
     const responseData = res as any;
     const data = (responseData && responseData.data) ? responseData.data : responseData;
 
@@ -483,7 +482,8 @@ const trendOption = computed(() => {
     backgroundColor: "transparent",
     tooltip: { trigger: "axis", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" } },
     grid: { left: 40, right: 20, top: 30, bottom: 20, containLabel: true },
-    xAxis: { type: "category", data: trendData.value.map((d) => formatDate(d.date, true)), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
+    // [수정] X축 라벨 포맷 변경: 'formatDate(d.date, true)' (MM-DD) -> 'formatDate(d.date, false, true).split(' ')[0]' (YY-MM-DD)
+    xAxis: { type: "category", data: trendData.value.map((d) => formatDate(d.date, false, true).split(' ')[0]), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
     yAxis: { type: "value", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
     series: [{ name: "Alerts", type: "bar", data: trendData.value.map((d) => d.count), itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 50, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
   };
@@ -504,9 +504,24 @@ const byEqpOption = computed(() => {
   };
 });
 
+// [수정] 포맷팅 로직 강화 (2자리 연도 "25-12-17" 지원)
 const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
-  if (!dateStr) return "-";
+  if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return "-";
+  
+  // [핵심] YYYY-MM-DD 뿐만 아니라 YY-MM-DD 포맷도 허용 (2자리, 4자리 모두 OK)
+  const isFormatted = /^\d{2,4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr);
+  if (isFormatted) {
+      if (short) return dateStr.substring(5, 10);
+      if (twoDigitYear) return dateStr.substring(dateStr.indexOf("-") - 2); // 이미 포맷팅된 경우 처리
+      return dateStr;
+  }
+  
+  // Date 객체 파싱 시도 (ISO String 등)
   const d = new Date(dateStr);
+  
+  // Invalid Date 체크 (NaN 방지)
+  if (isNaN(d.getTime())) return "-";
+
   const yy = d.getFullYear(); const yy2 = String(yy).slice(2); const mm = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0");
   if (short) return `${mm}-${dd}`;
   if (twoDigitYear) return `${yy2}-${mm}-${dd} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
