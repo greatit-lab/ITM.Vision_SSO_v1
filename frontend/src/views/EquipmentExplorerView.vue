@@ -467,8 +467,9 @@
 import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
-// [수정] 올바른 함수 및 타입 import
 import { getEquipmentDetails, type EquipmentDto } from "@/api/equipment";
+// [핵심] npm install dayjs 필요
+import dayjs from 'dayjs';
 
 // Components
 import Select from "primevue/select";
@@ -488,7 +489,6 @@ const isLoading = ref(false);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
-// [수정] 타입 지정 EquipmentDto[]
 const equipmentList = ref<EquipmentDto[]>([]);
 
 // Manual Pagination State
@@ -612,7 +612,6 @@ const onEqpIdChange = () => {
 const loadEquipmentData = async () => {
   isLoading.value = true;
   try {
-    // [수정] getEquipmentDetails 함수 호출
     equipmentList.value = await getEquipmentDetails({
       site: selectedSite.value,
       sdwt: selectedSdwt.value
@@ -677,13 +676,10 @@ const formatSimpleCpu = (cpu: string) => {
   return cpu.replace("Intel(R) Core(TM)", "").replace("CPU @", "").trim();
 };
 
+// [수정] dayjs 사용으로 날짜 포맷 표준화
 const formatDate = (d: string | null) => {
   if (!d) return "-";
-  const date = new Date(d);
-  const yy = date.getUTCFullYear().toString().slice(2);
-  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(date.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
+  return dayjs(d).format('YY-MM-DD');
 };
 
 const formatTimezone = (tz: string) => {
@@ -798,4 +794,3 @@ const copyToClipboard = async (text: string) => {
   @apply w-3 h-3;
 }
 </style>
-
