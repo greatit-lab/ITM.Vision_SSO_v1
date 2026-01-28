@@ -22,11 +22,11 @@ export interface HealthDto {
 
 @Injectable()
 export class HealthService {
-  // [중요] Data API Controller가 대문자 'Health'를 사용함
   private readonly DOMAIN = 'Health';
 
   constructor(private readonly dataApiService: DataApiService) {}
 
+  // [수정] baseDate 파라미터 및 로직 제거
   async getHealthSummary(site?: string, sdwt?: string): Promise<HealthDto[]> {
     const params: Record<string, string> = {};
     if (site) params.site = site;
