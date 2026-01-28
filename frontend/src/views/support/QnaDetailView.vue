@@ -19,15 +19,18 @@
         >
           {{ post.category }}
         </span>
+        
         <h1 class="text-lg font-bold text-slate-800 dark:text-slate-100 truncate pr-4" :title="post.title">
           {{ post.title }}
         </h1>
+        
         <span v-if="post.isSecret === 'Y'" class="flex-shrink-0 text-amber-500" title="비밀글">
           <i class="pi pi-lock text-xs"></i>
         </span>
       </div>
 
       <div class="flex items-center gap-5 text-xs text-slate-500 dark:text-slate-400 flex-shrink-0">
+        
         <div class="flex items-center gap-1.5">
             <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
               :class="isAdminRole(post.user?.role) ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-zinc-600'">
@@ -37,10 +40,19 @@
               {{ getAuthorName(post.authorId, post.user?.role) }}
             </span>
         </div>
-        <div class="flex items-center gap-1.5" title="작성일">
-            <i class="pi pi-calendar text-[10px]"></i>
-            <span>{{ formatDate(post.createdAt) }}</span>
+
+        <div class="w-px h-3 bg-slate-200 dark:bg-zinc-700"></div>
+
+        <div class="flex items-center gap-2">
+           <span title="작성일">{{ formatDate(post.createdAt) }}</span>
+           
+           <div v-if="isModified(post)" class="flex items-center gap-1 text-slate-400" title="수정됨">
+              <i class="pi pi-pencil text-[10px]"></i> <span>{{ formatDate(post.updatedAt) }}</span>
+           </div>
         </div>
+
+        <div class="w-px h-3 bg-slate-200 dark:bg-zinc-700"></div>
+
         <div class="flex items-center gap-1.5" title="조회수">
             <i class="pi pi-eye text-[10px]"></i>
             <span>{{ post.views }}</span>
@@ -190,7 +202,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { boardApi } from '@/api/board';
-import dayjs from 'dayjs'; // [추가] 날짜 포맷팅
+import dayjs from 'dayjs';
 
 const route = useRoute();
 const router = useRouter();
@@ -200,7 +212,6 @@ const loading = ref(true);
 const post = ref<any>(null);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
-
 const markAsAnswered = ref(true);
 
 const editingCommentId = ref<number | null>(null);
@@ -229,16 +240,12 @@ const isAdminRole = (role?: string) => {
 };
 
 const getAuthorName = (authorId: string, role?: string) => {
-  if (isAdminRole(role)) {
-    return role?.toUpperCase();
-  }
+  if (isAdminRole(role)) return role?.toUpperCase();
   return authorId;
 };
 
 const getAuthorInitial = (authorId: string, role?: string) => {
-  if (isAdminRole(role)) {
-     return role?.charAt(0).toUpperCase();
-  }
+  if (isAdminRole(role)) return role?.charAt(0).toUpperCase();
   return authorId ? authorId.charAt(0).toUpperCase() : '?';
 };
 
@@ -246,6 +253,28 @@ const getCommentAvatarClass = (authorId: string, role?: string) => {
   if (isAdminRole(role)) return 'bg-indigo-600 text-white';
   if (isPostAuthorComment(authorId)) return 'bg-indigo-500 text-white';
   return 'bg-slate-200 text-slate-600';
+};
+
+// [확인] 수정 여부 판별 (Updated가 존재하고 Created와 다를 때)
+const isModified = (postItem: any) => {
+  if (!postItem || !postItem.updatedAt || !postItem.createdAt) return false;
+  const created = dayjs(postItem.createdAt);
+  const updated = dayjs(postItem.updatedAt);
+  return updated.format('YYYY-MM-DD HH:mm') !== created.format('YYYY-MM-DD HH:mm');
+};
+
+const formatDate = (dateStr: string | Date) => {
+  if (!dateStr) return '-';
+  const date = dayjs(dateStr);
+  return date.isValid() ? date.format('YYYY.MM.DD HH:mm') : '-';
+};
+
+const getCategoryColor = (cat: string) => {
+  switch (cat) {
+    case 'NOTICE': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30';
+    case 'BUG': return 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30';
+    default: return 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/30';
+  }
 };
 
 const fetchPost = async () => {
@@ -281,28 +310,23 @@ const deletePost = async () => {
 
 const submitComment = async () => {
   if (!newComment.value.trim()) return;
-  
   if (!authStore.user) {
     alert("로그인이 필요합니다.");
     return;
   }
-
   isSubmittingComment.value = true;
   try {
     const statusParam = (isAdminRole(authStore.user.role) && markAsAnswered.value) ? 'ANSWERED' : undefined;
-
     await boardApi.createComment({
       postId: post.value.postId,
       authorId: authStore.user.userId,
       content: newComment.value,
       status: statusParam 
     });
-
     newComment.value = '';
     await fetchPost(); 
   } catch (e) {
     alert("댓글/답변 등록에 실패했습니다.");
-    console.error(e);
   } finally {
     isSubmittingComment.value = false;
   }
@@ -320,7 +344,6 @@ const cancelEdit = () => {
 
 const saveEdit = async (commentId: number) => {
   if (!editContent.value.trim()) return;
-  
   try {
     await boardApi.updateComment(commentId, editContent.value);
     await fetchPost();
@@ -332,7 +355,6 @@ const saveEdit = async (commentId: number) => {
 
 const requestDeleteComment = async (commentId: number) => {
   if (!confirm("정말로 댓글을 삭제하시겠습니까?")) return;
-  
   try {
     await boardApi.deleteComment(commentId);
     await fetchPost(); 
@@ -341,27 +363,9 @@ const requestDeleteComment = async (commentId: number) => {
   }
 };
 
-// [수정] 날짜 포맷 통일 (YYYY-MM-DD HH:mm) 및 안전성 확보
-const formatDate = (dateStr: string | Date) => {
-  if (!dateStr) return '-';
-  const date = dayjs(dateStr);
-  return date.isValid() ? date.format('YYYY-MM-DD HH:mm') : '-';
-};
-
-const getCategoryColor = (cat: string) => {
-  switch (cat) {
-    case 'NOTICE': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30';
-    case 'BUG': return 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30';
-    default: return 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/30';
-  }
-};
-
-watch(
-  () => route.params.id,
-  (newId) => {
-    if (newId) fetchPost();
-  }
-);
+watch(() => route.params.id, (newId) => {
+  if (newId) fetchPost();
+});
 
 onMounted(() => {
   fetchPost();
