@@ -86,6 +86,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { boardApi, type BoardPost } from '@/api/board';
+import dayjs from 'dayjs'; // [추가]
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -114,8 +115,11 @@ const writeNotice = () => {
   router.push({ name: 'qna-write', query: { category: 'NOTICE' } });
 };
 
+// [수정] 날짜 포맷 통일 (YYYY-MM-DD)
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString();
+  if (!dateStr) return '-';
+  const date = dayjs(dateStr);
+  return date.isValid() ? date.format('YYYY-MM-DD') : '-';
 };
 
 const isNew = (dateStr: string) => {
