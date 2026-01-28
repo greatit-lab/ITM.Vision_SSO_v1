@@ -562,9 +562,13 @@
                 class="p-3 border rounded-lg bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800"
               >
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-[10px] font-bold uppercase text-slate-400"
-                    >Signal Quality (SNR)</span
-                  >
+                  <div class="flex items-center gap-1">
+                    <span class="text-[10px] font-bold uppercase text-slate-400">Current Signal Quality (Latest)</span>
+                    <i 
+                        class="pi pi-question-circle text-[9px] text-slate-400 cursor-help"
+                        v-tooltip.top="'조회 기간의 평균(Avg)이 아닌, 가장 마지막 측정값(현재 상태)입니다.'"
+                    ></i>
+                  </div>
                   <div class="flex items-center gap-1">
                     <span 
                       class="text-[10px] font-bold"
@@ -586,8 +590,15 @@
                   ></div>
                 </div>
                 <p class="mt-1 text-[10px] text-slate-500">
-                  <span v-if="diagnostics.snrValue < 20" class="text-rose-500 font-bold">잡음이 심합니다. (Low Quality)</span>
-                  <span v-else>신호 품질이 양호합니다.</span>
+                  <template v-if="diagnostics.snrValue < 20">
+                    <span class="text-rose-500 font-bold">잡음이 심합니다. (Low Quality)</span>
+                  </template>
+                  <template v-else-if="currentStats.avgSnr - diagnostics.snrValue > 3">
+                     <span class="text-amber-600 font-bold">평균({{ currentStats.avgSnr.toFixed(1) }}dB) 대비 {{ (currentStats.avgSnr - diagnostics.snrValue).toFixed(1) }}dB 하락했습니다.</span>
+                  </template>
+                  <template v-else>
+                    <span>평균 수준의 양호한 상태입니다.</span>
+                  </template>
                 </p>
               </div>
 
@@ -799,6 +810,7 @@ import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
 import DatePicker from "primevue/datepicker";
+import dayjs from "dayjs";
 
 // Extended Interface for Context-Aware Data
 interface ExtendedOpticalTrendDto extends OpticalTrendDto {
@@ -854,20 +866,42 @@ const canAnalyze = computed(() => {
 
 let themeObserver: MutationObserver;
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
-const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+// [개선] 안전한 날짜 포맷팅 함수 (YY-MM-DD 대응 및 정규식 사용)
+// "26-01-21 00:10:39" 같은 데이터를 "2026-01-21T00:10:39"로 변환하여 dayjs가 올바르게 파싱하도록 함
+const fixDateString = (ts: string | Date | undefined) => {
+    if (!ts) return null;
+    if (ts instanceof Date) return dayjs(ts);
+    
+    let str = String(ts).trim();
+    
+    // 1. YY-MM-DD 포맷 감지 및 20YY로 변환 (Regex 사용으로 안전성 강화)
+    const yyMmDdRegex = /^(\d{2})-(\d{2})-(\d{2})/;
+    const match = str.match(yyMmDdRegex);
+    // [Fix] match[1]이 존재함을 명확히 체크하여 TS 에러 2769 방지
+    if (match && match[1]) {
+        str = str.replace(match[1], '20' + match[1]); 
+    }
+    
+    // 2. ISO 포맷 호환성을 위해 공백을 T로 치환
+    str = str.replace(' ', 'T');
+    
+    const d = dayjs(str);
+    return d.isValid() ? d : null;
+};
+
+// [함수] 필터용 날짜 (Start/End) 변환
+const formatDate = (date: Date | string | undefined, isEndDate: boolean = false) => {
   if (!date) return "";
-  const d = new Date(date);
-  
+  let d = dayjs(date);
+  if (!d.isValid()) return "";
+
   if (isEndDate) {
-    d.setHours(23, 59, 59, 999);
+    d = d.endOf('day'); // 23:59:59.999
   } else {
-    d.setHours(0, 0, 0, 0);
+    d = d.startOf('day'); // 00:00:00.000
   }
 
-  const offset = d.getTimezoneOffset() * 60000;
-  const localDate = new Date(d.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+  return d.format('YYYY-MM-DD HH:mm:ss');
 };
 
 // [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
@@ -878,11 +912,15 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
+      // [수정] TS 오류 해결을 위해 oldStart의 존재 여부 확인 후 getTime 호출
+      const oldStartMs = oldStart ? oldStart.getTime() : 0;
+      const oldEndMs = oldEnd ? oldEnd.getTime() : 0;
+
       // 보정 로직
       if (startMs > endMs) {
-        if (startMs !== oldStart?.getTime()) {
+        if (startMs !== oldStartMs) {
            filter.endDate = new Date(newStart);
-        } else if (endMs !== oldEnd?.getTime()) {
+        } else if (endMs !== oldEndMs) {
            filter.startDate = new Date(newEnd);
         }
         return; 
@@ -967,7 +1005,7 @@ onUnmounted(() => {
 });
 
 const onEqpIdChange = async () => {
-    resetView(); // [수정] EQP 변경 시 초기화
+    resetView(); 
 
     // Reset subordinate filters
     filter.recipe = "";
@@ -999,8 +1037,8 @@ const loadRecipeOptions = async (eqpId: string) => {
     try {
         const params = {
             eqpId: eqpId,
-            startDate: toLocalISOString(filter.startDate),
-            endDate: toLocalISOString(filter.endDate, true)
+            startDate: formatDate(filter.startDate),
+            endDate: formatDate(filter.endDate, true)
         };
         const recipes = await waferApi.getDistinctValues('cassettercps', params);
         options.recipes = recipes || [];
@@ -1029,8 +1067,8 @@ const loadDependentOptions = async () => {
     try {
         const params = {
             eqpId: filter.eqpId,
-            startDate: toLocalISOString(filter.startDate),
-            endDate: toLocalISOString(filter.endDate, true),
+            startDate: formatDate(filter.startDate),
+            endDate: formatDate(filter.endDate, true),
             cassetteRcp: filter.recipe 
         };
 
@@ -1125,10 +1163,9 @@ const resetFilter = async () => {
 const fetchData = async () => {
   if (!canAnalyze.value) return; 
   
-  // [수정] 차트 영역 먼저 보여주고 로딩 오버레이
   hasSearched.value = true;
   isLoading.value = true;
-  trendData.value = []; // 데이터 초기화
+  trendData.value = []; 
   
   showMainGuide.value = false;
   showShiftGuide.value = false;
@@ -1137,8 +1174,8 @@ const fetchData = async () => {
   try {
     const rawData = await waferApi.getOpticalTrend({
       eqpId: filter.eqpId,
-      startDate: toLocalISOString(filter.startDate),
-      endDate: toLocalISOString(filter.endDate, true),
+      startDate: formatDate(filter.startDate),
+      endDate: formatDate(filter.endDate, true),
       cassetteRcp: filter.recipe, 
       stageGroup: filter.stage,   
       film: filter.film
@@ -1313,15 +1350,12 @@ const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
   const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
 
+  // [수정] Regex 기반 fixDateString 사용
   const dates = trendData.value.map((d) => {
-    const date = new Date(d.ts);
-    return `${
-      date.getMonth() + 1
-    }/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(
-      2,
-      "0"
-    )}`;
+    const date = fixDateString(d.ts);
+    return date ? date.format('MM/DD HH:mm') : '-';
   });
+  
   const totalVals = trendData.value.map((d) => d.totalIntensity);
   const peakVals = trendData.value.map((d) => d.peakIntensity);
 
@@ -1334,8 +1368,14 @@ const chartOption = computed(() => {
       borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
       textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
     },
+    // [수정] 범례 복원 및 중앙 배치 (중복 제거 및 Y축 겹침 방지)
+    legend: { 
+        show: true,
+        left: 'center', // 중앙에 배치하여 사이드 제목과 겹치지 않게 함
+        top: 0, 
+        textStyle: { color: textColor } 
+    },
     grid: { left: 60, right: 60, top: 40, bottom: 40, containLabel: true },
-    legend: { textStyle: { color: textColor } },
     dataZoom: [
       { type: "inside", start: 0, end: 100 },
       { type: "slider", bottom: 0, height: 20 },
@@ -1407,15 +1447,12 @@ const wavelengthChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
   const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
 
+  // [수정] Regex 기반 fixDateString 사용
   const dates = trendData.value.map((d) => {
-    const date = new Date(d.ts);
-    return `${
-      date.getMonth() + 1
-    }/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(
-      2,
-      "0"
-    )}`;
+    const date = fixDateString(d.ts);
+    return date ? date.format('MM/DD HH:mm') : '-';
   });
+  
   const waveVals = trendData.value.map((d) => d.peakWavelength);
 
   return {
@@ -1427,8 +1464,15 @@ const wavelengthChartOption = computed(() => {
       borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
       textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
     },
-    grid: { left: 40, right: 20, top: 20, bottom: 20, containLabel: true },
-    xAxis: { type: "category", data: dates, show: false }, 
+    grid: { left: 15, right: 30, top: 35, bottom: 10, containLabel: true },
+    // [수정] X축 라벨 표시 활성화
+    xAxis: { 
+        type: "category", 
+        data: dates, 
+        show: true,
+        axisLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor, fontSize: 10 },
+    }, 
     yAxis: {
       type: "value",
       name: "nm",
@@ -1455,9 +1499,10 @@ const correlationChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
   const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
 
+  // [수정] Regex 기반 fixDateString 사용
   const dates = trendData.value.map((d) => {
-    const date = new Date(d.ts);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    const date = fixDateString(d.ts);
+    return date ? date.format('MM/DD HH:mm') : '-';
   });
 
   const intensityVals = trendData.value.map((d) => d.totalIntensity);
@@ -1476,27 +1521,34 @@ const correlationChartOption = computed(() => {
       borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
       textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
     },
-    grid: { left: 40, right: 40, top: 30, bottom: 20, containLabel: true },
-    legend: { textStyle: { color: textColor } },
+    // [수정] 범례 위치를 중앙으로 이동하여 Y축 제목(우측)과 겹치지 않게 함
+    legend: { 
+        left: 'center',
+        top: 0,
+        textStyle: { color: textColor } 
+    },
+    // [수정] 범례 공간 확보를 위해 Top 여백 증가 (30 -> 40), 왼쪽 여백 조정 (40 -> 50)
+    grid: { left: 50, right: 40, top: 40, bottom: 20, containLabel: true },
     xAxis: {
       type: "category",
       data: dates,
       axisLine: { lineStyle: { color: gridColor } },
-      axisLabel: { show: false },
+      axisLabel: { show: true, color: textColor, fontSize: 10 }, // [수정] fontSize 10으로 통일
     },
     yAxis: [
       {
         type: "value",
         name: "Intensity",
         splitLine: { show: false },
-        axisLabel: { show: false },
+        // [수정] Y1축 라벨 표시 활성화 (show: true) 및 폰트 크기 10px로 통일
+        axisLabel: { show: true, color: textColor, fontSize: 10 },
       },
       {
         type: "value",
         name: "SNR (dB)",
         position: "right",
         splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: textColor },
+        axisLabel: { color: textColor, fontSize: 10 }, // [수정] fontSize 10으로 통일
       },
     ],
     series: [
