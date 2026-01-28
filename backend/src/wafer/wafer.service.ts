@@ -1,6 +1,7 @@
 // backend/src/wafer/wafer.service.ts
 import { Injectable } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
+import dayjs from 'dayjs'; // [핵심 수정] 오류 해결을 위해 Default Import 사용
 
 // [중요] TS1272 방지 및 Validation을 위해 Class로 DTO 정의
 export class WaferQueryParams {
@@ -115,7 +116,9 @@ export class WaferService {
   constructor(private readonly api: DataApiService) {}
 
   /**
-   * 파라미터 정제 (Date -> String 등)
+   * 파라미터 정제 (Date -> 'YYYY-MM-DD HH:mm:ss' String 변환)
+   * [핵심 수정] toISOString()을 사용하면 UTC로 변환되어 시간이 왜곡되므로,
+   * dayjs를 사용하여 현재 Date 객체가 가진 시간 값을 그대로 문자열로 포맷팅합니다.
    */
   private cleanParams(params: WaferQueryParams): Record<string, any> {
     const clean: Record<string, any> = {};
@@ -124,7 +127,8 @@ export class WaferService {
     for (const [key, value] of entries) {
       if (value !== undefined && value !== null && value !== '') {
         if (value instanceof Date) {
-          clean[key] = value.toISOString();
+          // [수정] UTC 변환(toISOString) 방지 -> 로컬 시간 문자열 그대로 유지
+          clean[key] = dayjs(value).format('YYYY-MM-DD HH:mm:ss');
         } else if (
           typeof value === 'string' ||
           typeof value === 'number' ||
