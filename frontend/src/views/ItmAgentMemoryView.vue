@@ -75,7 +75,7 @@
           />
         </div>
 
-        <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
+        <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
         <div class="min-w-[150px] shrink-0">
           <DatePicker
@@ -358,6 +358,7 @@ import { equipmentApi } from "@/api/equipment";
 import { performanceApi, type ItmAgentDataDto } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
+import dayjs from "dayjs";
 
 // UI Components
 import Select from "primevue/select";
@@ -377,8 +378,15 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 
 // State
-const selectedEqpId = ref(""); // Optional (Select one or All)
-const startDate = ref(new Date(Date.now() - 24 * 60 * 60 * 1000));
+const selectedEqpId = ref(""); 
+
+// [수정] 날짜 초기화: 오늘 00:00:00 기준 1일 전 (24시간)
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0);
+const yesterday = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+
+const startDate = ref(yesterday);
 const endDate = ref(new Date());
 
 const sites = ref<string[]>([]);
@@ -407,7 +415,7 @@ const colorPalette = [
   "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316"
 ];
 
-// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
 watch(
   [() => startDate.value, () => endDate.value],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -418,10 +426,8 @@ watch(
       // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
            endDate.value = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
            startDate.value = new Date(newEnd);
         }
       }
@@ -429,7 +435,7 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
+// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 보정)
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -445,11 +451,22 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
+// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
+const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
+  let str = String(ts || "");
+  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
+  
+  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
+  if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
+      str = "20" + str;
+  }
+  return dayjs(str);
+};
+
 // --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // 2. 초기 필터 값 결정
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
@@ -465,17 +482,14 @@ onMounted(async () => {
     targetSdwt = authStore.user?.sdwt || "";
   }
 
-  // 3. Site 적용 및 SDWT 로드
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
     sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-    // 4. SDWT 적용 및 EQP 로드
     if (targetSdwt && sdwts.value.includes(targetSdwt)) {
       filterStore.selectedSdwt = targetSdwt;
       await loadEqpIds();
 
-      // 5. EQP ID 복원
       const savedEqpId = localStorage.getItem("agent_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
@@ -541,7 +555,6 @@ const onEqpIdChange = () => {
   } else {
       localStorage.removeItem("agent_eqpid");
   }
-  // [수정] EQP 변경 시 초기화
   resetView();
 };
 
@@ -584,7 +597,7 @@ const searchData = async () => {
     const fixedEnd = new Date(endDate.value);
     fixedEnd.setHours(23, 59, 59, 999);
     
-    // [수정] toLocalISOString 사용
+    // [수정] toLocalISOString 사용으로 로컬 시간대 보정
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
 
@@ -650,19 +663,12 @@ const processData = (data: ItmAgentDataDto[]) => {
 
   const timeMap = new Map<string, any>();
   
-    data.forEach((d) => {
-    let tsKey = "";
-    if ((d.timestamp as any) instanceof Date) {
-      tsKey = (d.timestamp as any).toISOString();
-    } else {
-      tsKey = String(d.timestamp);
-    }
+  data.forEach((d) => {
+    // [수정] parseSafeDate를 사용하여 타임스탬프 처리
+    const dt = parseSafeDate(d.timestamp);
+    if (!dt.isValid()) return;
 
-    if (tsKey.includes('.')) {
-      const parts = tsKey.split('.');
-      if (parts[0]) tsKey = parts[0];
-    }
-    if (tsKey.includes('Z')) tsKey = tsKey.replace('Z', '');
+    const tsKey = dt.toISOString(); // ECharts 용 Key
 
     if (!timeMap.has(tsKey)) timeMap.set(tsKey, { timestamp: tsKey });
 
@@ -722,9 +728,11 @@ const processData = (data: ItmAgentDataDto[]) => {
       sum = memValues.reduce((a, b) => a + b, 0);
       max = memValues.reduce((a, b) => Math.max(a, b), 0);
 
+      // 마지막 레코드 계산 시에도 시간 비교를 위해 parseSafeDate 사용 권장
+      // (기존 reduce 로직 유지하되, 필요 시 date parsing 강화 가능)
       const lastRecord = pData.reduce((latest, current) => {
-        const latestTime = new Date(latest.timestamp).getTime();
-        const currentTime = new Date(current.timestamp).getTime();
+        const latestTime = parseSafeDate(latest.timestamp).valueOf();
+        const currentTime = parseSafeDate(current.timestamp).valueOf();
         return currentTime > latestTime ? current : latest;
       }, pData[0]!);
 
@@ -758,13 +766,18 @@ const resetFilters = () => {
   
   resetView();
   
-  startDate.value = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  // [수정] 초기화 시 오늘 0시 기준 24시간 전으로 설정
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  startDate.value = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
   endDate.value = new Date();
 };
 
 const formattedPeriod = computed(() => {
   if (!startDate.value || !endDate.value) return "";
-  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // [수정] dayjs 포맷팅
+  const fmt = (d: Date) => dayjs(d).format('YYYY-MM-DD');
   return `${fmt(startDate.value)} ~ ${fmt(endDate.value)}`;
 });
 
@@ -788,6 +801,8 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         if (!params || !params[0]) return "";
         const xDate = new Date(params[0].axisValueLabel);
+        
+        // [수정] 툴팁 시간 포맷 통일 (HH:mm)
         const timeStr = isNaN(xDate.getTime()) ? params[0].axisValueLabel 
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
         
@@ -834,6 +849,7 @@ const chartOption = computed(() => {
         formatter: (value: string) => {
           const d = new Date(value);
           if (isNaN(d.getTime())) return value;
+          // [수정] X축 라벨 날짜 포맷 (MM-DD HH:mm)
           return `${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         }
       },
