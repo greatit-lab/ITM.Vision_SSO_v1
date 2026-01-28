@@ -73,8 +73,8 @@
               </div>
             </div>
           </div>
-          <div class="relative flex-1 overflow-auto">
-            <DataTable :value="flatData" v-model:selection="selectedRow" selectionMode="single" :metaKeySelection="false" dataKey="servTs" @rowSelect="onRowSelect" @rowUnselect="onRowUnselect" :loading="isLoading" class="absolute inset-0 text-sm p-datatable-sm custom-datatable" stripedRows>
+          <div class="relative flex-1 overflow-hidden">
+            <DataTable :value="flatData" scrollable scrollHeight="flex" v-model:selection="selectedRow" selectionMode="single" :metaKeySelection="false" dataKey="servTs" @rowSelect="onRowSelect" @rowUnselect="onRowUnselect" :loading="isLoading" class="absolute inset-0 text-sm p-datatable-sm custom-datatable" stripedRows>
               <template #empty><div class="flex flex-col items-center justify-center h-full text-slate-400"><i class="mb-2 text-3xl opacity-30 pi pi-filter-slash"></i><p class="font-medium">No data found.</p></div></template>
               
               <Column field="servTs" header="DATE TIME" style="min-width: 160px" frozen :bodyStyle="{ paddingLeft: '16px' }" headerStyle="padding-left: 16px"><template #body="{ data }"><span class="font-mono">{{ formatDate(data.servTs) }}</span></template></Column>
@@ -339,6 +339,16 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+};
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "-";
+  // dateStr 예시: "2025-01-28 14:30:05"
+  // 화면 표시용(YY-MM-DD ...): 앞의 '20'만 제거
+  if (dateStr.length >= 19) {
+      return dateStr.substring(2, 19); 
+  }
+  return dateStr;
 };
 
 const availableStatFields = computed(() => {
@@ -750,9 +760,6 @@ const onRowSelect = async (event: any) => {
   const row = event.data; selectedRow.value = row;
   resetDetails(); 
   
-  // [UX 개선] 이미 hasWaferMap, hasSpectrum으로 존재 여부를 알고 있으므로
-  // 선택 시 바로 PDF 및 Spectrum을 로드하지는 않되, UI상 '존재한다'는 상태는 유지됩니다.
-  // 다만 실제 로드는 사용자 요청(포인트 클릭 등)이나 상세 조회 로직에 따릅니다.
   pdfExists.value = !!row.hasWaferMap;
 
   isStatsLoading.value = true; isPointsLoading.value = true; 
@@ -763,14 +770,12 @@ const onRowSelect = async (event: any) => {
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
     
-    // 이전에 호출하던 waferApi.checkPdf는 이미 getFlatData에서 수행되었으므로 생략 가능하나
-    // 상세 검증을 위해 유지하거나 제거해도 무방합니다. (여기서는 안전하게 유지)
     if (!pdfExists.value) {
        const pdfRes = await waferApi.checkPdf({
            eqpId: row.eqpId,
            lotId: row.lotId,
            waferId: row.waferId,
-           dateTime: row.dateTime
+           dateTime: row.dateTime // [핵심] checkPdf 호출 시 dateTime 전달 확인
        });
        pdfExists.value = pdfRes.exists;
     }
@@ -793,11 +798,17 @@ const loadPointImage = async (pointValue: number) => {
   
   isImageLoading.value = true; pdfImageUrl.value = null;
   try {
+    // [핵심 수정] dateTime이 "2026-..." 처럼 Full Year라면, 앞의 "20"을 제거하여 "26-..."으로 변환 (Short Year 강제)
+    let safeDateTime = selectedRow.value.dateTime;
+    if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
+        safeDateTime = safeDateTime.substring(2); // "2026..." -> "26..."
+    }
+
     const res = await waferApi.getPdfImage({
         eqpId: selectedRow.value.eqpId,
         lotId: selectedRow.value.lotId,
         waferId: selectedRow.value.waferId,
-        dateTime: selectedRow.value.dateTime,
+        dateTime: safeDateTime, // Short Year 포맷 전달
         pointNumber: pointValue
     });
     
@@ -823,15 +834,9 @@ const loadPointImage = async (pointValue: number) => {
 const loadSpectrumData = async (pointValue: number) => {
   if (!selectedRow.value) return;
   
-  // [UX 개선] Spectrum 데이터가 없다고 표시되어 있으면 요청 스킵 가능
-  // if (!selectedRow.value.hasSpectrum) {
-  //    spectrumData.value = [];
-  //    return;
-  // }
-
   spectrumData.value = []; isSpectrumLoading.value = true;
   try {
-    const params = { eqpId: selectedRow.value.eqpId, ts: selectedRow.value.dateTime, lotId: selectedRow.value.lotId, waferId: String(selectedRow.value.waferId), pointNumber: pointValue };
+    const params = { eqpId: selectedRow.value.eqpId, ts: selectedRow.value.dateTime, dateTime: selectedRow.value.dateTime, lotId: selectedRow.value.lotId, waferId: String(selectedRow.value.waferId), pointNumber: pointValue };
     const rawData = await waferApi.getSpectrum(params);
     if (!rawData || rawData.length === 0) return;
     const expData = rawData.find((d: any) => d.class && d.class.toUpperCase() === "EXP");
@@ -888,19 +893,6 @@ const resetFilters = () => {
   now.setHours(0,0,0,0);
   filters.startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   filters.endDate = new Date();
-};
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  const year = d.getUTCFullYear().toString().slice(2);
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const hours = String(d.getUTCHours()).padStart(2, "0");
-  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
-  const seconds = String(d.getUTCSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
 const fmt = (num: number | null | undefined, prec: number = 3) => num === null || num === undefined ? "0.".padEnd(prec + 2, "0") : num.toFixed(prec);
