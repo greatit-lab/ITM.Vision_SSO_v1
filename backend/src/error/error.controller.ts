@@ -1,5 +1,5 @@
 // backend/src/error/error.controller.ts
-import { Controller, Get, Query, Param, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Param, Post, Body, UseInterceptors, UsePipes } from '@nestjs/common';
 import { 
   ErrorService, 
   CreateErrorLogDto, 
@@ -9,28 +9,32 @@ import {
   ErrorTrendItem, 
   ErrorLog 
 } from './error.service';
+import { DateTransformInterceptor } from '../common/interceptors/date-transform.interceptor';
+import { DateInputPipe } from '../common/pipes/date-input.pipe';
 
-@Controller('error')
+@Controller('error') // URL Prefix: /api/error
+@UseInterceptors(DateTransformInterceptor)
 export class ErrorController {
   constructor(private readonly errorService: ErrorService) {}
 
   // 1. 에러 로그 목록 조회
-  // [수정] 반환 타입 Promise<ErrorListResponse> 명시 (unsafe-return 해결)
-  @Get('logs')
+  // [핵심 수정] '@Get('logs')' -> '@Get('list')'로 변경하여 경로 통일
+  @Get('list') 
+  @UsePipes(new DateInputPipe())
   async getLogs(@Query() query: ErrorQueryParams): Promise<ErrorListResponse> {
     return this.errorService.getErrors(query);
   }
 
-  // 2. 에러 요약 조회 (Summary)
-  // [수정] 반환 타입 명시
+  // 2. 에러 요약 조회
   @Get('summary')
+  @UsePipes(new DateInputPipe())
   async getSummary(@Query() query: ErrorQueryParams): Promise<ErrorSummaryResponse> {
     return this.errorService.getErrorSummary(query);
   }
 
-  // 3. 에러 트렌드 조회 (Trend)
-  // [수정] 반환 타입 명시
+  // 3. 에러 트렌드 조회
   @Get('trend')
+  @UsePipes(new DateInputPipe())
   async getTrend(@Query() query: ErrorQueryParams): Promise<ErrorTrendItem[]> {
     return this.errorService.getErrorTrend(query);
   }
