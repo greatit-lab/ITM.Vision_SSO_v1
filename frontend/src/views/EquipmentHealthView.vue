@@ -637,6 +637,7 @@ import { equipmentApi } from "@/api/equipment";
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
+// [수정] DatePicker, dayjs import 제거
 
 const authStore = useAuthStore();
 const LS_KEYS = {
@@ -645,6 +646,7 @@ const LS_KEYS = {
   EQPID: "health-view-eqpid", 
 };
 
+// [수정] filter 객체에서 baseDate 제거
 const filter = reactive({
   site: "",
   sdwt: "",
@@ -812,6 +814,8 @@ const fetchData = async () => {
   if (!filter.site) return;
   isLoading.value = true;
   selectedEqp.value = null;
+  
+  // [수정] 날짜 파라미터 전달 로직 제거
   try {
     const res = await healthApi.getSummary(filter.site, filter.sdwt);
     healthData.value = res;
@@ -956,13 +960,13 @@ const radarOption = computed(() => {
 </script>
 
 <style scoped>
-/* [수정] 폰트 크기 13px로 통일 */
+/* [수정] DatePicker 관련 스타일 제거 및 폰트 크기(13px) 유지 */
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
 :deep(.custom-dropdown .p-select-label) {
-  @apply text-[13px] py-[5px] px-3; /* Changed from 12px to 13px */
+  @apply text-[13px] py-[5px] px-3; 
 }
 :deep(.custom-dropdown.small) {
   @apply h-7;
