@@ -16,7 +16,7 @@ export interface ErrorTrendItem {
 }
 
 export interface ErrorLogItem {
-  timeStamp: string;
+  timeStamp: string; // [수정] Data-API 반환값에 맞춰 'timeStamp'로 변경
   eqpId: string;
   errorId: string;
   errorLabel: string;
@@ -34,6 +34,5 @@ export const getErrorTrend = (params: any) =>
   http.get<ErrorTrendItem[]>('/error/trend', { params });
 
 // 3. 에러 로그 목록 조회
-// [수정] Backend Controller의 @Get('logs')와 일치하도록 경로 수정 ('/error/list' -> '/error/logs')
 export const getErrorLogs = (params: any) => 
-  http.get<{ items: ErrorLogItem[]; totalItems: number }>('/error/logs', { params });
+  http.get<{ items: ErrorLogItem[]; totalItems: number }>('/error/list', { params });
