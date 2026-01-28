@@ -24,7 +24,7 @@
         </div>
 
         <div class="min-w-[160px] shrink-0">
-          <Select v-model="refEqpId" :options="refEqpList" filter placeholder="Ref. EQP (Standard)" :disabled="!filterStore.selectedSdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !refEqpId }" @change="onRefEqpChange" />
+          <Select v-model="refEqpId" :options="refEqpList" filter resetFilterOnHide placeholder="Ref. EQP (Standard)" :disabled="!filterStore.selectedSdwt" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !refEqpId }" @change="onRefEqpChange" />
         </div>
 
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
@@ -252,8 +252,14 @@ const sdwts = ref<string[]>([]);
 const refEqpId = ref<string>("");
 const refEqpList = ref<string[]>([]);
 
+// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
+const now = new Date();
+const todayStart = new Date(now);
+todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+
 const filters = reactive<FilterState>({
-  startDate: new Date(Date.now() - 7 * 864e5),
+  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
   endDate: new Date(),
   cassetteRcp: undefined,
   stageGroup: undefined,
@@ -636,7 +642,11 @@ const resetFilters = () => {
   localStorage.removeItem("match_sdwt");
   localStorage.removeItem("match_eqp");
   
-  filters.startDate = new Date(Date.now() - 7 * 864e5);
+  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0); 
+  filters.startDate = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
   filters.endDate = new Date();
 };
 
