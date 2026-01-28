@@ -366,11 +366,11 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const selectedEqpId = ref("");
 
-// [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 7일 전 설정
+// [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 1일 전 설정
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
+const sevenDaysAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
 
 const startDate = ref(sevenDaysAgo);
 const endDate = ref(new Date());
@@ -743,11 +743,11 @@ const resetFilters = () => {
   eqpIds.value = [];
   resetView();
   
-  // [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 7일 전 설정
+  // [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 1일 전 설정
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
-  const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
+  const sevenDaysAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
   
   endDate.value = now;
   startDate.value = sevenDaysAgo;
@@ -929,3 +929,4 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
+
