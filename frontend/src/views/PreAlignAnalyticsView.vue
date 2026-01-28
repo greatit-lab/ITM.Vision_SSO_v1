@@ -198,7 +198,7 @@
                 </h3>
               </div>
               <span class="text-[10px] text-slate-400 mt-0.5">
-                Wafer Center Position Distribution
+                Wafer 중심 위치 분포 (X/Y Axis 치우침 확인)
               </span>
             </div>
             <div class="relative w-full h-[260px] p-2 overflow-hidden">
@@ -240,7 +240,7 @@
                 </div>
               </div>
               <span class="text-[10px] text-slate-400 mt-0.5">
-                X/Y Axis Distribution & Statistics
+                X/Y Axis 데이터 정규 분포 및 통계 확인
               </span>
             </div>
 
@@ -290,7 +290,7 @@
                 </h3>
               </div>
               <span class="text-[10px] text-slate-400 mt-0.5">
-                Correlation: Notch Angle vs Shift
+                Notch 회전 각도와 위치 변동 간 상관관계
               </span>
             </div>
             <div class="relative w-full h-[260px] p-2 overflow-hidden">
@@ -886,3 +886,4 @@ const notchChartOption = computed(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
