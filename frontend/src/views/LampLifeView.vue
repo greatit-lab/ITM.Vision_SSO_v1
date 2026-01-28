@@ -371,6 +371,8 @@ import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getLampLifeStatus, type LampLife } from "@/api/lamp";
 import EChart from "@/components/common/EChart.vue";
+// [추가] Day.js
+import dayjs from "dayjs";
 
 // Components
 import Select from "primevue/select";
@@ -404,6 +406,17 @@ const hasSearched = ref(false);
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
+
+// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
+const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
+  let str = String(ts || "");
+  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
+  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
+  if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
+      str = "20" + str;
+  }
+  return dayjs(str);
+};
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
@@ -494,19 +507,18 @@ const fetchData = async () => {
     const rawData = res.data || [];
     
     // [중요] 현재 Web 시간 기준으로 경과 시간(Life Usage) 계산
-    const now = new Date(); // Web Client Time
+    const now = dayjs(); // Day.js Local Time
 
     allLamps.value = rawData.map((l: LampLife) => {
       // 1. lastChanged가 유효하다면, 현재 시간 - lastChanged로 시간 계산
       let calculatedAge = l.ageHour; // 기본값은 DB 값
       
       if (l.lastChanged) {
-        const lastChangedDate = new Date(l.lastChanged);
-        if (!isNaN(lastChangedDate.getTime())) {
-          // 밀리초 차이 계산
-          const diffMs = now.getTime() - lastChangedDate.getTime();
-          // 시간 단위 변환 (ms -> hour)
-          calculatedAge = Math.floor(diffMs / (1000 * 60 * 60));
+        // [수정] parseSafeDate 사용
+        const lastChangedDate = parseSafeDate(l.lastChanged);
+        if (lastChangedDate.isValid()) {
+          // 시간 차이 계산 (Hours)
+          calculatedAge = now.diff(lastChangedDate, 'hour');
         }
       }
       
@@ -546,22 +558,11 @@ const getStatus = (age: number, lifespan: number) => {
   return "Good";
 };
 
-// [수정] 날짜 포맷팅 함수 (UTC 기준 사용하여 DB 원본값 유지)
+// [수정] 날짜 포맷팅 함수 (Day.js 사용)
 const formatDate = (dateString: string | null | undefined) => {
   if (!dateString) return "-";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
-
-  // [수정] getHours() -> getUTCHours() 로 변경하여
-  // 브라우저의 시간대 자동 변환(+9h)을 막고 DB 문자열 그대로 보여줌
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const hours = String(date.getUTCHours()).padStart(2, "0");
-  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-  const seconds = String(date.getUTCSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  const date = parseSafeDate(dateString);
+  return date.isValid() ? date.format('YYYY-MM-DD HH:mm:ss') : dateString;
 };
 
 const filteredLamps = computed(() => {
