@@ -249,16 +249,15 @@ const hasSearched = ref(false);
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
 const now = new Date();
 const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+todayStart.setHours(0, 0, 0, 0); 
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
 
 const filters = reactive({
   eqpId: "", lotId: "", waferId: "", 
-  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
-  endDate: new Date(),     // EndDate는 toLocalISOString에서 true 처리 시 23:59:59로 보정됨
+  startDate: sevenDaysAgo,
+  endDate: new Date(),
   cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
 });
 
@@ -300,7 +299,6 @@ let themeObserver: MutationObserver | null = null;
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
-// [추가] 통합 날짜 보정 및 로직
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -308,7 +306,6 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
            filters.endDate = new Date(newStart);
@@ -325,7 +322,6 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
@@ -343,8 +339,6 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
-  // dateStr 예시: "2025-01-28 14:30:05"
-  // 화면 표시용(YY-MM-DD ...): 앞의 '20'만 제거
   if (dateStr.length >= 19) {
       return dateStr.substring(2, 19); 
   }
@@ -555,7 +549,6 @@ const loadEqpIds = async () => {
   } finally { isEqpLoading.value = false; }
 };
 
-// [수정] onEqpChange에 async/await 및 nextTick 적용
 const onEqpChange = async () => {
   if (filters.eqpId) { 
     localStorage.setItem("wafer_eqpid", filters.eqpId); 
@@ -636,8 +629,6 @@ const onDateChange = () => {
         if (filters.stageGroup) loadFilmOptions();
     }
 }
-
-// --- Option Loading Functions (Separated Logic) ---
 
 const loadLotOptions = async () => {
   if (!filters.eqpId) return;
@@ -765,7 +756,21 @@ const onRowSelect = async (event: any) => {
   isStatsLoading.value = true; isPointsLoading.value = true; 
   
   try {
-    const params = { ...row, eqpId: row.eqpId, lotId: row.lotId, waferId: row.waferId, servTs: row.servTs, dateTime: row.dateTime };
+    // [수정] API 호출 시 dateTime 포맷 보정 (YYYY -> YY)
+    let safeDateTime = row.dateTime;
+    if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
+        safeDateTime = safeDateTime.substring(2); // "2025-..." -> "25-..."
+    }
+
+    const params = { 
+      ...row, 
+      eqpId: row.eqpId, 
+      lotId: row.lotId, 
+      waferId: row.waferId, 
+      servTs: row.servTs, 
+      dateTime: safeDateTime // 보정된 날짜 사용
+    };
+
     statistics.value = await waferApi.getStatistics(params);
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
@@ -775,7 +780,7 @@ const onRowSelect = async (event: any) => {
            eqpId: row.eqpId,
            lotId: row.lotId,
            waferId: row.waferId,
-           dateTime: row.dateTime // [핵심] checkPdf 호출 시 dateTime 전달 확인
+           dateTime: safeDateTime // 보정된 날짜 사용
        });
        pdfExists.value = pdfRes.exists;
     }
@@ -798,17 +803,16 @@ const loadPointImage = async (pointValue: number) => {
   
   isImageLoading.value = true; pdfImageUrl.value = null;
   try {
-    // [핵심 수정] dateTime이 "2026-..." 처럼 Full Year라면, 앞의 "20"을 제거하여 "26-..."으로 변환 (Short Year 강제)
     let safeDateTime = selectedRow.value.dateTime;
     if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
-        safeDateTime = safeDateTime.substring(2); // "2026..." -> "26..."
+        safeDateTime = safeDateTime.substring(2); 
     }
 
     const res = await waferApi.getPdfImage({
         eqpId: selectedRow.value.eqpId,
         lotId: selectedRow.value.lotId,
         waferId: selectedRow.value.waferId,
-        dateTime: safeDateTime, // Short Year 포맷 전달
+        dateTime: safeDateTime,
         pointNumber: pointValue
     });
     
@@ -836,7 +840,21 @@ const loadSpectrumData = async (pointValue: number) => {
   
   spectrumData.value = []; isSpectrumLoading.value = true;
   try {
-    const params = { eqpId: selectedRow.value.eqpId, ts: selectedRow.value.dateTime, dateTime: selectedRow.value.dateTime, lotId: selectedRow.value.lotId, waferId: String(selectedRow.value.waferId), pointNumber: pointValue };
+    // [수정] Spectrum API 호출 시에도 safeDateTime 적용
+    let safeDateTime = selectedRow.value.dateTime;
+    if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
+        safeDateTime = safeDateTime.substring(2);
+    }
+    
+    const params = { 
+        eqpId: selectedRow.value.eqpId, 
+        ts: safeDateTime, // safeDateTime 사용
+        dateTime: safeDateTime, // safeDateTime 사용
+        lotId: selectedRow.value.lotId, 
+        waferId: String(selectedRow.value.waferId), 
+        pointNumber: pointValue 
+    };
+    
     const rawData = await waferApi.getSpectrum(params);
     if (!rawData || rawData.length === 0) return;
     const expData = rawData.find((d: any) => d.class && d.class.toUpperCase() === "EXP");
