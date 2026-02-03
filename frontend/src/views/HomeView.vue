@@ -968,20 +968,18 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      // [핵심 수정] 서버에서 온 UTC 문자열("26-01-27 23:29:00")을 
-      // 강제로 UTC로 해석하여 로컬 시간(KST)으로 변환 ("26-01-28 08:29")
+      // [수정] Date 파싱 로직을 표준 'new Date()'로 변경하여 
+      // 표준 포맷(ISO 8601 등)을 안전하게 처리하도록 개선 (N-NaN-NaN 오류 해결)
       data: timestamps.map((t: string) => {
         if (!t) return "";
         
-        // 1. "26-01-27 23:29:00" -> ISO 포맷 "2026-01-27T23:29:00Z" 로 변환
-        // (서버가 UTC 시간을 보내고 있으므로 끝에 'Z'를 붙여 UTC임을 명시)
-        const year = "20" + t.substring(0, 2);
-        const rest = t.substring(2).replace(" ", "T");
-        const utcStr = `${year}${rest}Z`; 
+        // 1. 표준 날짜 객체 생성 (ISO 문자열 자동 처리)
+        const date = new Date(t);
         
-        const date = new Date(utcStr);
-        
-        // 2. 브라우저의 로컬 시간대(KST)로 포맷팅
+        // 유효하지 않은 날짜 처리
+        if (isNaN(date.getTime())) return t;
+
+        // 2. 브라우저의 로컬 시간대(KST)로 포맷팅 (YY-MM-DD HH:mm)
         const yy = date.getFullYear().toString().slice(2);
         const mm = String(date.getMonth() + 1).padStart(2, "0");
         const dd = String(date.getDate()).padStart(2, "0");
