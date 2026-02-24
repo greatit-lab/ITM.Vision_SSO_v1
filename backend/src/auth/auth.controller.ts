@@ -49,8 +49,8 @@ export class AuthController {
   @Post('callback')
   @UseGuards(AuthGuard('saml'))
   async callback(@Req() req: RequestWithUser, @Res() res: Response) {
-    const frontendUrl =
-      process.env.FRONTEND_URL || 'https://localhost:8082/login';
+    // 환경 변수가 없을 경우 데모 주소가 아닌 안전한 상대 경로로 폴백 처리
+    const frontendUrl = process.env.FRONTEND_URL || '/login';
 
     if (!req.user) {
       return res.redirect(`${frontendUrl}?error=NoUser`);
@@ -121,23 +121,11 @@ export class AuthController {
     return this.authService.createGuestRequest(body);
   }
 
-  // =========================================================
-  // [수정 및 추가] Context 관련 핸들러
-  // =========================================================
-
-  /**
-   * [추가] 사용자 Context (Site/SDWT) 조회
-   * 프론트엔드의 GET /api/auth/context 요청을 처리
-   */
   @Get('context')
   async getUserContext(@Query('loginId') loginId: string) {
-    // loginId가 쿼리 파라미터로 전달됨
     return await this.authService.getUserContext(loginId);
   }
 
-  /**
-   * [기존 유지] 사용자 Context 저장
-   */
   @Post('context')
   @UseGuards(AuthGuard('jwt'))
   async saveContext(
@@ -145,7 +133,7 @@ export class AuthController {
     @Body() body: { site: string; sdwt: string },
   ) {
     return await this.authService.saveUserContext(
-      req.user.userId, // JWT에서 추출한 안전한 ID 사용
+      req.user.userId,
       body.site,
       body.sdwt,
     );
