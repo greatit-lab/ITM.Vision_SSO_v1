@@ -14,7 +14,7 @@ import { HealthModule } from './health/health.module';
 import { LampLifeModule } from './lamplife/lamplife.module';
 import { MenuModule } from './menu/menu.module';
 import { PerformanceModule } from './performance/performance.module';
-import { PreAlignModule } from './prealign/prealign.module'; 
+import { PreAlignModule } from './prealign/prealign.module';
 import { WaferModule } from './wafer/wafer.module';
 import { InfraModule } from './infra/infra.module';
 import { BoardModule } from './board/board.module';
@@ -24,10 +24,14 @@ import { AlertModule } from './alert/alert.module';
 
 @Module({
   imports: [
-    // 1. 환경 변수 설정
+    // 1. 환경 변수 설정 (런타임 환경에 맞춘 명시적 스위칭)
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.production', '.env', '.env.development'],
+      // PM2(운영)에서 NODE_ENV=production을 쏘면 운영 파일을, 아니면 개발 파일을 읽음
+      envFilePath:
+        process.env.NODE_ENV === 'production'
+          ? '.env.production'
+          : '.env.development',
     }),
 
     // 2. 공통 모듈
