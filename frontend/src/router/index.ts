@@ -32,7 +32,7 @@ import InfraManagementView from "../views/admin/InfraManagementView.vue";
 import SystemConfigView from "../views/admin/SystemConfigView.vue";
 
 // [Support Views]
-const QnaLayout = () => import('../views/support/QnaLayout.vue'); // [New] Layout
+const QnaLayout = () => import('../views/support/QnaLayout.vue');
 const QnaBoardView = () => import('../views/support/QnaBoardView.vue');
 const QnaWriteView = () => import('../views/support/QnaWriteView.vue');
 const QnaDetailView = () => import('../views/support/QnaDetailView.vue');
@@ -55,10 +55,6 @@ const routes: Array<RouteRecordRaw> = [
         name: "home",
         component: HomeView,
       },
-      
-      // =============================================
-      // [Support Group] Q&A Layout 적용
-      // =============================================
       {
         path: "support",
         children: [
@@ -70,22 +66,22 @@ const routes: Array<RouteRecordRaw> = [
           },
           {
             path: "qna",
-            component: QnaLayout, // [중요] 부모 레이아웃 설정
+            component: QnaLayout,
             children: [
               {
-                path: "", // /support/qna
+                path: "",
                 name: "qna-list",
                 component: QnaBoardView,
                 meta: { title: 'Q&A Board' }
               },
               {
-                path: "write", // /support/qna/write
+                path: "write",
                 name: "qna-write",
                 component: QnaWriteView,
                 meta: { title: 'Write Question' }
               },
               {
-                path: ":id", // /support/qna/:id
+                path: ":id",
                 name: "qna-detail",
                 component: QnaDetailView,
                 meta: { title: 'Q&A Detail' }
@@ -95,7 +91,7 @@ const routes: Array<RouteRecordRaw> = [
         ]
       },
 
-      // ... (Analysis Modules: 기존과 동일) ...
+      // Analysis Modules
       { path: "/waferflatdata", name: "wafer", component: WaferFlatDataView },
       { path: "/lot-uniformity-trend", name: "lot-uniformity", component: LotUniformityTrendView },
       { path: "/spectrum-analytics", name: "spectrum", component: SpectrumAnalysisView },
@@ -110,7 +106,7 @@ const routes: Array<RouteRecordRaw> = [
       { path: "/agent-memory", name: "agent-memory", component: ItmAgentMemoryView },
       { path: "/optical-trend", name: "optical-trend", component: OpticalTrendView },
 
-      // ... (Admin Modules: 기존과 동일) ...
+      // Admin Modules
       {
         path: "/admin",
         component: AdminLayout,
@@ -143,7 +139,6 @@ const router = createRouter({
   routes,
 });
 
-// [Helper] 라우트 권한 체크 함수 (기존 로직 유지)
 function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
   const normalizedTarget = targetPath.endsWith('/') && targetPath.length > 1 ? targetPath.slice(0, -1) : targetPath;
   for (const menu of menus) {
@@ -159,13 +154,10 @@ function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
   return false;
 }
 
-// Navigation Guard (기존 로직 유지)
+// Navigation Guard
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
   const menuStore = useMenuStore();
-
-  if (import.meta.env.VITE_AUTH_SKIP === 'true' && !authStore.isAuthenticated) authStore.loginAsDemoUser();
-
   const isAuthenticated = authStore.isAuthenticated;
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
@@ -195,3 +187,4 @@ router.beforeEach(async (to, _from, next) => {
 });
 
 export default router;
+
