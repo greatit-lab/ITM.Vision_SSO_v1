@@ -14,11 +14,11 @@ export interface UserInfo {
   groups: string | string[];
   role?: string;
   sessionIndex?: string;
-  
+
   // 사용자 컨텍스트
   site?: string;
   sdwt?: string;
-  
+
   // [추가] 게스트 유효기간
   validUntil?: string;
 
@@ -31,7 +31,7 @@ export const useAuthStore = defineStore("auth", () => {
   const user = ref<UserInfo | null>(
     localStorage.getItem("user_info")
       ? JSON.parse(localStorage.getItem("user_info") as string)
-      : null
+      : null,
   );
 
   // --- Getters ---
@@ -63,11 +63,6 @@ export const useAuthStore = defineStore("auth", () => {
       return user.value.groups.includes("Administrators");
     }
     return user.value?.groups === "Administrators";
-  });
-
-  // [추가] 데모 유저 여부 확인
-  const isDemo = computed(() => {
-    return user.value?.userId === "demo_user";
   });
 
   const userDetailTooltip = computed(() => {
@@ -104,7 +99,7 @@ export const useAuthStore = defineStore("auth", () => {
     window.location.href = "/login";
   };
 
-  // 로그인 처리
+  // 일반 로그인 처리 (API)
   const loginAction = async (id: string, pw: string) => {
     try {
       const res = await http.post("/auth/login", {
@@ -122,26 +117,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // 데모 모드용 가상 로그인
-  const loginAsDemoUser = () => {
-    const demoUser: UserInfo = {
-      userId: "demo_user",
-      name: "Demo User",
-      email: "demo@itm.com",
-      department: "Development",
-      departmentName: "Dev Team",
-      companyCode: "ITM",
-      groups: ["Users"], 
-      role: "USER",      
-      
-      // 초기 데이터 자동 조회를 위한 기본값 설정
-      site: "Demo",      
-      sdwt: "User"        
-    };
-    
-    setAuth("demo-mode-dummy-token", demoUser);
-  };
-
   return {
     token,
     user,
@@ -150,13 +125,11 @@ export const useAuthStore = defineStore("auth", () => {
     userInitial,
     isAdmin,
     isSuperAdmin,
-    isDemo, 
     userDetailTooltip,
     setAuth,
     setToken,
     setUser,
     logout,
     loginAction,
-    loginAsDemoUser,
   };
 });
