@@ -19,12 +19,12 @@ export default defineConfig(() => {
       host: "0.0.0.0",
 
       // 2. 개발 PC 프론트엔드 구동 포트
-      port: 8082,
+      port: 8080,
       strictPort: true,
 
       // 3. HTTPS 설정 (AD 인증 테스트를 위한 로컬 인증서 사용)
       https: {
-        pfx: fs.readFileSync(path.resolve(__dirname, "cert/10.135.77.222.pfx")), 
+        pfx: fs.readFileSync(path.resolve(__dirname, "cert/10.135.77.222.pfx")),
         passphrase: "password", // 인증서 비밀번호
       },
 
@@ -32,7 +32,7 @@ export default defineConfig(() => {
       proxy: {
         "/api": {
           // 개발 PC의 백엔드 구동 주소 (로컬 44364 포트)
-          target: "https://127.0.0.1:44364", 
+          target: "https://127.0.0.1:44364",
           changeOrigin: true,
           secure: false, // 로컬 자체 서명 인증서(Self-signed) 통과 허용
         },
