@@ -473,7 +473,15 @@
                     class="flex items-center gap-1.5 text-sm font-black tracking-tight text-slate-800 dark:text-slate-100"
                   >
                     {{ agent.eqpId }}
+                    <img 
+                      v-if="isImageType(agent.type)" 
+                      :src="getTypeLogoUrl(agent.type)" 
+                      :alt="agent.type || ''"
+                      class="h-4 w-auto object-contain drop-shadow-sm"
+                      :title="agent.type || ''"
+                    />
                     <span
+                      v-else
                       class="px-1 py-[1px] rounded text-[10px] scale-90 origin-left font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-zinc-700"
                     >
                       {{ agent.type || "Unknown" }}
@@ -899,12 +907,17 @@ const openChart = async (agent: AgentStatusDto) => {
   const endDate = new Date();
   const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
+  const formatLocal = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
   try {
     const data = await performanceApi.getHistory(
-      startDate.toISOString(),
-      endDate.toISOString(),
+      formatLocal(startDate),
+      formatLocal(endDate),
       [agent.eqpId],
-      600
+      300 // [수정] 5분 단위 데이터 호출 유지
     );
     chartData.value = data || []; 
   } catch (e) {
@@ -968,25 +981,18 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      // [수정] Date 파싱 로직을 표준 'new Date()'로 변경하여 
-      // 표준 포맷(ISO 8601 등)을 안전하게 처리하도록 개선 (N-NaN-NaN 오류 해결)
       data: timestamps.map((t: string) => {
         if (!t) return "";
         
-        // 1. 표준 날짜 객체 생성 (ISO 문자열 자동 처리)
-        const date = new Date(t);
-        
-        // 유효하지 않은 날짜 처리
-        if (isNaN(date.getTime())) return t;
-
-        // 2. 브라우저의 로컬 시간대(KST)로 포맷팅 (YY-MM-DD HH:mm)
-        const yy = date.getFullYear().toString().slice(2);
-        const mm = String(date.getMonth() + 1).padStart(2, "0");
-        const dd = String(date.getDate()).padStart(2, "0");
-        const hh = String(date.getHours()).padStart(2, "0");
-        const min = String(date.getMinutes()).padStart(2, "0");
-        
-        return `${yy}-${mm}-${dd} ${hh}:${min}`;
+        if (t.length >= 16) {
+          const yy = t.substring(2, 4);
+          const mm = t.substring(5, 7);
+          const dd = t.substring(8, 10);
+          const hh = t.substring(11, 13);
+          const min = t.substring(14, 16);
+          return `${yy}-${mm}-${dd} ${hh}:${min}`;
+        }
+        return t;
       }),
       axisLabel: { color: textColor },
       axisLine: { lineStyle: { color: gridColor } },
@@ -1006,7 +1012,10 @@ const chartOption = computed(() => {
         type: "line",
         data: cpuValues,
         smooth: true,
-        showSymbol: false,
+        showSymbol: true, // 포인트 표시
+        symbol: 'circle',
+        symbolSize: 4,    // 작은 크기로 고정
+        sampling: 'lttb',
         itemStyle: { color: "#3b82f6" },
         areaStyle: {
           color: {
@@ -1027,7 +1036,10 @@ const chartOption = computed(() => {
         type: "line",
         data: memValues,
         smooth: true,
-        showSymbol: false,
+        showSymbol: true, // 포인트 표시
+        symbol: 'circle',
+        symbolSize: 4,    // 작은 크기로 고정
+        sampling: 'lttb',
         itemStyle: { color: "#10b981" },
         areaStyle: {
           color: {
@@ -1049,6 +1061,17 @@ const chartOption = computed(() => {
 
 const first = ref(0);
 const rowsPerPage = ref(20);
+
+// [추가] 타입별 로고 이미지 판단 및 경로 반환 유틸 함수
+const isImageType = (type: string | null) => {
+  const lowerType = (type || "").toLowerCase();
+  return lowerType === "onto" || lowerType === "nova";
+};
+
+const getTypeLogoUrl = (type: string | null) => {
+  const lowerType = (type || "").toLowerCase();
+  return `/images/${lowerType}.png`;
+};
 
 const filteredAgents = computed(() => {
   switch (activeFilter.value) {
