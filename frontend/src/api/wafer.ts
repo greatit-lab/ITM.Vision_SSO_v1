@@ -11,7 +11,6 @@ export interface WaferFlatDataDto {
   stageRcp: string;
   stageGroup: string;
   film: string;
-  // [추가] 데이터 존재 여부 플래그
   hasWaferMap?: boolean;
   hasSpectrum?: boolean;
 }
@@ -46,7 +45,7 @@ export interface SpectrumDataDto {
 
 export interface LotUniformityPointDto {
   point: number;
-  value: number | null; // null 가능성 명시
+  value: number | null;
   x: number;
   y: number;
   dieRow: number | null;
@@ -123,14 +122,13 @@ export const waferApi = {
     return data;
   },
 
-  // [핵심 수정] 파라미터 매핑을 명확하게 하여 'dateTime'이 누락되지 않도록 함
+  // frontend/src/api/wafer.ts 내의 함수 교체
   getPdfImage: async (params: WaferQueryParams) => {
     const cleanParams = {
         eqpId: params.eqpId,
-        lotId: params.lotId,
-        waferId: params.waferId,
-        // dateTime이 없으면 ts라도 사용하도록 폴백 처리 (안전장치)
-        dateTime: params.dateTime || params.ts,
+        lotId: params.lotId,  // PDF 파일명 식별용
+        waferId: params.waferId,  // PDF 파일명 식별용
+        dateTime: params.dateTime,
         pointNumber: params.pointNumber
     };
     const { data } = await http.get<{ image: string }>("/wafer/pdf-image", {
@@ -145,7 +143,7 @@ export const waferApi = {
       lotId: params.lotId,
       waferId: params.waferId,
       servTs: params.servTs,
-      dateTime: params.dateTime || params.ts,
+      dateTime: params.dateTime,
     };
     const { data } = await http.get<{ exists: boolean; url: string | null }>(
       "/wafer/check-pdf",
@@ -155,12 +153,16 @@ export const waferApi = {
   },
 
   getSpectrum: async (params: WaferQueryParams) => {
-    // Spectrum 조회 시에도 dateTime(ts) 파라미터가 중요함
     const cleanParams = {
-        ...params,
-        ts: params.dateTime || params.ts // 백엔드가 ts를 쓸 수도, dateTime을 쓸 수도 있으므로 둘 다 고려 (기존 코드 유지)
+      eqpId: params.eqpId,
+      ts: params.dateTime,
+      lotId: params.lotId,
+      waferId: params.waferId,
+      pointNumber: params.pointNumber,
     };
-    const { data } = await http.get<SpectrumDataDto[]>("/wafer/spectrum", { params: cleanParams });
+    const { data } = await http.get<SpectrumDataDto[]>("/wafer/spectrum", {
+      params: cleanParams,
+    });
     return data;
   },
 
@@ -169,8 +171,6 @@ export const waferApi = {
       eqpId: params.eqpId,
       lotId: params.lotId,
       waferId: params.waferId,
-      servTs: params.servTs,
-      dateTime: params.dateTime,
       cassetteRcp: params.cassetteRcp,
       stageRcp: params.stageRcp,
       stageGroup: params.stageGroup,
@@ -184,10 +184,17 @@ export const waferApi = {
 
   getPointData: async (params: WaferQueryParams) => {
     const cleanParams = {
-      ...params,
-      dateTime: params.dateTime
+      eqpId: params.eqpId,
+      lotId: params.lotId,
+      waferId: params.waferId,
+      cassetteRcp: params.cassetteRcp,
+      stageRcp: params.stageRcp,
+      stageGroup: params.stageGroup,
+      film: params.film,
     };
-    const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", { params: cleanParams });
+    const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", {
+      params: cleanParams,
+    });
     return data;
   },
 
@@ -232,3 +239,4 @@ export const waferApi = {
     return data;
   },
 };
+
