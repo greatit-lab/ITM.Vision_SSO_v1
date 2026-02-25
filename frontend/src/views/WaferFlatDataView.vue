@@ -337,12 +337,34 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "-";
-  if (dateStr.length >= 19) {
-      return dateStr.substring(2, 19); 
+const formatDate = (dateVal: string | Date | null | undefined) => {
+  if (!dateVal) return "-";
+
+  try {
+    // 1. 날짜 객체로 안전하게 변환 (로컬 타임존 적용)
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      // 2. 연도 앞 2자리(20)를 자르고 포맷팅
+      const yy = d.getFullYear().toString().slice(2);
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+
+      // 화면 배치에 가장 용이한 "25-02-14 13:45:00" 형태로 반환
+      return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    }
+  } catch (e) {
+    // 변환 실패 시 예외 처리
   }
-  return dateStr;
+
+  // 폴백(Fallback): 문자열 자르기 보정 (T 문자 등을 공백으로 치환)
+  let str = String(dateVal);
+  if (str.startsWith("20") && str.length >= 19) {
+    return str.substring(2, 19).replace("T", " ");
+  }
+  return str;
 };
 
 const availableStatFields = computed(() => {
@@ -756,31 +778,27 @@ const onRowSelect = async (event: any) => {
   isStatsLoading.value = true; isPointsLoading.value = true; 
   
   try {
-    // [수정] API 호출 시 dateTime 포맷 보정 (YYYY -> YY)
-    let safeDateTime = row.dateTime;
-    if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
-        safeDateTime = safeDateTime.substring(2); // "2025-..." -> "25-..."
-    }
-
     const params = { 
-      ...row, 
       eqpId: row.eqpId, 
       lotId: row.lotId, 
       waferId: row.waferId, 
-      servTs: row.servTs, 
-      dateTime: safeDateTime // 보정된 날짜 사용
+      cassetteRcp: row.cassetteRcp,
+      stageRcp: row.stageRcp,
+      stageGroup: row.stageGroup,
+      film: row.film,
     };
 
     statistics.value = await waferApi.getStatistics(params);
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
-    
+
+    // [핵심] 장비 시간(dateTime)을 조건으로 전송
     if (!pdfExists.value) {
        const pdfRes = await waferApi.checkPdf({
            eqpId: row.eqpId,
            lotId: row.lotId,
            waferId: row.waferId,
-           dateTime: safeDateTime // 보정된 날짜 사용
+           dateTime: row.dateTime,
        });
        pdfExists.value = pdfRes.exists;
     }
@@ -803,16 +821,12 @@ const loadPointImage = async (pointValue: number) => {
   
   isImageLoading.value = true; pdfImageUrl.value = null;
   try {
-    let safeDateTime = selectedRow.value.dateTime;
-    if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
-        safeDateTime = safeDateTime.substring(2); 
-    }
-
+    // [핵심] 장비 시간(dateTime)을 조건으로 전송
     const res = await waferApi.getPdfImage({
         eqpId: selectedRow.value.eqpId,
         lotId: selectedRow.value.lotId,
         waferId: selectedRow.value.waferId,
-        dateTime: safeDateTime,
+        dateTime: selectedRow.value.dateTime,
         pointNumber: pointValue
     });
     
@@ -840,18 +854,12 @@ const loadSpectrumData = async (pointValue: number) => {
   
   spectrumData.value = []; isSpectrumLoading.value = true;
   try {
-    // [수정] Spectrum API 호출 시에도 safeDateTime 적용
-    let safeDateTime = selectedRow.value.dateTime;
-    if (typeof safeDateTime === 'string' && /^20\d{2}-\d{2}-\d{2}/.test(safeDateTime)) {
-        safeDateTime = safeDateTime.substring(2);
-    }
-    
+    // [핵심] 장비 시간(dateTime)을 조건으로 전송   
     const params = { 
         eqpId: selectedRow.value.eqpId, 
-        ts: safeDateTime, // safeDateTime 사용
-        dateTime: safeDateTime, // safeDateTime 사용
         lotId: selectedRow.value.lotId, 
         waferId: String(selectedRow.value.waferId), 
+        dateTime: selectedRow.value.dateTime,
         pointNumber: pointValue 
     };
     
@@ -938,3 +946,4 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
+
