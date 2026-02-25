@@ -142,7 +142,6 @@ export const waferApi = {
       eqpId: params.eqpId,
       lotId: params.lotId,
       waferId: params.waferId,
-      servTs: params.servTs,
       dateTime: params.dateTime,
     };
     const { data } = await http.get<{ exists: boolean; url: string | null }>(
@@ -155,7 +154,7 @@ export const waferApi = {
   getSpectrum: async (params: WaferQueryParams) => {
     const cleanParams = {
       eqpId: params.eqpId,
-      ts: params.dateTime,
+      ts: params.dateTime,  // 백엔드의 ts 쿼리 조건
       lotId: params.lotId,
       waferId: params.waferId,
       pointNumber: params.pointNumber,
@@ -239,4 +238,5 @@ export const waferApi = {
     return data;
   },
 };
+
 
