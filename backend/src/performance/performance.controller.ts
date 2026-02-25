@@ -2,7 +2,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { PerformanceService } from './performance.service';
 
-// [수정] 대소문자 일치: 'Performance' -> 'performance'
 @Controller('performance')
 export class PerformanceController {
   constructor(private readonly performanceService: PerformanceService) {}
@@ -14,7 +13,8 @@ export class PerformanceController {
     @Query('eqpids') eqpids: string,
     @Query('interval') interval: string,
   ) {
-    const intervalNum = interval ? parseInt(interval, 10) : 300;
+    // [핵심] 프론트에서 넘긴 interval 값을 받아서 변환. 없으면 기본 20분(1200초)
+    const intervalNum = interval ? parseInt(interval, 10) : 1200;
     return this.performanceService.getHistory(
       startDate,
       endDate,
@@ -30,7 +30,7 @@ export class PerformanceController {
     @Query('eqpId') eqpId: string,
     @Query('interval') interval: string,
   ) {
-    const intervalNum = interval ? parseInt(interval, 10) : 0;
+    const intervalNum = interval ? parseInt(interval, 10) : 60;
     return this.performanceService.getProcessHistory(
       startDate,
       endDate,
@@ -48,7 +48,7 @@ export class PerformanceController {
     @Query('endDate') endDate: string,
     @Query('interval') interval: string,
   ) {
-    const intervalNum = interval ? parseInt(interval, 10) : 0;
+    const intervalNum = interval ? parseInt(interval, 10) : 60;
     return this.performanceService.getItmAgentTrend(
       site,
       sdwt,
