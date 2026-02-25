@@ -477,7 +477,7 @@
                       v-if="isImageType(agent.type)" 
                       :src="getTypeLogoUrl(agent.type)" 
                       :alt="agent.type || ''"
-                      class="h-4 w-auto object-contain drop-shadow-sm"
+                      class="h-3 w-auto object-contain drop-shadow-sm"
                       :title="agent.type || ''"
                     />
                     <span
@@ -1303,3 +1303,4 @@ body .p-tooltip .p-tooltip-arrow {
   font-size: 12px !important;
 }
 </style>
+
