@@ -84,7 +84,7 @@
               <Column header="DATA INFO" style="min-width: 90px" bodyStyle="text-align: center">
                 <template #body="{ data }">
                   <div class="flex items-center justify-center gap-2">
-                    <i class="pi pi-file-pdf text-[13px] transition-colors" 
+                    <i class="pi pi-image text-[13px] transition-colors" 
                        :class="data.hasWaferMap ? 'text-rose-500 cursor-pointer hover:text-rose-600' : 'text-slate-200 dark:text-zinc-700 cursor-default'" 
                        v-tooltip.top="data.hasWaferMap ? 'Wafer Map Available' : 'No Map'"></i>
                     <i class="pi pi-chart-line text-[13px] transition-colors" 
@@ -946,4 +946,5 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
+
 
