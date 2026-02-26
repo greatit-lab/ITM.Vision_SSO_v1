@@ -435,8 +435,10 @@ const availablePlugins = ref([
 ]);
 
 // Upload API 서버 주소
-const uploadApiBaseUrl =
-  import.meta.env.VITE_UPLOAD_API_URL || "http://10.172.111.93:8082";
+// [핵심 변경 사항: 보안 아키텍처 원칙 준수]
+// 브라우저는 DB 서버 IP를 알지 못하므로 빈 문자열('')을 기본으로 하여 현재 접속한 도메인의 '/api/...' 상대경로를 찌릅니다.
+// 단, 브라우저가 직접 접근하도록 허용하고 싶다면 .env 파일에 VITE_FILE_SERVER_URL=http://DB서버IP:8082 를 기재하면 됩니다.
+const fileServerBaseUrl = import.meta.env.VITE_FILE_SERVER_URL || '';
 
 /**
  * 브라우저 경고를 우회하기 위해 fetch & Blob 방식을 사용한 공통 다운로드 함수
@@ -447,7 +449,7 @@ const downloadFile = async (relativePath: string) => {
   isDownloading.value = true;
 
   try {
-    const url = `${uploadApiBaseUrl}/api/FileUpload/download?relativePath=${encodeURIComponent(relativePath)}`;
+    const url = `${fileServerBaseUrl}/api/FileUpload/download?relativePath=${encodeURIComponent(relativePath)}`;
 
     const response = await fetch(url);
 
