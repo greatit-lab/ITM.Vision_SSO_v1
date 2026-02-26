@@ -433,7 +433,7 @@ const resetZoom = () => {
     });
     isZoomed.value = false;
   }
-};
+}
 
 const handleResize = () => {
   if (chartInstance) {
@@ -550,7 +550,8 @@ onMounted(async () => {
         filter.sdwt = targetSdwt;
         isEqpLoading.value = true;
         try {
-          eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "prealign" });
+          // type을 "agent"로 변경하여 AgentInfo가 있는 장비만 조회
+          eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "agent" });
         } finally {
           isEqpLoading.value = false;
         }
@@ -588,7 +589,10 @@ const onSiteChange = async () => {
 const onSdwtChange = async () => {
   if (filter.sdwt) {
     isEqpLoading.value = true;
-    try { eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "prealign" }); }
+    try { 
+      // type을 "agent"로 변경하여 AgentInfo가 있는 장비만 조회
+      eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "agent" }); 
+    }
     finally { isEqpLoading.value = false; }
   } else { eqpIds.value = []; }
   filter.eqpId = ""; resetView();
@@ -615,7 +619,7 @@ const search = async () => {
     });
     const data = (res && res.data) ? res.data : res;
     
-    // [수정] 데이터 매핑 및 날짜 포맷팅 (Short Year 보정)
+    // 데이터 매핑 및 날짜 포맷팅 (Short Year 보정)
     chartData.value = (Array.isArray(data) ? data : []).map(d => ({
         ...d,
         timestamp: parseSafeDate(d.timestamp).isValid() 
@@ -635,7 +639,7 @@ const search = async () => {
 
 const reset = () => {
   filter.site = ""; filter.sdwt = ""; filter.eqpId = "";
-  // [수정] 초기화 시 오늘 00:00:00 기준 7일 전
+  // 초기화 시 오늘 00:00:00 기준 7일 전
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
@@ -668,7 +672,6 @@ const trendOption = computed(() => {
       backgroundColor: tooltipBg, borderColor: tooltipBorder, textStyle: { color: tooltipText },
       formatter: (params: any) => {
          if (!params[0]) return "";
-         // [수정] dayjs 포맷팅 사용
          const dateStr = dayjs(params[0].axisValue).format('MM-DD HH:mm');
          let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1 text-xs">${dateStr}</div>`;
          params.forEach((p: any) => {
@@ -682,7 +685,7 @@ const trendOption = computed(() => {
     grid: { left: 50, right: 50, top: 30, bottom: 25, containLabel: false },
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
     xAxis: {
-      type: "category", // [수정] Time 축을 Category로 변경하여 날짜 문자열 그대로 표시
+      type: "category",
       boundaryGap: false,
       data: chartData.value.map(d => d.timestamp),
       axisLabel: { 
@@ -697,10 +700,11 @@ const trendOption = computed(() => {
       { type: "value", name: "Pos(mm)", position: "left", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
       { type: "value", name: "Notch", position: "right", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { show: false } }
     ],
+    // [수정] showSymbol을 true로, symbolSize를 3으로 설정하여 포인트를 작게 표시하고, lineStyle.width를 2로 설정하여 선을 굵게 처리
     series: [
-      { name: "X", type: "line", data: chartData.value.map(d => [d.timestamp, d.xmm]), yAxisIndex: 0, showSymbol: false, symbolSize: 2, itemStyle: { color: "#3b82f6" }, lineStyle: { width: 1 } },
-      { name: "Y", type: "line", data: chartData.value.map(d => [d.timestamp, d.ymm]), yAxisIndex: 0, showSymbol: false, symbolSize: 2, itemStyle: { color: "#10b981" }, lineStyle: { width: 1 } },
-      { name: "Notch", type: "line", data: chartData.value.map(d => [d.timestamp, d.notch]), yAxisIndex: 1, showSymbol: false, symbolSize: 2, itemStyle: { color: "#f59e0b" }, lineStyle: { width: 1 } },
+      { name: "X", type: "line", data: chartData.value.map(d => [d.timestamp, d.xmm]), yAxisIndex: 0, showSymbol: true, symbolSize: 3, itemStyle: { color: "#3b82f6" }, lineStyle: { width: 2 } },
+      { name: "Y", type: "line", data: chartData.value.map(d => [d.timestamp, d.ymm]), yAxisIndex: 0, showSymbol: true, symbolSize: 3, itemStyle: { color: "#10b981" }, lineStyle: { width: 2 } },
+      { name: "Notch", type: "line", data: chartData.value.map(d => [d.timestamp, d.notch]), yAxisIndex: 1, showSymbol: true, symbolSize: 3, itemStyle: { color: "#f59e0b" }, lineStyle: { width: 2 } },
     ],
   };
 });
@@ -886,4 +890,3 @@ const notchChartOption = computed(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
-
