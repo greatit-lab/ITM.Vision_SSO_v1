@@ -30,19 +30,19 @@ export default defineConfig(() => {
 
       // 4. 프록시 설정 (.env.development의 VITE_API_URL=/api 요청을 백엔드로 전달)
       proxy: {
-        // 1. 파일 다운로드/업로드 요청은 ITM.UploadApi (8082 포트)로 토스
-        '/api/FileUpload': {
-          target: 'http://10.172.111.93:8082', 
+        // 1. 파일 다운로드 요청만 가로채서 DB 리눅스 서버(8082)로 토스
+        "/api/FileUpload": {
+          target: "http://10.172.111.93:8082", 
           changeOrigin: true,
           secure: false,
         },
-        // 2. 그 외 일반 데이터 API 요청은 메인 Backend(예: 44364 포트)로 토스
-        '/api': {
-          target: 'https://127.0.0.1:44364',
+        // 2. 그 외 일반 API는 기존 44364 백엔드로 토스
+        "/api": {
+          target: "https://127.0.0.1:44364",
           changeOrigin: true,
           secure: false,
-        }
-      }
+        },
+      },
     },
   };
 });
