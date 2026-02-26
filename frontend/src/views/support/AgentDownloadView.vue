@@ -29,7 +29,7 @@
                 <span class="px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-full uppercase tracking-wider">
                   Latest Release
                 </span>
-                <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">v1.2.0</span>
+                <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">v0.0.9.8</span>
               </div>
               <h2 class="text-3xl font-black text-slate-800 dark:text-white mb-3">
                 ITM Agent for Windows
@@ -39,8 +39,8 @@
               </p>
               
               <div class="flex flex-wrap items-center gap-4 mt-5 text-xs font-medium text-slate-400">
-                <div class="flex items-center gap-1.5"><i class="pi pi-calendar"></i> 2026-02-15</div>
-                <div class="flex items-center gap-1.5"><i class="pi pi-file-zip"></i> 24.5 MB</div>
+                <div class="flex items-center gap-1.5"><i class="pi pi-calendar"></i> 2026-02-26</div>
+                <div class="flex items-center gap-1.5"><i class="pi pi-file-zip"></i> 9.06 MB</div>
                 <div class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500">
                   <i class="pi pi-check-circle"></i> SHA-256 Verified
                 </div>
@@ -49,16 +49,16 @@
 
             <div class="shrink-0 flex flex-col gap-2 w-full md:w-auto mt-4 md:mt-0">
               <button 
-                @click="downloadAgent('agent/ITM_Agent_v1.2.0.zip')" 
+                @click="downloadAgent('agent/ITM_Agent_Setup.exe')" 
                 :disabled="isDownloading"
                 class="flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all hover:-translate-y-0.5 active:translate-y-0"
               >
                 <i v-if="isDownloading" class="pi pi-spin pi-spinner text-xl"></i>
                 <i v-else class="pi pi-windows text-xl"></i>
-                <span class="text-sm">{{ isDownloading ? 'Downloading...' : 'Download (.zip)' }}</span>
+                <span class="text-sm">{{ isDownloading ? 'Downloading...' : 'Download (.exe)' }}</span>
               </button>
               <span class="text-[10px] text-center text-slate-400 font-medium">
-                Requires Windows 10/11 or Server
+                Requires Windows 7/10/11 or Server
               </span>
             </div>
           </div>
@@ -76,7 +76,7 @@
               <div class="mt-2 text-center">
                 <i class="pi pi-cloud-download text-3xl text-slate-300 dark:text-zinc-600 mb-3 group-hover:text-indigo-400 transition-colors"></i>
                 <h4 class="font-bold text-sm text-slate-700 dark:text-slate-200 mb-2">Download & Extract</h4>
-                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">최신 버전의 Agent 압축 파일을 장비 PC에 다운로드하고 해제합니다.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">최신 버전의 ITM Agent 설치 파일을 Intool 계측 장비 Server 에 다운로드하고 해제합니다.</p>
               </div>
             </div>
             <div class="relative p-5 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800 transition-colors hover:bg-white dark:hover:bg-zinc-800 group">
@@ -85,7 +85,7 @@
                 <i class="pi pi-shield text-3xl text-slate-300 dark:text-zinc-600 mb-3 group-hover:text-indigo-400 transition-colors"></i>
                 <h4 class="font-bold text-sm text-slate-700 dark:text-slate-200 mb-2">Run as Admin</h4>
                 <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  <code class="bg-slate-200 dark:bg-zinc-700 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300">setup.exe</code> 파일을 관리자 권한으로 실행합니다.
+                  <code class="bg-slate-200 dark:bg-zinc-700 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300">ITM_Agent_Setup.exe</code> 파일을 관리자 권한으로 실행합니다.
                 </p>
               </div>
             </div>
@@ -94,7 +94,7 @@
               <div class="mt-2 text-center">
                 <i class="pi pi-cog text-3xl text-slate-300 dark:text-zinc-600 mb-3 group-hover:text-indigo-400 transition-colors"></i>
                 <h4 class="font-bold text-sm text-slate-700 dark:text-slate-200 mb-2">Configure & Start</h4>
-                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">I:Vision 서버 IP와 부여받은 EQP ID를 입력 후 서비스를 시작합니다.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ITM Agent 설치 중 EQPID 입력 및 데이터 아카이브 경로를 선택 후 서비스를 시작합니다.</p>
               </div>
             </div>
           </div>
@@ -132,9 +132,9 @@
               <li>네트워크 단절 시 데이터 로컬 캐싱 기능 강화 (최대 7일)</li>
               <li>CPU 점유율 최적화 (평균 2% 미만 유지)</li>
             </ul>
-            <button @click="downloadAgent('agent/ITM_Agent_v1.1.5.zip')" class="mt-3 text-[11px] font-bold text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center gap-1">
+            <!-- <button @click="downloadAgent('agent/ITM_Agent_v1.1.5.zip')" class="mt-3 text-[11px] font-bold text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors flex items-center gap-1">
               <i class="pi pi-download"></i> Download legacy version
-            </button>
+            </button> -->
           </div>
 
            <div class="relative pl-5 border-l-2 border-slate-200 dark:border-zinc-700">
@@ -164,7 +164,7 @@ const isDownloading = ref(false);
 
 // [프로그래머 팁] Upload API 서버의 주소를 환경변수로 관리합니다. (.env 파일에 VITE_UPLOAD_API_URL 세팅 필요)
 // 만약 설정되지 않았다면 기본 포트를 사용하도록 Fallback을 걸어둡니다.
-const uploadApiBaseUrl = import.meta.env.VITE_UPLOAD_API_URL || 'http://localhost:5001';
+const uploadApiBaseUrl = import.meta.env.VITE_UPLOAD_API_URL || 'http://10.172.111.93:8082';
 
 /**
  * 브라우저 경고를 우회하기 위해 fetch & Blob 방식을 사용한 안전한 다운로드
