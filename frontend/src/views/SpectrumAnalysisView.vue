@@ -135,6 +135,17 @@
                 <i class="pi pi-times cursor-pointer ml-1 hover:text-amber-800" @click="clearModelFit"></i>
               </span>
               <span v-if="hasSearched" class="text-[10px] text-slate-400 font-mono bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Hover to highlight</span>
+              
+              <button 
+                v-if="hasSearched" 
+                @click="exportRawData" 
+                :disabled="isExporting" 
+                class="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
+              >
+                <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
+                <i v-else class="pi pi-download"></i>
+                {{ isExporting ? 'Exporting...' : 'CSV Export' }}
+              </button>
             </div>
           </div>
           <div class="relative flex-1 w-full min-h-0 bg-slate-50/30 dark:bg-black/20">
@@ -218,6 +229,7 @@ const isLoading = ref(false);
 const isPointsLoading = ref(false);
 const isEqpLoading = ref(false);
 const hasSearched = ref(false);
+const isExporting = ref(false); // [추가] 다운로드 상태 관리
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -228,11 +240,10 @@ const stageGroups = ref<string[]>([]);
 const waferList = ref<string[]>([]);
 const pointIds = ref<string[]>([]);
 
-// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
 const now = new Date();
 const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+todayStart.setHours(0, 0, 0, 0); 
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
 
 const filters = reactive({
   eqpId: "",
@@ -240,7 +251,7 @@ const filters = reactive({
   cassetteRcp: "",
   stageGroup: "",
   pointId: "",
-  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
+  startDate: sevenDaysAgo,
   endDate: new Date(),
 });
 
@@ -273,7 +284,6 @@ const slotColors = [
   "#3B82F6", "#10B981", "#F43F5E", "#8B5CF6", "#06B6D4", "#EC4899", "#6366F1", "#14B8A6", "#F97316", "#64748B", "#D946EF", "#0EA5E9",
 ];
 
-// [추가] 통합 날짜 보정 및 로직
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -281,7 +291,6 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
            filters.endDate = new Date(newStart);
@@ -298,7 +307,6 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
@@ -416,7 +424,6 @@ const onEqpChange = () => {
 };
 
 const loadLotIds = async () => {
-  // [수정] toLocalISOString 사용
   lotIds.value = await waferApi.getDistinctValues("lotids", {
     eqpId: filters.eqpId,
     startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
@@ -427,7 +434,6 @@ const loadLotIds = async () => {
 const onLotChange = async () => {
   resetFrom(3);
   if (filters.lotId) {
-    // [수정] toLocalISOString 사용
     cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
       eqpId: filters.eqpId,
       lotId: filters.lotId,
@@ -545,7 +551,6 @@ const searchData = async () => {
   clearModelFit();
 
   try {
-    // [수정] toLocalISOString 사용 (startDate, endDate는 내부적으로 WaferService에서 사용됨)
     const data = await waferApi.getSpectrumTrend({
       eqpId: filters.eqpId,
       lotId: filters.lotId,
@@ -666,6 +671,92 @@ const fetchGoldenRef = async () => {
   }
 };
 
+// [신규] 원시 데이터(EXP + GEN) 일괄 다운로드 함수
+const exportRawData = async () => {
+  if (!hasSearched.value || chartSeries.value.length === 0) return;
+  isExporting.value = true;
+  
+  try {
+    // 1. 파장(Wavelength)을 Key로 가지는 Map 생성하여 데이터 정렬 준비
+    const wavelengthMap = new Map<number, any>();
+    
+    // 2. 현재 선택된 웨이퍼들의 GEN(Model) 데이터를 일괄적으로 호출 (백그라운드)
+    const genDataPromises = tableData.value.map(row => 
+      waferApi.getSpectrumGen({
+        lotId: row.lotId,
+        waferId: row.rawWaferId,
+        pointId: row.pointId,
+        eqpId: row.eqpId,
+        ts: row.scanTs
+      }).catch(() => null) // 일부 실패해도 전체 다운로드가 멈추지 않도록 예외 처리
+    );
+    const genResults = await Promise.all(genDataPromises);
+
+    // 3. 차트에 이미 로드되어 있는 EXP 데이터 맵핑
+    chartSeries.value.forEach((series) => {
+      const wid = series.waferId;
+      if(series.data) {
+        series.data.forEach(([w, i]: [number, number]) => {
+          if (!wavelengthMap.has(w)) wavelengthMap.set(w, {});
+          wavelengthMap.get(w)[`Slot_${wid}_EXP`] = i;
+        });
+      }
+    });
+
+    // 4. 새로 받아온 GEN 데이터를 맵핑
+    tableData.value.forEach((row, idx) => {
+      const wid = row.waferId;
+      const genSeriesObj = genResults[idx];
+      if (genSeriesObj && genSeriesObj.data) {
+        genSeriesObj.data.forEach(([w, i]: [number, number]) => {
+          if (!wavelengthMap.has(w)) wavelengthMap.set(w, {});
+          wavelengthMap.get(w)[`Slot_${wid}_GEN`] = i;
+        });
+      }
+    });
+
+    // 5. 파장(x축) 오름차순으로 정렬
+    const sortedWavelengths = Array.from(wavelengthMap.keys()).sort((a, b) => a - b);
+    const sortedWids = chartSeries.value.map(s => s.waferId).sort((a, b) => a - b);
+
+    // 6. CSV 헤더 구성 (Wavelength, Slot_1_EXP, Slot_1_GEN, ...)
+    let csvContent = "Wavelength(nm),";
+    const headers = sortedWids.map(wid => `Slot_${wid}_EXP,Slot_${wid}_GEN`).join(",");
+    csvContent += headers + "\n";
+
+    // 7. CSV Row 데이터 작성
+    sortedWavelengths.forEach(w => {
+      const rowData = wavelengthMap.get(w);
+      let rowStr = `${w},`;
+      const rowValues = sortedWids.map(wid => {
+        const expVal = rowData[`Slot_${wid}_EXP`] !== undefined ? rowData[`Slot_${wid}_EXP`] : "";
+        const genVal = rowData[`Slot_${wid}_GEN`] !== undefined ? rowData[`Slot_${wid}_GEN`] : "";
+        return `${expVal},${genVal}`;
+      });
+      rowStr += rowValues.join(",");
+      csvContent += rowStr + "\n";
+    });
+
+    // 8. 브라우저 단에서 즉시 파일 생성 및 다운로드 (보안 경고 우회용 Hidden Anchor 패턴)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `SpectrumData_${filters.lotId}_Point${filters.pointId}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("Failed to export raw data:", error);
+    alert("데이터 다운로드 중 오류가 발생했습니다.");
+  } finally {
+    isExporting.value = false;
+  }
+};
+
 const onRowSelect = async (event: any) => {
   const wid = event.data.waferId;
   const rawWid = event.data.rawWaferId;
@@ -714,7 +805,6 @@ const resetFilters = () => {
   localStorage.removeItem("spec_site");
   localStorage.removeItem("spec_sdwt");
   localStorage.removeItem("spec_eqp");
-  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
