@@ -37,6 +37,8 @@ const QnaBoardView = () => import('../views/support/QnaBoardView.vue');
 const QnaWriteView = () => import('../views/support/QnaWriteView.vue');
 const QnaDetailView = () => import('../views/support/QnaDetailView.vue');
 const ManualView = () => import('../views/support/ManualView.vue');
+// [추가된 부분] Agent Download 뷰 Import
+const AgentDownloadView = () => import('../views/support/AgentDownloadView.vue');
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -63,6 +65,13 @@ const routes: Array<RouteRecordRaw> = [
             name: "manual",
             component: ManualView,
             meta: { title: 'User Manual' }
+          },
+          // [추가된 부분] Agent Download 라우트 등록
+          {
+            path: "agent-download",
+            name: "agent-download",
+            component: AgentDownloadView,
+            meta: { title: 'Agent Download' }
           },
           {
             path: "qna",
@@ -187,4 +196,3 @@ router.beforeEach(async (to, _from, next) => {
 });
 
 export default router;
-
