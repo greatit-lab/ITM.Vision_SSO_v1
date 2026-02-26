@@ -55,7 +55,7 @@
               >
                 <i v-if="isDownloading" class="pi pi-spin pi-spinner text-xl"></i>
                 <i v-else class="pi pi-windows text-xl"></i>
-                <span class="text-sm">{{ isDownloading ? 'Downloading...' : 'Download (.exe)' }}</span>
+                <span class="text-base">{{ isDownloading ? 'Downloading...' : 'Download (.exe)' }}</span>
               </button>
               <span class="text-[10px] text-center text-slate-400 font-medium">
                 Requires Windows 7/10/11 or Server
