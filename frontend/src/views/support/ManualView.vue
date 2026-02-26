@@ -1,8 +1,8 @@
 <!-- frontend/src/views/support/ManualView.vue -->
 <template>
   <div class="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 dark:bg-[#09090b]">
-    <aside class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 overflow-y-auto">
-      <div class="p-4">
+    <aside class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 flex flex-col overflow-hidden">
+      <div class="p-4 flex-1 overflow-y-auto">
         <div class="flex items-center justify-between mb-4 px-2">
           <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Documentation</h3>
           <button 
@@ -53,14 +53,29 @@
         </nav>
       </div>
 
-      <div class="p-4 mt-auto border-t border-slate-200 dark:border-zinc-800">
-        <div class="bg-slate-100 dark:bg-zinc-800 rounded-xl p-4">
-          <p class="text-xs font-semibold text-slate-500 mb-2">도움이 필요하신가요?</p>
-          <p class="text-xs text-slate-400 mb-3">Q&A 게시판을 통해 문의하세요.</p>
-          <button @click="$router.push('/support/qna')" class="w-full py-1.5 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-lg text-xs font-bold shadow-sm hover:text-indigo-500 transition-colors">
+      <div class="p-4 mt-auto border-t border-slate-200 dark:border-zinc-800 shrink-0 flex flex-col gap-3">
+        
+        <div class="bg-slate-100 dark:bg-zinc-800/80 rounded-xl p-4">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">도움이 필요하신가요?</p>
+          <p class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Q&A 게시판을 통해 문의하세요.</p>
+          <button @click="$router.push('/support/qna')" class="w-full py-2 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-lg text-xs font-bold shadow-sm hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors">
             Q&A 게시판 이동
           </button>
         </div>
+
+        <button 
+          @click="$router.push('/support/agent-download')"
+          class="w-full text-left px-4 py-3 text-sm font-bold rounded-xl border border-indigo-100 dark:border-indigo-900/30 transition-all flex items-center justify-between text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 group shadow-sm"
+        >
+          <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+              <i class="pi pi-download text-indigo-500 dark:text-indigo-400 text-xs"></i>
+            </div>
+            <span>Agent Download</span>
+          </div>
+          <i class="pi pi-arrow-right text-[10px] opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all"></i>
+        </button>
+
       </div>
     </aside>
 
@@ -203,7 +218,6 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
-// [수정] 정확한 API 파일 경로와 DTO import
 import { manualApi, type ManualSectionDto } from '@/api/manual';
 
 const authStore = useAuthStore();
@@ -237,7 +251,7 @@ const defaultSections: ManualSectionDto[] = [
     title: '개요 및 시스템 구성',
     subtitle: 'System Overview & Architecture',
     icon: 'pi pi-info-circle',
-    content: `<p><strong>I:Vision Web</strong> 플랫폼에 오신 것을 환영합니다.</p><br/><p>이 시스템은 현장의 반도체 장비(ITM Equipment)에서 생성되는 방대한 데이터를 ITM Agent를 통해 실시간으로 수집합니다.</p>`,
+    content: `<p><strong>I:Vision Web</strong> 플랫폼에 오신 것을 환영합니다.</p><br/><p>이 시스템은 현장의 반도체 장비(ITM Equipment)에서 생성되는 방대한 데이터를 ITM Agent를 통해 실시간 수집합니다.</p>`,
     imageUrl: '',
     sortOrder: 0
   },
@@ -270,7 +284,7 @@ const loadManuals = async () => {
       manualSections.value = JSON.parse(JSON.stringify(defaultSections));
     }
     
-    // [수정] 배열 안전 접근 (undefined 체크)
+    // 배열 안전 접근
     if (manualSections.value.length > 0) {
       const firstSection = manualSections.value[0];
       if (firstSection) {
@@ -291,7 +305,6 @@ const loadManuals = async () => {
 
 // --- Computed ---
 const activeContent = computed(() => {
-  // [수정] 타입 명시를 통해 'implicit any' 오류 해결
   return manualSections.value.find((s: ManualSectionDto) => s.id === activeSectionId.value);
 });
 
@@ -325,7 +338,6 @@ const deleteSection = (index: number) => {
     manualSections.value.splice(index, 1);
     
     if (manualSections.value.length > 0) {
-      // [수정] 배열 안전 접근
       const firstSection = manualSections.value[0];
       if (firstSection) activeSectionId.value = firstSection.id;
     } else {
