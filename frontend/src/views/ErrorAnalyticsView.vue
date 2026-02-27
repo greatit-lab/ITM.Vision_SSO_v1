@@ -248,14 +248,16 @@ watch(
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   
-  let targetSite = localStorage.getItem(LS_KEYS.SITE);
+  let targetSite = "";
   let targetSdwt = "";
 
-  if (targetSite) {
-    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
+  if (authStore.user?.site) {
+    targetSite = authStore.user.site;
+    targetSdwt = authStore.user.sdwt || "";
   } else {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
+    targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -272,6 +274,7 @@ onMounted(async () => {
           filter.eqpId = initEqpId;
         }
         
+        // SDWT가 선택된 상태라면 자동 검색 수행
         if (filter.sdwt) {
             search();
         }
@@ -482,7 +485,6 @@ const trendOption = computed(() => {
     backgroundColor: "transparent",
     tooltip: { trigger: "axis", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" } },
     grid: { left: 40, right: 20, top: 30, bottom: 20, containLabel: true },
-    // [수정] X축 라벨 포맷 변경: 'formatDate(d.date, true)' (MM-DD) -> 'formatDate(d.date, false, true).split(' ')[0]' (YY-MM-DD)
     xAxis: { type: "category", data: trendData.value.map((d) => formatDate(d.date, false, true).split(' ')[0]), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
     yAxis: { type: "value", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
     series: [{ name: "Alerts", type: "bar", data: trendData.value.map((d) => d.count), itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 50, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
@@ -530,7 +532,6 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 </script>
 
 <style scoped>
-/* Styles retained */
 :deep(.p-datatable-thead > tr > th) { @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-zinc-800 uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700 z-10 sticky top-0; }
 :deep(.p-datatable-tbody > tr > td) { @apply py-2 px-3 text-[12px] text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800/50; }
 :deep(.dark .p-datatable-tbody > tr:hover) { @apply !bg-[#27272a] !text-white; }
