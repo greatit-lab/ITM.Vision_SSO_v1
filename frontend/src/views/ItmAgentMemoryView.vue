@@ -183,7 +183,7 @@
           </transition>
         </div>
       </div>
-
+      
       <div
         class="flex-none bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col"
       >
@@ -228,7 +228,6 @@
                 <th scope="col" class="px-4 py-2.5 font-bold text-center">
                   Version
                 </th>
-
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
                   <div
                     class="flex items-center justify-end gap-1 cursor-help"
@@ -332,12 +331,14 @@
 
     <div
       v-else
-      class="flex flex-col items-center justify-center flex-1 min-h-[400px] opacity-50 select-none"
+      class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]"
     >
       <div
         class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
       >
-        <i class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-server"></i>
+        <i
+          class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-server"
+        ></i>
       </div>
       <p class="text-sm font-bold text-slate-500">
         Ready to analyze agents.
@@ -380,7 +381,7 @@ const authStore = useAuthStore();
 // State
 const selectedEqpId = ref(""); 
 
-// [수정] 날짜 초기화: 오늘 00:00:00 기준 1일 전 (24시간)
+// 날짜 초기화: 오늘 00:00:00 기준 1일 전 (24시간)
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0);
@@ -399,6 +400,10 @@ const eqpSeries = ref<any[]>([]);
 const eqpStats = ref<EqpStat[]>([]);
 const displayedEqpCount = ref(0);
 
+const statMax = ref(0);
+const statAvg = ref(0);
+const statLast = ref(0);
+
 // Status
 const isLoading = ref(false);
 const isEqpIdLoading = ref(false);
@@ -415,7 +420,7 @@ const colorPalette = [
   "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316"
 ];
 
-// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
+// 통합 날짜 보정 로직 (Start > End 시 자동 보정)
 watch(
   [() => startDate.value, () => endDate.value],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -435,7 +440,7 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 보정)
+// 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 보정)
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -451,7 +456,7 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
+// 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
 const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
   let str = String(ts || "");
   if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
@@ -470,16 +475,15 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
-    targetSite = localStorage.getItem("agent_site") || "";
-    if (targetSite) {
-      targetSdwt = localStorage.getItem("agent_sdwt") || "";
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
+    } else {
+      targetSite = localStorage.getItem("agentmem_site") || "";
+      targetSdwt = localStorage.getItem("agentmem_sdwt") || "";
     }
-  }
-
-  if (!targetSite) {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -490,7 +494,7 @@ onMounted(async () => {
       filterStore.selectedSdwt = targetSdwt;
       await loadEqpIds();
 
-      const savedEqpId = localStorage.getItem("agent_eqpid");
+      const savedEqpId = localStorage.getItem("agentmem_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
       }
@@ -520,17 +524,17 @@ onUnmounted(() => {
 // --- Handlers ---
 const onSiteChange = async () => {
   if (filterStore.selectedSite) {
-    localStorage.setItem("agent_site", filterStore.selectedSite);
+    localStorage.setItem("agentmem_site", filterStore.selectedSite);
     sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
   } else {
-    localStorage.removeItem("agent_site");
+    localStorage.removeItem("agentmem_site");
     sdwts.value = [];
   }
   
   filterStore.selectedSdwt = "";
-  localStorage.removeItem("agent_sdwt");
+  localStorage.removeItem("agentmem_sdwt");
   selectedEqpId.value = "";
-  localStorage.removeItem("agent_eqpid");
+  localStorage.removeItem("agentmem_eqpid");
   eqpIds.value = [];
   
   resetView();
@@ -538,22 +542,22 @@ const onSiteChange = async () => {
 
 const onSdwtChange = async () => {
   if (filterStore.selectedSdwt) {
-    localStorage.setItem("agent_sdwt", filterStore.selectedSdwt);
+    localStorage.setItem("agentmem_sdwt", filterStore.selectedSdwt);
     await loadEqpIds();
   } else {
-    localStorage.removeItem("agent_sdwt");
+    localStorage.removeItem("agentmem_sdwt");
     eqpIds.value = [];
   }
   selectedEqpId.value = "";
-  localStorage.removeItem("agent_eqpid");
+  localStorage.removeItem("agentmem_eqpid");
   resetView();
 };
 
 const onEqpIdChange = () => {
   if (selectedEqpId.value) {
-      localStorage.setItem("agent_eqpid", selectedEqpId.value);
+      localStorage.setItem("agentmem_eqpid", selectedEqpId.value);
   } else {
-      localStorage.removeItem("agent_eqpid");
+      localStorage.removeItem("agentmem_eqpid");
   }
   resetView();
 };
@@ -563,6 +567,10 @@ const resetView = () => {
   chartData.value = [];
   eqpStats.value = [];
   eqpSeries.value = [];
+  
+  statMax.value = 0;
+  statAvg.value = 0;
+  statLast.value = 0;
 };
 
 const loadEqpIds = async () => {
@@ -597,7 +605,6 @@ const searchData = async () => {
     const fixedEnd = new Date(endDate.value);
     fixedEnd.setHours(23, 59, 59, 999);
     
-    // [수정] toLocalISOString 사용으로 로컬 시간대 보정
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
 
@@ -664,7 +671,6 @@ const processData = (data: ItmAgentDataDto[]) => {
   const timeMap = new Map<string, any>();
   
   data.forEach((d) => {
-    // [수정] parseSafeDate를 사용하여 타임스탬프 처리
     const dt = parseSafeDate(d.timestamp);
     if (!dt.isValid()) return;
 
@@ -694,6 +700,12 @@ const processData = (data: ItmAgentDataDto[]) => {
 
   const series: any[] = [];
   const stats: EqpStat[] = [];
+  
+  let globalMax = 0;
+  let globalSum = 0;
+  let globalCount = 0;
+  let globalLastTotal = 0;
+  let globalLastCount = 0;
 
   sortedEqps.forEach((eqpId, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? '#888888';
@@ -728,8 +740,6 @@ const processData = (data: ItmAgentDataDto[]) => {
       sum = memValues.reduce((a, b) => a + b, 0);
       max = memValues.reduce((a, b) => Math.max(a, b), 0);
 
-      // 마지막 레코드 계산 시에도 시간 비교를 위해 parseSafeDate 사용 권장
-      // (기존 reduce 로직 유지하되, 필요 시 date parsing 강화 가능)
       const lastRecord = pData.reduce((latest, current) => {
         const latestTime = parseSafeDate(latest.timestamp).valueOf();
         const currentTime = parseSafeDate(current.timestamp).valueOf();
@@ -737,6 +747,12 @@ const processData = (data: ItmAgentDataDto[]) => {
       }, pData[0]!);
 
       last = Number(lastRecord?.memoryUsageMB) || 0;
+      
+      globalMax = Math.max(globalMax, max);
+      globalSum += sum;
+      globalCount += memValues.length;
+      globalLastTotal += last;
+      globalLastCount += 1;
     }
 
     stats.push({
@@ -748,6 +764,10 @@ const processData = (data: ItmAgentDataDto[]) => {
       last
     });
   });
+  
+  statMax.value = globalMax;
+  statAvg.value = globalCount > 0 ? globalSum / globalCount : 0;
+  statLast.value = globalLastCount > 0 ? globalLastTotal / globalLastCount : 0;
 
   eqpSeries.value = series;
   eqpStats.value = stats.sort((a, b) => b.max - a.max);
@@ -757,16 +777,15 @@ const resetFilters = () => {
   filterStore.reset();
   selectedEqpId.value = "";
   
-  localStorage.removeItem("agent_site");
-  localStorage.removeItem("agent_sdwt");
-  localStorage.removeItem("agent_eqpid");
+  localStorage.removeItem("agentmem_site");
+  localStorage.removeItem("agentmem_sdwt");
+  localStorage.removeItem("agentmem_eqpid");
 
   sdwts.value = [];
   eqpIds.value = [];
   
   resetView();
   
-  // [수정] 초기화 시 오늘 0시 기준 24시간 전으로 설정
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
@@ -776,7 +795,6 @@ const resetFilters = () => {
 
 const formattedPeriod = computed(() => {
   if (!startDate.value || !endDate.value) return "";
-  // [수정] dayjs 포맷팅
   const fmt = (d: Date) => dayjs(d).format('YYYY-MM-DD');
   return `${fmt(startDate.value)} ~ ${fmt(endDate.value)}`;
 });
@@ -802,7 +820,6 @@ const chartOption = computed(() => {
         if (!params || !params[0]) return "";
         const xDate = new Date(params[0].axisValueLabel);
         
-        // [수정] 툴팁 시간 포맷 통일 (HH:mm)
         const timeStr = isNaN(xDate.getTime()) ? params[0].axisValueLabel 
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
         
@@ -849,7 +866,6 @@ const chartOption = computed(() => {
         formatter: (value: string) => {
           const d = new Date(value);
           if (isNaN(d.getTime())) return value;
-          // [수정] X축 라벨 날짜 포맷 (MM-DD HH:mm)
           return `${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         }
       },
