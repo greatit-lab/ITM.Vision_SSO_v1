@@ -81,7 +81,7 @@
                 <div class="mt-1 text-center text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
                   설치 환경에 따라 <code class="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px] font-mono text-slate-600 dark:text-slate-300">.NET Framework 4.7.2</code> 이상이 필요.
                   <button 
-                    @click="downloadFile('agent/NDP472-KB4054530-x86-x64-AIIOS-ENU.exe')" 
+                    @click="downloadFile('agent/NDP472-KB4054530-x86-x64-AllOS-ENU.exe')" 
                     :disabled="isDownloading"
                     class="font-bold text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline disabled:opacity-50 disabled:no-underline transition-colors ml-0.5"
                   >
