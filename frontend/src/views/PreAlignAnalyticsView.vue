@@ -344,7 +344,6 @@ const LS_KEYS = {
 };
 
 // --- State ---
-// [수정] 날짜 초기화: '오늘 00:00:00' 기준 7일 전
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0); 
@@ -399,7 +398,7 @@ const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
   return dayjs(str);
 };
 
-// [수정] Chart Event Handlers: Manual Resize Observer 적용
+// Chart Event Handlers
 const onChartCreated = (instance: any) => {
   chartInstance = instance;
   
@@ -532,14 +531,16 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSite = "";
   let targetSdwt = "";
 
-  if (targetSite) {
-     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
+  if (authStore.user?.site) {
+    targetSite = authStore.user.site;
+    targetSdwt = authStore.user.sdwt || "";
   } else {
-     targetSite = authStore.user?.site || "";
-     targetSdwt = authStore.user?.sdwt || "";
+    targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -639,7 +640,6 @@ const search = async () => {
 
 const reset = () => {
   filter.site = ""; filter.sdwt = ""; filter.eqpId = "";
-  // 초기화 시 오늘 00:00:00 기준 7일 전
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
@@ -700,7 +700,6 @@ const trendOption = computed(() => {
       { type: "value", name: "Pos(mm)", position: "left", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
       { type: "value", name: "Notch", position: "right", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { show: false } }
     ],
-    // [수정] showSymbol을 true로, symbolSize를 3으로 설정하여 포인트를 작게 표시하고, lineStyle.width를 2로 설정하여 선을 굵게 처리
     series: [
       { name: "X", type: "line", data: chartData.value.map(d => [d.timestamp, d.xmm]), yAxisIndex: 0, showSymbol: true, symbolSize: 3, itemStyle: { color: "#3b82f6" }, lineStyle: { width: 2 } },
       { name: "Y", type: "line", data: chartData.value.map(d => [d.timestamp, d.ymm]), yAxisIndex: 0, showSymbol: true, symbolSize: 3, itemStyle: { color: "#10b981" }, lineStyle: { width: 2 } },
