@@ -514,17 +514,16 @@ const metrics = ref<string[]>([]);
 
 const isMetricLoading = ref(false);
 
-// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
 const now = new Date();
 const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+todayStart.setHours(0, 0, 0, 0); 
+const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
 
 const filters = reactive({
   eqpId: "",
   lotId: "",
-  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
-  endDate: new Date(),     // EndDate는 toLocalISOString에서 true 처리 시 23:59:59로 보정됨
+  startDate: sevenDaysAgo, 
+  endDate: new Date(),     
   cassetteRcp: "",
   stageGroup: "",
   film: "",
@@ -535,8 +534,6 @@ const chartSeries = ref<LotUniformitySeriesDto[]>([]);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
-// isEndDate = true 이면 23:59:59.999 로 설정
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
@@ -552,7 +549,6 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -560,16 +556,13 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
            filters.endDate = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
            filters.startDate = new Date(newEnd);
         }
-        return; // 보정 발생 시 로딩 중단
+        return; 
       }
     }
 
@@ -657,13 +650,15 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
+  // [핵심 변경] 프로필 설정을 최우선으로, 없을 때만 localStorage(이전 선택 이력) 참조
   if (!targetSite) {
-    targetSite = localStorage.getItem("lot_site") || "";
-    if (targetSite) targetSdwt = localStorage.getItem("lot_sdwt") || "";
-  }
-  if (!targetSite) {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
+    } else {
+      targetSite = localStorage.getItem("lot_site") || "";
+      targetSdwt = localStorage.getItem("lot_sdwt") || "";
+    }
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -775,7 +770,6 @@ const onEqpChange = () => {
   }
 };
 
-// [수정] EQP 변경 시 초기화
 const onLotChange = () => {
   clearStepsFrom(1);
   hasTopSearched.value = false;
@@ -784,7 +778,6 @@ const onLotChange = () => {
 const onTopSearch = async () => {
   if (!filters.lotId) return;
   
-  // [수정] 차트 영역 먼저 보여주고, 로딩 오버레이 띄움
   hasTopSearched.value = true;
   isTopLoading.value = true;
   
@@ -796,7 +789,6 @@ const onTopSearch = async () => {
   }
 };
 
-// [수정] API 호출 시 toLocalISOString 사용
 const loadLotIds = async () => {
   const params = {
       eqpId: filters.eqpId,
@@ -807,7 +799,6 @@ const loadLotIds = async () => {
 };
 
 const loadCassettes = async () => {
-  // Lot ID가 특정되었으므로 날짜 필터 제외
   cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
     eqpId: filters.eqpId,
     lotId: filters.lotId,
@@ -901,7 +892,7 @@ const resetFilters = () => {
   localStorage.removeItem("lot_sdwt");
   localStorage.removeItem("lot_eqpid");
   filters.eqpId = "";
-  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
+
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
