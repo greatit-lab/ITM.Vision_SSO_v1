@@ -748,16 +748,15 @@ onMounted(async () => {
     let targetSite = filterStore.selectedSite;
     let targetSdwt = filterStore.selectedSdwt;
 
+    // [수정 핵심] 프로필 설정을 최우선으로, 없을 때만 localStorage 참조
     if (!targetSite) {
-      targetSite = localStorage.getItem("dashboard_site") || "";
-      if (targetSite) {
+      if (authStore.user?.site) {
+        targetSite = authStore.user.site;
+        targetSdwt = authStore.user.sdwt || "";
+      } else {
+        targetSite = localStorage.getItem("dashboard_site") || "";
         targetSdwt = localStorage.getItem("dashboard_sdwt") || "";
       }
-    }
-
-    if (!targetSite) {
-      targetSite = authStore.user?.site || "";
-      targetSdwt = authStore.user?.sdwt || "";
     }
 
     if (targetSite && sites.value.includes(targetSite)) {
@@ -877,7 +876,9 @@ const loadData = async (showLoading = true) => {
 const startAutoRefresh = () => {
   if (refreshTimer) clearInterval(refreshTimer);
   refreshCount.value = 30;
-  refreshTimer = setInterval(() => {
+  
+  // 강제 형변환 대신 window.setInterval 을 사용하면 TypeScript가 브라우저용 타이머로 완벽히 인식합니다.
+  refreshTimer = window.setInterval(() => {
     refreshCount.value--;
     if (refreshCount.value <= 0) {
       loadData(false);
@@ -917,7 +918,7 @@ const openChart = async (agent: AgentStatusDto) => {
       formatLocal(startDate),
       formatLocal(endDate),
       [agent.eqpId],
-      300 // [수정] 5분 단위 데이터 호출 유지
+      300 
     );
     chartData.value = data || []; 
   } catch (e) {
@@ -1012,9 +1013,9 @@ const chartOption = computed(() => {
         type: "line",
         data: cpuValues,
         smooth: true,
-        showSymbol: true, // 포인트 표시
+        showSymbol: true, 
         symbol: 'circle',
-        symbolSize: 4,    // 작은 크기로 고정
+        symbolSize: 4,    
         sampling: 'lttb',
         itemStyle: { color: "#3b82f6" },
         areaStyle: {
@@ -1036,9 +1037,9 @@ const chartOption = computed(() => {
         type: "line",
         data: memValues,
         smooth: true,
-        showSymbol: true, // 포인트 표시
+        showSymbol: true, 
         symbol: 'circle',
-        symbolSize: 4,    // 작은 크기로 고정
+        symbolSize: 4,    
         sampling: 'lttb',
         itemStyle: { color: "#10b981" },
         areaStyle: {
@@ -1062,7 +1063,6 @@ const chartOption = computed(() => {
 const first = ref(0);
 const rowsPerPage = ref(20);
 
-// [추가] 타입별 로고 이미지 판단 및 경로 반환 유틸 함수
 const isImageType = (type: string | null) => {
   const lowerType = (type || "").toLowerCase();
   return lowerType === "onto" || lowerType === "nova";
@@ -1303,4 +1303,3 @@ body .p-tooltip .p-tooltip-arrow {
   font-size: 12px !important;
 }
 </style>
-
