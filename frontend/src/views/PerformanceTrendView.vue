@@ -470,7 +470,6 @@ import {
 } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
-// [추가] dayjs 도입
 import dayjs from "dayjs";
 
 // PrimeVue
@@ -494,7 +493,6 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const selectedEqpId = ref("");
 
-// [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 24시간(1일) 전 설정
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0); 
@@ -539,7 +537,6 @@ const intervalOptions = [
   { label: "5 Min", value: 300 },
 ];
 
-// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
 watch(
   [startDate, endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -547,13 +544,10 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 시작일이 종료일보다 늦어지면
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경된 경우 -> 종료일을 시작일로 맞춤
            endDate.value = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경된 경우 -> 시작일을 종료일로 맞춤
            startDate.value = new Date(newEnd);
         }
       }
@@ -561,13 +555,11 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결)
 const toLocalISOString = (date: Date) => {
   if (!date) return "";
   const d = new Date(date);
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
-  // YYYY-MM-DD HH:mm:ss 포맷
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
@@ -578,16 +570,15 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
-    targetSite = localStorage.getItem("performance_site") || "";
-    if (targetSite) {
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
+    } else {
+      targetSite = localStorage.getItem("performance_site") || "";
       targetSdwt = localStorage.getItem("performance_sdwt") || "";
     }
-  }
-
-  if (!targetSite) {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -692,7 +683,6 @@ const resetFilters = () => {
   hasSearched.value = false;
   intervalSeconds.value = 0;
   
-  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
@@ -721,7 +711,6 @@ const getTooltipFormatter = (unitMap: Record<string, string>) => {
   return (params: any) => {
     if (!params || !params[0]) return "";
     
-    // [수정] dayjs 포맷팅 적용 (MM-DD HH:mm:ss)
     const timeStr = dayjs(params[0].axisValueLabel).isValid() 
         ? dayjs(params[0].axisValueLabel).format('MM-DD HH:mm:ss') 
         : params[0].axisValueLabel;
@@ -811,7 +800,6 @@ const commonChartOption = () => {
         color: textColor,
         fontSize: 10,
         formatter: (value: string) => {
-          // [수정] dayjs 포맷팅 적용 (유효한 날짜면 포맷팅, 아니면 그대로)
           const d = dayjs(value);
           return d.isValid() ? d.format('MM-DD HH:mm') : value;
         },
@@ -871,7 +859,6 @@ const cpuOption = computed(() => {
     ],
   };
 });
-
 
 const memOption = computed(() => {
   const base = commonChartOption();
@@ -1059,7 +1046,7 @@ const toggleRealtime = () => {
     refreshTimer = setInterval(() => {
       updateRealtimeDates();
       searchData(true);
-    }, intervalSeconds.value * 1000);
+    }, intervalSeconds.value * 1000) as unknown as number;
   } else {
     isRealtime.value = false;
     if (refreshTimer) clearInterval(refreshTimer);
@@ -1113,19 +1100,13 @@ const searchData = async (silent = false) => {
     chartData.value = rawData
       .filter((d) => d.timestamp)
       .map((d) => {
-        // [수정] "Invalid Date" 방지 로직 강화
-        // 1. 문자열 변환 및 Null Safety
         let rawTs = String(d.timestamp || "");
         
-        // 2. 'Z' 제거 (UTC 강제 변환 방지 -> 로컬 시간으로 해석 유도)
         if (rawTs.includes("Z")) {
             rawTs = rawTs.replace("Z", "");
         }
         
-        // 3. Dayjs 파싱
         const parsed = dayjs(rawTs);
-        
-        // 4. 포맷팅 (유효하지 않으면 원본 또는 빈 문자열)
         const ts = parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : rawTs;
 
         return {
@@ -1179,7 +1160,6 @@ const calculateSummary = (data: PerformanceDataPointDto[]) => {
   ];
 };
 
-// [수정] dayjs 사용 및 안전한 포맷팅
 const formatDate = (dateStr: string | undefined) => {
   if (!dateStr) return "-";
   const parsed = dayjs(dateStr);
