@@ -866,30 +866,27 @@ const canAnalyze = computed(() => {
 
 let themeObserver: MutationObserver;
 
-// [개선] 안전한 날짜 포맷팅 함수 (YY-MM-DD 대응 및 정규식 사용)
-// "26-01-21 00:10:39" 같은 데이터를 "2026-01-21T00:10:39"로 변환하여 dayjs가 올바르게 파싱하도록 함
+// 안전한 날짜 포맷팅 함수 (YY-MM-DD 대응 및 정규식 사용)
 const fixDateString = (ts: string | Date | undefined) => {
     if (!ts) return null;
     if (ts instanceof Date) return dayjs(ts);
     
     let str = String(ts).trim();
     
-    // 1. YY-MM-DD 포맷 감지 및 20YY로 변환 (Regex 사용으로 안전성 강화)
+    // YY-MM-DD 포맷 감지 및 20YY로 변환
     const yyMmDdRegex = /^(\d{2})-(\d{2})-(\d{2})/;
     const match = str.match(yyMmDdRegex);
-    // [Fix] match[1]이 존재함을 명확히 체크하여 TS 에러 2769 방지
     if (match && match[1]) {
         str = str.replace(match[1], '20' + match[1]); 
     }
     
-    // 2. ISO 포맷 호환성을 위해 공백을 T로 치환
     str = str.replace(' ', 'T');
     
     const d = dayjs(str);
     return d.isValid() ? d : null;
 };
 
-// [함수] 필터용 날짜 (Start/End) 변환
+// 필터용 날짜 (Start/End) 변환
 const formatDate = (date: Date | string | undefined, isEndDate: boolean = false) => {
   if (!date) return "";
   let d = dayjs(date);
@@ -904,7 +901,7 @@ const formatDate = (date: Date | string | undefined, isEndDate: boolean = false)
   return d.format('YYYY-MM-DD HH:mm:ss');
 };
 
-// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
+// 통합 날짜 보정 로직 (Start > End 시 자동 보정)
 watch(
   [() => filter.startDate, () => filter.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -912,7 +909,6 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // [수정] TS 오류 해결을 위해 oldStart의 존재 여부 확인 후 getTime 호출
       const oldStartMs = oldStart ? oldStart.getTime() : 0;
       const oldEndMs = oldEnd ? oldEnd.getTime() : 0;
 
@@ -946,14 +942,16 @@ watch(
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSite = "";
   let targetSdwt = "";
 
-  if (targetSite) {
-     targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
+  if (authStore.user?.site) {
+    targetSite = authStore.user.site;
+    targetSdwt = authStore.user.sdwt || "";
   } else {
-     targetSite = authStore.user?.site || "";
-     targetSdwt = authStore.user?.sdwt || "";
+    targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -1350,7 +1348,6 @@ const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
   const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
 
-  // [수정] Regex 기반 fixDateString 사용
   const dates = trendData.value.map((d) => {
     const date = fixDateString(d.ts);
     return date ? date.format('MM/DD HH:mm') : '-';
@@ -1368,10 +1365,9 @@ const chartOption = computed(() => {
       borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
       textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
     },
-    // [수정] 범례 복원 및 중앙 배치 (중복 제거 및 Y축 겹침 방지)
     legend: { 
         show: true,
-        left: 'center', // 중앙에 배치하여 사이드 제목과 겹치지 않게 함
+        left: 'center', 
         top: 0, 
         textStyle: { color: textColor } 
     },
@@ -1447,7 +1443,6 @@ const wavelengthChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
   const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
 
-  // [수정] Regex 기반 fixDateString 사용
   const dates = trendData.value.map((d) => {
     const date = fixDateString(d.ts);
     return date ? date.format('MM/DD HH:mm') : '-';
@@ -1465,7 +1460,6 @@ const wavelengthChartOption = computed(() => {
       textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
     },
     grid: { left: 15, right: 30, top: 35, bottom: 10, containLabel: true },
-    // [수정] X축 라벨 표시 활성화
     xAxis: { 
         type: "category", 
         data: dates, 
@@ -1499,7 +1493,6 @@ const correlationChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#94a3b8" : "#64748b";
   const gridColor = isDarkMode.value ? "#334155" : "#e2e8f0";
 
-  // [수정] Regex 기반 fixDateString 사용
   const dates = trendData.value.map((d) => {
     const date = fixDateString(d.ts);
     return date ? date.format('MM/DD HH:mm') : '-';
@@ -1521,26 +1514,23 @@ const correlationChartOption = computed(() => {
       borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
       textStyle: { color: isDarkMode.value ? "#f1f5f9" : "#1e293b" },
     },
-    // [수정] 범례 위치를 중앙으로 이동하여 Y축 제목(우측)과 겹치지 않게 함
     legend: { 
         left: 'center',
         top: 0,
         textStyle: { color: textColor } 
     },
-    // [수정] 범례 공간 확보를 위해 Top 여백 증가 (30 -> 40), 왼쪽 여백 조정 (40 -> 50)
     grid: { left: 50, right: 40, top: 40, bottom: 20, containLabel: true },
     xAxis: {
       type: "category",
       data: dates,
       axisLine: { lineStyle: { color: gridColor } },
-      axisLabel: { show: true, color: textColor, fontSize: 10 }, // [수정] fontSize 10으로 통일
+      axisLabel: { show: true, color: textColor, fontSize: 10 },
     },
     yAxis: [
       {
         type: "value",
         name: "Intensity",
         splitLine: { show: false },
-        // [수정] Y1축 라벨 표시 활성화 (show: true) 및 폰트 크기 10px로 통일
         axisLabel: { show: true, color: textColor, fontSize: 10 },
       },
       {
@@ -1548,7 +1538,7 @@ const correlationChartOption = computed(() => {
         name: "SNR (dB)",
         position: "right",
         splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: textColor, fontSize: 10 }, // [수정] fontSize 10으로 통일
+        axisLabel: { color: textColor, fontSize: 10 }, 
       },
     ],
     series: [
@@ -1589,7 +1579,6 @@ const correlationChartOption = computed(() => {
 :deep(.custom-dropdown:hover) {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
-/* [수정] DatePicker CSS 개선 */
 :deep(.date-picker) {
   @apply relative w-full overflow-visible; 
 }
