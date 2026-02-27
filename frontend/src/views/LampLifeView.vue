@@ -421,14 +421,16 @@ const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSite = "";
   let targetSdwt = "";
 
-  if (targetSite) {
-    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
+  if (authStore.user?.site) {
+    targetSite = authStore.user.site;
+    targetSdwt = authStore.user.sdwt || "";
   } else {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
+    targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -443,6 +445,9 @@ onMounted(async () => {
     } catch (e) {
       console.error("Failed to load SDWTs during init:", e);
     }
+  } else {
+    filter.site = "";
+    filter.sdwt = "";
   }
 
   themeObserver = new MutationObserver((mutations) => {
