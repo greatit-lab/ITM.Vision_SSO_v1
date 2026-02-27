@@ -34,7 +34,7 @@
                   ITM Agent for Windows
                 </h2>
                 <p class="max-w-md text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                  설비 성능 모니터링 및 로그 수집을 위한 필수 에이전트 프로그램입니다. I:Vision 시스템과 안전하게 통신합니다.
+                  계측장비 성능 모니터링 및 로그 수집을 위한 필수 에이전트 프로그램입니다. I:Vision 시스템과 안전하게 통신합니다.
                 </p>
 
                 <div class="flex flex-wrap items-center gap-4 mt-5 text-xs font-medium text-slate-400">
@@ -61,7 +61,7 @@
                   <i v-else class="text-2xl pi pi-windows"></i>
                   <span class="text-lg font-extrabold tracking-tight flex items-baseline gap-1.5">
                     Download Agent Standard 
-                    <span class="text-sm font-medium text-indigo-200 dark:text-indigo-300 tracking-normal">(9.06 MB)</span>
+                    <span class="text-sm font-medium text-indigo-200 dark:text-indigo-300 tracking-normal">(9.17 MB)</span>
                   </span>
                 </button>
 
@@ -74,14 +74,14 @@
                   <i v-else class="text-lg pi pi-download text-slate-400"></i>
                   <span class="text-sm font-bold flex items-baseline gap-1.5">
                     Download for Win7+net4.7.2
-                    <span class="text-xs font-medium text-slate-400 dark:text-slate-500">(78.5 MB)</span>
+                    <span class="text-xs font-medium text-slate-400 dark:text-slate-500">(89.1 MB)</span>
                   </span>
                 </button>
 
                 <div class="mt-1 text-center text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
                   설치 환경에 따라 <code class="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px] font-mono text-slate-600 dark:text-slate-300">.NET Framework 4.7.2</code> 이상이 필요.
                   <button 
-                    @click="downloadFile('agent/dotnet-framework-4.7.2-offline.exe')" 
+                    @click="downloadFile('agent/NDP472-KB4054530-x86-x64-AIIOS-ENU.exe')" 
                     :disabled="isDownloading"
                     class="font-bold text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline disabled:opacity-50 disabled:no-underline transition-colors ml-0.5"
                   >
@@ -258,8 +258,10 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
+// 다운로드 진행 상태 관리
 const isDownloading = ref(false);
 
+// [데이터 기반 UI] 요청하신 5개의 플러그인 라이브러리 목록
 const availablePlugins = ref([
   {
     id: "waferflat-data",
@@ -313,6 +315,7 @@ const availablePlugins = ref([
   },
 ]);
 
+// Upload API 서버 주소
 const fileServerBaseUrl = import.meta.env.VITE_FILE_SERVER_URL || '';
 
 const downloadFile = async (relativePath: string) => {
