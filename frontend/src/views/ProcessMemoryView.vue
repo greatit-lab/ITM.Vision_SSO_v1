@@ -463,16 +463,15 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
-    targetSite = localStorage.getItem("process_site") || "";
-    if (targetSite) {
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
+    } else {
+      targetSite = localStorage.getItem("process_site") || "";
       targetSdwt = localStorage.getItem("process_sdwt") || "";
     }
-  }
-
-  if (!targetSite) {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -929,4 +928,3 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
-
