@@ -468,7 +468,6 @@ import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getEquipmentDetails, type EquipmentDto } from "@/api/equipment";
-// [핵심] npm install dayjs 필요
 import dayjs from 'dayjs';
 
 // Components
@@ -519,16 +518,16 @@ onMounted(async () => {
     // 1. Site 목록 로드
     sites.value = await dashboardApi.getSites();
 
-    // 2. 초기 필터 값 결정 (우선순위: LocalStorage > Auth/Demo)
-    let targetSite = localStorage.getItem("explorer_site") || "";
+    // 2. 초기 필터 값 결정 [핵심 변경: 사용자 프로파일 설정을 최우선으로 적용]
+    let targetSite = "";
     let targetSdwt = "";
 
-    if (targetSite) {
-      targetSdwt = localStorage.getItem("explorer_sdwt") || "";
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
     } else {
-      // LocalStorage 없으면 Auth 기본값
-      targetSite = authStore.user?.site || "";
-      targetSdwt = authStore.user?.sdwt || "";
+      targetSite = localStorage.getItem("explorer_site") || "";
+      targetSdwt = localStorage.getItem("explorer_sdwt") || "";
     }
 
     // 3. Site 적용 및 SDWT 로드
@@ -676,7 +675,6 @@ const formatSimpleCpu = (cpu: string) => {
   return cpu.replace("Intel(R) Core(TM)", "").replace("CPU @", "").trim();
 };
 
-// [수정] dayjs 사용으로 날짜 포맷 표준화
 const formatDate = (d: string | null) => {
   if (!d) return "-";
   return dayjs(d).format('YY-MM-DD');
