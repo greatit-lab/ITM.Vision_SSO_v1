@@ -229,7 +229,7 @@ const isLoading = ref(false);
 const isPointsLoading = ref(false);
 const isEqpLoading = ref(false);
 const hasSearched = ref(false);
-const isExporting = ref(false); // [추가] 다운로드 상태 관리
+const isExporting = ref(false); 
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -328,16 +328,15 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
-    targetSite = localStorage.getItem("spec_site") || "";
-    if (targetSite) {
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
+    } else {
+      targetSite = localStorage.getItem("spec_site") || "";
       targetSdwt = localStorage.getItem("spec_sdwt") || "";
     }
-  }
-
-  if (!targetSite) {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -365,6 +364,9 @@ onMounted(async () => {
       filterStore.selectedSdwt = "";
       filters.eqpId = "";
     }
+  } else {
+    filterStore.selectedSite = "";
+    filterStore.selectedSdwt = "";
   }
 
   themeObserver = new MutationObserver((m) => {
@@ -671,16 +673,13 @@ const fetchGoldenRef = async () => {
   }
 };
 
-// [신규] 원시 데이터(EXP + GEN) 일괄 다운로드 함수
 const exportRawData = async () => {
   if (!hasSearched.value || chartSeries.value.length === 0) return;
   isExporting.value = true;
   
   try {
-    // 1. 파장(Wavelength)을 Key로 가지는 Map 생성하여 데이터 정렬 준비
     const wavelengthMap = new Map<number, any>();
     
-    // 2. 현재 선택된 웨이퍼들의 GEN(Model) 데이터를 일괄적으로 호출 (백그라운드)
     const genDataPromises = tableData.value.map(row => 
       waferApi.getSpectrumGen({
         lotId: row.lotId,
@@ -688,11 +687,10 @@ const exportRawData = async () => {
         pointId: row.pointId,
         eqpId: row.eqpId,
         ts: row.scanTs
-      }).catch(() => null) // 일부 실패해도 전체 다운로드가 멈추지 않도록 예외 처리
+      }).catch(() => null) 
     );
     const genResults = await Promise.all(genDataPromises);
 
-    // 3. 차트에 이미 로드되어 있는 EXP 데이터 맵핑
     chartSeries.value.forEach((series) => {
       const wid = series.waferId;
       if(series.data) {
@@ -703,7 +701,6 @@ const exportRawData = async () => {
       }
     });
 
-    // 4. 새로 받아온 GEN 데이터를 맵핑
     tableData.value.forEach((row, idx) => {
       const wid = row.waferId;
       const genSeriesObj = genResults[idx];
@@ -715,16 +712,13 @@ const exportRawData = async () => {
       }
     });
 
-    // 5. 파장(x축) 오름차순으로 정렬
     const sortedWavelengths = Array.from(wavelengthMap.keys()).sort((a, b) => a - b);
     const sortedWids = chartSeries.value.map(s => s.waferId).sort((a, b) => a - b);
 
-    // 6. CSV 헤더 구성 (Wavelength, Slot_1_EXP, Slot_1_GEN, ...)
     let csvContent = "Wavelength(nm),";
     const headers = sortedWids.map(wid => `Slot_${wid}_EXP,Slot_${wid}_GEN`).join(",");
     csvContent += headers + "\n";
 
-    // 7. CSV Row 데이터 작성
     sortedWavelengths.forEach(w => {
       const rowData = wavelengthMap.get(w);
       let rowStr = `${w},`;
@@ -737,7 +731,6 @@ const exportRawData = async () => {
       csvContent += rowStr + "\n";
     });
 
-    // 8. 브라우저 단에서 즉시 파일 생성 및 다운로드 (보안 경고 우회용 Hidden Anchor 패턴)
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
