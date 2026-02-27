@@ -341,10 +341,8 @@ const formatDate = (dateVal: string | Date | null | undefined) => {
   if (!dateVal) return "-";
 
   try {
-    // 1. 날짜 객체로 안전하게 변환 (로컬 타임존 적용)
     const d = new Date(dateVal);
     if (!isNaN(d.getTime())) {
-      // 2. 연도 앞 2자리(20)를 자르고 포맷팅
       const yy = d.getFullYear().toString().slice(2);
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
@@ -352,14 +350,11 @@ const formatDate = (dateVal: string | Date | null | undefined) => {
       const min = String(d.getMinutes()).padStart(2, "0");
       const ss = String(d.getSeconds()).padStart(2, "0");
 
-      // 화면 배치에 가장 용이한 "25-02-14 13:45:00" 형태로 반환
       return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
     }
   } catch (e) {
-    // 변환 실패 시 예외 처리
   }
 
-  // 폴백(Fallback): 문자열 자르기 보정 (T 문자 등을 공백으로 치환)
   let str = String(dateVal);
   if (str.startsWith("20") && str.length >= 19) {
     return str.substring(2, 19).replace("T", " ");
@@ -434,8 +429,20 @@ const getStatValue = (stats: StatisticsDto | null, header: string, type: keyof S
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
-  let targetSite = filterStore.selectedSite || localStorage.getItem("wafer_site") || authStore.user?.site || "";
-  let targetSdwt = filterStore.selectedSdwt || localStorage.getItem("wafer_sdwt") || authStore.user?.sdwt || "";
+  
+  let targetSite = filterStore.selectedSite;
+  let targetSdwt = filterStore.selectedSdwt;
+
+  // [핵심 변경] 프로필 설정을 최우선으로, 없을 때만 localStorage(이전 선택 이력) 참조
+  if (!targetSite) {
+    if (authStore.user?.site) {
+      targetSite = authStore.user.site;
+      targetSdwt = authStore.user.sdwt || "";
+    } else {
+      targetSite = localStorage.getItem("wafer_site") || "";
+      targetSdwt = localStorage.getItem("wafer_sdwt") || "";
+    }
+  }
 
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
@@ -792,7 +799,6 @@ const onRowSelect = async (event: any) => {
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
 
-    // [핵심] 장비 시간(dateTime)을 조건으로 전송
     if (!pdfExists.value) {
        const pdfRes = await waferApi.checkPdf({
            eqpId: row.eqpId,
@@ -821,7 +827,6 @@ const loadPointImage = async (pointValue: number) => {
   
   isImageLoading.value = true; pdfImageUrl.value = null;
   try {
-    // [핵심] 장비 시간(dateTime)을 조건으로 전송
     const res = await waferApi.getPdfImage({
         eqpId: selectedRow.value.eqpId,
         lotId: selectedRow.value.lotId,
@@ -854,7 +859,6 @@ const loadSpectrumData = async (pointValue: number) => {
   
   spectrumData.value = []; isSpectrumLoading.value = true;
   try {
-    // [핵심] 장비 시간(dateTime)을 조건으로 전송   
     const params = { 
         eqpId: selectedRow.value.eqpId, 
         lotId: selectedRow.value.lotId, 
@@ -946,5 +950,3 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
-
-
