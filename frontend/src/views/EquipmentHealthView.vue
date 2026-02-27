@@ -637,7 +637,6 @@ import { equipmentApi } from "@/api/equipment";
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
-// [수정] DatePicker, dayjs import 제거
 
 const authStore = useAuthStore();
 const LS_KEYS = {
@@ -646,7 +645,6 @@ const LS_KEYS = {
   EQPID: "health-view-eqpid", 
 };
 
-// [수정] filter 객체에서 baseDate 제거
 const filter = reactive({
   site: "",
   sdwt: "",
@@ -691,14 +689,16 @@ const goodCount = computed(
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  let targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+  let targetSite = "";
   let targetSdwt = "";
 
-  if (targetSite) {
-    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
+  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
+  if (authStore.user?.site) {
+    targetSite = authStore.user.site;
+    targetSdwt = authStore.user.sdwt || "";
   } else {
-    targetSite = authStore.user?.site || "";
-    targetSdwt = authStore.user?.sdwt || "";
+    targetSite = localStorage.getItem(LS_KEYS.SITE) || "";
+    targetSdwt = localStorage.getItem(LS_KEYS.SDWT) || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -709,6 +709,7 @@ onMounted(async () => {
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
         await loadEqpIds();
+        
         const savedEqpId = localStorage.getItem(LS_KEYS.EQPID) || "";
         if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
             filter.eqpId = savedEqpId;
@@ -815,7 +816,6 @@ const fetchData = async () => {
   isLoading.value = true;
   selectedEqp.value = null;
   
-  // [수정] 날짜 파라미터 전달 로직 제거
   try {
     const res = await healthApi.getSummary(filter.site, filter.sdwt);
     healthData.value = res;
@@ -960,7 +960,6 @@ const radarOption = computed(() => {
 </script>
 
 <style scoped>
-/* [수정] DatePicker 관련 스타일 제거 및 폰트 크기(13px) 유지 */
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
