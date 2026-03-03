@@ -147,6 +147,17 @@
                 ({{ chartData.length.toLocaleString() }} points)
               </span>
             </div>
+            
+            <button 
+              v-if="chartData.length > 0 && !isLoading" 
+              @click="exportRawData" 
+              :disabled="isExporting" 
+              class="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
+            >
+              <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
+              <i v-else class="pi pi-download"></i>
+              {{ isExporting ? 'Exporting...' : 'CSV Export' }}
+            </button>
           </div>
           
           <div class="relative flex-1 w-full min-h-0 group overflow-hidden">
@@ -326,7 +337,6 @@ import { getEqpIds } from "@/api/equipment";
 import { getPreAlignData, type PreAlignData } from "@/api/prealign";
 import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
-// [추가] Day.js 도입
 import dayjs from "dayjs";
 
 // Components
@@ -364,6 +374,7 @@ const eqpIds = ref<string[]>([]);
 const isLoading = ref(false);
 const isEqpLoading = ref(false);
 const hasSearched = ref(false);
+const isExporting = ref(false);
 const chartData = ref<PreAlignData[]>([]);
 const searchedEqpId = ref("");
 
@@ -387,11 +398,10 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
+// 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
 const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
   let str = String(ts || "");
-  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
-  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
+  if (str.includes("Z")) str = str.replace("Z", ""); 
   if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
       str = "20" + str;
   }
@@ -502,7 +512,7 @@ const getHistogramData = (values: number[], bins: number = 20) => {
 };
 
 
-// [추가] 통합 날짜 보정 로직
+// 통합 날짜 보정 로직
 watch(
   [() => filter.startDate, () => filter.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -517,7 +527,7 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수
+// 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -534,7 +544,6 @@ onMounted(async () => {
   let targetSite = "";
   let targetSdwt = "";
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (authStore.user?.site) {
     targetSite = authStore.user.site;
     targetSdwt = authStore.user.sdwt || "";
@@ -551,7 +560,6 @@ onMounted(async () => {
         filter.sdwt = targetSdwt;
         isEqpLoading.value = true;
         try {
-          // type을 "agent"로 변경하여 AgentInfo가 있는 장비만 조회
           eqpIds.value = await getEqpIds({ sdwt: targetSdwt, type: "agent" });
         } finally {
           isEqpLoading.value = false;
@@ -591,7 +599,6 @@ const onSdwtChange = async () => {
   if (filter.sdwt) {
     isEqpLoading.value = true;
     try { 
-      // type을 "agent"로 변경하여 AgentInfo가 있는 장비만 조회
       eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "agent" }); 
     }
     finally { isEqpLoading.value = false; }
@@ -620,14 +627,12 @@ const search = async () => {
     });
     const data = (res && res.data) ? res.data : res;
     
-    // 데이터 매핑 및 날짜 포맷팅 (Short Year 보정)
     chartData.value = (Array.isArray(data) ? data : []).map(d => ({
         ...d,
         timestamp: parseSafeDate(d.timestamp).isValid() 
              ? parseSafeDate(d.timestamp).format('YYYY-MM-DD HH:mm:ss')
              : d.timestamp
     })).sort((a, b) => {
-        // 시간순 정렬
         return dayjs(a.timestamp).valueOf() - dayjs(b.timestamp).valueOf();
     });
 
@@ -648,6 +653,50 @@ const reset = () => {
   
   sdwts.value = []; eqpIds.value = [];
   resetView();
+};
+
+const exportRawData = async () => {
+  if (chartData.value.length === 0) return;
+  
+  isExporting.value = true;
+  
+  await new Promise(resolve => setTimeout(resolve, 50));
+  
+  try {
+    const headers = ['Timestamp', 'EQP ID', 'X (mm)', 'Y (mm)', 'Notch'];
+    const rows = chartData.value.map(d => [
+      // [핵심] 엑셀에서 열 때 날짜 형식을 강제 변환하여 초 단위가 잘리는 현상을 방지하는 수식 포맷팅
+      `="${d.timestamp}"`, 
+      d.eqpId,
+      d.xmm,
+      d.ymm,
+      d.notch
+    ]);
+
+    const csvContent = '\uFEFF' + [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    
+    const startDateStr = dayjs(filter.startDate).format('YYYYMMDD');
+    const endDateStr = dayjs(filter.endDate).format('YYYYMMDD');
+    const fileName = `PreAlignData_${searchedEqpId.value}_${startDateStr}_${endDateStr}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } finally {
+    isExporting.value = false;
+  }
 };
 
 // --- Chart Options ---
