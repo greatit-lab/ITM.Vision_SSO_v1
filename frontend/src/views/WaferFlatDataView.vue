@@ -49,8 +49,9 @@
       </div>
     </div>
 
-    <div v-if="hasSearched" class="flex flex-col flex-1 min-h-0 gap-4 pb-4 overflow-hidden 2xl:flex-row fade-in">
-      <div class="flex flex-col flex-1 w-full h-full gap-3 overflow-hidden">
+    <div v-if="hasSearched" class="flex flex-col flex-1 min-h-0 gap-4 pb-4 overflow-y-auto 2xl:overflow-hidden 2xl:flex-row fade-in">
+      
+      <div class="flex flex-col flex-1 w-full gap-3 overflow-hidden min-h-[750px] 2xl:min-h-0 2xl:h-full shrink-0 2xl:shrink">
         <div class="flex flex-col overflow-hidden bg-white border shadow-sm rounded-xl dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shrink-0 h-[424px]">
           <div class="flex items-center justify-between p-2 bg-white border-b border-slate-100 dark:border-zinc-800 dark:bg-zinc-900">
             <div class="flex items-center gap-2 pl-2">
@@ -163,7 +164,7 @@
         </div>
       </div>
       
-      <div class="w-[450px] shrink-0 flex flex-col gap-4 h-full">
+      <div class="w-full 2xl:w-[450px] shrink-0 flex flex-col gap-4 2xl:h-full">
         <div class="h-[420px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-7 overflow-hidden">
           <div class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center"><i class="pi pi-image mr-2 text-teal-500"></i> Wafer Map</div>
           <div class="relative h-full w-auto aspect-square max-w-full rounded-full border-4 border-slate-100 dark:border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] overflow-hidden bg-slate-50 dark:bg-black flex items-center justify-center">
@@ -433,7 +434,6 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
-  // [핵심 변경] 프로필 설정을 최우선으로, 없을 때만 localStorage(이전 선택 이력) 참조
   if (!targetSite) {
     if (authStore.user?.site) {
       targetSite = authStore.user.site;
