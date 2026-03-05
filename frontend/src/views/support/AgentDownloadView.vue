@@ -316,7 +316,7 @@ const availablePlugins = ref([
   {
     id: "wafermap-http",
     name: "Onto WaferMap Image",
-    version: "v0.0.0.4",
+    version: "v0.0.0.5",
     description: "계측 완료된 Wafer Map 이미지 및 좌표 데이터를 HTTP 프로토콜로 연동하는 플러그인입니다.",
     filename: "agent/plugins/Onto_WaferMapHttpLib.zip",
     icon: "pi-globe",
