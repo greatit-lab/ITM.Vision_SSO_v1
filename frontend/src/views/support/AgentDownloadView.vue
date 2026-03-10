@@ -28,7 +28,7 @@
                   <span class="px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-full uppercase tracking-wider">
                     Latest Agent Release
                   </span>
-                  <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">v0.1.0.0</span>
+                  <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">v0.1.0.1</span>
                 </div>
                 <h2 class="mb-3 text-3xl font-black text-slate-800 dark:text-white">
                   ITM Agent for Windows
@@ -39,7 +39,7 @@
 
                 <div class="flex flex-wrap items-center gap-4 mt-5 text-xs font-medium text-slate-400">
                   <div class="flex items-center gap-1.5">
-                    <i class="pi pi-calendar"></i> 2026-03-04
+                    <i class="pi pi-calendar"></i> 2026-03-10
                   </div>
                   <div class="flex items-center gap-1.5">
                     <i class="pi pi-desktop"></i> x86 / x64 Compatible
@@ -161,23 +161,18 @@
               <div class="absolute w-3 h-3 bg-indigo-500 border-2 border-white dark:border-zinc-900 rounded-full -left-[7px] top-0.5 animate-pulse"></div>
               <div class="flex justify-between items-baseline mb-1.5">
                 <h4 class="text-sm font-bold text-indigo-700 dark:text-indigo-400">
-                                    Agent v0.1.0.0
+                                    Agent v0.1.0.1
                 </h4>
                 <span class="text-[10px] text-slate-400 font-mono font-medium"
-                  >2026-03-04</span
+                  >2026-03-10</span
                 >
               </div>
               <ul
                 class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-600 dark:text-slate-400"
               >
-                <li>계측 데이터(FlatData) 조회 성능 및 페이징 무결성 개선</li>
+                <li>대량 파일 처리 메모리 캐시 및 Timestamp 파일 필터링 적용으로 Delay / 유실 개선</li>
                 <li>
-                  Wafer Map 이미지 추출 엔진 최적화 및 다중 Point 동시 캐싱 충돌
-                  버그 해결
-                </li>
-                <li>
-                  반응형 레이아웃 해상도 축소 시 데이터 테이블 UI 겹침 현상
-                  최적화
+                  Plug-in:장비SW와 I/O 충돌 공유위반, Byte Array 적용 Lock Time 극소화
                 </li>
               </ul>
             </div>
@@ -192,9 +187,30 @@
                 <h4
                   class="text-sm font-bold text-slate-600 dark:text-slate-300"
                 >
+                  Agent v0.1.0.0
+                </h4>
+                <span class="text-[10px] text-slate-400 font-mono font-medium">2026-03-04</span>
+              </div>
+              <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
+                <li>계측 데이터(FlatData) 조회 성능 및 페이징 무결성 개선</li>
+                <li>
+                  Wafer Map 이미지 추출 엔진 최적화 및 다중 Point 동시 캐싱 충돌
+                  버그 해결
+                </li>
+                <li>
+                  반응형 레이아웃 해상도 축소 시 데이터 테이블 UI 겹침 현상
+                  최적화
+                </li>
+              </ul>
+            </div>
+
+            <div class="relative pl-5 border-l-2 border-slate-200 dark:border-zinc-700">
+              <div class="absolute w-2.5 h-2.5 bg-slate-300 dark:bg-zinc-600 rounded-full -left-[5.5px] top-1"></div>
+              <div class="flex justify-between items-baseline mb-1.5">
+                <h4 class="text-sm font-bold text-slate-600 dark:text-slate-300">
                   Agent v0.0.9.8
                 </h4>
-                <span class="text-[10px] text-slate-400 font-mono font-medium">2026-03-01</span>
+                <span class="text-[10px] text-slate-400 font-mono">2026-03-01</span>
               </div>
               <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
                 <li>동적 플러그인(Plugin) 로딩 아키텍처 호환성 강화</li>
@@ -214,20 +230,6 @@
               <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
                 <li>Onto 설비 특화 계측 데이터(Spectrum, Flatness) 수집 로직 최적화</li>
                 <li>Agent 백그라운드 구동 시 평균 CPU 점유율 최소화 (2% 미만 유지)</li>
-              </ul>
-            </div>
-
-            <div class="relative pl-5 border-l-2 border-slate-200 dark:border-zinc-700">
-              <div class="absolute w-2.5 h-2.5 bg-slate-300 dark:bg-zinc-600 rounded-full -left-[5.5px] top-1"></div>
-              <div class="flex justify-between items-baseline mb-1.5">
-                <h4 class="text-sm font-bold text-slate-600 dark:text-slate-300">
-                  Agent v0.0.9.0
-                </h4>
-                <span class="text-[10px] text-slate-400 font-mono">2025-01-31</span>
-              </div>
-              <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
-                <li>초기 안정화 버전 릴리즈</li>
-                <li>실시간 성능 데이터(CPU, Memory) 수집 주기 1초 단위 세밀화 지원</li>
               </ul>
             </div>
           </div>
@@ -326,7 +328,7 @@ const availablePlugins = ref([
   {
     id: "prealign-data",
     name: "Onto PreAlign Data",
-    version: "v0.0.0.3",
+    version: "v0.0.0.4",
     description: "Wafer PreAlign 정렬 데이터 및 Notch 변동 데이터를 추출하고 전송하는 모듈입니다.",
     filename: "agent/plugins/Onto_PrealignDataLib.zip",
     icon: "pi-compass",
@@ -336,7 +338,7 @@ const availablePlugins = ref([
   {
     id: "error-data",
     name: "Onto Error Data",
-    version: "v0.0.0.6",
+    version: "v0.0.0.7",
     description: "Onto 설비의 에러 및 알람 로그를 실시간으로 수집하고 분류하는 데이터 라이브러리입니다.",
     filename: "agent/plugins/Onto_ErrorDataLib.zip",
     icon: "pi-exclamation-triangle",
