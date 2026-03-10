@@ -23,7 +23,7 @@ const instance = axios.create({
 
 instance.interceptors.request.use(
   (config) => {
-    // stores/auth.ts에서 저장하는 키 이름인 'jwt_token'으로 변경
+    // stores/auth.ts에서 저장하는 키 이름인 'jwt_token'으로 사용
     const token = localStorage.getItem('jwt_token');
     
     if (token) {
@@ -37,35 +37,50 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
-    // [수정] 401 Unauthorized 에러 처리 (토큰 만료/유효하지 않음)
-    if (error.response && error.response.status === 401) {
-      console.warn('[API] 인증 실패: 토큰이 만료되었거나 유효하지 않습니다. 자동 로그아웃 처리합니다.');
-      
-      // 1. 잔존하는 잘못된 인증 정보 삭제
-      localStorage.removeItem('jwt_token');
-      localStorage.removeItem('user_info');
-      
-      // 2. 로그인 페이지가 아닐 경우 로그인 페이지로 강제 리다이렉트
-      // window.location을 사용하여 앱 상태를 완전히 초기화(새로고침 효과)
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login?error=SessionExpired';
+    if (error.response) {
+      const status = error.response.status;
+
+      // [핵심 수정 1] 401 Unauthorized (토큰 만료 또는 유효하지 않은 인증)
+      if (status === 401) {
+        console.warn('[API] 인증 실패: 토큰이 만료되었거나 유효하지 않습니다. 자동 로그아웃 처리합니다.');
+        
+        // 1. 잔존하는 잘못된 인증 정보 완벽히 삭제
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user_info');
+        
+        // 2. 에러 파라미터 없이 순수한 로그인 페이지로 리다이렉트 (Access Denied 창 방지)
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        
+        return Promise.reject(error);
       }
-      
-      return Promise.reject(error);
+
+      // [핵심 수정 2] 403 Forbidden (정상 로그인했으나 해당 메뉴/기능에 권한이 없는 경우)
+      if (status === 403) {
+        console.warn('[API] 권한 부족: 접근이 거부되었습니다.');
+        
+        // 권한이 없을 때만 명시적으로 Access Denied 에러창을 띄움
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login?error=AccessDenied';
+        }
+        
+        return Promise.reject(error);
+      }
     }
 
+    // 기타 네트워크 및 타임아웃 에러 로깅
     if (error.code === 'ERR_NETWORK') {
       console.error('[API Error] 네트워크 연결 실패. 백엔드 서버 상태를 확인하세요.');
     } else if (error.code === 'ECONNABORTED') {
-      // 타임아웃 에러 처리
       console.error('[API Error] 요청 시간이 초과되었습니다.');
     } else if (error.response) {
-      // 401 이외의 에러 로깅
       console.error(
         `[API Error] ${error.response.status} ${error.response.config.url}`,
         error.response.data
       );
     }
+    
     return Promise.reject(error);
   }
 );
