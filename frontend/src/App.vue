@@ -26,16 +26,13 @@
 
   <div v-if="popups.length > 0">
     <NoticePopup 
-      v-for="popup in popups" 
-      :key="popup.postId" 
-      :notice="popup"
-      @close="removePopup(popup.postId)"
+      :notices="popups"
+      @close="closeAllPopups"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-// [수정] watch 추가 Import
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
@@ -54,7 +51,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 const isSidebarOpen = ref(true);
 
-// 팝업 목록 상태
+// 팝업 목록 상태 (배열 구조 유지)
 const popups = ref<any[]>([]);
 
 const isLoginPage = computed(() => route.path === "/login");
@@ -67,23 +64,8 @@ const handleSidebarToggle = (event: Event) => {
   isSidebarOpen.value = customEvent.detail;
 };
 
-// 팝업 표시 여부 체크 (LocalStorage 확인)
-const checkPopupVisibility = (notice: any) => {
-  const storageKey = `notice_hide_${notice.postId}`;
-  const hideUntil = localStorage.getItem(storageKey);
-  
-  if (hideUntil) {
-    const now = new Date();
-    const expiryDate = new Date(hideUntil);
-    // 현재 시간이 유효기간보다 크면(지났으면) 다시 보여줌
-    return now > expiryDate;
-  }
-  return true; // 설정값이 없으면 보여줌
-};
-
-// [수정] 팝업 데이터 조회 (인증 상태 체크 추가)
+// [수정] 팝업 데이터 조회 로직 정리 (LocalStorage 검사는 컴포넌트 내부로 위임)
 const fetchPopups = async () => {
-  // AD 인증(로그인) 전이라면 팝업을 조회하지 않음
   if (!authStore.isAuthenticated) {
     popups.value = [];
     return;
@@ -91,39 +73,31 @@ const fetchPopups = async () => {
 
   try {
     const res = await boardApi.getPopups();
-    // API 응답 구조에 따라 데이터 추출 (배열인지 확인)
-    const allPopups = Array.isArray(res.data) ? res.data : (res.data.data || []);
-    
-    // 로컬 스토리지 체크 후 보여줄 것만 필터링
-    popups.value = allPopups.filter(checkPopupVisibility);
+    // 배열 전체를 할당합니다.
+    popups.value = Array.isArray(res.data) ? res.data : (res.data.data || []);
   } catch (e) {
     console.error("Failed to fetch popups", e);
   }
 };
 
-// [추가] 로그인 상태 변경 감지 (로그인 직후 팝업 표시)
+// [변경] 슬라이드 컴포넌트에서 모두 닫기 이벤트가 오면 팝업 배열 비우기
+const closeAllPopups = () => {
+  popups.value = [];
+};
+
 watch(
   () => authStore.isAuthenticated,
   (isAuth) => {
     if (isAuth) {
-      // 로그인이 감지되면 팝업 조회
       fetchPopups();
     } else {
-      // 로그아웃 시 팝업 제거
       popups.value = [];
     }
   }
 );
 
-// 팝업 닫기 핸들러
-const removePopup = (id: number) => {
-  popups.value = popups.value.filter(p => p.postId !== id);
-};
-
 onMounted(() => {
   window.addEventListener("sidebar-toggle", handleSidebarToggle);
-  
-  // 앱 실행 시 팝업 공지 불러오기 (이미 로그인된 경우 실행됨)
   fetchPopups();
 });
 
