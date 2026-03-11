@@ -21,6 +21,7 @@ import { BoardModule } from './board/board.module';
 // [추가] 새로 생성한 모듈 Import
 import { ManualModule } from './manual/manual.module';
 import { AlertModule } from './alert/alert.module';
+import { AgentModule } from './agent/agent.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { AlertModule } from './alert/alert.module';
     BoardModule,
     ManualModule, // [필수] 매뉴얼 기능 활성화
     AlertModule,  // [필수] 알림 기능 활성화 (404 해결)
+    AgentModule,
   ],
   controllers: [],
   providers: [],
