@@ -1,6 +1,11 @@
 <!-- frontend/src/views/support/AgentDownloadView.vue -->
 <template>
-  <div class="flex flex-col h-full w-full font-sans bg-[#F8FAFC] dark:bg-[#09090B] p-4 md:p-6 overflow-hidden">
+  <div class="flex flex-col h-full w-full font-sans bg-[#F8FAFC] dark:bg-[#09090B] p-4 md:p-6 overflow-hidden relative">
+    
+    <div v-if="isLoading" class="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+      <i class="text-4xl text-indigo-500 pi pi-spin pi-spinner"></i>
+    </div>
+
     <div class="flex items-center gap-3 mb-5 shrink-0 animate-fade-in">
       <div class="flex items-center justify-center w-10 h-10 border border-indigo-100 shadow-sm bg-indigo-50 rounded-xl dark:bg-indigo-900/20 dark:border-indigo-800">
         <i class="text-xl text-indigo-600 pi pi-download dark:text-indigo-400"></i>
@@ -19,7 +24,7 @@
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-3 shrink-0">
         <div class="flex flex-col gap-5 lg:col-span-2">
           
-          <div class="relative bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 md:p-8 shadow-sm overflow-hidden shrink-0">
+          <div v-if="latestVersion" class="relative bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 md:p-8 shadow-sm overflow-hidden shrink-0">
             <div class="absolute top-0 right-0 w-64 h-64 -mt-20 -mr-20 rounded-full pointer-events-none bg-indigo-50 dark:bg-indigo-900/10 blur-3xl opacity-60"></div>
 
             <div class="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
@@ -28,7 +33,7 @@
                   <span class="px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 rounded-full uppercase tracking-wider">
                     Latest Agent Release
                   </span>
-                  <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">v0.1.0.1</span>
+                  <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">{{ latestVersion.version }}</span>
                 </div>
                 <h2 class="mb-3 text-3xl font-black text-slate-800 dark:text-white">
                   ITM Agent for Windows
@@ -39,7 +44,7 @@
 
                 <div class="flex flex-wrap items-center gap-4 mt-5 text-xs font-medium text-slate-400">
                   <div class="flex items-center gap-1.5">
-                    <i class="pi pi-calendar"></i> 2026-03-10
+                    <i class="pi pi-calendar"></i> {{ formatDate(latestVersion.releaseDate) }}
                   </div>
                   <div class="flex items-center gap-1.5">
                     <i class="pi pi-desktop"></i> x86 / x64 Compatible
@@ -53,28 +58,28 @@
               <div class="flex flex-col w-full gap-3 mt-4 shrink-0 md:w-auto md:mt-0">
                 
                 <button
-                  @click="downloadFile('agent/ITM_Agent_Setup.exe')"
+                  @click="downloadFile(latestVersion.fileUrl64 || 'agent/ITM_Agent_Setup.exe')"
                   :disabled="isDownloading"
-                  class="flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all hover:-translate-y-0.5 active:translate-y-0"
+                  class="flex items-center justify-center gap-3 px-8 py-4 text-white transition-all bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed shadow-lg shadow-indigo-200 dark:shadow-none hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <i v-if="isDownloading" class="text-2xl pi pi-spin pi-spinner"></i>
                   <i v-else class="text-2xl pi pi-windows"></i>
-                  <span class="text-lg font-extrabold tracking-tight flex items-baseline gap-1.5">
+                  <span class="flex items-baseline gap-1.5 text-lg font-extrabold tracking-tight">
                     Download Agent Standard 
-                    <span class="text-sm font-medium text-indigo-200 dark:text-indigo-300 tracking-normal">(9.17 MB)</span>
+                    <span v-if="latestVersion.fileSize64" class="text-sm font-medium text-indigo-200 tracking-normal dark:text-indigo-300">({{ latestVersion.fileSize64 }})</span>
                   </span>
                 </button>
 
                 <button
-                  @click="downloadFile('agent/ITM_Agent_Setup_Net472.exe')"
+                  @click="downloadFile(latestVersion.fileUrlLegacy || 'agent/ITM_Agent_Setup_Net472.exe')"
                   :disabled="isDownloading"
                   class="flex items-center justify-center gap-2.5 px-6 py-3 bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <i v-if="isDownloading" class="text-lg pi pi-spin pi-spinner text-slate-400"></i>
-                  <i v-else class="text-lg pi pi-download text-slate-400"></i>
-                  <span class="text-sm font-bold flex items-baseline gap-1.5">
+                  <i v-if="isDownloading" class="text-lg text-slate-400 pi pi-spin pi-spinner"></i>
+                  <i v-else class="text-lg text-slate-400 pi pi-download"></i>
+                  <span class="flex items-baseline gap-1.5 text-sm font-bold">
                     Download for Win7+net4.7.2
-                    <span class="text-xs font-medium text-slate-400 dark:text-slate-500">(89.1 MB)</span>
+                    <span v-if="latestVersion.fileSizeLegacy" class="text-xs font-medium text-slate-400 dark:text-slate-500">({{ latestVersion.fileSizeLegacy }})</span>
                   </span>
                 </button>
 
@@ -83,7 +88,7 @@
                   <button 
                     @click="downloadFile('agent/NDP472-KB4054530-x86-x64-AllOS-ENU.exe')" 
                     :disabled="isDownloading"
-                    class="font-bold text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline disabled:opacity-50 disabled:no-underline transition-colors ml-0.5"
+                    class="font-bold text-indigo-500 transition-colors ml-0.5 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline disabled:opacity-50 disabled:no-underline"
                   >
                     여기서 다운로드
                   </button>
@@ -93,9 +98,9 @@
             </div>
           </div>
 
-          <div class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl px-6 pt-5 pb-4 shadow-sm shrink-0">
+          <div class="px-6 pt-5 pb-4 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-2xl shrink-0">
             <div class="flex items-center gap-2 mb-4">
-              <i class="text-lg pi pi-bolt text-amber-500"></i>
+              <i class="text-lg text-amber-500 pi pi-bolt"></i>
               <h3 class="text-lg font-bold text-slate-800 dark:text-white">
                 Quick Start Guide
               </h3>
@@ -103,45 +108,27 @@
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div class="relative px-5 pt-4 pb-3 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group">
-                <div class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110">
-                  1
-                </div>
+                <div class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110">1</div>
                 <div class="mt-1 text-center">
                   <i class="mb-2 text-3xl transition-colors pi pi-cloud-download text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400"></i>
-                  <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">
-                    Downloading
-                  </h4>
-                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    운영체제 버전에 맞는 ITM Agent 설치 파일을 다운로드 받아 계측 장비 PC로 이동합니다.
-                  </p>
+                  <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Downloading</h4>
+                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">운영체제 버전에 맞는 ITM Agent 설치 파일을 다운로드 받아 계측 장비 PC로 이동합니다.</p>
                 </div>
               </div>
               <div class="relative px-5 pt-4 pb-3 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group">
-                <div class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110">
-                  2
-                </div>
+                <div class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110">2</div>
                 <div class="mt-1 text-center">
                   <i class="mb-2 text-3xl transition-colors pi pi-shield text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400"></i>
-                  <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">
-                    Install Agent
-                  </h4>
-                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    다운로드한 <code class="bg-slate-200 dark:bg-zinc-700 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300">Setup.exe</code> 파일을 관리자 권한으로 실행하여 설치를 진행합니다.
-                  </p>
+                  <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Install Agent</h4>
+                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">다운로드한 <code class="bg-slate-200 dark:bg-zinc-700 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300">Setup.exe</code> 파일을 관리자 권한으로 실행하여 설치를 진행합니다.</p>
                 </div>
               </div>
               <div class="relative px-5 pt-4 pb-3 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group">
-                <div class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110">
-                  3
-                </div>
+                <div class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110">3</div>
                 <div class="mt-1 text-center">
                   <i class="mb-2 text-3xl transition-colors pi pi-cog text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400"></i>
-                  <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">
-                    Configure & Start
-                  </h4>
-                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    설치 중 계측 장비의 EQPID 지정 및 데이터 아카이브 폴더를 선택 후 서비스를 시작합니다.
-                  </p>
+                  <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Configure & Start</h4>
+                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">설치 중 계측 장비의 EQPID 지정 및 데이터 아카이브 폴더를 선택 후 서비스를 시작합니다.</p>
                 </div>
               </div>
             </div>
@@ -151,85 +138,32 @@
         <div class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-0 shadow-sm flex flex-col h-full overflow-hidden">
           <div class="flex items-center gap-2 p-4 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/50">
             <i class="pi pi-history text-slate-400"></i>
-            <h3 class="text-sm font-bold tracking-wider uppercase text-slate-800 dark:text-white">
+            <h3 class="text-sm font-bold tracking-wider text-slate-800 dark:text-white uppercase">
               Release History
             </h3>
           </div>
 
           <div class="flex flex-col flex-1 gap-4 px-5 pt-5 pb-3 overflow-y-auto">
-            <div class="relative pl-5 border-l-2 border-indigo-300 dark:border-indigo-600">
-              <div class="absolute w-3 h-3 bg-indigo-500 border-2 border-white dark:border-zinc-900 rounded-full -left-[7px] top-0.5 animate-pulse"></div>
-              <div class="flex justify-between items-baseline mb-1.5">
-                <h4 class="text-sm font-bold text-indigo-700 dark:text-indigo-400">
-                                    Agent v0.1.0.1
-                </h4>
-                <span class="text-[10px] text-slate-400 font-mono font-medium"
-                  >2026-03-10</span
-                >
-              </div>
-              <ul
-                class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-600 dark:text-slate-400"
-              >
-                <li>대량 파일 처리 메모리 캐시 및 Timestamp 파일 필터링 적용으로 Delay / 유실 개선</li>
-                <li>
-                  Plug-in:장비SW와 I/O 충돌 공유위반, Byte Array 적용 Lock Time 극소화
-                </li>
-              </ul>
-            </div>
-
-            <div
-              class="relative pl-5 border-l-2 border-slate-200 dark:border-zinc-700"
+            <div 
+              v-for="(ver, index) in sortedVersions" 
+              :key="ver.id"
+              class="relative pl-5 border-l-2"
+              :class="index === 0 ? 'border-indigo-300 dark:border-indigo-600' : 'border-slate-200 dark:border-zinc-700'"
             >
-              <div
-                class="absolute w-2.5 h-2.5 bg-slate-300 dark:bg-zinc-600 rounded-full -left-[5.5px] top-1"
+              <div 
+                class="absolute rounded-full border-2 border-white dark:border-zinc-900 -left-[7px] top-0.5"
+                :class="index === 0 ? 'w-3 h-3 bg-indigo-500 animate-pulse' : 'w-2.5 h-2.5 bg-slate-300 dark:bg-zinc-600 top-1 -left-[5.5px] border-none'"
               ></div>
-              <div class="flex justify-between items-baseline mb-1.5">
-                <h4
-                  class="text-sm font-bold text-slate-600 dark:text-slate-300"
-                >
-                  Agent v0.1.0.0
+              <div class="flex items-baseline justify-between mb-1.5">
+                <h4 class="text-sm font-bold" :class="index === 0 ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-300'">
+                  Agent {{ ver.version }}
                 </h4>
-                <span class="text-[10px] text-slate-400 font-mono font-medium">2026-03-04</span>
+                <span class="text-[10px] text-slate-400 font-mono font-medium">{{ formatDate(ver.releaseDate) }}</span>
               </div>
-              <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
-                <li>계측 데이터(FlatData) 조회 성능 및 페이징 무결성 개선</li>
-                <li>
-                  Wafer Map 이미지 추출 엔진 최적화 및 다중 Point 동시 캐싱 충돌
-                  버그 해결
+              <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside" :class="index === 0 ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500'">
+                <li v-for="(feature, fIndex) in parseFeatures(ver.features)" :key="fIndex">
+                  {{ feature }}
                 </li>
-                <li>
-                  반응형 레이아웃 해상도 축소 시 데이터 테이블 UI 겹침 현상
-                  최적화
-                </li>
-              </ul>
-            </div>
-
-            <div class="relative pl-5 border-l-2 border-slate-200 dark:border-zinc-700">
-              <div class="absolute w-2.5 h-2.5 bg-slate-300 dark:bg-zinc-600 rounded-full -left-[5.5px] top-1"></div>
-              <div class="flex justify-between items-baseline mb-1.5">
-                <h4 class="text-sm font-bold text-slate-600 dark:text-slate-300">
-                  Agent v0.0.9.8
-                </h4>
-                <span class="text-[10px] text-slate-400 font-mono">2026-03-01</span>
-              </div>
-              <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
-                <li>동적 플러그인(Plugin) 로딩 아키텍처 호환성 강화</li>
-                <li>대용량 Wafer Map 데이터 전송 시 Timeout 예외 처리 추가</li>
-                <li>장기 구동 시 발생하는 메모리 누수(Memory Leak) 버그 완벽 수정</li>
-              </ul>
-            </div>
-
-            <div class="relative pl-5 border-l-2 border-slate-200 dark:border-zinc-700">
-              <div class="absolute w-2.5 h-2.5 bg-slate-300 dark:bg-zinc-600 rounded-full -left-[5.5px] top-1"></div>
-              <div class="flex justify-between items-baseline mb-1.5">
-                <h4 class="text-sm font-bold text-slate-600 dark:text-slate-300">
-                  Agent v0.0.9.3
-                </h4>
-                <span class="text-[10px] text-slate-400 font-mono">2026-02-10</span>
-              </div>
-              <ul class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside text-slate-500 dark:text-slate-500">
-                <li>Onto 설비 특화 계측 데이터(Spectrum, Flatness) 수집 로직 최적화</li>
-                <li>Agent 백그라운드 구동 시 평균 CPU 점유율 최소화 (2% 미만 유지)</li>
               </ul>
             </div>
           </div>
@@ -249,9 +183,9 @@
 
         <div class="grid grid-cols-2 gap-4 pb-2 md:grid-cols-3 lg:grid-cols-5">
           <div
-            v-for="plugin in availablePlugins"
+            v-for="plugin in plugins"
             :key="plugin.id"
-            class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col hover:border-indigo-300 dark:hover:border-indigo-800/50 transition-colors group h-full"
+            class="flex flex-col h-full p-4 transition-colors bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-xl hover:border-indigo-300 dark:hover:border-indigo-800/50 group"
           >
             <div class="flex items-start justify-between gap-2 mb-3 shrink-0">
               <div class="flex items-center gap-2.5 overflow-hidden">
@@ -288,67 +222,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { agentApi, type AgentVersion, type AgentPlugin } from "@/api/agent";
 
-// 다운로드 진행 상태 관리
 const isDownloading = ref(false);
+const isLoading = ref(true);
 
-// [데이터 기반 UI] 요청하신 5개의 플러그인 라이브러리 목록
-const availablePlugins = ref([
-  {
-    id: "waferflat-data",
-    name: "Onto Wafer Flat Data",
-    version: "v0.0.0.6",
-    description: "Wafer 평탄도(Flatness), 두께(Thickness) 및 형상 계측 데이터를 처리하는 모듈입니다.",
-    filename: "agent/plugins/Onto_WaferFlatDataLib.zip",
-    icon: "pi-clone",
-    color: "text-emerald-500",
-    bg: "bg-emerald-50 dark:bg-emerald-900/20",
-  },
-  {
-    id: "spectrum-data",
-    name: "Onto Spectrum Data",
-    version: "v0.0.0.6",
-    description: "광학 스펙트럼 계측 데이터를 수집하고 파장별 분석을 지원하는 라이브러리입니다.",
-    filename: "agent/plugins/Onto_SpectrumDataLib.zip",
-    icon: "pi-chart-line",
-    color: "text-indigo-500",
-    bg: "bg-indigo-50 dark:bg-indigo-900/20",
-  },
-  {
-    id: "wafermap-http",
-    name: "Onto WaferMap Image",
-    version: "v0.0.0.5",
-    description: "계측 완료된 Wafer Map 이미지 및 좌표 데이터를 HTTP 프로토콜로 연동하는 플러그인입니다.",
-    filename: "agent/plugins/Onto_WaferMapHttpLib.zip",
-    icon: "pi-globe",
-    color: "text-amber-500",
-    bg: "bg-amber-50 dark:bg-amber-900/20",
-  },
-  {
-    id: "prealign-data",
-    name: "Onto PreAlign Data",
-    version: "v0.0.0.4",
-    description: "Wafer PreAlign 정렬 데이터 및 Notch 변동 데이터를 추출하고 전송하는 모듈입니다.",
-    filename: "agent/plugins/Onto_PrealignDataLib.zip",
-    icon: "pi-compass",
-    color: "text-blue-500",
-    bg: "bg-blue-50 dark:bg-blue-900/20",
-  },
-  {
-    id: "error-data",
-    name: "Onto Error Data",
-    version: "v0.0.0.7",
-    description: "Onto 설비의 에러 및 알람 로그를 실시간으로 수집하고 분류하는 데이터 라이브러리입니다.",
-    filename: "agent/plugins/Onto_ErrorDataLib.zip",
-    icon: "pi-exclamation-triangle",
-    color: "text-rose-500",
-    bg: "bg-rose-50 dark:bg-rose-900/20",
-  },
-]);
+const versions = ref<AgentVersion[]>([]);
+const plugins = ref<AgentPlugin[]>([]);
 
-// Upload API 서버 주소
 const fileServerBaseUrl = import.meta.env.VITE_FILE_SERVER_URL || '';
+
+onMounted(async () => {
+  try {
+    isLoading.value = true;
+    const [versionsData, pluginsData] = await Promise.all([
+      agentApi.getVersions().catch(() => []), 
+      agentApi.getPlugins().catch(() => [])
+    ]);
+    versions.value = versionsData;
+    plugins.value = pluginsData;
+  } catch (error) {
+    console.error("데이터 로딩 실패:", error);
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+const sortedVersions = computed(() => {
+  return [...versions.value].sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime());
+});
+
+const latestVersion = computed(() => {
+  return sortedVersions.value.find(v => v.isLatest === 'Y') || sortedVersions.value[0];
+});
+
+// [변경] UTC 시차 문제를 해결한 날짜 포맷 함수
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  
+  // 로컬 시간(예: 한국 KST)을 기준으로 강제로 년-월-일을 추출합니다.
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
+const parseFeatures = (featuresStr: string) => {
+  if (!featuresStr) return [];
+  return featuresStr.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+};
 
 const downloadFile = async (relativePath: string) => {
   if (isDownloading.value) return;
