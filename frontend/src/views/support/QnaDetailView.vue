@@ -255,7 +255,6 @@ const getCommentAvatarClass = (authorId: string, role?: string) => {
   return 'bg-slate-200 text-slate-600';
 };
 
-// [확인] 수정 여부 판별 (Updated가 존재하고 Created와 다를 때)
 const isModified = (postItem: any) => {
   if (!postItem || !postItem.updatedAt || !postItem.createdAt) return false;
   const created = dayjs(postItem.createdAt);
@@ -269,10 +268,12 @@ const formatDate = (dateStr: string | Date) => {
   return date.isValid() ? date.format('YYYY.MM.DD HH:mm') : '-';
 };
 
+// [수정] IDEA 카테고리 색상 추가 (Teal 계열)
 const getCategoryColor = (cat: string) => {
   switch (cat) {
     case 'NOTICE': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30';
     case 'BUG': return 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30';
+    case 'IDEA': return 'text-teal-600 bg-teal-50 border-teal-100 dark:bg-teal-900/20 dark:border-teal-900/30';
     default: return 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/30';
   }
 };
