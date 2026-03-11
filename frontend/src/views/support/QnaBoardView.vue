@@ -32,7 +32,7 @@
           @click="$router.push({ name: 'qna-write' })"
           class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2 whitespace-nowrap h-[34px]"
         >
-          <i class="pi pi-pencil"></i> 질문 작성
+          <i class="pi pi-pencil"></i> 질문/의견 작성
         </button>
       </div>
     </div>
@@ -166,10 +166,12 @@ const filter = reactive({
   search: ''
 });
 
+// [수정] Idea 카테고리 탭 추가
 const categories = [
   { label: '전체', value: 'ALL' },
   { label: 'Q&A', value: 'QNA' },
   { label: 'Bug Report', value: 'BUG' },
+  { label: 'Idea', value: 'IDEA' },
 ];
 
 const fetchPosts = async () => {
@@ -245,17 +247,18 @@ const goToDetail = (post: BoardPost) => {
   router.push({ name: 'qna-detail', params: { id: post.postId } });
 };
 
-// [수정] 날짜 포맷 안전 처리 (Invalid Date 방지)
 const formatDate = (dateStr: string | Date) => {
   if (!dateStr) return '-';
   const date = dayjs(dateStr);
   return date.isValid() ? date.format('YYYY-MM-DD') : '-';
 };
 
+// [수정] IDEA 카테고리 색상 추가 (Teal 계열)
 const getCategoryColor = (cat: string) => {
   switch (cat) {
     case 'NOTICE': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30';
     case 'BUG': return 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/30';
+    case 'IDEA': return 'text-teal-600 bg-teal-50 border-teal-100 dark:bg-teal-900/20 dark:border-teal-900/30';
     default: return 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/30';
   }
 };
