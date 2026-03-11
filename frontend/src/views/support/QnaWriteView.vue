@@ -10,7 +10,7 @@
         <i class="pi pi-arrow-left text-xs"></i>
       </button>
       <h1 class="text-base font-bold text-slate-900 dark:text-white">
-        {{ isEditMode ? '게시글 수정' : '새 질문 작성' }}
+        {{ isEditMode ? '게시글 수정' : '새 질문/의견 작성' }}
       </h1>
     </div>
 
@@ -42,7 +42,7 @@
             >
               <option value="QNA">Q&A (질문)</option>
               <option value="BUG">Bug Report (버그)</option>
-              <option value="NOTICE" v-if="isAdmin">Notice (공지)</option>
+              <option value="IDEA">Idea (의견 제안)</option> <option value="NOTICE" v-if="isAdmin">Notice (공지)</option>
             </select>
           </div>
         </div>
@@ -142,7 +142,7 @@ const form = reactive({
   category: 'QNA',
   content: '',
   isSecret: 'N',
-  isPopup: 'N' // [추가] 초기값
+  isPopup: 'N'
 });
 
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER');
@@ -165,7 +165,7 @@ const loadPostData = async (id: number) => {
     form.category = post.category;
     form.content = post.content;
     form.isSecret = post.isSecret;
-    form.isPopup = post.isPopup || 'N'; // [추가] 팝업 설정 불러오기
+    form.isPopup = post.isPopup || 'N'; 
     
     const currentUserId = authStore.user?.userId;
     const isAuthor = String(post.authorId) === String(currentUserId);
@@ -216,31 +216,29 @@ const submitPost = async () => {
 </script>
 
 <style scoped>
-/* Quill Editor Custom Layout for Full Height */
 :deep(.ql-toolbar) {
   border-color: #e2e8f0 !important;
   background-color: #f8fafc;
   border-top-left-radius: 0.5rem;
   border-top-right-radius: 0.5rem;
-  flex-shrink: 0; /* 툴바 고정 */
+  flex-shrink: 0;
 }
 :deep(.ql-container) {
   border-color: #e2e8f0 !important;
   border-bottom-left-radius: 0.5rem;
   border-bottom-right-radius: 0.5rem;
   font-family: inherit;
-  flex: 1; /* 남은 공간 차지 */
-  overflow: hidden; /* 내부 스크롤 위임 */
+  flex: 1;
+  overflow: hidden; 
   display: flex;
   flex-direction: column;
 }
 :deep(.ql-editor) {
   flex: 1;
-  overflow-y: auto; /* 에디터 내부 스크롤 */
+  overflow-y: auto; 
   padding: 1rem;
 }
 
-/* Dark Mode Overrides */
 :deep(html.dark .ql-toolbar) {
   border-color: #27272a !important;
   background-color: #18181b;
