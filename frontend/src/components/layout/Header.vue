@@ -403,6 +403,8 @@ const pageTitleParts = computed(() => {
   } else if (path.startsWith('/support')) {
     if (path.includes('/qna')) fullTitle = "Support / Q&A Board";
     else if (path.includes('/manual')) fullTitle = "Support / User Manual";
+    else if (path.includes('/agent-download'))
+      fullTitle = "Support / Agent Download";
     else fullTitle = "Support";
   } else if (menuStore.menus.length > 0) {
     const breadcrumb = findBreadcrumb(menuStore.menus, route.path, []);
