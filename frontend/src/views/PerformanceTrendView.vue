@@ -481,10 +481,16 @@ onMounted(async () => {
       await loadEqpIds();
       try {
         const saved = localStorage.getItem("performance_eqpids");
-        if (saved)
+        if (saved) {
           selectedEqpIds.value = JSON.parse(saved).filter((id: string) =>
             eqpIds.value.includes(id),
           );
+          
+          // 새로고침 시 저장된 EQP ID가 있으면 자동 조회 실행
+          if (selectedEqpIds.value.length > 0) {
+            searchData();
+          }
+        }
       } catch (e) {}
     }
   }
@@ -529,7 +535,16 @@ const onEqpIdsChange = () => {
     "performance_eqpids",
     JSON.stringify(selectedEqpIds.value),
   );
-  hasSearched.value = false;
+  
+  // EQP ID가 1개 이상 선택된 경우 자동 조회
+  if (selectedEqpIds.value.length > 0) {
+    searchData();
+  } else {
+    // 모두 선택 해제되었을 때의 처리 (화면 초기화)
+    hasSearched.value = false;
+    chartData.value = [];
+    summaryData.value = [];
+  }
 };
 
 const loadEqpIds = async () => {
@@ -972,3 +987,4 @@ const fmt = (v: any, d: number) =>
   transform: scale(0.9);
 }
 </style>
+
