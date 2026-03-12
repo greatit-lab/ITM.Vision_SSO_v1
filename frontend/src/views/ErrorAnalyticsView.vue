@@ -327,17 +327,33 @@ const onSiteChange = async () => {
 };
 
 const onSdwtChange = async () => {
+  // SDWT가 변경되면 기존 하위 EQP ID 조건 초기화
+  filter.eqpId = "";
+  
   if (filter.sdwt) {
     eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "error" });
+    
+    // SDWT 선택 시 자동 조회 실행
+    search();
   } else {
     eqpIds.value = [];
+    // SDWT 선택 해제 시에만 화면 초기화
+    resetView();
   }
-  filter.eqpId = "";
-  resetView();
 };
 
 const onEqpIdChange = () => {
-  resetView();
+  if (filter.eqpId) {
+    // EQP ID 선택 시 해당 장비 조건으로 자동 조회
+    search();
+  } else {
+    // EQP ID 선택 해제 시, SDWT가 남아있다면 SDWT 기준으로 다시 자동 조회
+    if (filter.sdwt) {
+      search();
+    } else {
+      resetView();
+    }
+  }
 };
 
 const getEffectiveParams = () => {
@@ -546,3 +562,4 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
