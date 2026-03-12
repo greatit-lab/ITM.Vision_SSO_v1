@@ -151,10 +151,10 @@
             class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
           >
             <i class="text-purple-500 pi pi-chart-line"></i>
-            {{ selectedEqpId }} - Top Memory Consumers Trend
+            {{ selectedEqpId }} - Top 5 Memory Consumers Trend
           </h3>
           <span class="text-[10px] text-slate-400 font-medium">
-            (Displaying top {{ displayedProcessCount }} processes)
+            (Aggregated {{ displayedProcessCount }} unique processes from history)
           </span>
         </div>
 
@@ -244,7 +244,7 @@
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
                   <div
                     class="flex items-center justify-end gap-1 cursor-help"
-                    v-tooltip.top="'가장 최근 수집된 시점의 사용량 (Current)'"
+                    v-tooltip.top="'조회된 전체 기간 중 가장 마지막 시점의 사용량'"
                   >
                     Last Recorded
                     <i class="pi pi-info-circle text-[9px] opacity-50"></i>
@@ -253,7 +253,7 @@
                 <th scope="col" class="px-4 py-2.5 font-bold text-center">
                   <div
                     class="flex items-center justify-center gap-1 cursor-help"
-                    v-tooltip.top="'평균 대비 최근 사용량의 증감 상태'"
+                    v-tooltip.top="'마지막 시점의 사용량 상태'"
                   >
                     Trend
                     <i class="pi pi-info-circle text-[9px] opacity-50"></i>
@@ -289,12 +289,18 @@
                 <td class="px-4 py-2 font-mono text-right">
                   {{ formatNumber(proc.avg) }} MB
                 </td>
-                <td class="px-4 py-2 font-mono text-right text-slate-500">
-                  {{ formatNumber(proc.last) }} MB
+                <td class="px-4 py-2 font-mono text-right" :class="proc.last === 0 ? 'text-slate-400 opacity-50' : 'text-slate-500'">
+                  {{ proc.last === 0 ? '-' : formatNumber(proc.last) + ' MB' }}
                 </td>
                 <td class="px-4 py-2 text-center">
                   <span
-                    v-if="proc.last > proc.avg * 1.1"
+                    v-if="proc.last === 0"
+                    class="text-slate-500 text-[10px] font-bold bg-slate-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded"
+                  >
+                    순위권 밖 (Unranked)
+                  </span>
+                  <span
+                    v-else-if="proc.last > proc.avg * 1.1"
                     class="text-red-500 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded"
                   >
                     높음 (High)
@@ -366,10 +372,9 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const selectedEqpId = ref("");
 
-// [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 1일 전 설정
 const now = new Date();
 const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
+todayStart.setHours(0, 0, 0, 0); 
 const sevenDaysAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
 
 const startDate = ref(sevenDaysAgo);
@@ -404,9 +409,12 @@ const colorPalette = [
   "#14b8a6",
   "#f97316",
   "#84cc16",
+  "#06b6d4",
+  "#a855f7",
+  "#d946ef",
+  "#f43f5e"
 ];
 
-// [추가] 통합 날짜 보정 로직 (Start > End 시 자동 보정)
 watch(
   [startDate, endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -414,13 +422,10 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 시작일이 종료일보다 늦어지면
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경된 경우 -> 종료일을 시작일로 맞춤
            endDate.value = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경된 경우 -> 시작일을 종료일로 맞춤
            startDate.value = new Date(newEnd);
         }
       }
@@ -428,7 +433,6 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -444,26 +448,22 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-// [핵심 유틸] 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
 const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
   let str = String(ts || "");
-  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
+  if (str.includes("Z")) str = str.replace("Z", ""); 
   
-  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
   if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
       str = "20" + str;
   }
   return dayjs(str);
 };
 
-// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
     if (authStore.user?.site) {
       targetSite = authStore.user.site;
@@ -512,7 +512,6 @@ onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
 });
 
-// --- Handlers ---
 const onSiteChange = async () => {
   if (filterStore.selectedSite) {
     localStorage.setItem("process_site", filterStore.selectedSite);
@@ -551,7 +550,6 @@ const onEqpIdChange = () => {
   } else {
     localStorage.removeItem("process_eqpid");
   }
-  // [수정] EQP 변경 시 뷰 초기화
   resetView();
 };
 
@@ -581,13 +579,11 @@ const searchData = async () => {
   isLoading.value = true;
   isZoomed.value = false;
 
-  // 데이터 초기화
   xAxisData.value = [];
   processSeries.value = [];
   processStats.value = [];
 
   try {
-    // [수정] toLocalISOString 사용
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
 
@@ -630,99 +626,80 @@ const processData = (data: ProcessMemoryDataDto[]) => {
     return;
   }
 
-  // [수정] 안전한 날짜 파싱 (parseSafeDate 사용)
-  let maxTs = 0;
-  if (data.length > 0) {
-    maxTs = data.reduce((max, d) => {
-      const dt = parseSafeDate(d.timestamp);
-      const ts = dt.isValid() ? dt.valueOf() : 0;
-      return ts > max ? ts : max;
-    }, 0);
-  }
-
-  // [수정] 데이터 그룹화 (Bucketing) 로직 추가
-  // Raw Data가 초 단위로 들어올 수 있으므로, 분 단위로 그룹화하여 차트 X축 정렬
   const bucketMap = new Map<string, Record<string, number>>();
   
   data.forEach(d => {
      const dt = parseSafeDate(d.timestamp);
      if(!dt.isValid()) return;
      
-     // 분 단위로 Key 생성 (YYYY-MM-DD HH:mm)
      const key = dt.format('YYYY-MM-DD HH:mm');
      
      if(!bucketMap.has(key)) bucketMap.set(key, {});
      const bucket = bucketMap.get(key)!;
      
-     // 해당 시간대(분)의 해당 프로세스 MAX 메모리 사용량 저장
      const currentVal = bucket[d.processName] || 0;
      bucket[d.processName] = Math.max(currentVal, Number(d.memoryUsageMB) || 0);
   });
 
-  // Bucketed Data를 시간순 정렬
   const sortedKeys = Array.from(bucketMap.keys()).sort();
-  xAxisData.value = sortedKeys; // X축 라벨
+  xAxisData.value = sortedKeys;
 
-  // Top Process 선정 (전체 기간 Max 기준)
-  const procStatsMap = new Map<string, { max: number; sum: number; count: number; last: number }>();
+  const procStatsMap = new Map<string, { max: number; sum: number; count: number }>();
   
   data.forEach(d => {
       const val = Number(d.memoryUsageMB) || 0;
       if(!procStatsMap.has(d.processName)) {
-          procStatsMap.set(d.processName, { max: 0, sum: 0, count: 0, last: 0 });
+          procStatsMap.set(d.processName, { max: 0, sum: 0, count: 0 });
       }
       const stat = procStatsMap.get(d.processName)!;
       stat.max = Math.max(stat.max, val);
       stat.sum += val;
       stat.count++;
-      
-      // Last Value 갱신 (최대 시간과 일치하는 경우)
-      const dt = parseSafeDate(d.timestamp);
-      if (dt.isValid() && dt.valueOf() === maxTs) {
-          stat.last = val;
-      }
   });
 
-  // Top 5 선정
   const allProcs = Array.from(procStatsMap.entries()).map(([name, stat]) => ({ name, ...stat }));
-  const topProcs = allProcs.sort((a, b) => b.max - a.max).slice(0, 5);
+  const topProcs = allProcs.sort((a, b) => b.max - a.max); 
   const targetNames = new Set(topProcs.map(p => p.name));
   
   displayedProcessCount.value = targetNames.size;
 
-  // Chart Series 구성
   const series: any[] = [];
   const stats: ProcessStat[] = [];
   const sortedTargetProcs = Array.from(targetNames).sort();
 
+  const lastBucketKey = sortedKeys.length > 0 ? sortedKeys[sortedKeys.length - 1] : null;
+  const lastBucket = lastBucketKey ? bucketMap.get(lastBucketKey) : null;
+
   sortedTargetProcs.forEach((name, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? "#8b5cf6";
     
-    // 각 시간대별 해당 프로세스 값 추출
     const seriesData = sortedKeys.map(key => {
         const bucket = bucketMap.get(key);
-        return bucket ? (bucket[name] || 0) : 0;
+        return (bucket && bucket[name] !== undefined) ? bucket[name] : null;
     });
 
     series.push({
       name: name,
       type: "line",
       smooth: true,
-      showSymbol: false, // 데이터가 많을 수 있으므로 심볼 숨김
+      showSymbol: false, 
       symbolSize: 2,
       itemStyle: { color: color },
       lineStyle: { width: 2 },
+      connectNulls: false, 
       data: seriesData, 
     });
     
     const statEntry = procStatsMap.get(name)!;
+    
+    const actualLastValue = (lastBucket && lastBucket[name] !== undefined) ? lastBucket[name] : 0;
 
     stats.push({
       name,
       color,
       max: statEntry.max,
       avg: statEntry.sum / statEntry.count,
-      last: statEntry.last,
+      last: actualLastValue, 
     });
   });
 
@@ -742,7 +719,6 @@ const resetFilters = () => {
   eqpIds.value = [];
   resetView();
   
-  // [수정] 날짜 초기화 로직: '오늘 00:00:00' 기준으로 1일 전 설정
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0); 
@@ -782,7 +758,7 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         if (!params || !params.length) return "";
         
-        const rawLabel = params[0].axisValue; // YYYY-MM-DD HH:mm
+        const rawLabel = params[0].axisValue; 
         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${rawLabel}</div>`;
         
         const sortedParams = [...params].sort(
@@ -790,7 +766,7 @@ const chartOption = computed(() => {
         );
         
         sortedParams.forEach((p: any) => {
-          if (p.value !== undefined) {
+          if (p.value !== undefined && p.value !== null) {
             const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
             html += `<div class="flex justify-between items-center gap-4 text-xs"><span>${colorDot} ${
               p.seriesName
@@ -828,8 +804,7 @@ const chartOption = computed(() => {
         color: textColor,
         fontSize: 10,
         formatter: (value: string) => {
-           // 분 단위 데이터이므로, 적절히 포맷팅 (예: 날짜+시간)
-           return value ? value.substring(5) : value; // MM-DD HH:mm
+           return value ? value.substring(5) : value; 
         },
       },
       axisLine: { lineStyle: { color: gridColor } },
