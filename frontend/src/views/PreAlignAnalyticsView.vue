@@ -606,7 +606,16 @@ const onSdwtChange = async () => {
   filter.eqpId = ""; resetView();
 };
 
-const onEqpIdChange = () => resetView();
+const onEqpIdChange = () => {
+  if (filter.eqpId) {
+    // EQP ID 선택 시 자동 조회 실행
+    search();
+  } else {
+    // 선택 해제 시에만 화면 초기화
+    resetView();
+  }
+};
+
 const resetView = () => { hasSearched.value = false; chartData.value = []; searchedEqpId.value = ""; isZoomed.value = false; };
 
 const search = async () => {
@@ -938,3 +947,4 @@ const notchChartOption = computed(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
