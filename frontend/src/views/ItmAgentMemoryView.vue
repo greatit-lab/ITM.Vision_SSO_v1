@@ -441,8 +441,6 @@ const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
-  // [수정] 관리자용 전역 모니터링 페이지이므로, 프로필 설정(authStore.user)의 기본값을 무시하고
-  // 오직 이전 조회 기록(localStorage)이 있을 때만 세팅하며, 없으면 전체(All) 빈 값 상태로 둡니다.
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
@@ -473,6 +471,9 @@ onMounted(async () => {
      filterStore.selectedSdwt = "";
   }
 
+  // [핵심 변경] 페이지 접속(새로고침) 시 설정된 필터(또는 All 기본값)로 즉시 데이터 조회
+  searchData();
+
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.attributeName === "class") {
@@ -502,7 +503,8 @@ const onSiteChange = async () => {
   localStorage.removeItem("agentmem_eqpid");
   eqpIds.value = [];
   
-  resetView();
+  // 필터 변경 시 자동 조회
+  searchData();
 };
 
 const onSdwtChange = async () => {
@@ -515,7 +517,9 @@ const onSdwtChange = async () => {
   }
   selectedEqpId.value = "";
   localStorage.removeItem("agentmem_eqpid");
-  resetView();
+  
+  // 필터 변경 시 자동 조회
+  searchData();
 };
 
 const onEqpIdChange = () => {
@@ -524,7 +528,9 @@ const onEqpIdChange = () => {
   } else {
       localStorage.removeItem("agentmem_eqpid");
   }
-  resetView();
+  
+  // 필터 변경 시 자동 조회
+  searchData();
 };
 
 const resetView = () => {
