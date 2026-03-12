@@ -112,7 +112,19 @@
               <span v-if="gridFilter.eqpId" class="px-2 py-0.5 text-[10px] bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded border border-purple-100 dark:border-purple-900/30">EQP: {{ gridFilter.eqpId }}</span>
             </div>
           </div>
+          
           <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <button 
+              v-if="totalRecords > 0" 
+              @click="exportCSV" 
+              :disabled="isExporting" 
+              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50 mr-1"
+            >
+              <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
+              <i v-else class="pi pi-download"></i>
+              {{ isExporting ? 'Exporting...' : 'CSV Export' }}
+            </button>
+
             <div class="flex items-center gap-2">
               <span class="font-medium">Rows:</span>
               <select v-model="rowsPerPage" @change="first = 0; loadGridData();" class="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 py-0.5 font-medium focus:outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer">
@@ -210,6 +222,7 @@ const eqpIds = ref<string[]>([]);
 const isLoading = ref(false);
 const isGridLoading = ref(false);
 const hasSearched = ref(false);
+const isExporting = ref(false); // CSV Export 상태 관리
 
 const summary = ref<ErrorSummary>({ totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] });
 const trendData = ref<ErrorTrendItem[]>([]);
@@ -251,7 +264,6 @@ onMounted(async () => {
   let targetSite = "";
   let targetSdwt = "";
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (authStore.user?.site) {
     targetSite = authStore.user.site;
     targetSdwt = authStore.user.sdwt || "";
@@ -274,7 +286,6 @@ onMounted(async () => {
           filter.eqpId = initEqpId;
         }
         
-        // SDWT가 선택된 상태라면 자동 검색 수행
         if (filter.sdwt) {
             search();
         }
@@ -327,33 +338,19 @@ const onSiteChange = async () => {
 };
 
 const onSdwtChange = async () => {
-  // SDWT가 변경되면 기존 하위 EQP ID 조건 초기화
   filter.eqpId = "";
-  
   if (filter.sdwt) {
     eqpIds.value = await getEqpIds({ sdwt: filter.sdwt, type: "error" });
-    
-    // SDWT 선택 시 자동 조회 실행
     search();
   } else {
     eqpIds.value = [];
-    // SDWT 선택 해제 시에만 화면 초기화
     resetView();
   }
 };
 
 const onEqpIdChange = () => {
-  if (filter.eqpId) {
-    // EQP ID 선택 시 해당 장비 조건으로 자동 조회
-    search();
-  } else {
-    // EQP ID 선택 해제 시, SDWT가 남아있다면 SDWT 기준으로 다시 자동 조회
-    if (filter.sdwt) {
-      search();
-    } else {
-      resetView();
-    }
-  }
+  // EQP ID 선택 시 화면을 지우지도, 자동 조회를 하지도 않음.
+  // v-model에 의해 값만 저장되며, 조회는 사용자가 직접 검색 버튼을 눌러 실행함.
 };
 
 const getEffectiveParams = () => {
@@ -457,6 +454,68 @@ const loadGridData = async () => {
   }
 };
 
+const exportCSV = async () => {
+  if (totalRecords.value === 0) return;
+  isExporting.value = true;
+  
+  try {
+    // 화면에 보이는 페이지만이 아닌, 전체 검색된 데이터를 가져오기 위해 pageSize를 totalRecords로 요청
+    const params = { 
+        ...getEffectiveParams(), 
+        page: 0, 
+        pageSize: totalRecords.value 
+    };
+    const res = await getErrorLogs(params);
+    const responseData = res as any;
+    const data = (responseData && responseData.data) ? responseData.data : responseData;
+    
+    const exportItems = (data && Array.isArray(data.items)) ? data.items : [];
+    if (exportItems.length === 0) return;
+
+    // CSV 헤더 정의
+    const headers = ['Time', 'EQP ID', 'Error ID', 'Label', 'Description', 'Extra 1', 'Extra 2'];
+    
+    // CSV 데이터 파싱 (콤마, 따옴표 예외 처리 및 엑셀 날짜 형식 보호)
+    const rows = exportItems.map((d: any) => [
+      `="${formatDate(d.timeStamp, false, true)}"`, 
+      `"${d.eqpId || ''}"`,
+      `"${d.errorId || ''}"`,
+      `"${(d.errorLabel || '').replace(/"/g, '""')}"`,
+      `"${(d.errorDesc || '').replace(/"/g, '""')}"`,
+      `"${(d.extraMessage1 || '').replace(/"/g, '""')}"`,
+      `"${(d.extraMessage2 || '').replace(/"/g, '""')}"`
+    ]);
+
+    // 한글 깨짐 방지를 위한 BOM(\uFEFF) 추가
+    // 한글 깨짐 방지를 위한 BOM(\uFEFF) 추가
+    const csvContent = '\uFEFF' + [
+      headers.join(','),
+      ...rows.map((row: string[]) => row.join(',')) // row에 명시적 타입 지정
+    ].join('\n');
+
+    // 파일 다운로드 처리
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const fileName = `AlertHistory_${filter.sdwt || 'All'}_${dateStr}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+  } catch (e) {
+    console.error("Export failed", e);
+  } finally {
+    isExporting.value = false;
+  }
+};
+
 const onTrendChartInit = (inst: any) =>
   inst.on("click", async (p: any) => {
     const idx = p.dataIndex;
@@ -522,22 +581,18 @@ const byEqpOption = computed(() => {
   };
 });
 
-// [수정] 포맷팅 로직 강화 (2자리 연도 "25-12-17" 지원)
 const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
   if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return "-";
   
-  // [핵심] YYYY-MM-DD 뿐만 아니라 YY-MM-DD 포맷도 허용 (2자리, 4자리 모두 OK)
   const isFormatted = /^\d{2,4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr);
   if (isFormatted) {
       if (short) return dateStr.substring(5, 10);
-      if (twoDigitYear) return dateStr.substring(dateStr.indexOf("-") - 2); // 이미 포맷팅된 경우 처리
+      if (twoDigitYear) return dateStr.substring(dateStr.indexOf("-") - 2); 
       return dateStr;
   }
   
-  // Date 객체 파싱 시도 (ISO String 등)
   const d = new Date(dateStr);
   
-  // Invalid Date 체크 (NaN 방지)
   if (isNaN(d.getTime())) return "-";
 
   const yy = d.getFullYear(); const yy2 = String(yy).slice(2); const mm = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0");
@@ -562,4 +617,3 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
