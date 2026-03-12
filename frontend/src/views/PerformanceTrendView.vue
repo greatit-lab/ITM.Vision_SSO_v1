@@ -19,7 +19,7 @@
           <span
             class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
           >
-            System Resource Monitoring
+            System Resource Multi-Equipment Monitoring
           </span>
         </div>
       </div>
@@ -77,20 +77,20 @@
           />
         </div>
 
-        <div class="min-w-[160px] shrink-0">
-          <Select
-            v-model="selectedEqpId"
+        <div class="w-[180px] shrink-0">
+          <MultiSelect
+            v-model="selectedEqpIds"
             :options="eqpIds"
             filter
             resetFilterOnHide
-            placeholder="Select EQP"
             showClear
-            class="w-full custom-dropdown small"
-            overlayClass="custom-dropdown-panel small"
-            :class="{ '!text-slate-400': !selectedEqpId }"
+            placeholder="Select EQPs"
+            :maxSelectedLabels="1"
+            class="w-full custom-dropdown small multi-filter"
+            overlayClass="custom-multiselect-panel"
             :disabled="!filterStore.selectedSdwt || isRealtime"
             :loading="isEqpLoading"
-            @change="onEqpIdChange"
+            @change="onEqpIdsChange"
           />
         </div>
 
@@ -134,7 +134,7 @@
             rounded
             class="!bg-teal-600 !border-teal-600 hover:!bg-teal-700 !w-8 !h-8 !text-xs"
             @click="() => searchData()"
-            :disabled="!selectedEqpId || isRealtime || isLoading"
+            :disabled="selectedEqpIds.length === 0 || isRealtime || isLoading"
           />
           <Button
             icon="pi pi-refresh"
@@ -142,23 +142,22 @@
             rounded
             severity="secondary"
             v-tooltip.bottom="'Reset'"
-            class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
+            class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300"
             @click="resetFilters"
             :disabled="isRealtime"
           />
         </div>
-
         <div class="w-px h-4 mx-1 bg-slate-200 dark:bg-zinc-700"></div>
-
         <div
           class="flex items-center gap-2 bg-slate-50 dark:bg-zinc-800/50 rounded-lg px-2 py-0.5 border border-slate-100 dark:border-zinc-800"
-          :class="{ 'opacity-50 pointer-events-none': !selectedEqpId }"
+          :class="{
+            'opacity-50 pointer-events-none': selectedEqpIds.length === 0,
+          }"
         >
           <div
             class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap"
           >
-            <span>AUTO</span>
-            <i class="pi pi-clock text-[9px]"></i>
+            <span>AUTO</span><i class="pi pi-clock text-[9px]"></i>
           </div>
           <Select
             v-model="intervalSeconds"
@@ -166,11 +165,11 @@
             optionLabel="label"
             optionValue="value"
             placeholder="Off"
-            class="w-[110px] h-6 !border-0 !bg-transparent !text-[11px] !shadow-none small-text-dropdown"
+            class="w-[100px] h-6 !border-0 !bg-transparent !text-[11px] small-text-dropdown"
             :class="{ '!text-rose-500 font-bold': isRealtime }"
             overlayClass="custom-dropdown-panel small"
             @change="toggleRealtime"
-            :disabled="!selectedEqpId"
+            :disabled="selectedEqpIds.length === 0"
           />
         </div>
       </div>
@@ -178,22 +177,22 @@
 
     <div
       v-if="hasSearched"
-      class="flex flex-col flex-1 min-h-0 gap-3 pb-2 animate-fade-in relative"
+      class="relative flex flex-col flex-1 min-h-0 gap-3 pb-2 animate-fade-in"
     >
       <div
         v-if="isLoading"
-        class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-2xl border border-transparent"
+        class="absolute inset-0 z-50 flex flex-col items-center justify-center border border-transparent bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-2xl"
       >
         <div class="relative">
           <div
             class="w-12 h-12 border-4 rounded-full border-slate-100 dark:border-zinc-800"
           ></div>
           <div
-            class="absolute top-0 left-0 w-12 h-12 border-4 rounded-full border-teal-500 border-t-transparent animate-spin"
+            class="absolute top-0 left-0 w-12 h-12 border-4 border-teal-500 rounded-full border-t-transparent animate-spin"
           ></div>
         </div>
         <p class="mt-4 text-xs font-bold text-slate-500 animate-pulse">
-          Analyzing Lot Data...
+          Loading Multi-Eqp Data...
         </p>
       </div>
 
@@ -203,148 +202,69 @@
         <div
           class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm h-full relative flex flex-col group min-h-[200px]"
         >
-          <div class="flex items-center justify-between mb-1 shrink-0">
-            <h3
-              class="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"
-            >
-              <i class="text-blue-500 pi pi-desktop"></i> {{ selectedEqpId }} -
-              CPU Usage
-            </h3>
-          </div>
+          <h3
+            class="flex items-center gap-2 mb-1 text-xs font-bold text-slate-600 dark:text-slate-300"
+          >
+            <i class="text-blue-500 pi pi-desktop"></i>
+            {{ chartTitlePrefix }} CPU Usage
+          </h3>
           <div class="relative flex-1 w-full min-h-0">
             <EChart
               v-if="chartData.length > 0"
               :option="cpuOption"
               class="w-full h-full"
-              @chartCreated="(inst) => onChartInit('cpu', inst)"
             />
-            <div
-              v-else
-              class="absolute inset-0 flex items-center justify-center text-xs text-slate-400"
-            >
-              No Data
-            </div>
-            <transition name="fade">
-              <button
-                v-if="zoomStates.cpu"
-                @click="resetChartZoom('cpu')"
-                class="absolute z-10 flex items-center gap-1 px-2 py-1 text-xs font-bold text-white transition-colors bg-blue-500 rounded shadow-md top-2 right-2 hover:bg-blue-600"
-              >
-                <i class="pi pi-refresh" style="font-size: 0.6rem"></i> Reset
-                Zoom
-              </button>
-            </transition>
           </div>
         </div>
-
         <div
           class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm h-full relative flex flex-col group min-h-[200px]"
         >
-          <div class="flex items-center justify-between mb-1 shrink-0">
-            <h3
-              class="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"
-            >
-              <i class="pi pi-microchip text-emerald-500"></i>
-              {{ selectedEqpId }} - Memory Usage
-            </h3>
-          </div>
+          <h3
+            class="flex items-center gap-2 mb-1 text-xs font-bold text-slate-600 dark:text-slate-300"
+          >
+            <i class="pi pi-microchip text-emerald-500"></i>
+            {{ chartTitlePrefix }} Memory Usage
+          </h3>
           <div class="relative flex-1 w-full min-h-0">
             <EChart
               v-if="chartData.length > 0"
               :option="memOption"
               class="w-full h-full"
-              @chartCreated="(inst) => onChartInit('mem', inst)"
             />
-            <div
-              v-else
-              class="absolute inset-0 flex items-center justify-center text-xs text-slate-400"
-            >
-              No Data
-            </div>
-            <transition name="fade">
-              <button
-                v-if="zoomStates.mem"
-                @click="resetChartZoom('mem')"
-                class="absolute z-10 flex items-center gap-1 px-2 py-1 text-xs font-bold text-white transition-colors rounded shadow-md top-2 right-2 bg-emerald-500 hover:bg-emerald-600"
-              >
-                <i class="pi pi-refresh" style="font-size: 0.6rem"></i> Reset
-                Zoom
-              </button>
-            </transition>
           </div>
         </div>
-
         <div
           class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm h-full relative flex flex-col group min-h-[200px]"
         >
-          <div class="flex items-center justify-between mb-1 shrink-0">
-            <h3
-              class="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"
-            >
-              <i class="pi pi-cog text-amber-500"></i> {{ selectedEqpId }} - CPU
-              Temp & Fan Speed
-            </h3>
-          </div>
+          <h3
+            class="flex items-center gap-2 mb-1 text-xs font-bold text-slate-600 dark:text-slate-300"
+          >
+            <i class="pi pi-cog text-amber-500"></i> {{ chartTitlePrefix }} CPU
+            Temp & Fan
+          </h3>
           <div class="relative flex-1 w-full min-h-0">
             <EChart
               v-if="chartData.length > 0"
               :option="cpuTempFanOption"
               class="w-full h-full"
-              @chartCreated="(inst) => onChartInit('dual', inst)"
             />
-            <div
-              v-else
-              class="absolute inset-0 flex items-center justify-center text-xs text-slate-400"
-            >
-              No Data
-            </div>
-            <transition name="fade">
-              <button
-                v-if="zoomStates.dual"
-                @click="resetChartZoom('dual')"
-                class="absolute z-10 flex items-center gap-1 px-2 py-1 text-xs font-bold text-white transition-colors rounded shadow-md top-2 right-2 bg-amber-500 hover:bg-amber-600"
-              >
-                <i class="pi pi-refresh" style="font-size: 0.6rem"></i> Reset
-                Zoom
-              </button>
-            </transition>
           </div>
         </div>
-
         <div
           class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm h-full relative flex flex-col group min-h-[200px]"
         >
-          <div class="flex items-center justify-between mb-1 shrink-0">
-            <h3
-              class="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"
-            >
-              <i class="text-orange-500 pi pi-palette"></i>
-              {{ selectedEqpId }} - GPU Temp
-            </h3>
-          </div>
+          <h3
+            class="flex items-center gap-2 mb-1 text-xs font-bold text-slate-600 dark:text-slate-300"
+          >
+            <i class="text-orange-500 pi pi-palette"></i>
+            {{ chartTitlePrefix }} GPU Temp
+          </h3>
           <div class="relative flex-1 w-full min-h-0">
             <EChart
               v-if="chartData.length > 0"
               :option="gpuOption"
               class="w-full h-full"
-              @chartCreated="(inst) => onChartInit('gpu', inst)"
             />
-            <div
-              v-else
-              class="absolute inset-0 flex items-center justify-center text-xs text-slate-400"
-            >
-              No Data
-            </div>
-            <transition name="fade">
-              <button
-                v-if="zoomStates.gpu"
-                @click="resetChartZoom('gpu')"
-                class="absolute z-10 flex items-center gap-1 px-2 py-1 text-xs font-bold text-white transition-colors bg-orange-500 rounded shadow-md top-2 right-2 hover:bg-orange-600"
-              >
-                <i class="pi pi-refresh" style="font-size: 0.6rem"></i> Reset
-                Zoom
-              </button>
-            </transition>
           </div>
         </div>
       </div>
@@ -353,7 +273,7 @@
         class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden h-auto shrink-0 flex flex-col"
       >
         <div
-          class="flex items-center gap-2 px-4 py-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 shrink-0"
+          class="flex items-center gap-2 px-4 py-2 border-b bg-slate-50 dark:bg-zinc-900/50 shrink-0"
         >
           <i class="text-xs text-teal-500 pi pi-list"></i>
           <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -362,73 +282,63 @@
         </div>
         <div class="overflow-x-auto">
           <table
-            class="w-full text-xs text-left table-fixed text-slate-600 dark:text-slate-400"
+            class="w-full text-[11px] text-left table-fixed text-slate-600 dark:text-slate-400"
           >
             <thead
-              class="text-[10px] text-slate-500 uppercase bg-slate-50 dark:bg-zinc-800 dark:text-slate-400"
+              class="text-[10px] text-slate-500 uppercase bg-slate-50 dark:bg-zinc-800"
             >
               <tr>
-                <th
-                  scope="col"
-                  class="px-4 py-2 w-[120px] text-left font-bold text-slate-600 dark:text-slate-300"
-                >
-                  EQP ID
-                </th>
-                <th scope="col" class="px-4 py-2 text-left">CPU Peak Time</th>
-                <th scope="col" class="px-4 py-2 text-left">CPU Max (%)</th>
-                <th scope="col" class="px-4 py-2 text-left">CPU Temp (°C)</th>
-                <th scope="col" class="px-4 py-2 text-left">Fan (RPM)</th>
-                <th scope="col" class="px-4 py-2 text-left">Mem Peak Time</th>
-                <th scope="col" class="px-4 py-2 text-left">Mem Max (%)</th>
-                <th scope="col" class="px-4 py-2 text-left">GPU Peak Time</th>
-                <th scope="col" class="px-4 py-2 text-left">GPU Max (°C)</th>
+                <th class="px-4 py-2 w-[120px] font-bold">EQP ID</th>
+                <th class="px-4 py-2">CPU Peak</th>
+                <th class="px-4 py-2">CPU Max</th>
+                <th class="px-4 py-2">CPU Temp</th>
+                <th class="px-4 py-2">Fan</th>
+                <th class="px-4 py-2">Mem Peak</th>
+                <th class="px-4 py-2">Mem Max</th>
+                <th class="px-4 py-2">GPU Peak</th>
+                <th class="px-4 py-2">GPU Max</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
               <tr
                 v-for="item in summaryData"
                 :key="item.eqpId"
-                class="transition-colors hover:bg-slate-50 dark:hover:bg-zinc-900/50"
+                class="hover:bg-slate-50 dark:hover:bg-zinc-900/50"
               >
                 <td
-                  class="px-4 py-1.5 text-left font-bold text-slate-700 dark:text-slate-200"
+                  class="px-4 py-1.5 font-bold text-slate-700 dark:text-slate-200"
                 >
                   {{ item.eqpId }}
                 </td>
-                <td class="px-4 py-1.5 text-left font-mono">
+                <td class="px-4 py-1.5 font-mono">
                   {{ formatDate(item.cpuPeakTime) }}
                 </td>
                 <td
-                  class="px-4 py-1.5 text-left font-mono text-red-600 dark:text-red-400 font-bold"
+                  class="px-4 py-1.5 font-mono text-red-600 dark:text-red-400 font-bold"
                 >
                   {{ fmt(item.cpuMax, 2) }}
                 </td>
-                <td class="px-4 py-1.5 text-left font-mono">
+                <td class="px-4 py-1.5 font-mono">
                   {{ fmt(item.cpuTempAtPeak, 1) }}
                 </td>
-                <td class="px-4 py-1.5 text-left font-mono">
+                <td class="px-4 py-1.5 font-mono">
                   {{ fmt(item.fanSpeedAtPeak, 0) }}
                 </td>
-                <td class="px-4 py-1.5 text-left font-mono">
+                <td class="px-4 py-1.5 font-mono">
                   {{ formatDate(item.memPeakTime) }}
                 </td>
                 <td
-                  class="px-4 py-1.5 text-left font-mono text-red-600 dark:text-red-400 font-bold"
+                  class="px-4 py-1.5 font-mono text-red-600 dark:text-red-400 font-bold"
                 >
                   {{ fmt(item.memMax, 2) }}
                 </td>
-                <td class="px-4 py-1.5 text-left font-mono">
+                <td class="px-4 py-1.5 font-mono">
                   {{ formatDate(item.gpuPeakTime) }}
                 </td>
                 <td
-                  class="px-4 py-1.5 text-left font-mono text-red-600 dark:text-red-400 font-bold"
+                  class="px-4 py-1.5 font-mono text-red-600 dark:text-red-400 font-bold"
                 >
                   {{ fmt(item.gpuMax, 1) }}
-                </td>
-              </tr>
-              <tr v-if="summaryData.length === 0">
-                <td colspan="9" class="px-4 py-8 text-center text-slate-400">
-                  No Summary Data Available
                 </td>
               </tr>
             </tbody>
@@ -444,22 +354,20 @@
       <div
         class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
       >
-        <i
-          class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-chart-line"
-        ></i>
+        <i class="text-4xl pi pi-chart-line"></i>
       </div>
       <p class="text-sm font-bold text-slate-500">
         Ready to Analyze Performance
       </p>
-      <p class="mt-1 text-xs text-slate-400">
-        Select Equipment and Time Range to view performance trends.
+      <p class="mt-1 text-xs">
+        Select Equipments and Time Range to compare performance trends.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, reactive, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -469,11 +377,10 @@ import {
   type PerformanceDataPointDto,
 } from "@/api/performance";
 import EChart from "@/components/common/EChart.vue";
-import type { ECharts } from "echarts";
 import dayjs from "dayjs";
 
-// PrimeVue
 import Select from "primevue/select";
+import MultiSelect from "primevue/multiselect";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 
@@ -491,42 +398,34 @@ interface PerformanceSummary {
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
-const selectedEqpId = ref("");
+const selectedEqpIds = ref<string[]>([]);
 
-const now = new Date();
-const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); 
-const oneDayAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
-
-const startDate = ref(oneDayAgo);
-const endDate = ref(new Date());
+const chartColors = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ef4444",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
+];
+const startDate = ref<Date>(
+  new Date(new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000),
+);
+const endDate = ref<Date>(new Date());
 const intervalSeconds = ref(0);
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 const eqpIds = ref<string[]>([]);
 const isEqpLoading = ref(false);
-
 const chartData = ref<PerformanceDataPointDto[]>([]);
 const summaryData = ref<PerformanceSummary[]>([]);
 const isLoading = ref(false);
 const hasSearched = ref(false);
 const isRealtime = ref(false);
 let refreshTimer: number | null = null;
-
-const zoomStates = reactive<Record<string, boolean>>({
-  cpu: false,
-  mem: false,
-  dual: false,
-  gpu: false,
-});
-const chartInstances = reactive<Record<string, ECharts | null>>({
-  cpu: null,
-  mem: null,
-  dual: null,
-  gpu: null,
-});
-
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
@@ -536,81 +435,64 @@ const intervalOptions = [
   { label: "1 Min", value: 60 },
   { label: "5 Min", value: 300 },
 ];
-
-watch(
-  [startDate, endDate],
-  ([newStart, newEnd], [oldStart, oldEnd]) => {
-    if (newStart && newEnd) {
-      const startMs = newStart.getTime();
-      const endMs = newEnd.getTime();
-
-      if (startMs > endMs) {
-        if (startMs !== oldStart?.getTime()) {
-           endDate.value = new Date(newStart);
-        } else if (endMs !== oldEnd?.getTime()) {
-           startDate.value = new Date(newEnd);
-        }
-      }
-    }
-  }
+const chartTitlePrefix = computed(() =>
+  selectedEqpIds.value.length === 0
+    ? ""
+    : selectedEqpIds.value.length === 1
+      ? `${selectedEqpIds.value[0]} -`
+      : `Compare -`,
 );
 
-const toLocalISOString = (date: Date) => {
+watch([startDate, endDate], ([newStart, newEnd], [oldStart]) => {
+  if (newStart && newEnd && newStart.getTime() > newEnd.getTime()) {
+    if (newStart.getTime() !== oldStart?.getTime())
+      endDate.value = new Date(newStart);
+    else startDate.value = new Date(newEnd);
+  }
+});
+
+const toLocalISOString = (date: Date | null | undefined): string => {
   if (!date) return "";
   const d = new Date(date);
-  const offset = d.getTimezoneOffset() * 60000;
-  const localDate = new Date(d.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
 };
 
-// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
+  let tSite =
+    filterStore.selectedSite ||
+    authStore.user?.site ||
+    localStorage.getItem("performance_site") ||
+    "";
+  let tSdwt =
+    filterStore.selectedSdwt ||
+    authStore.user?.sdwt ||
+    localStorage.getItem("performance_sdwt") ||
+    "";
 
-  let targetSite = filterStore.selectedSite;
-  let targetSdwt = filterStore.selectedSdwt;
-
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
-  if (!targetSite) {
-    if (authStore.user?.site) {
-      targetSite = authStore.user.site;
-      targetSdwt = authStore.user.sdwt || "";
-    } else {
-      targetSite = localStorage.getItem("performance_site") || "";
-      targetSdwt = localStorage.getItem("performance_sdwt") || "";
-    }
-  }
-
-  if (targetSite && sites.value.includes(targetSite)) {
-    filterStore.selectedSite = targetSite;
-
-    sdwts.value = await dashboardApi.getSdwts(targetSite);
-
-    if (targetSdwt && sdwts.value.includes(targetSdwt)) {
-      filterStore.selectedSdwt = targetSdwt;
-
+  if (tSite && sites.value.includes(tSite)) {
+    filterStore.selectedSite = tSite;
+    sdwts.value = await dashboardApi.getSdwts(tSite);
+    if (tSdwt && sdwts.value.includes(tSdwt)) {
+      filterStore.selectedSdwt = tSdwt;
       await loadEqpIds();
-
-      const savedEqpId = localStorage.getItem("performance_eqpid");
-      if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
-        selectedEqpId.value = savedEqpId;
-      }
-    } else {
-      filterStore.selectedSdwt = "";
-      selectedEqpId.value = "";
+      try {
+        const saved = localStorage.getItem("performance_eqpids");
+        if (saved)
+          selectedEqpIds.value = JSON.parse(saved).filter((id: string) =>
+            eqpIds.value.includes(id),
+          );
+      } catch (e) {}
     }
-  } else {
-    filterStore.selectedSite = "";
-    filterStore.selectedSdwt = "";
   }
 
-  themeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.attributeName === "class") {
-        isDarkMode.value = document.documentElement.classList.contains("dark");
-      }
-    });
-  });
+  themeObserver = new MutationObserver(
+    () =>
+      (isDarkMode.value = document.documentElement.classList.contains("dark")),
+  );
   themeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["class"],
@@ -619,23 +501,16 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer);
-  if (themeObserver) themeObserver.disconnect();
+  themeObserver?.disconnect();
 });
 
-// --- Handlers ---
 const onSiteChange = async () => {
   if (filterStore.selectedSite) {
     localStorage.setItem("performance_site", filterStore.selectedSite);
     sdwts.value = await dashboardApi.getSdwts(filterStore.selectedSite);
-  } else {
-    localStorage.removeItem("performance_site");
-    sdwts.value = [];
   }
-
   filterStore.selectedSdwt = "";
-  localStorage.removeItem("performance_sdwt");
-  selectedEqpId.value = "";
-  localStorage.removeItem("performance_eqpid");
+  selectedEqpIds.value = [];
   eqpIds.value = [];
   hasSearched.value = false;
 };
@@ -644,50 +519,17 @@ const onSdwtChange = async () => {
   if (filterStore.selectedSdwt) {
     localStorage.setItem("performance_sdwt", filterStore.selectedSdwt);
     await loadEqpIds();
-  } else {
-    localStorage.removeItem("performance_sdwt");
-    eqpIds.value = [];
   }
-
-  selectedEqpId.value = "";
-  localStorage.removeItem("performance_eqpid");
+  selectedEqpIds.value = [];
   hasSearched.value = false;
 };
 
-const onEqpIdChange = () => {
-  if (selectedEqpId.value) {
-    localStorage.setItem("performance_eqpid", selectedEqpId.value);
-  } else {
-    localStorage.removeItem("performance_eqpid");
-  }
-  
+const onEqpIdsChange = () => {
+  localStorage.setItem(
+    "performance_eqpids",
+    JSON.stringify(selectedEqpIds.value),
+  );
   hasSearched.value = false;
-  chartData.value = [];
-  summaryData.value = [];
-};
-
-const resetFilters = () => {
-  if (isRealtime.value) return;
-
-  filterStore.reset();
-  selectedEqpId.value = "";
-
-  localStorage.removeItem("performance_site");
-  localStorage.removeItem("performance_sdwt");
-  localStorage.removeItem("performance_eqpid");
-
-  sdwts.value = [];
-  eqpIds.value = [];
-  chartData.value = [];
-  summaryData.value = [];
-  hasSearched.value = false;
-  intervalSeconds.value = 0;
-  
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0); 
-  startDate.value = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
-  endDate.value = new Date();
 };
 
 const loadEqpIds = async () => {
@@ -696,345 +538,251 @@ const loadEqpIds = async () => {
     eqpIds.value = await equipmentApi.getEqpIds({
       site: filterStore.selectedSite || undefined,
       sdwt: filterStore.selectedSdwt,
-      type: "performance", 
+      type: "performance",
     });
   } catch (e) {
-    console.error("Failed to load EQP IDs", e);
     eqpIds.value = [];
   } finally {
     isEqpLoading.value = false;
   }
 };
 
-// --- Chart Options & Helpers ---
-const getTooltipFormatter = (unitMap: Record<string, string>) => {
-  return (params: any) => {
-    if (!params || !params[0]) return "";
-    
-    const timeStr = dayjs(params[0].axisValueLabel).isValid() 
-        ? dayjs(params[0].axisValueLabel).format('MM-DD HH:mm:ss') 
-        : params[0].axisValueLabel;
-
-    let html = `<div class="mb-1 font-bold">${timeStr}</div>`;
-
-    params.forEach((p: any) => {
-      let key = "";
-      if (p.seriesName === "CPU Usage") key = "cpuUsage";
-      else if (p.seriesName === "Memory Usage") key = "memoryUsage";
-      else if (p.seriesName === "CPU Temp") key = "cpuTemp";
-      else if (p.seriesName === "Fan Speed") key = "fanSpeed";
-      else if (p.seriesName === "GPU Temp") key = "gpuTemp";
-
-      if (key && p.data[key] !== undefined) {
-        const u = unitMap[p.seriesName] || "";
-        const valNum = Number(p.data[key]);
-        const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`;
-        html += `<div>${colorDot} ${p.seriesName}: ${valNum.toFixed(
-          2
-        )} ${u}</div>`;
-      }
-    });
-    return html;
-  };
+const resetFilters = () => {
+  filterStore.reset();
+  selectedEqpIds.value = [];
+  sdwts.value = [];
+  eqpIds.value = [];
+  chartData.value = [];
+  summaryData.value = [];
+  hasSearched.value = false;
+  intervalSeconds.value = 0;
+  startDate.value = new Date(
+    new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000,
+  );
+  endDate.value = new Date();
 };
 
-const axisFormatter = (value: number | string) => {
-  const val = Number(value);
-  if (isNaN(val)) return value;
-  return Number.isInteger(val) ? val : val.toFixed(1);
-};
-
-const getAxisRange = (
-  field: keyof PerformanceDataPointDto,
-  isPercent: boolean = false
-) => {
-  if (!chartData.value.length) return {};
-  const values = chartData.value.map((d) => Number(d[field]));
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-
-  const range = max - min || (min === 0 ? 1 : Math.abs(min * 0.1));
-  const padding = range * 0.2;
-
-  let newMin = min - padding;
-  let newMax = max + padding;
-
-  if (isPercent) {
-    newMin = Math.max(0, newMin);
-    newMax = Math.min(100, newMax);
-  } else {
-    if (field === "fanSpeed") newMin = Math.max(0, newMin);
+const searchData = async (silent = false) => {
+  if (selectedEqpIds.value.length === 0) return;
+  hasSearched.value = true;
+  if (!silent) isLoading.value = true;
+  try {
+    const startStr = toLocalISOString(startDate.value);
+    const endStr = toLocalISOString(endDate.value);
+    const diffDays =
+      (new Date(endDate.value || new Date()).getTime() -
+        new Date(startDate.value || new Date()).getTime()) /
+      (1000 * 3600 * 24);
+    let interval = isRealtime.value
+      ? intervalSeconds.value
+      : diffDays <= 1
+        ? 5
+        : diffDays <= 7
+          ? 60
+          : 600;
+    const rawData = await performanceApi.getHistory(
+      startStr,
+      endStr,
+      selectedEqpIds.value,
+      interval,
+    );
+    chartData.value = rawData
+      .filter((d) => d.timestamp)
+      .map((d) => ({
+        ...d,
+        timestamp: dayjs(String(d.timestamp).replace("Z", "")).format(
+          "YYYY-MM-DD HH:mm:ss",
+        ),
+        cpuUsage: Number(d.cpuUsage ?? 0),
+        memoryUsage: Number(d.memoryUsage ?? 0),
+        cpuTemp: Number(d.cpuTemp ?? 0),
+        gpuTemp: Number(d.gpuTemp ?? 0),
+        fanSpeed: Number(d.fanSpeed ?? 0),
+      }));
+    calculateSummary(chartData.value);
+  } catch (e) {
+    chartData.value = [];
+    summaryData.value = [];
+  } finally {
+    if (!silent) isLoading.value = false;
   }
-
-  return { min: newMin, max: newMax };
 };
 
-const commonChartOption = () => {
-  const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value
-    ? "rgba(255, 255, 255, 0.1)"
-    : "rgba(0, 0, 0, 0.1)";
-  return {
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: isDarkMode.value
-        ? "rgba(24, 24, 27, 0.9)"
-        : "rgba(255, 255, 255, 0.95)",
-      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
-      textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" },
+const unifiedTimestamps = computed(() =>
+  Array.from(
+    new Set(
+      chartData.value
+        .map((d) => d.timestamp)
+        .filter((ts): ts is string => !!ts),
+    ),
+  ).sort(),
+);
+
+const eqpDataMap = computed(() => {
+  const map = new Map<string, Record<string, any>>();
+  selectedEqpIds.value.forEach((id) => map.set(id, {}));
+  chartData.value.forEach((d) => {
+    if (d.eqpId && d.timestamp) map.get(d.eqpId)![d.timestamp] = d;
+  });
+  return map;
+});
+
+const commonChartOption = () => ({
+  tooltip: {
+    trigger: "axis",
+    backgroundColor: isDarkMode.value
+      ? "rgba(24,24,27,0.9)"
+      : "rgba(255,255,255,0.95)",
+    borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
+    textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b", fontSize: 11 },
+  },
+  grid: { left: 45, right: 35, top: 40, bottom: 25 },
+  dataZoom: [{ type: "inside" }],
+  xAxis: {
+    type: "category",
+    data: unifiedTimestamps.value,
+    axisLabel: {
+      color: isDarkMode.value ? "#cbd5e1" : "#475569",
+      fontSize: 10,
+      formatter: (v: string) => dayjs(v).format("MM-DD HH:mm"),
     },
-    grid: { left: 50, right: 35, top: 30, bottom: 25 },
-    dataZoom: [
-      {
-        type: "inside",
-        xAxisIndex: [0],
-        filterMode: "filter",
+    axisLine: {
+      lineStyle: {
+        color: isDarkMode.value ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
-    ],
-    dataset: {
-      source: chartData.value,
     },
-    xAxis: {
-      type: "category",
-      axisLabel: {
-        color: textColor,
-        fontSize: 10,
-        formatter: (value: string) => {
-          const d = dayjs(value);
-          return d.isValid() ? d.format('MM-DD HH:mm') : value;
-        },
+  },
+  legend: {
+    show: true,
+    type: "scroll",
+    top: 5,
+    right: 40,
+    textStyle: {
+      color: isDarkMode.value ? "#cbd5e1" : "#475569",
+      fontSize: 10,
+    },
+  },
+  yAxis: {
+    type: "value",
+    scale: true,
+    axisLabel: {
+      color: isDarkMode.value ? "#cbd5e1" : "#475569",
+      fontSize: 10,
+    },
+    splitLine: {
+      lineStyle: {
+        color: isDarkMode.value ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
-      axisLine: { lineStyle: { color: gridColor } },
     },
-    legend: {
-      show: false,
-    },
-    yAxis: {
-      type: "value",
-      scale: true,
-      axisLabel: { color: textColor, fontSize: 10, formatter: axisFormatter },
-      splitLine: { lineStyle: { color: gridColor } },
-    },
-  };
-};
+  },
+});
 
 const cpuOption = computed(() => {
   const base = commonChartOption();
-  const range = getAxisRange("cpuUsage", true);
-
-  return {
-    ...base,
-    tooltip: {
-      ...base.tooltip,
-      formatter: getTooltipFormatter({ "CPU Usage": "%" }),
-    },
-    yAxis: {
-      ...base.yAxis,
-      min: range.min,
-      max: range.max,
-    },
-    series: [
-      {
-        name: "CPU Usage",
-        type: "line",
-        encode: { x: "timestamp", y: "cpuUsage" },
-        smooth: true,
-        showSymbol: true,
-        symbolSize: 3,
-        itemStyle: { color: "#3b82f6" },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(59, 130, 246, 0.3)" },
-              { offset: 1, color: "rgba(59, 130, 246, 0)" },
-            ],
-          },
-        },
-      },
-    ],
-  };
+  const series = selectedEqpIds.value.map((id, i) => ({
+    name: id,
+    type: "line",
+    smooth: true,
+    showSymbol: false,
+    itemStyle: { color: chartColors[i % chartColors.length] },
+    data: unifiedTimestamps.value.map(
+      (ts) => eqpDataMap.value.get(id)?.[ts]?.cpuUsage ?? null,
+    ),
+  }));
+  return { ...base, series };
 });
 
 const memOption = computed(() => {
   const base = commonChartOption();
-  const range = getAxisRange("memoryUsage", true);
-
-  return {
-    ...base,
-    tooltip: {
-      ...base.tooltip,
-      formatter: getTooltipFormatter({ "Memory Usage": "%" }),
-    },
-    yAxis: {
-      ...base.yAxis,
-      min: range.min,
-      max: range.max,
-    },
-    series: [
-      {
-        name: "Memory Usage",
-        type: "line",
-        encode: { x: "timestamp", y: "memoryUsage" },
-        smooth: true,
-        showSymbol: true,
-        symbolSize: 3,
-        itemStyle: { color: "#10b981" },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(16, 185, 129, 0.3)" },
-              { offset: 1, color: "rgba(16, 185, 129, 0)" },
-            ],
-          },
-        },
-      },
-    ],
-  };
-});
-
-const cpuTempFanOption = computed(() => {
-  const base = commonChartOption();
-  const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value
-    ? "rgba(255, 255, 255, 0.1)"
-    : "rgba(0, 0, 0, 0.1)";
-
-  const tempRange = getAxisRange("cpuTemp", false);
-  const fanRange = getAxisRange("fanSpeed", false);
-
-  return {
-    ...base,
-    tooltip: {
-      ...base.tooltip,
-      formatter: getTooltipFormatter({ "CPU Temp": "°C", "Fan Speed": "RPM" }),
-    },
-    legend: {
-      show: true,
-      data: ["CPU Temp", "Fan Speed"],
-      selectedMode: true,
-      top: 5,
-      right: 70,
-      textStyle: { color: textColor, fontSize: 10 },
-      itemGap: 10,
-      itemWidth: 15,
-      itemHeight: 10,
-    },
-    yAxis: [
-      {
-        type: "value",
-        name: "Temp (°C)",
-        position: "left",
-        min: tempRange.min,
-        max: tempRange.max,
-        axisLabel: { color: textColor, fontSize: 10, formatter: axisFormatter },
-        splitLine: { lineStyle: { color: gridColor } },
-      },
-      {
-        type: "value",
-        name: "Fan (RPM)",
-        position: "right",
-        min: fanRange.min,
-        max: fanRange.max,
-        axisLabel: { color: textColor, fontSize: 10, formatter: axisFormatter },
-        splitLine: { show: false },
-      },
-    ],
-    series: [
-      {
-        name: "CPU Temp",
-        type: "line",
-        yAxisIndex: 0,
-        encode: { x: "timestamp", y: "cpuTemp" },
-        smooth: true,
-        showSymbol: true,
-        symbolSize: 3,
-        itemStyle: { color: "#f59e0b" },
-      },
-      {
-        name: "Fan Speed",
-        type: "line",
-        yAxisIndex: 1,
-        encode: { x: "timestamp", y: "fanSpeed" },
-        smooth: true,
-        showSymbol: true,
-        symbolSize: 3,
-        itemStyle: { color: "#8b5cf6" },
-      },
-    ],
-  };
+  const series = selectedEqpIds.value.map((id, i) => ({
+    name: id,
+    type: "line",
+    smooth: true,
+    showSymbol: false,
+    itemStyle: { color: chartColors[i % chartColors.length] },
+    data: unifiedTimestamps.value.map(
+      (ts) => eqpDataMap.value.get(id)?.[ts]?.memoryUsage ?? null,
+    ),
+  }));
+  return { ...base, series };
 });
 
 const gpuOption = computed(() => {
   const base = commonChartOption();
-  const range = getAxisRange("gpuTemp", false);
+  const series = selectedEqpIds.value.map((id, i) => ({
+    name: id,
+    type: "line",
+    smooth: true,
+    showSymbol: false,
+    itemStyle: { color: chartColors[i % chartColors.length] },
+    data: unifiedTimestamps.value.map(
+      (ts) => eqpDataMap.value.get(id)?.[ts]?.gpuTemp ?? null,
+    ),
+  }));
+  return { ...base, series };
+});
 
+const cpuTempFanOption = computed(() => {
+  const base = commonChartOption();
+  const series: any[] = [];
+  selectedEqpIds.value.forEach((id, i) => {
+    const c = chartColors[i % chartColors.length];
+    series.push({
+      name: `${id}(T)`,
+      type: "line",
+      yAxisIndex: 0,
+      smooth: true,
+      showSymbol: false,
+      itemStyle: { color: c },
+      data: unifiedTimestamps.value.map(
+        (ts) => eqpDataMap.value.get(id)?.[ts]?.cpuTemp ?? null,
+      ),
+    });
+    series.push({
+      name: `${id}(F)`,
+      type: "line",
+      yAxisIndex: 1,
+      smooth: true,
+      showSymbol: false,
+      itemStyle: { color: c },
+      lineStyle: { type: "dashed" },
+      data: unifiedTimestamps.value.map(
+        (ts) => eqpDataMap.value.get(id)?.[ts]?.fanSpeed ?? null,
+      ),
+    });
+  });
   return {
     ...base,
-    tooltip: {
-      ...base.tooltip,
-      formatter: getTooltipFormatter({ "GPU Temp": "°C" }),
-    },
-    yAxis: {
-      ...base.yAxis,
-      min: range.min,
-      max: range.max,
-    },
-    series: [
-      {
-        name: "GPU Temp",
-        type: "line",
-        encode: { x: "timestamp", y: "gpuTemp" },
-        smooth: true,
-        showSymbol: true,
-        symbolSize: 3,
-        itemStyle: { color: "#ef4444" },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(239, 68, 68, 0.3)" },
-              { offset: 1, color: "rgba(239, 68, 68, 0)" },
-            ],
-          },
-        },
-      },
-    ],
+    yAxis: [base.yAxis, { ...base.yAxis, splitLine: { show: false } }],
+    series,
   };
 });
 
-const onChartInit = (chartKey: string, instance: any) => {
-  chartInstances[chartKey] = instance;
-  instance.on("dataZoom", () => {
-    const option = instance.getOption();
-    if (option.dataZoom && option.dataZoom[0]) {
-      const start = option.dataZoom[0].start;
-      const end = option.dataZoom[0].end;
-      if (start > 0 || end < 100) zoomStates[chartKey] = true;
-      else zoomStates[chartKey] = false;
-    }
+const calculateSummary = (data: PerformanceDataPointDto[]) => {
+  summaryData.value = [];
+  selectedEqpIds.value.forEach((id) => {
+    const dList = data.filter((d) => d.eqpId === id);
+    if (!dList.length) return;
+    let cp = dList[0]!;
+    let mp = dList[0]!;
+    let gp = dList[0]!;
+    dList.forEach((d) => {
+      if ((d.cpuUsage ?? 0) > (cp.cpuUsage ?? 0)) cp = d;
+      if ((d.memoryUsage ?? 0) > (mp.memoryUsage ?? 0)) mp = d;
+      if ((d.gpuTemp ?? 0) > (gp.gpuTemp ?? 0)) gp = d;
+    });
+    summaryData.value.push({
+      eqpId: id,
+      cpuPeakTime: cp.timestamp,
+      cpuMax: cp.cpuUsage,
+      cpuTempAtPeak: cp.cpuTemp,
+      fanSpeedAtPeak: cp.fanSpeed,
+      memPeakTime: mp.timestamp,
+      memMax: mp.memoryUsage,
+      gpuPeakTime: gp.timestamp,
+      gpuMax: gp.gpuTemp,
+    });
   });
-};
-
-const resetChartZoom = (chartKey: string) => {
-  const instance = chartInstances[chartKey];
-  if (instance) {
-    instance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
-    zoomStates[chartKey] = false;
-  }
 };
 
 const toggleRealtime = () => {
@@ -1046,169 +794,136 @@ const toggleRealtime = () => {
     refreshTimer = setInterval(() => {
       updateRealtimeDates();
       searchData(true);
-    }, intervalSeconds.value * 1000) as unknown as number;
+    }, intervalSeconds.value * 1000) as any;
   } else {
     isRealtime.value = false;
-    if (refreshTimer) clearInterval(refreshTimer);
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
   }
 };
 
 const updateRealtimeDates = () => {
-  const now = new Date();
-  endDate.value = now;
-  startDate.value = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+  endDate.value = new Date();
+  startDate.value = new Date(endDate.value.getTime() - 3600000);
 };
 
+const formatDate = (v: string | undefined) =>
+  v ? dayjs(v).format("MM-DD HH:mm:ss") : "-";
 
-const searchData = async (silent = false) => {
-  if (!selectedEqpId.value) return;
-  
-  hasSearched.value = true;
-  if (!silent) isLoading.value = true;
-
-  chartData.value = [];
-  summaryData.value = [];
-
-  try {
-    const startStr = toLocalISOString(startDate.value) || "";
-    const endStr = toLocalISOString(endDate.value) || "";
-
-    let fetchInterval = 60;
-
-    const fixedStart = new Date(startDate.value);
-    const fixedEnd = new Date(endDate.value);
-    const diffMs = fixedEnd.getTime() - fixedStart.getTime();
-    const diffDays = diffMs / (1000 * 3600 * 24);
-
-    if (isRealtime.value) {
-      fetchInterval = intervalSeconds.value;
-    } else {
-      if (diffDays <= 1) fetchInterval = 5;
-      else if (diffDays <= 3) fetchInterval = 10;
-      else if (diffDays <= 7) fetchInterval = 60;
-      else if (diffDays <= 30) fetchInterval = 600;
-      else fetchInterval = 1800;
-    }
-
-    const rawData = await performanceApi.getHistory(
-      startStr,
-      endStr,
-      [selectedEqpId.value],
-      fetchInterval
-    );
-
-    chartData.value = rawData
-      .filter((d) => d.timestamp)
-      .map((d) => {
-        let rawTs = String(d.timestamp || "");
-        
-        if (rawTs.includes("Z")) {
-            rawTs = rawTs.replace("Z", "");
-        }
-        
-        const parsed = dayjs(rawTs);
-        const ts = parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : rawTs;
-
-        return {
-          eqpId: d.eqpId || "",
-          timestamp: ts,
-          cpuUsage: Number(d.cpuUsage ?? 0),
-          memoryUsage: Number(d.memoryUsage ?? 0),
-          cpuTemp: Number(d.cpuTemp ?? 0),
-          gpuTemp: Number(d.gpuTemp ?? 0),
-          fanSpeed: Number(d.fanSpeed ?? 0),
-        };
-      });
-
-    calculateSummary(chartData.value);
-  } catch (e) {
-    console.error(e);
-    chartData.value = [];
-    summaryData.value = [];
-  } finally {
-    if (!silent) isLoading.value = false;
-  }
-};
-
-const calculateSummary = (data: PerformanceDataPointDto[]) => {
-  if (!data || data.length === 0) {
-    summaryData.value = [];
-    return;
-  }
-  let cpuPeakItem = data[0] as PerformanceDataPointDto;
-  let memPeakItem = data[0] as PerformanceDataPointDto;
-  let gpuPeakItem = data[0] as PerformanceDataPointDto;
-
-  for (const d of data) {
-    if ((d.cpuUsage ?? 0) > (cpuPeakItem.cpuUsage ?? 0)) cpuPeakItem = d;
-    if ((d.memoryUsage ?? 0) > (memPeakItem.memoryUsage ?? 0)) memPeakItem = d;
-    if ((d.gpuTemp ?? 0) > (gpuPeakItem.gpuTemp ?? 0)) gpuPeakItem = d;
-  }
-
-  summaryData.value = [
-    {
-      eqpId: selectedEqpId.value || "",
-      cpuPeakTime: cpuPeakItem.timestamp ?? "",
-      cpuMax: cpuPeakItem.cpuUsage,
-      cpuTempAtPeak: cpuPeakItem.cpuTemp,
-      fanSpeedAtPeak: cpuPeakItem.fanSpeed,
-      memPeakTime: memPeakItem.timestamp ?? "",
-      memMax: memPeakItem.memoryUsage,
-      gpuPeakTime: gpuPeakItem.timestamp ?? "",
-      gpuMax: gpuPeakItem.gpuTemp,
-    },
-  ];
-};
-
-const formatDate = (dateStr: string | undefined) => {
-  if (!dateStr) return "-";
-  const parsed = dayjs(dateStr);
-  return parsed.isValid() ? parsed.format('MM-DD HH:mm:ss') : dateStr;
-};
-
-const fmt = (val: number | string | undefined, digits: number) => {
-  const num = Number(val);
-  return !isNaN(num) && val !== undefined && val !== null
-    ? num.toFixed(digits)
+const fmt = (v: any, d: number) =>
+  v !== undefined && v !== null && !isNaN(Number(v))
+    ? Number(v).toFixed(d)
     : "-";
-};
 </script>
 
 <style scoped>
+/* 기본 Select / MultiSelect 스타일 */
 :deep(.p-select),
+:deep(.p-multiselect),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
-:deep(.custom-dropdown .p-select-label) {
+
+/* Select / MultiSelect 라벨 */
+:deep(.custom-dropdown .p-select-label),
+:deep(.custom-dropdown .p-multiselect-label) {
   @apply text-[13px] py-[5px] px-3;
 }
-:deep(.custom-input-text.small) {
-  @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0;
-}
+
+/* DatePicker input */
 :deep(.date-picker .p-inputtext) {
-  @apply !text-[13px] !py-1 !px-2 !h-7;
+  @apply !text-[13px] !px-2;
+  height: 28px !important;
+  line-height: 28px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
-:deep(.p-select-clear-icon),
-:deep(.p-datepicker-clear-icon) {
-  @apply text-[9px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300;
+
+/* DatePicker wrapper 정렬 */
+:deep(.date-picker .p-datepicker-input) {
+  height: 28px !important;
 }
+
+/* 우측 dropdown 버튼 높이를 40 x 28로 고정 */
+:deep(.date-picker button.p-datepicker-dropdown) {
+  width: 40px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* 버튼 내부 아이콘 정렬 */
+:deep(.date-picker button.p-datepicker-dropdown .pi) {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+/* Dropdown 높이 */
 :deep(.custom-dropdown.small) {
-  @apply h-7;
+  @apply h-7 flex items-center;
 }
+
+/* hover 스타일 */
 :deep(.custom-dropdown:hover) {
   @apply !bg-slate-200 dark:!bg-zinc-800;
 }
+
 :deep(.p-select-dropdown),
 :deep(.p-autocomplete-dropdown) {
-  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
+  @apply text-slate-400 dark:text-zinc-500 !bg-transparent !border-0 !shadow-none;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
 }
+
 :deep(.p-select-dropdown svg),
 :deep(.p-autocomplete-dropdown svg) {
   @apply w-3 h-3;
 }
+
+/* EQP ID MultiSelect 입력창만 미세 보정 */
+:deep(.multi-filter .p-multiselect-label) {
+  @apply text-[13px] py-[5px] px-3;
+}
+
+/* EQP ID clear icon */
+:deep(.multi-filter .p-multiselect-clear-icon) {
+  right: 2rem !important;
+  color: rgb(148 163 184) !important;
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+}
+
+/* EQP ID dropdown icon area */
+:deep(.multi-filter .p-multiselect-dropdown) {
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+/* 페이지 애니메이션 */
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -1219,15 +934,41 @@ const fmt = (val: number | string | undefined, digits: number) => {
     transform: translateY(0);
   }
 }
-:deep(.p-select-filter-container) {
-  @apply !p-2;
-}
-:deep(.p-select-filter-input) {
-  @apply !text-xs !py-1.5 !px-2;
-}
 
+/* Auto Refresh dropdown */
 :deep(.small-text-dropdown .p-select-label) {
   font-size: 11px !important;
   padding: 4px 8px !important;
+}
+</style>
+
+<style>
+/* EQP ID MultiSelect overlay만 별도 적용 */
+.custom-multiselect-panel {
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 180px !important;
+}
+
+.custom-multiselect-panel .p-multiselect-header {
+  padding: 4px 8px !important;
+}
+
+.custom-multiselect-panel .p-multiselect-filter-container {
+  padding: 4px !important;
+}
+
+.custom-multiselect-panel .p-multiselect-filter-input {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+}
+
+.custom-multiselect-panel .p-multiselect-option {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+}
+
+.custom-multiselect-panel .p-checkbox {
+  transform: scale(0.9);
 }
 </style>
