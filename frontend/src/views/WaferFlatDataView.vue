@@ -455,6 +455,9 @@ onMounted(async () => {
         filters.eqpId = savedEqpId;
         await loadLotOptions();
         await loadCassetteOptions();
+        
+        // 새로고침 시 저장된 EQP ID가 있으면 자동 조회 실행
+        searchData();
       }
     } else {
       filterStore.selectedSdwt = ""; filters.eqpId = "";
@@ -590,6 +593,9 @@ const onEqpChange = async () => {
     await nextTick();
     loadLotOptions(); 
     loadCassetteOptions();
+
+    // 장비 선택 시 자동 조회 기능 추가
+    searchData();
   } else { 
     localStorage.removeItem("wafer_eqpid"); 
     filters.lotId = ""; 
@@ -950,3 +956,4 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
+
