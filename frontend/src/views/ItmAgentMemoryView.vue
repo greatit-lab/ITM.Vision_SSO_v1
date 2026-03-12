@@ -19,7 +19,7 @@
           <span
             class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
           >
-            Agent process memory usage monitoring by equipment.
+            Global agent process memory usage monitoring.
           </span>
         </div>
       </div>
@@ -35,7 +35,7 @@
           <Select
             v-model="filterStore.selectedSite"
             :options="sites"
-            placeholder="Site"
+            placeholder="All Sites"
             showClear
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
@@ -48,7 +48,7 @@
           <Select
             v-model="filterStore.selectedSdwt"
             :options="sdwts"
-            placeholder="SDWT"
+            placeholder="All SDWTs"
             showClear
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
@@ -106,7 +106,7 @@
           rounded
           class="!bg-cyan-600 !border-cyan-600 hover:!bg-cyan-700 !w-8 !h-8 !text-xs"
           @click="searchData"
-          :disabled="!filterStore.selectedSdwt || isLoading" 
+          :disabled="isLoading" 
         />
         <Button
           icon="pi pi-refresh"
@@ -213,55 +213,29 @@
               class="text-[10px] text-slate-500 uppercase bg-slate-50 dark:bg-zinc-800 dark:text-slate-400 sticky top-0 z-10"
             >
               <tr>
-                <th
-                  scope="col"
-                  class="px-4 py-2.5 font-bold text-center w-[60px]"
-                >
-                  #
-                </th>
-                <th 
-                  scope="col" 
-                  class="px-4 py-2.5 font-bold w-[180px]"
-                >
-                  Equipment ID
-                </th>
-                <th scope="col" class="px-4 py-2.5 font-bold text-center">
-                  Version
-                </th>
+                <th scope="col" class="px-4 py-2.5 font-bold text-center w-[50px]">#</th>
+                <th scope="col" class="px-4 py-2.5 font-bold w-[100px]">Site</th>
+                <th scope="col" class="px-4 py-2.5 font-bold w-[120px]">SDWT</th>
+                <th scope="col" class="px-4 py-2.5 font-bold w-[160px]">Equipment ID</th>
+                <th scope="col" class="px-4 py-2.5 font-bold text-center w-[100px]">Version</th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
-                  <div
-                    class="flex items-center justify-end gap-1 cursor-help"
-                    v-tooltip.top="'조회 기간 내 최대 메모리 사용량 (Peak)'"
-                  >
-                    Max Usage
-                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-end gap-1 cursor-help" v-tooltip.top="'조회 기간 내 최대 메모리 사용량 (Peak)'">
+                    Max Usage <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
-                  <div
-                    class="flex items-center justify-end gap-1 cursor-help"
-                    v-tooltip.top="'조회 기간 내 전체 평균 사용량 (Mean)'"
-                  >
-                    Avg Usage
-                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-end gap-1 cursor-help" v-tooltip.top="'조회 기간 내 전체 평균 사용량 (Mean)'">
+                    Avg Usage <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-right">
-                  <div
-                    class="flex items-center justify-end gap-1 cursor-help"
-                    v-tooltip.top="'가장 최근 수집된 시점의 사용량 (Current)'"
-                  >
-                    Last Recorded
-                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-end gap-1 cursor-help" v-tooltip.top="'조회된 전체 기간 중 가장 마지막 시점의 사용량'">
+                    Last Recorded <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-4 py-2.5 font-bold text-center">
-                  <div
-                    class="flex items-center justify-center gap-1 cursor-help"
-                    v-tooltip.top="'평균 대비 최근 사용량의 증감 상태'"
-                  >
-                    Trend
-                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-center gap-1 cursor-help" v-tooltip.top="'마지막 시점의 사용량 상태'">
+                    Trend <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
               </tr>
@@ -269,14 +243,16 @@
             <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
               <tr
                 v-for="(stat, index) in eqpStats"
-                :key="stat.eqpId"
+                :key="stat.uniqueKey"
                 class="transition-colors hover:bg-slate-50 dark:hover:bg-zinc-900/50 group"
               >
                 <td class="px-4 py-2 font-mono text-center text-slate-400">
                   {{ index + 1 }}
                 </td>
+                <td class="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 truncate" :title="stat.site">{{ stat.site || '-' }}</td>
+                <td class="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 truncate" :title="stat.sdwt">{{ stat.sdwt || '-' }}</td>
                 <td
-                  class="flex items-center gap-2 px-4 py-2 font-bold text-slate-700 dark:text-slate-200 truncate"
+                  class="flex items-center gap-2 px-4 py-2 font-bold text-slate-800 dark:text-slate-100 truncate"
                 >
                   <span
                     class="inline-block w-2 h-2 rounded-full flex-shrink-0"
@@ -285,26 +261,28 @@
                   <span class="truncate" :title="stat.eqpId">{{ stat.eqpId }}</span>
                 </td>
                 <td class="px-4 py-2 font-mono text-center text-slate-500">
-                  <span
-                    class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[10px]"
-                  >
+                  <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[10px]">
                     {{ stat.version }}
                   </span>
                 </td>
-                <td
-                  class="px-4 py-2 font-mono font-bold text-right text-cyan-600 dark:text-cyan-400"
-                >
+                <td class="px-4 py-2 font-mono font-bold text-right text-cyan-600 dark:text-cyan-400">
                   {{ formatNumber(stat.max) }} MB
                 </td>
                 <td class="px-4 py-2 font-mono text-right">
                   {{ formatNumber(stat.avg) }} MB
                 </td>
-                <td class="px-4 py-2 font-mono text-right text-slate-500">
-                  {{ formatNumber(stat.last) }} MB
+                <td class="px-4 py-2 font-mono text-right" :class="stat.last === 0 ? 'text-slate-400 opacity-50' : 'text-slate-500'">
+                  {{ stat.last === 0 ? '-' : formatNumber(stat.last) + ' MB' }}
                 </td>
                 <td class="px-4 py-2 text-center">
                   <span
-                    v-if="stat.last > stat.avg * 1.1"
+                    v-if="stat.last === 0"
+                    class="text-slate-500 text-[10px] font-bold bg-slate-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded"
+                  >
+                    순위권 밖 (Unranked)
+                  </span>
+                  <span
+                    v-else-if="stat.last > stat.avg * 1.1"
                     class="text-red-500 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded"
                   >
                     높음 (High)
@@ -344,7 +322,7 @@
         Ready to analyze agents.
       </p>
       <p class="mt-1 text-xs text-slate-400">
-        Select filters to view ITM Agent memory trends.
+        Click search to view ITM Agent memory trends across all equipments.
       </p>
     </div>
   </div>
@@ -353,7 +331,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useFilterStore } from "@/stores/filter";
-import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { equipmentApi } from "@/api/equipment";
 import { performanceApi, type ItmAgentDataDto } from "@/api/performance";
@@ -361,14 +338,17 @@ import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
 import dayjs from "dayjs";
 
-// UI Components
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 
 interface EqpStat {
+  uniqueKey: string;
+  site: string;
+  sdwt: string;
   eqpId: string;
   version: string;
+  legendName: string;
   color: string;
   max: number;
   avg: number;
@@ -376,12 +356,10 @@ interface EqpStat {
 }
 
 const filterStore = useFilterStore();
-const authStore = useAuthStore();
+// [수정] authStore는 더 이상 사용하지 않으므로 제거해도 되지만, 확장을 위해 임포트는 남겨둡니다.
 
-// State
 const selectedEqpId = ref(""); 
 
-// 날짜 초기화: 오늘 00:00:00 기준 1일 전 (24시간)
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0);
@@ -394,7 +372,6 @@ const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 const eqpIds = ref<string[]>([]);
 
-// Data for Charts/Table
 const chartData = ref<any[]>([]);
 const eqpSeries = ref<any[]>([]);
 const eqpStats = ref<EqpStat[]>([]);
@@ -404,23 +381,21 @@ const statMax = ref(0);
 const statAvg = ref(0);
 const statLast = ref(0);
 
-// Status
 const isLoading = ref(false);
 const isEqpIdLoading = ref(false);
 const hasSearched = ref(false);
 const isZoomed = ref(false);
 let chartInstance: ECharts | null = null;
 
-// Theme
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
 const colorPalette = [
   "#06b6d4", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", 
-  "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316"
+  "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316",
+  "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#64748b"
 ];
 
-// 통합 날짜 보정 로직 (Start > End 시 자동 보정)
 watch(
   [() => startDate.value, () => endDate.value],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -428,7 +403,6 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 보정 로직
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
            endDate.value = new Date(newStart);
@@ -440,7 +414,6 @@ watch(
   }
 );
 
-// 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 보정)
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -456,34 +429,26 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-// 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
 const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
   let str = String(ts || "");
-  if (str.includes("Z")) str = str.replace("Z", ""); // UTC 문자 제거
-  
-  // YY-MM-DD 형식(Short Year) 감지 시 20을 붙여 Full Year로 보정
+  if (str.includes("Z")) str = str.replace("Z", ""); 
   if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
       str = "20" + str;
   }
   return dayjs(str);
 };
 
-// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
+  // [수정] 관리자용 전역 모니터링 페이지이므로, 프로필 설정(authStore.user)의 기본값을 무시하고
+  // 오직 이전 조회 기록(localStorage)이 있을 때만 세팅하며, 없으면 전체(All) 빈 값 상태로 둡니다.
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
-    if (authStore.user?.site) {
-      targetSite = authStore.user.site;
-      targetSdwt = authStore.user.sdwt || "";
-    } else {
-      targetSite = localStorage.getItem("agentmem_site") || "";
-      targetSdwt = localStorage.getItem("agentmem_sdwt") || "";
-    }
+    targetSite = localStorage.getItem("agentmem_site") || "";
+    targetSdwt = localStorage.getItem("agentmem_sdwt") || "";
   }
 
   if (targetSite && sites.value.includes(targetSite)) {
@@ -505,6 +470,7 @@ onMounted(async () => {
     }
   } else {
      filterStore.selectedSite = "";
+     filterStore.selectedSdwt = "";
   }
 
   themeObserver = new MutationObserver((mutations) => {
@@ -521,7 +487,6 @@ onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
 });
 
-// --- Handlers ---
 const onSiteChange = async () => {
   if (filterStore.selectedSite) {
     localStorage.setItem("agentmem_site", filterStore.selectedSite);
@@ -589,8 +554,6 @@ const loadEqpIds = async () => {
 };
 
 const searchData = async () => {
-  if (!filterStore.selectedSdwt) return;
-  
   hasSearched.value = true;
   isLoading.value = true;
   isZoomed.value = false;
@@ -645,23 +608,34 @@ const processData = (data: ItmAgentDataDto[]) => {
   }
 
   const activeEqpSet = new Set<string>();
-  const eqpVersionMap = new Map<string, string>();
+  const eqpMetaMap = new Map<string, { site: string, sdwt: string, eqpId: string, version: string }>();
   
-  data.forEach(d => {
-    const rawId = (d as any).eqpid ?? d.eqpId;
+  data.forEach((item) => {
+    const d = item as any;
+    const rawId = d.eqpid ?? d.eqpId;
+    const site = d.site || '-';
+    const sdwt = d.sdwt || '-';
     const val = Number(d.memoryUsageMB) || 0;
+    
     if (rawId && val > 0) {
-      activeEqpSet.add(String(rawId));
-      if (d.agentVersion) {
-        eqpVersionMap.set(String(rawId), d.agentVersion);
+      const uniqueKey = `${site}_${sdwt}_${rawId}`;
+      activeEqpSet.add(uniqueKey);
+      
+      if (!eqpMetaMap.has(uniqueKey)) {
+        eqpMetaMap.set(uniqueKey, {
+          site: site,
+          sdwt: sdwt,
+          eqpId: String(rawId),
+          version: d.agentVersion || "Unknown"
+        });
       }
     }
   });
 
-  const sortedEqps = Array.from(activeEqpSet).sort();
-  displayedEqpCount.value = sortedEqps.length;
+  const sortedUniqueKeys = Array.from(activeEqpSet).sort();
+  displayedEqpCount.value = sortedUniqueKeys.length;
 
-  if (sortedEqps.length === 0) {
+  if (sortedUniqueKeys.length === 0) {
      chartData.value = [];
      eqpSeries.value = [];
      eqpStats.value = [];
@@ -670,26 +644,31 @@ const processData = (data: ItmAgentDataDto[]) => {
 
   const timeMap = new Map<string, any>();
   
-  data.forEach((d) => {
+  data.forEach((item) => {
+    const d = item as any;
     const dt = parseSafeDate(d.timestamp);
     if (!dt.isValid()) return;
 
-    const tsKey = dt.toISOString(); // ECharts 용 Key
+    const tsKey = dt.toISOString(); 
 
     if (!timeMap.has(tsKey)) timeMap.set(tsKey, { timestamp: tsKey });
 
-    const rawId = (d as any).eqpid ?? d.eqpId;
-    const key = rawId ? String(rawId) : '';
+    const rawId = d.eqpid ?? d.eqpId;
+    const site = d.site || '-';
+    const sdwt = d.sdwt || '-';
     
-    if (key && activeEqpSet.has(key)) {
-      timeMap.get(tsKey)![key] = Number(d.memoryUsageMB) || 0;
+    if (rawId) {
+      const uniqueKey = `${site}_${sdwt}_${rawId}`;
+      if (activeEqpSet.has(uniqueKey)) {
+        timeMap.get(tsKey)![uniqueKey] = Number(d.memoryUsageMB) || 0;
+      }
     }
   });
 
   for (const item of timeMap.values()) {
-    sortedEqps.forEach(eqpId => {
-      if (item[eqpId] === undefined) {
-        item[eqpId] = null; 
+    sortedUniqueKeys.forEach(uniqueKey => {
+      if (item[uniqueKey] === undefined) {
+        item[uniqueKey] = null; 
       }
     });
   }
@@ -697,6 +676,8 @@ const processData = (data: ItmAgentDataDto[]) => {
   chartData.value = Array.from(timeMap.values()).sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
+
+  const lastBucket = chartData.value.length > 0 ? chartData.value[chartData.value.length - 1] : null;
 
   const series: any[] = [];
   const stats: EqpStat[] = [];
@@ -707,61 +688,63 @@ const processData = (data: ItmAgentDataDto[]) => {
   let globalLastTotal = 0;
   let globalLastCount = 0;
 
-  sortedEqps.forEach((eqpId, idx) => {
+  sortedUniqueKeys.forEach((uniqueKey, idx) => {
+    const meta = eqpMetaMap.get(uniqueKey)!;
     const color = colorPalette[idx % colorPalette.length] ?? '#888888';
-    const version = eqpVersionMap.get(eqpId) || "Unknown";
     
-    const displayVersion = version.startsWith('v') ? version : `v${version}`;
+    const displayVersion = meta.version.startsWith('v') ? meta.version : `v${meta.version}`;
+    
+    const legendName = `${meta.site} ${meta.sdwt} ${meta.eqpId} [${displayVersion}]`;
 
     series.push({
-      name: `${eqpId} ${displayVersion}`,
+      name: legendName,
       type: "line",
       smooth: true,
       showSymbol: true, 
       symbolSize: 2, 
       itemStyle: { color: color },
       lineStyle: { width: 2 },
-      encode: { x: "timestamp", y: eqpId },
+      encode: { x: "timestamp", y: uniqueKey }, 
       connectNulls: true, 
     });
 
-    const pData = data.filter(d => {
-      const rawId = (d as any).eqpid ?? d.eqpId;
-      return String(rawId) === eqpId;
+    const pData = data.filter(item => {
+      const d = item as any;
+      const rawId = d.eqpid ?? d.eqpId;
+      const s = d.site || '-';
+      const sd = d.sdwt || '-';
+      return `${s}_${sd}_${rawId}` === uniqueKey;
     });
     
-    const memValues = pData.map(d => Number(d.memoryUsageMB) || 0);
+    const memValues = pData.map(d => Number((d as any).memoryUsageMB) || 0);
     
     let sum = 0;
     let max = 0;
-    let last = 0;
+    
+    const actualLastValue = (lastBucket && lastBucket[uniqueKey] !== undefined && lastBucket[uniqueKey] !== null) ? lastBucket[uniqueKey] : 0;
 
     if (memValues.length > 0) {
       sum = memValues.reduce((a, b) => a + b, 0);
       max = memValues.reduce((a, b) => Math.max(a, b), 0);
 
-      const lastRecord = pData.reduce((latest, current) => {
-        const latestTime = parseSafeDate(latest.timestamp).valueOf();
-        const currentTime = parseSafeDate(current.timestamp).valueOf();
-        return currentTime > latestTime ? current : latest;
-      }, pData[0]!);
-
-      last = Number(lastRecord?.memoryUsageMB) || 0;
-      
       globalMax = Math.max(globalMax, max);
       globalSum += sum;
       globalCount += memValues.length;
-      globalLastTotal += last;
+      globalLastTotal += actualLastValue;
       globalLastCount += 1;
     }
 
     stats.push({
-      eqpId,
-      version,
+      uniqueKey,
+      site: meta.site,
+      sdwt: meta.sdwt,
+      eqpId: meta.eqpId,
+      version: displayVersion,
+      legendName,
       color,
       max,
       avg: pData.length > 0 ? sum / pData.length : 0,
-      last
+      last: actualLastValue 
     });
   });
   
@@ -824,12 +807,14 @@ const chartOption = computed(() => {
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
         
         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
-        const sortedParams = [...params].sort((a, b) => (b.value[b.seriesName] || 0) - (a.value[a.seriesName] || 0));
+        const sortedParams = [...params].sort((a, b) => {
+           const aKey = a.encode.y[0];
+           const bKey = b.encode.y[0];
+           return (b.data[bKey] || 0) - (a.data[aKey] || 0);
+        });
         
         sortedParams.forEach((p: any) => {
-          const eqpIdMatch = p.seriesName.match(/^(.*)\s(v.*)$/);
-          const key = eqpIdMatch ? eqpIdMatch[1] : p.seriesName;
-
+          const key = p.encode.y[0]; 
           const val = p.data[key];
 
           if (val !== undefined && val !== null) {
@@ -850,11 +835,11 @@ const chartOption = computed(() => {
       right: 10,
       top: "middle",
       itemGap: 10,
-      textStyle: { color: textColor, fontSize: 11, width: 120, overflow: 'truncate' },
+      textStyle: { color: textColor, fontSize: 10, width: 220, overflow: 'truncate' },
       pageIconColor: textColor,
       pageTextStyle: { color: textColor },
     },
-    grid: { left: 50, right: 160, top: 30, bottom: 30 },
+    grid: { left: 50, right: 280, top: 30, bottom: 30 },
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
     dataset: { source: chartData.value },
     xAxis: {
