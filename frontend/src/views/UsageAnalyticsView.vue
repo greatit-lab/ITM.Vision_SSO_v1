@@ -1,6 +1,6 @@
 <!-- frontend/src/views/UsageAnalyticsView.vue -->
 <template>
-  <div class="min-h-full transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] font-sans flex flex-col">
+  <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden pb-1">
     <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0">
       <div class="flex items-center gap-2">
         <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <div class="mb-4 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm transition-colors duration-300 shrink-0">
+    <div class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm transition-colors duration-300 shrink-0">
       <div class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide">
         <div class="min-w-[150px] shrink-0">
           <DatePicker v-model="startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start Date" class="w-full custom-dropdown small date-picker" />
@@ -48,127 +48,140 @@
       </div>
     </div>
 
-    <div v-if="hasSearched" class="flex-1 flex flex-col gap-4 pb-2 min-h-0 animate-fade-in relative">
+    <div v-if="hasSearched" class="flex-1 flex flex-col gap-3 min-h-0 animate-fade-in relative">
       
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-        <div class="bg-white dark:bg-[#111111] p-4 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
-          <div class="flex-1 min-w-0 pr-3">
-            <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Active Users</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
+        <div class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+          <div class="flex-1 min-w-0 pr-2">
+            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Active Users</p>
             <div class="flex items-end gap-2">
-              <h4 class="text-2xl font-black text-slate-800 dark:text-white truncate leading-none">{{ kpiData.totalUsers }}</h4>
-              <span v-if="kpiData.usersDelta !== undefined" :class="kpiData.usersDelta >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'" class="px-1.5 py-0.5 rounded text-[10px] font-bold mb-0.5 flex items-center gap-0.5">
-                <i :class="kpiData.usersDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'" style="font-size: 0.5rem"></i>
+              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">{{ kpiData.totalUsers }}</h4>
+              <span v-if="kpiData.usersDelta !== undefined" :class="kpiData.usersDelta >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'" class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5">
+                <i :class="kpiData.usersDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'" style="font-size: 0.4rem"></i>
                 {{ Math.abs(kpiData.usersDelta) }}%
               </span>
             </div>
           </div>
-          <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-            <i class="pi pi-users text-xl text-blue-500"></i>
+          <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+            <i class="pi pi-users text-lg text-blue-500"></i>
           </div>
         </div>
 
-        <div class="bg-white dark:bg-[#111111] p-4 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
-          <div class="flex-1 min-w-0 pr-3">
-            <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Page Views</p>
+        <div class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+          <div class="flex-1 min-w-0 pr-2">
+            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Page Views</p>
             <div class="flex items-end gap-2">
-              <h4 class="text-2xl font-black text-slate-800 dark:text-white truncate leading-none">{{ kpiData.totalViews }}</h4>
-              <span v-if="kpiData.viewsDelta !== undefined" :class="kpiData.viewsDelta >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'" class="px-1.5 py-0.5 rounded text-[10px] font-bold mb-0.5 flex items-center gap-0.5">
-                <i :class="kpiData.viewsDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'" style="font-size: 0.5rem"></i>
+              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">{{ kpiData.totalViews }}</h4>
+              <span v-if="kpiData.viewsDelta !== undefined" :class="kpiData.viewsDelta >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'" class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5">
+                <i :class="kpiData.viewsDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'" style="font-size: 0.4rem"></i>
                 {{ Math.abs(kpiData.viewsDelta) }}%
               </span>
             </div>
           </div>
-          <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
-            <i class="pi pi-eye text-xl text-emerald-500"></i>
+          <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
+            <i class="pi pi-eye text-lg text-emerald-500"></i>
           </div>
         </div>
         
-        <div class="bg-white dark:bg-[#111111] p-4 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
-          <div class="flex-1 min-w-0 pr-3">
-            <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Most Popular Page</p>
-            <h4 class="text-lg font-black text-slate-800 dark:text-white truncate" :title="formatMenuName(kpiData.topPage)">
+        <div class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+          <div class="flex-1 min-w-0 pr-2">
+            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Most Popular Page</p>
+            <h4 class="text-base font-black text-slate-800 dark:text-white truncate" :title="formatMenuName(kpiData.topPage)">
               {{ formatMenuName(kpiData.topPage) }}
             </h4>
           </div>
-          <div class="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center shrink-0">
-            <i class="pi pi-star text-xl text-purple-500"></i>
+          <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center shrink-0">
+            <i class="pi pi-star text-lg text-purple-500"></i>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0 h-[300px]">
-        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-3 flex flex-col relative">
-          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2 px-1 flex items-center gap-2">
-            <i class="pi pi-chart-line text-indigo-500"></i> Daily Access Trend
+      <div class="flex-[1.2] grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-0">
+        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative col-span-1 min-h-0">
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0">
+            <i class="pi pi-chart-line text-indigo-500"></i> Daily Access Trend (Views)
           </h3>
-          <div class="flex-1 w-full relative">
-            <EChart v-if="trendChartOption" :option="trendChartOption" />
+          <div class="flex-1 w-full relative min-h-0">
+            <EChart v-if="trendChartOption" :option="trendChartOption" class="absolute inset-0 w-full h-full" />
           </div>
         </div>
         
-        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-3 flex flex-col relative">
-          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2 px-1 flex items-center gap-2">
+        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative col-span-1 lg:col-span-2 min-h-0">
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0">
+            <i class="pi pi-sitemap text-emerald-500"></i> Page Access Trend
+          </h3>
+          <div class="flex-1 w-full relative min-h-0">
+            <EChart v-if="pageTrendChartOption" :option="pageTrendChartOption" class="absolute inset-0 w-full h-full" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-0">
+        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative col-span-1 min-h-0">
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0">
             <i class="pi pi-chart-bar text-indigo-500"></i> Page Utilization Ranking
           </h3>
-          <div class="flex-1 w-full relative">
-            <EChart v-if="rankingChartOption" :option="rankingChartOption" />
+          <div class="flex-1 w-full relative min-h-0">
+            <EChart v-if="rankingChartOption" :option="rankingChartOption" class="absolute inset-0 w-full h-full" />
           </div>
         </div>
-      </div>
 
-      <div class="flex-1 bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col min-h-[250px]">
-        <div class="flex items-center justify-between px-4 py-1.5 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0">
-          <div class="flex items-center gap-2">
-            <i class="text-xs text-indigo-500 pi pi-list"></i>
-            <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Recent Access Logs ({{ mockLogs.length }})</h3>
+        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col col-span-1 lg:col-span-2 min-h-0">
+          <div class="flex items-center justify-between px-3 py-1.5 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0">
+            <div class="flex items-center gap-2">
+              <i class="text-xs text-indigo-500 pi pi-list"></i>
+              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Recent Access Logs ({{ mockLogs.length }})</h3>
+            </div>
+            
+            <Paginator 
+              v-if="mockLogs.length > 0"
+              v-model:first="firstRow" 
+              v-model:rows="rowsPerPage" 
+              :totalRecords="mockLogs.length" 
+              :rowsPerPageOptions="[5, 10, 20, 50]"
+              template="RowsPerPageDropdown PrevPageLink CurrentPageReport NextPageLink"
+              currentPageReportTemplate="{currentPage} / {totalPages}"
+              class="custom-top-paginator"
+            />
           </div>
           
-          <Paginator 
-            v-if="mockLogs.length > 0"
-            v-model:first="firstRow" 
-            v-model:rows="rowsPerPage" 
-            :totalRecords="mockLogs.length" 
-            :rowsPerPageOptions="[5, 10, 20, 50]"
-            template="RowsPerPageDropdown PrevPageLink CurrentPageReport NextPageLink"
-            currentPageReportTemplate="{currentPage} / {totalPages}"
-            class="custom-top-paginator"
-          />
-        </div>
-        
-        <div class="flex-1 overflow-hidden p-2">
-          <DataTable 
-            :value="paginatedLogs" 
-            :paginator="false" 
-            class="p-datatable-sm w-full h-full text-xs"
-            stripedRows
-            scrollable 
-            scrollHeight="flex"
-            emptyMessage="No log data found for this period."
-          >
-            <Column field="time" header="Timestamp" style="width: 25%">
-              <template #body="slotProps">
-                <span class="font-mono text-slate-500 text-[11px]">{{ slotProps.data.time }}</span>
-              </template>
-            </Column>
-            <Column field="loginId" header="Login ID" style="width: 25%">
-              <template #body="slotProps">
-                <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">{{ slotProps.data.loginId }}</span>
-              </template>
-            </Column>
-            <Column field="menu" header="Accessed Page" style="width: 50%">
-              <template #body="slotProps">
-                <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded font-medium text-[10px] text-slate-700 dark:text-slate-300">
-                  {{ formatMenuName(slotProps.data.menu) }}
-                </span>
-              </template>
-            </Column>
-          </DataTable>
+          <div class="flex-1 relative min-h-0">
+            <div class="absolute inset-0 p-1">
+              <DataTable 
+                :value="paginatedLogs" 
+                :paginator="false" 
+                class="p-datatable-sm w-full h-full text-xs"
+                stripedRows
+                scrollable 
+                scrollHeight="flex"
+                emptyMessage="No log data found for this period."
+              >
+                <Column field="time" header="Timestamp" style="width: 25%">
+                  <template #body="slotProps">
+                    <span class="font-mono text-slate-500 text-[11px]">{{ slotProps.data.time }}</span>
+                  </template>
+                </Column>
+                <Column field="loginId" header="Login ID" style="width: 25%">
+                  <template #body="slotProps">
+                    <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">{{ slotProps.data.loginId }}</span>
+                  </template>
+                </Column>
+                <Column field="menu" header="Accessed Page" style="width: 50%">
+                  <template #body="slotProps">
+                    <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded font-medium text-[10px] text-slate-700 dark:text-slate-300">
+                      {{ formatMenuName(slotProps.data.menu) }}
+                    </span>
+                  </template>
+                </Column>
+              </DataTable>
+            </div>
+          </div>
         </div>
       </div>
 
     </div>
 
-    <div v-else class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-[400px]">
+    <div v-else class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-0">
       <div class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800">
         <i class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-search"></i>
       </div>
@@ -204,9 +217,10 @@ const kpiData = ref<any>({ totalUsers: 0, totalViews: 0, topPage: '-', viewsDelt
 const mockLogs = ref<any[]>([]);
 const trendData = ref({ dates: [] as string[], views: [] as number[], users: [] as number[] });
 const rankingData = ref({ menus: [] as string[], views: [] as number[] });
+const dailyMenuTrendData = ref<any[]>([]); 
 
 const firstRow = ref(0);
-const rowsPerPage = ref(5);
+const rowsPerPage = ref(10);
 const paginatedLogs = computed(() => {
   return mockLogs.value.slice(firstRow.value, firstRow.value + rowsPerPage.value);
 });
@@ -231,7 +245,7 @@ const exportCSV = () => {
   let csvContent = "\uFEFF"; 
   csvContent += "Timestamp,Login ID,Accessed Page\n";
   
-  mockLogs.value.forEach(row => {
+  mockLogs.value.forEach((row: any) => {
     const safeMenu = formatMenuName(row.menu).replace(/"/g, '""');
     csvContent += `"${row.time}","${row.loginId}","${safeMenu}"\n`;
   });
@@ -299,6 +313,8 @@ const searchData = async () => {
     trendData.value.views = data.dailyTrend.map((d: any) => d.views);
     trendData.value.users = data.dailyTrend.map((d: any) => d.users);
 
+    dailyMenuTrendData.value = data.dailyMenuTrend || [];
+
     const menuData = data.menuUtilization.slice().reverse();
     rankingData.value.menus = menuData.map((d: any) => formatMenuName(d.menu));
     rankingData.value.views = menuData.map((d: any) => d.views);
@@ -317,20 +333,61 @@ const trendChartOption = computed(() => {
   return {
     backgroundColor: "transparent",
     tooltip: { trigger: 'axis' },
-    legend: { textStyle: { color: textColor }, top: 0, right: 60 },
-    grid: { left: 40, right: 40, top: 30, bottom: 25 },
+    legend: { show: false }, 
+    grid: { left: 40, right: 10, top: 30, bottom: 20 },
     xAxis: {
       type: 'category', data: trendData.value.dates,
       axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } }
     },
-    yAxis: [
-      { type: 'value', name: 'Views', minInterval: 1, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontSize: 10 } },
-      { type: 'value', name: 'Users', minInterval: 1, splitLine: { show: false }, axisLabel: { color: textColor, fontSize: 10 } }
-    ],
+    yAxis: { 
+      type: 'value', name: 'Views', minInterval: 1, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontSize: 10 } 
+    },
     series: [
-      { name: 'Page Views', type: 'bar', data: trendData.value.views, itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] } },
-      { name: 'Active Users', type: 'line', yAxisIndex: 1, data: trendData.value.users, itemStyle: { color: '#10b981' }, smooth: true, lineStyle: { width: 3 } }
+      { name: 'Total Views', type: 'bar', data: trendData.value.views, itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] } }
     ]
+  };
+});
+
+const pageTrendChartOption = computed(() => {
+  const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
+  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+  
+  const topMenus = [...rankingData.value.menus].reverse();
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e', '#84cc16', '#6366f1', '#14b8a6'];
+
+  const series = topMenus.map((menu: string, index: number) => {
+    const data = trendData.value.dates.map(date => {
+      const record = dailyMenuTrendData.value.find((d: any) => d.date === date && formatMenuName(d.menu) === menu);
+      return record ? record.views : 0;
+    });
+    return {
+      name: menu,
+      type: 'line',
+      smooth: true,
+      symbolSize: 4,
+      itemStyle: { color: colors[index % colors.length] },
+      data: data
+    };
+  });
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: { trigger: 'axis' },
+    legend: {
+      type: 'scroll',
+      textStyle: { color: textColor, fontSize: 10 },
+      top: 0, right: 10, left: 10,
+      itemGap: 15
+    },
+    grid: { left: 40, right: 20, top: 30, bottom: 20 },
+    xAxis: {
+      type: 'category', data: trendData.value.dates,
+      axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } }
+    },
+    yAxis: {
+      type: 'value', minInterval: 1, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontSize: 10 }
+    },
+    series: series
   };
 });
 
@@ -341,14 +398,14 @@ const rankingChartOption = computed(() => {
   return {
     backgroundColor: "transparent",
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 140, right: 30, top: 10, bottom: 25 },
+    grid: { left: 130, right: 20, top: 10, bottom: 20 },
     xAxis: {
       type: 'value', minInterval: 1,
       axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } }
     },
     yAxis: {
       type: 'category', data: rankingData.value.menus,
-      axisLabel: { color: textColor, fontSize: 10, width: 130, overflow: 'truncate' },
+      axisLabel: { color: textColor, fontSize: 10, width: 120, overflow: 'truncate' },
       axisLine: { show: false }, axisTick: { show: false }
     },
     series: [
@@ -380,7 +437,7 @@ const rankingChartOption = computed(() => {
 /* DataTable 커스텀 스타일 */
 :deep(.p-datatable-header) { @apply !bg-transparent !p-0 !border-0; }
 :deep(.p-datatable-thead > tr > th) {
-  @apply !bg-slate-50 dark:!bg-zinc-800/80 !text-slate-500 dark:!text-slate-400 !font-bold !text-[10px] uppercase !py-2.5 !border-b !border-slate-100 dark:!border-zinc-700;
+  @apply !bg-slate-50 dark:!bg-zinc-800/80 !text-slate-500 dark:!text-slate-400 !font-bold !text-[10px] uppercase !py-2.5 !border-b !border-slate-100 dark:!border-zinc-700 z-10 sticky top-0;
 }
 :deep(.p-datatable-tbody > tr > td) {
   @apply !py-1.5 !border-b !border-slate-50 dark:!border-zinc-800/50 !bg-white dark:!bg-[#111111];
@@ -402,8 +459,6 @@ const rankingChartOption = computed(() => {
 :deep(.custom-top-paginator .p-paginator-current) {
   @apply !h-6 !leading-6 !px-2 !text-[11px] !text-slate-500 dark:!text-slate-400 font-bold;
 }
-
-/* [추가/수정] 드롭다운(Select) 내부 글자 크기를 최소화하여 다른 UI와 통일 */
 :deep(.custom-top-paginator .p-select),
 :deep(.custom-top-paginator .p-dropdown) {
   @apply !h-6 !text-[10px] !items-center !border-slate-200 dark:!border-zinc-700 !bg-white dark:!bg-zinc-800 !mr-2 !rounded;
@@ -412,7 +467,6 @@ const rankingChartOption = computed(() => {
 :deep(.custom-top-paginator .p-dropdown .p-dropdown-label) {
   @apply !p-0 !px-2 !text-[10px] !font-bold !leading-6;
 }
-/* 드롭다운 클릭 시 열리는 리스트 패널의 아이템 폰트 크기 조정 */
 :deep(.p-paginator-dropdown-panel .p-select-option),
 :deep(.p-dropdown-panel .p-dropdown-item) {
   @apply !text-[10px] !py-1 !px-2;
