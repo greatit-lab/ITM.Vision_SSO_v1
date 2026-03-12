@@ -487,7 +487,6 @@ const exportCSV = async () => {
     ]);
 
     // 한글 깨짐 방지를 위한 BOM(\uFEFF) 추가
-    // 한글 깨짐 방지를 위한 BOM(\uFEFF) 추가
     const csvContent = '\uFEFF' + [
       headers.join(','),
       ...rows.map((row: string[]) => row.join(',')) // row에 명시적 타입 지정
@@ -617,3 +616,4 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
