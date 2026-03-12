@@ -362,6 +362,9 @@ onMounted(async () => {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
+        
+        // 새로고침 시 저장된 SDWT가 있으면 자동 조회 실행
+        fetchData();
       } else {
         filter.sdwt = "";
       }
@@ -407,9 +410,22 @@ const onSiteChange = async () => {
     sdwts.value = [];
   }
   filter.sdwt = "";
+  
+  // Site 변경/해제 시 조회된 데이터 화면만 초기화 (전체 reset 방지)
+  hasSearched.value = false;
+  allLamps.value = [];
 };
 
-const onSdwtChange = () => {};
+const onSdwtChange = () => {
+  if (filter.sdwt) {
+    // SDWT 선택 시 자동 조회 실행
+    fetchData();
+  } else {
+    // SDWT 선택 해제 시 조회된 데이터 화면만 초기화
+    hasSearched.value = false;
+    allLamps.value = [];
+  }
+};
 
 const setStatusFilter = (status: string | null) => {
   filter.status = filter.status === status ? null : status;
@@ -710,3 +726,4 @@ const getStatusBadgeClass = (status: string) => {
   }
 }
 </style>
+
