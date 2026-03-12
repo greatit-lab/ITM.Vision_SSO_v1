@@ -692,7 +692,6 @@ onMounted(async () => {
   let targetSite = "";
   let targetSdwt = "";
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (authStore.user?.site) {
     targetSite = authStore.user.site;
     targetSdwt = authStore.user.sdwt || "";
@@ -714,12 +713,13 @@ onMounted(async () => {
         if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
             filter.eqpId = savedEqpId;
         }
-
-        fetchData();
       } else {
         filter.sdwt = "";
         filter.eqpId = "";
       }
+      
+      // 새로고침 시 Site 정보가 있다면 무조건 자동 조회 실행
+      fetchData();
     } catch (e) {
       console.error("Failed to restore filter state:", e);
     }
@@ -774,8 +774,13 @@ watch(
 const onSiteChange = async () => {
   if (filter.site) {
     sdwts.value = await dashboardApi.getSdwts(filter.site);
+    // Site 선택 시 전체 장비 기준으로 자동 조회
+    fetchData();
   } else {
     sdwts.value = [];
+    // Site 해제 시 화면 데이터 초기화
+    healthData.value = [];
+    selectedEqp.value = null;
   }
   filter.sdwt = "";
   filter.eqpId = "";
@@ -785,8 +790,17 @@ const onSiteChange = async () => {
 const onSdwtChange = async () => {
     if (filter.sdwt) {
         await loadEqpIds();
+        // SDWT 선택 시 공정 장비 기준으로 자동 조회
+        fetchData();
     } else {
         eqpIds.value = [];
+        // SDWT 해제 시 Site 기준으로 다시 재조회
+        if (filter.site) {
+            fetchData();
+        } else {
+            healthData.value = [];
+            selectedEqp.value = null;
+        }
     }
     filter.eqpId = "";
 };
