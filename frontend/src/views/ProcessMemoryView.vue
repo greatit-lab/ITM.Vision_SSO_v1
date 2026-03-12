@@ -485,6 +485,9 @@ onMounted(async () => {
       const savedEqpId = localStorage.getItem("process_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
+        
+        // 새로고침 시 저장된 EQP ID가 있으면 자동 조회 실행
+        searchData();
       }
     } else {
       filterStore.selectedSdwt = "";
@@ -547,10 +550,14 @@ const onSdwtChange = async () => {
 const onEqpIdChange = () => {
   if (selectedEqpId.value) {
     localStorage.setItem("process_eqpid", selectedEqpId.value);
+    
+    // 장비 선택 시 자동 조회 실행
+    searchData();
   } else {
     localStorage.removeItem("process_eqpid");
+    // 선택 해제 시에만 화면 초기화
+    resetView();
   }
-  resetView();
 };
 
 const resetView = () => {
@@ -903,3 +910,4 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
+
