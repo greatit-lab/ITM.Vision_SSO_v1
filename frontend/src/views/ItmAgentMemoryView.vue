@@ -140,66 +140,142 @@
 
         <div class="overflow-auto custom-scrollbar" style="max-height: 300px">
           <table class="w-full text-xs text-left text-slate-600 dark:text-slate-400 table-fixed">
+            <colgroup>
+              <col class="w-[44px]" />
+              <col class="w-[78px]" />
+              <col class="w-[96px]" />
+              <col class="w-[132px]" />
+              <col class="w-[78px]" />
+              <col class="w-[148px]" />
+              <col class="w-[148px]" />
+              <col class="w-[148px]" />
+              <col class="w-[148px]" />
+            </colgroup>
+
             <thead class="text-[10px] text-slate-500 uppercase bg-slate-50 dark:bg-zinc-800 dark:text-slate-400 sticky top-0 z-10">
               <tr>
-                <th scope="col" class="px-3 py-2.5 font-bold text-center w-[40px]">#</th>
-                <th scope="col" class="px-3 py-2.5 font-bold w-[90px]">Site</th>
-                <th scope="col" class="px-3 py-2.5 font-bold w-[100px]">SDWT</th>
-                <th scope="col" class="px-3 py-2.5 font-bold w-[140px]">Eqp ID</th>
-                <th scope="col" class="px-3 py-2.5 font-bold text-center w-[90px]">Ver.</th>
+                <th scope="col" class="px-2 py-2.5 font-bold text-center">#</th>
+                <th scope="col" class="px-3 py-2.5 font-bold">Site</th>
+                <th scope="col" class="px-3 py-2.5 font-bold">SDWT</th>
+                <th scope="col" class="px-3 py-2.5 font-bold">Eqp ID</th>
+                <th scope="col" class="px-2 py-2.5 font-bold text-center">Ver.</th>
                 <th scope="col" class="px-3 py-2.5 font-bold text-right">
-                  <div class="flex items-center justify-end gap-1 cursor-help" v-tooltip.top="'기간 내 최대 Usage / Commit'">
-                    Max (Use / Com) <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-end gap-1 cursor-help whitespace-nowrap" v-tooltip.top="'기간 내 최대 Usage / Commit'">
+                    Max (Use / Com)
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-3 py-2.5 font-bold text-right">
-                  <div class="flex items-center justify-end gap-1 cursor-help" v-tooltip.top="'기간 내 평균 Usage / Commit'">
-                    Avg (Use / Com) <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-end gap-1 cursor-help whitespace-nowrap" v-tooltip.top="'기간 내 평균 Usage / Commit'">
+                    Avg (Use / Com)
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
                 <th scope="col" class="px-3 py-2.5 font-bold text-right">
-                  <div class="flex items-center justify-end gap-1 cursor-help" v-tooltip.top="'마지막 시점 Usage / Commit'">
-                    Last (Use / Com) <i class="pi pi-info-circle text-[9px] opacity-50"></i>
+                  <div class="flex items-center justify-end gap-1 cursor-help whitespace-nowrap" v-tooltip.top="'마지막 시점 Usage / Commit'">
+                    Last (Use / Com)
+                    <i class="pi pi-info-circle text-[9px] opacity-50"></i>
                   </div>
                 </th>
-                <th scope="col" class="px-3 py-2.5 font-bold text-center w-[90px]">Trend</th>
+                <th scope="col" class="px-3 py-2.5 font-bold text-center">Trend</th>
               </tr>
             </thead>
+
             <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
-              <tr v-for="(stat, index) in eqpStats" :key="stat.uniqueKey" class="transition-colors hover:bg-slate-50 dark:hover:bg-zinc-900/50 group">
-                <td class="px-3 py-2 font-mono text-center text-slate-400">{{ index + 1 }}</td>
-                <td class="px-3 py-2 font-bold text-slate-600 dark:text-slate-300 truncate" :title="stat.site">{{ stat.site || '-' }}</td>
-                <td class="px-3 py-2 font-bold text-slate-600 dark:text-slate-300 truncate" :title="stat.sdwt">{{ stat.sdwt || '-' }}</td>
-                <td class="flex items-center gap-2 px-3 py-2 font-bold text-slate-800 dark:text-slate-100 truncate">
-                  <span class="inline-block w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: stat.color }"></span>
-                  <span class="truncate" :title="stat.eqpId">{{ stat.eqpId }}</span>
+              <tr
+                v-for="(stat, index) in eqpStats"
+                :key="stat.uniqueKey"
+                class="transition-colors hover:bg-slate-50 dark:hover:bg-zinc-900/50 group"
+              >
+                <td class="px-2 py-2 font-mono text-center text-slate-400">
+                  {{ index + 1 }}
                 </td>
-                <td class="px-3 py-2 font-mono text-center text-slate-500">
-                  <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[10px]">{{ stat.version }}</span>
+
+                <td
+                  class="px-3 py-2 font-bold text-slate-600 dark:text-slate-300 truncate"
+                  :title="stat.site"
+                >
+                  {{ stat.site || '-' }}
                 </td>
+
+                <td
+                  class="px-3 py-2 font-bold text-slate-600 dark:text-slate-300 truncate"
+                  :title="stat.sdwt"
+                >
+                  {{ stat.sdwt || '-' }}
+                </td>
+
+                <td
+                  class="px-3 py-2 font-bold text-slate-800 dark:text-slate-100"
+                  :title="stat.eqpId"
+                >
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span
+                      class="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                      :style="{ backgroundColor: stat.color }"
+                    ></span>
+                    <span class="truncate">{{ stat.eqpId }}</span>
+                  </div>
+                </td>
+
+                <td class="px-2 py-2 font-mono text-center text-slate-500">
+                  <span class="inline-flex items-center justify-center min-w-[52px] px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[10px]">
+                    {{ stat.version }}
+                  </span>
+                </td>
+
                 <td class="px-3 py-2 font-mono font-bold text-right whitespace-nowrap">
                   <span class="text-cyan-600 dark:text-cyan-400">{{ formatNumber(stat.max) }}</span>
                   <span class="text-slate-300 dark:text-slate-600 mx-1">/</span>
-                  <span class="text-indigo-400 dark:text-indigo-500">{{ formatNumber(stat.commitMax) }}</span> MB
+                  <span class="text-indigo-400 dark:text-indigo-500">{{ formatNumber(stat.commitMax) }}</span>
+                  <span class="ml-1 text-slate-400 dark:text-slate-500">MB</span>
                 </td>
+
                 <td class="px-3 py-2 font-mono text-right whitespace-nowrap">
                   <span class="text-slate-600 dark:text-slate-300">{{ formatNumber(stat.avg) }}</span>
                   <span class="text-slate-300 dark:text-slate-600 mx-1">/</span>
-                  <span class="text-slate-500 dark:text-slate-400">{{ formatNumber(stat.commitAvg) }}</span> MB
+                  <span class="text-slate-500 dark:text-slate-400">{{ formatNumber(stat.commitAvg) }}</span>
+                  <span class="ml-1 text-slate-400 dark:text-slate-500">MB</span>
                 </td>
-                <td class="px-3 py-2 font-mono text-right whitespace-nowrap" :class="stat.last === 0 ? 'opacity-50' : ''">
+
+                <td
+                  class="px-3 py-2 font-mono text-right whitespace-nowrap"
+                  :class="stat.last === 0 ? 'opacity-50' : ''"
+                >
                   <template v-if="stat.last === 0">-</template>
                   <template v-else>
                     <span class="text-slate-600 dark:text-slate-300">{{ formatNumber(stat.last) }}</span>
                     <span class="text-slate-300 dark:text-slate-600 mx-1">/</span>
-                    <span class="text-slate-500 dark:text-slate-400">{{ formatNumber(stat.commitLast) }}</span> MB
+                    <span class="text-slate-500 dark:text-slate-400">{{ formatNumber(stat.commitLast) }}</span>
+                    <span class="ml-1 text-slate-400 dark:text-slate-500">MB</span>
                   </template>
                 </td>
+
                 <td class="px-3 py-2 text-center">
-                  <span v-if="stat.last === 0" class="text-slate-500 text-[10px] font-bold bg-slate-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded">Off</span>
-                  <span v-else-if="stat.last > stat.avg * 1.1" class="text-red-500 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">High</span>
-                  <span v-else-if="stat.last < stat.avg * 0.9" class="text-emerald-500 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Low</span>
-                  <span v-else class="text-slate-500 text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">Stable</span>
+                  <span
+                    v-if="stat.last === 0"
+                    class="inline-flex items-center justify-center min-w-[118px] text-slate-500 text-[10px] font-bold bg-slate-200 dark:bg-zinc-700 px-2 py-0.5 rounded-full whitespace-nowrap"
+                  >
+                    순위권 밖 (Unranked)
+                  </span>
+                  <span
+                    v-else-if="stat.last > stat.avg * 1.1"
+                    class="inline-flex items-center justify-center min-w-[118px] text-red-500 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full whitespace-nowrap"
+                  >
+                    높음 (High)
+                  </span>
+                  <span
+                    v-else-if="stat.last < stat.avg * 0.9"
+                    class="inline-flex items-center justify-center min-w-[118px] text-emerald-500 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full whitespace-nowrap"
+                  >
+                    낮음 (Low)
+                  </span>
+                  <span
+                    v-else
+                    class="inline-flex items-center justify-center min-w-[118px] text-slate-500 text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full whitespace-nowrap"
+                  >
+                    안정적 (Stable)
+                  </span>
                 </td>
               </tr>
             </tbody>
@@ -248,7 +324,7 @@ interface EqpStat {
 }
 
 const filterStore = useFilterStore();
-const selectedEqpId = ref(""); 
+const selectedEqpId = ref("");
 
 const now = new Date();
 const todayStart = new Date(now);
@@ -277,7 +353,7 @@ const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
 const colorPalette = [
-  "#06b6d4", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", 
+  "#06b6d4", "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
   "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316",
   "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#64748b"
 ];
@@ -299,20 +375,20 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (isEndDate) d.setHours(23, 59, 59, 999);
   else d.setHours(0, 0, 0, 0);
   const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace('T', ' '); 
+  return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace("T", " ");
 };
 
 const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
   let str = String(ts || "");
-  if (str.includes("Z")) str = str.replace("Z", ""); 
+  if (str.includes("Z")) str = str.replace("Z", "");
   if (/^\d{2}-\d{2}-\d{2}/.test(str)) str = "20" + str;
   return dayjs(str);
 };
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
-  let targetSite = filterStore.selectedSite || localStorage.getItem("agentmem_site") || "";
-  let targetSdwt = filterStore.selectedSdwt || localStorage.getItem("agentmem_sdwt") || "";
+  const targetSite = filterStore.selectedSite || localStorage.getItem("agentmem_site") || "";
+  const targetSdwt = filterStore.selectedSdwt || localStorage.getItem("agentmem_sdwt") || "";
 
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
@@ -327,15 +403,17 @@ onMounted(async () => {
       selectedEqpId.value = "";
     }
   } else {
-     filterStore.selectedSite = "";
-     filterStore.selectedSdwt = "";
+    filterStore.selectedSite = "";
+    filterStore.selectedSdwt = "";
   }
 
   searchData();
 
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      if (mutation.attributeName === "class") isDarkMode.value = document.documentElement.classList.contains("dark");
+      if (mutation.attributeName === "class") {
+        isDarkMode.value = document.documentElement.classList.contains("dark");
+      }
     });
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
@@ -411,7 +489,7 @@ const searchData = async () => {
     fixedStart.setHours(0, 0, 0, 0);
     const fixedEnd = new Date(endDate.value);
     fixedEnd.setHours(23, 59, 59, 999);
-    
+
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
 
@@ -424,8 +502,12 @@ const searchData = async () => {
     else fetchInterval = 3600;
 
     const rawData = await performanceApi.getItmAgentTrend(
-      filterStore.selectedSite || "", filterStore.selectedSdwt || "",
-      selectedEqpId.value || "", startStr, endStr, fetchInterval
+      filterStore.selectedSite || "",
+      filterStore.selectedSdwt || "",
+      selectedEqpId.value || "",
+      startStr,
+      endStr,
+      fetchInterval
     );
     processData(rawData);
   } catch (e) {
@@ -439,21 +521,26 @@ const processData = (data: ItmAgentDataDto[]) => {
   if (!data || data.length === 0) return;
 
   const activeEqpSet = new Set<string>();
-  const eqpMetaMap = new Map<string, { site: string, sdwt: string, eqpId: string, version: string }>();
-  
+  const eqpMetaMap = new Map<string, { site: string; sdwt: string; eqpId: string; version: string }>();
+
   data.forEach((item) => {
     const d = item as any;
     const rawId = d.eqpid ?? d.eqpId;
-    const site = d.site || '-';
-    const sdwt = d.sdwt || '-';
+    const site = d.site || "-";
+    const sdwt = d.sdwt || "-";
     const usage = Number(d.memoryUsageMB ?? d.memoryUsageMb) || 0;
     const commit = Number(d.memoryCommitMB ?? d.memoryCommitMb) || 0;
-    
+
     if (rawId && (usage > 0 || commit > 0)) {
       const uniqueKey = `${site}_${sdwt}_${rawId}`;
       activeEqpSet.add(uniqueKey);
       if (!eqpMetaMap.has(uniqueKey)) {
-        eqpMetaMap.set(uniqueKey, { site, sdwt, eqpId: String(rawId), version: d.agentVersion || "Unknown" });
+        eqpMetaMap.set(uniqueKey, {
+          site,
+          sdwt,
+          eqpId: String(rawId),
+          version: d.agentVersion || "Unknown",
+        });
       }
     }
   });
@@ -463,81 +550,82 @@ const processData = (data: ItmAgentDataDto[]) => {
   if (sortedUniqueKeys.length === 0) return;
 
   const timeMap = new Map<string, any>();
-  
+
   data.forEach((item) => {
     const d = item as any;
     const dt = parseSafeDate(d.timestamp);
     if (!dt.isValid()) return;
-    const tsKey = dt.toISOString(); 
+    const tsKey = dt.toISOString();
 
     if (!timeMap.has(tsKey)) timeMap.set(tsKey, { timestamp: tsKey });
-    
+
     const rawId = d.eqpid ?? d.eqpId;
-    const uniqueKey = `${d.site || '-'}_${d.sdwt || '-'}_${rawId}`;
-    
+    const uniqueKey = `${d.site || "-"}_${d.sdwt || "-"}_${rawId}`;
+
     if (activeEqpSet.has(uniqueKey)) {
-      timeMap.get(tsKey)![uniqueKey + '_usage'] = Number(d.memoryUsageMB ?? d.memoryUsageMb) || 0;
-      timeMap.get(tsKey)![uniqueKey + '_commit'] = Number(d.memoryCommitMB ?? d.memoryCommitMb) || 0;
+      timeMap.get(tsKey)![uniqueKey + "_usage"] = Number(d.memoryUsageMB ?? d.memoryUsageMb) || 0;
+      timeMap.get(tsKey)![uniqueKey + "_commit"] = Number(d.memoryCommitMB ?? d.memoryCommitMb) || 0;
     }
   });
 
   for (const item of timeMap.values()) {
-    sortedUniqueKeys.forEach(uniqueKey => {
-      if (item[uniqueKey + '_usage'] === undefined) {
-        item[uniqueKey + '_usage'] = null; 
-        item[uniqueKey + '_commit'] = null; 
+    sortedUniqueKeys.forEach((uniqueKey) => {
+      if (item[uniqueKey + "_usage"] === undefined) {
+        item[uniqueKey + "_usage"] = null;
+        item[uniqueKey + "_commit"] = null;
       }
     });
   }
 
-  chartData.value = Array.from(timeMap.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  chartData.value = Array.from(timeMap.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
   const lastBucket = chartData.value.length > 0 ? chartData.value[chartData.value.length - 1] : null;
 
   const series: any[] = [];
   const stats: EqpStat[] = [];
-  
+
   sortedUniqueKeys.forEach((uniqueKey, idx) => {
     const meta = eqpMetaMap.get(uniqueKey)!;
-    const color = colorPalette[idx % colorPalette.length] || '#888888';
-    const displayVersion = meta.version.startsWith('v') ? meta.version : `v${meta.version}`;
+    const color = colorPalette[idx % colorPalette.length] || "#888888";
+    const displayVersion = meta.version.startsWith("v") ? meta.version : `v${meta.version}`;
     const legendName = `${meta.site} ${meta.sdwt} ${meta.eqpId}`;
 
-    // [핵심 변경 1] seriesId를 명시적으로 주입하여 Tooltip Formatter가 안전하게 접근하도록 함
     series.push({
-      id: uniqueKey + '_usage', 
+      id: uniqueKey + "_usage",
       name: `${legendName} (Usage)`,
       type: "line",
       smooth: true,
-      showSymbol: false, 
-      symbolSize: 2, 
-      itemStyle: { color: color },
-      lineStyle: { width: 2, type: 'solid' },
-      encode: { x: "timestamp", y: uniqueKey + '_usage' }, 
-      connectNulls: true, 
+      showSymbol: false,
+      symbolSize: 2,
+      itemStyle: { color },
+      lineStyle: { width: 2, type: "solid" },
+      encode: { x: "timestamp", y: uniqueKey + "_usage" },
+      connectNulls: true,
     });
 
     series.push({
-      id: uniqueKey + '_commit', 
+      id: uniqueKey + "_commit",
       name: `${legendName} (Commit)`,
       type: "line",
       smooth: true,
-      showSymbol: false, 
-      symbolSize: 2, 
-      itemStyle: { color: color },
-      lineStyle: { width: 2, type: 'dashed', opacity: 0.6 },
-      encode: { x: "timestamp", y: uniqueKey + '_commit' }, 
-      connectNulls: true, 
+      showSymbol: false,
+      symbolSize: 2,
+      itemStyle: { color },
+      lineStyle: { width: 2, type: "dashed", opacity: 0.6 },
+      encode: { x: "timestamp", y: uniqueKey + "_commit" },
+      connectNulls: true,
     });
 
-    const pData = data.filter(item => {
+    const pData = data.filter((item) => {
       const d = item as any;
       const rawId = d.eqpid ?? d.eqpId;
-      return `${d.site || '-'}_${d.sdwt || '-'}_${rawId}` === uniqueKey;
+      return `${d.site || "-"}_${d.sdwt || "-"}_${rawId}` === uniqueKey;
     });
-    
-    const usageVals = pData.map(d => Number((d as any).memoryUsageMB ?? (d as any).memoryUsageMb) || 0);
-    const commitVals = pData.map(d => Number((d as any).memoryCommitMB ?? (d as any).memoryCommitMb) || 0);
-    
+
+    const usageVals = pData.map((d) => Number((d as any).memoryUsageMB ?? (d as any).memoryUsageMb) || 0);
+    const commitVals = pData.map((d) => Number((d as any).memoryCommitMB ?? (d as any).memoryCommitMb) || 0);
+
     let sumU = 0, maxU = 0, sumC = 0, maxC = 0;
     if (usageVals.length > 0) {
       sumU = usageVals.reduce((a, b) => a + b, 0);
@@ -558,13 +646,13 @@ const processData = (data: ItmAgentDataDto[]) => {
       color,
       max: maxU,
       avg: pData.length > 0 ? sumU / pData.length : 0,
-      last: (lastBucket && lastBucket[uniqueKey + '_usage'] !== null) ? lastBucket[uniqueKey + '_usage'] : 0,
+      last: lastBucket && lastBucket[uniqueKey + "_usage"] !== null ? lastBucket[uniqueKey + "_usage"] : 0,
       commitMax: maxC,
       commitAvg: pData.length > 0 ? sumC / pData.length : 0,
-      commitLast: (lastBucket && lastBucket[uniqueKey + '_commit'] !== null) ? lastBucket[uniqueKey + '_commit'] : 0
+      commitLast: lastBucket && lastBucket[uniqueKey + "_commit"] !== null ? lastBucket[uniqueKey + "_commit"] : 0,
     });
   });
-  
+
   eqpSeries.value = series;
   eqpStats.value = stats.sort((a, b) => b.max - a.max);
 };
@@ -578,7 +666,7 @@ const resetFilters = () => {
   sdwts.value = [];
   eqpIds.value = [];
   resetView();
-  
+
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
@@ -588,7 +676,7 @@ const resetFilters = () => {
 
 const formattedPeriod = computed(() => {
   if (!startDate.value || !endDate.value) return "";
-  const fmt = (d: Date) => dayjs(d).format('YYYY-MM-DD');
+  const fmt = (d: Date) => dayjs(d).format("YYYY-MM-DD");
   return `${fmt(startDate.value)} ~ ${fmt(endDate.value)}`;
 });
 
@@ -601,7 +689,7 @@ const formatNumber = (val: any) => {
 const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-  
+
   return {
     backgroundColor: "transparent",
     tooltip: {
@@ -612,30 +700,30 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         if (!params || !params[0]) return "";
         const xDate = new Date(params[0].axisValueLabel);
-        const timeStr = isNaN(xDate.getTime()) ? params[0].axisValueLabel 
+        const timeStr = isNaN(xDate.getTime())
+          ? params[0].axisValueLabel
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
-        
+
         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
-        
-        // [핵심 변경 2] p.seriesId를 이용하여 정확한 데이터(객체 키)를 찾아오도록 수정!
+
         const sortedParams = [...params]
-          .map(p => ({ ...p, val: p.data && p.seriesId ? p.data[p.seriesId] : null }))
-          .filter(p => p.val !== undefined && p.val !== null)
+          .map((p) => ({ ...p, val: p.data && p.seriesId ? p.data[p.seriesId] : null }))
+          .filter((p) => p.val !== undefined && p.val !== null)
           .sort((a, b) => b.val - a.val);
-        
+
         sortedParams.forEach((p: any) => {
-          const isCommit = p.seriesName.includes('(Commit)');
-          const dotStyle = isCommit 
-            ? `border: 1px solid ${p.color}; background-color: transparent;` 
+          const isCommit = p.seriesName.includes("(Commit)");
+          const dotStyle = isCommit
+            ? `border: 1px solid ${p.color}; background-color: transparent;`
             : `background-color: ${p.color};`;
           const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;${dotStyle}"></span>`;
-          
+
           html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5">
                      <span>${colorDot} ${p.seriesName}</span>
-                     <span class="font-mono font-bold ${isCommit ? 'text-indigo-400' : 'text-cyan-500'}">${Number(p.val).toFixed(1)} MB</span>
+                     <span class="font-mono font-bold ${isCommit ? "text-indigo-400" : "text-cyan-500"}">${Number(p.val).toFixed(1)} MB</span>
                    </div>`;
         });
-        
+
         return html;
       },
     },
@@ -646,7 +734,7 @@ const chartOption = computed(() => {
       right: 0,
       top: "middle",
       itemGap: 10,
-      textStyle: { color: textColor, fontSize: 10, width: 200, overflow: 'truncate' },
+      textStyle: { color: textColor, fontSize: 10, width: 200, overflow: "truncate" },
       pageIconColor: textColor,
       pageTextStyle: { color: textColor },
     },
@@ -662,7 +750,7 @@ const chartOption = computed(() => {
         formatter: (value: string) => {
           const d = new Date(value);
           if (isNaN(d.getTime())) return value;
-          return `${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
         }
       },
       axisLine: { lineStyle: { color: gridColor } },
@@ -700,17 +788,64 @@ const resetZoom = () => {
 
 <style scoped>
 :deep(.p-select),
-:deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
-:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
-:deep(.date-picker .p-inputtext) { @apply !text-[13px] !py-1 !px-2 !h-7; }
-:deep(.custom-dropdown.small) { @apply h-7; }
-:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
-:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
-.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+:deep(.custom-dropdown) {
+  @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
+}
+
+:deep(.custom-dropdown .p-select-label) {
+  @apply text-[13px] py-[5px] px-3;
+}
+
+:deep(.date-picker .p-inputtext) {
+  @apply !text-[13px] !py-1 !px-2 !h-7;
+}
+
+:deep(.custom-dropdown.small) {
+  @apply h-7;
+}
+
+:deep(.custom-dropdown:hover) {
+  @apply !bg-slate-200 dark:!bg-zinc-800;
+}
+
+:deep(.p-select-dropdown) {
+  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 </style>
