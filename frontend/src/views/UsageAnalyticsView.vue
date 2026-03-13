@@ -67,7 +67,8 @@
     </div>
 
     <div v-if="hasSearched" class="flex-1 flex flex-col gap-3 min-h-0 animate-fade-in relative">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 shrink-0">
+        
         <div
           class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between"
         >
@@ -102,6 +103,43 @@
             class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0"
           >
             <i class="pi pi-users text-lg text-blue-500"></i>
+          </div>
+        </div>
+
+        <div
+          class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between"
+        >
+          <div class="flex-1 min-w-0 pr-2">
+            <p
+              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1"
+            >
+              Total Web Visits
+            </p>
+            <div class="flex items-end gap-2">
+              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">
+                {{ kpiData.totalVisits }}
+              </h4>
+              <span
+                v-if="kpiData.visitsDelta !== undefined"
+                :class="
+                  kpiData.visitsDelta >= 0
+                    ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                "
+                class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5"
+              >
+                <i
+                  :class="kpiData.visitsDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'"
+                  style="font-size: 0.4rem"
+                ></i>
+                {{ Math.abs(kpiData.visitsDelta) }}%
+              </span>
+            </div>
+          </div>
+          <div
+            class="w-10 h-10 rounded-full bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center shrink-0"
+          >
+            <i class="pi pi-globe text-lg text-teal-500"></i>
           </div>
         </div>
 
@@ -174,7 +212,7 @@
             class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0"
           >
             <i class="pi pi-users text-indigo-500"></i>
-            Daily User Access Trend
+            Daily User & Visit Trend
           </h3>
           <div class="flex-1 w-full relative min-h-0">
             <EChart
@@ -330,13 +368,15 @@ let themeObserver: MutationObserver | null = null;
 
 const kpiData = ref<any>({
   totalUsers: 0,
+  totalVisits: 0,
   totalViews: 0,
   topPage: "-",
   viewsDelta: 0,
   usersDelta: 0,
+  visitsDelta: 0,
 });
 const mockLogs = ref<any[]>([]);
-const trendData = ref({ dates: [] as string[], views: [] as number[], users: [] as number[] });
+const trendData = ref({ dates: [] as string[], views: [] as number[], users: [] as number[], visits: [] as number[] });
 const rankingData = ref({ menus: [] as string[], views: [] as number[] });
 const dailyMenuTrendData = ref<any[]>([]);
 
@@ -459,6 +499,7 @@ const searchData = async () => {
     trendData.value.dates = data.dailyTrend.map((d: any) => d.date);
     trendData.value.views = data.dailyTrend.map((d: any) => d.views);
     trendData.value.users = data.dailyTrend.map((d: any) => d.users);
+    trendData.value.visits = data.dailyTrend.map((d: any) => d.visits);
 
     dailyMenuTrendData.value = data.dailyMenuTrend || [];
 
@@ -481,8 +522,10 @@ const trendChartOption = computed(() => {
   return {
     backgroundColor: "transparent",
     tooltip: { trigger: "axis" },
-    legend: { show: false },
-    grid: { left: 40, right: 10, top: 30, bottom: 20 },
+    // [수정] 범례(Legend) 위치를 상단으로 변경 (bottom -> top)
+    legend: { show: true, top: 0, textStyle: { color: textColor, fontSize: 10 } },
+    // [수정] 범례가 위로 갔으므로 차트 윗부분 여백(top)을 늘리고 아랫부분(bottom)을 줄임
+    grid: { left: 40, right: 10, top: 35, bottom: 20 },
     xAxis: {
       type: "category",
       data: trendData.value.dates,
@@ -491,17 +534,25 @@ const trendChartOption = computed(() => {
     },
     yAxis: {
       type: "value",
-      name: "Users",
       minInterval: 1,
       splitLine: { lineStyle: { color: gridColor } },
       axisLabel: { color: textColor, fontSize: 10 },
     },
     series: [
       {
-        name: "Active Users",
+        name: "Web Visits (세션)",
         type: "bar",
+        data: trendData.value.visits,
+        itemStyle: { color: "#14b8a6", borderRadius: [4, 4, 0, 0] },
+      },
+      {
+        name: "Active Users (순수 방문자)",
+        type: "line",
+        smooth: true,
+        symbolSize: 6,
         data: trendData.value.users,
-        itemStyle: { color: "#6366f1", borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: "#6366f1" },
+        lineStyle: { width: 3 }
       },
     ],
   };
