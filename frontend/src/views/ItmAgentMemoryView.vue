@@ -435,7 +435,6 @@ const searchData = async () => {
   }
 };
 
-// [핵심 수정] 운영서버 API 대응을 위해 eqpid, eqpId, memoryUsageMB, memoryUsageMb 모두 대응하도록 복구
 const processData = (data: ItmAgentDataDto[]) => {
   if (!data || data.length === 0) return;
 
@@ -503,7 +502,9 @@ const processData = (data: ItmAgentDataDto[]) => {
     const displayVersion = meta.version.startsWith('v') ? meta.version : `v${meta.version}`;
     const legendName = `${meta.site} ${meta.sdwt} ${meta.eqpId}`;
 
+    // [핵심 변경 1] seriesId를 명시적으로 주입하여 Tooltip Formatter가 안전하게 접근하도록 함
     series.push({
+      id: uniqueKey + '_usage', 
       name: `${legendName} (Usage)`,
       type: "line",
       smooth: true,
@@ -516,6 +517,7 @@ const processData = (data: ItmAgentDataDto[]) => {
     });
 
     series.push({
+      id: uniqueKey + '_commit', 
       name: `${legendName} (Commit)`,
       type: "line",
       smooth: true,
@@ -614,23 +616,26 @@ const chartOption = computed(() => {
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
         
         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
-        const sortedParams = [...params].sort((a, b) => (b.data[b.encode.y[0]] || 0) - (a.data[a.encode.y[0]] || 0));
+        
+        // [핵심 변경 2] p.seriesId를 이용하여 정확한 데이터(객체 키)를 찾아오도록 수정!
+        const sortedParams = [...params]
+          .map(p => ({ ...p, val: p.data && p.seriesId ? p.data[p.seriesId] : null }))
+          .filter(p => p.val !== undefined && p.val !== null)
+          .sort((a, b) => b.val - a.val);
         
         sortedParams.forEach((p: any) => {
-          const val = p.data[p.encode.y[0]];
-          if (val !== undefined && val !== null) {
-            const isCommit = p.seriesName.includes('(Commit)');
-            const dotStyle = isCommit 
-              ? `border: 1px solid ${p.color}; background-color: transparent;` 
-              : `background-color: ${p.color};`;
-            const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;${dotStyle}"></span>`;
-            
-            html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5">
-                       <span>${colorDot} ${p.seriesName}</span>
-                       <span class="font-mono font-bold ${isCommit ? 'text-indigo-400' : 'text-cyan-500'}">${Number(val).toFixed(1)} MB</span>
-                     </div>`;
-          }
+          const isCommit = p.seriesName.includes('(Commit)');
+          const dotStyle = isCommit 
+            ? `border: 1px solid ${p.color}; background-color: transparent;` 
+            : `background-color: ${p.color};`;
+          const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;${dotStyle}"></span>`;
+          
+          html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5">
+                     <span>${colorDot} ${p.seriesName}</span>
+                     <span class="font-mono font-bold ${isCommit ? 'text-indigo-400' : 'text-cyan-500'}">${Number(p.val).toFixed(1)} MB</span>
+                   </div>`;
         });
+        
         return html;
       },
     },
