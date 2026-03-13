@@ -63,8 +63,9 @@
                   <p
                     class="max-w-md text-sm leading-relaxed text-slate-500 dark:text-slate-400"
                   >
-                    계측장비 성능 모니터링 및 로그 수집을 위한 필수 에이전트 프로그램입니다.
-                    I:Vision 시스템과 안전하게 통신합니다.
+                    계측 장비의 실시간 모니터링 및 로그 수집을 책임지는 Agent
+                    프로그램임. 최적화된 백그라운드 환경에서 구동되며 수집된
+                    데이터는 I:Vision 시스템과 안전하게 동기화됩니다.
                   </p>
                 </div>
 
@@ -242,7 +243,7 @@
         </div>
 
         <div
-          class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-0 shadow-sm flex flex-col h-full w-full overflow-hidden min-h-[390px]"
+          class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-0 shadow-sm flex flex-col h-full w-full overflow-hidden min-h-[390px] max-h-[480px]"
         >
           <div
             class="flex items-center gap-2 p-4 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/50"
@@ -254,15 +255,15 @@
             <span
               class="ml-auto text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800/50"
             >
-              Recent Highlights
+              All Highlights
             </span>
           </div>
 
-          <div class="flex flex-col flex-1 gap-4 px-5 pt-5 pb-3 overflow-y-auto history-scroll">
+          <div class="flex flex-col flex-1 gap-4 px-5 pt-5 pb-3 overflow-y-auto history-scroll min-h-0">
             <div
               v-for="(ver, index) in displayVersions"
               :key="ver.id"
-              class="relative pl-5 border-l-2"
+              class="relative pl-5 border-l-2 shrink-0"
               :class="
                 index === 0
                   ? 'border-indigo-300 dark:border-indigo-600'
@@ -311,7 +312,7 @@
               </ul>
             </div>
 
-            <div class="pt-2 text-center border-t border-slate-100 dark:border-zinc-800/50 mt-auto">
+            <div class="pt-2 text-center border-t border-slate-100 dark:border-zinc-800/50 mt-auto shrink-0">
               <span class="text-[11px] text-slate-400 dark:text-slate-500">
                 주요 릴리즈 노트만 노출됩니다. 상세 내역은 관리자 문의 바랍니다.
               </span>
@@ -416,14 +417,14 @@ onMounted(async () => {
   }
 });
 
+// [핵심 수정] 하드코딩된 .slice(0, 4) 갯수 제한 삭제
 const displayVersions = computed(() => {
   return [...versions.value]
     .filter((v) => v.is_visible_y !== "N")
     .sort(
       (a, b) =>
         new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime(),
-    )
-    .slice(0, 4);
+    );
 });
 
 const latestVersion = computed(() => {
