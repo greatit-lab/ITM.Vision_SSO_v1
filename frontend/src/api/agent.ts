@@ -12,6 +12,7 @@ export interface AgentVersion {
   fileSize64: string | null;
   fileUrlLegacy: string | null;
   fileSizeLegacy: string | null;
+  is_visible_y?: string;
 }
 
 // 2. Agent 플러그인 정보 인터페이스
