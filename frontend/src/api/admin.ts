@@ -33,15 +33,11 @@ export interface AgentServerConfig {
 // ==========================================
 export const getUsers = () => http.get('/admin/users');
 
-// 관리자(Manager) 목록 조회
 export const getAdmins = () => http.get('/admin/admins');
 
-// 관리자 추가
 export const addAdmin = (data: { loginId: string; role: string; assignedBy?: string; }) => http.post('/admin/admins', data);
 
-// 관리자 삭제
 export const deleteAdmin = (loginId: string) => http.delete(`/admin/admins/${loginId}`);
-
 
 // ==========================================
 // [Access Codes] 접근 제어 (Whitelist)
@@ -53,7 +49,6 @@ export const createAccessCode = (data: { compid: string; deptid: string; descrip
 export const updateAccessCode = (compid: string, data: { deptid: string; description?: string; isActive?: string; }) => http.put(`/admin/access-codes/${compid}`, data);
 
 export const deleteAccessCode = (compid: string) => http.delete(`/admin/access-codes/${compid}`);
-
 
 // ==========================================
 // [Guest Management] 게스트 관리
@@ -133,13 +128,29 @@ export async function deleteAgentServer(eqpId: string): Promise<void> {
 export const adminApi = {
   // 1. 접속 로그 기록 (Vue Router에서 자동 호출)
   logAccess: async (data: { loginId: string; menuName: string; accessUrl: string }) => {
-    // [수정] http-data 대신 기존에 사용하던 http 객체 사용
+    
+    // [핵심 변경] sessionStorage를 이용해 외부 진입(세션 생성) 여부를 추적합니다.
+    const isFirstEntry = !sessionStorage.getItem('ivision_session_entry');
+
+    if (isFirstEntry) {
+      sessionStorage.setItem('ivision_session_entry', 'true');
+      
+      // 브라우저 탭을 열고 처음 진입할 때 'APP_ENTRY'라는 특수 이벤트로 방문(Visit)을 카운트합니다.
+      await http.post("/admin/access-log", { ...data, menuName: 'APP_ENTRY' });
+
+      const targetName = data.menuName.toLowerCase();
+      // 최초 진입 시 보여지는 Overview 등은 조회수(Page View) 통계 오염을 막기 위해 여기서 종료합니다.
+      if (targetName === 'overview' || targetName === 'home' || targetName === '-') {
+        return; 
+      }
+    }
+
+    // 기존 로그 기록 로직 (일반 페이지 이동 조회수)
     await http.post("/admin/access-log", data);
   },
 
   // 2. 사용량 통계 조회 (Usage Analytics 뷰에서 호출)
   getUsageAnalytics: async (startDate: string, endDate: string) => {
-    // [수정] http-data 대신 기존에 사용하던 http 객체 사용
     const { data } = await http.get("/admin/usage-analytics", {
       params: { startDate, endDate },
     });
