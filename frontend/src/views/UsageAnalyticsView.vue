@@ -1,9 +1,13 @@
 <!-- frontend/src/views/UsageAnalyticsView.vue -->
 <template>
-  <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden pb-1">
+  <div
+    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden pb-1"
+  >
     <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0">
       <div class="flex items-center gap-2">
-        <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
+        <div
+          class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
+        >
           <i class="text-lg text-indigo-600 pi pi-chart-pie dark:text-indigo-400"></i>
         </div>
         <div class="flex items-baseline gap-2">
@@ -17,14 +21,28 @@
       </div>
     </div>
 
-    <div class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm transition-colors duration-300 shrink-0">
+    <div
+      class="mb-3 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 shadow-sm transition-colors duration-300 shrink-0"
+    >
       <div class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide">
         <div class="min-w-[150px] shrink-0">
-          <DatePicker v-model="startDate" showIcon dateFormat="yy-mm-dd" placeholder="Start Date" class="w-full custom-dropdown small date-picker" />
+          <DatePicker
+            v-model="startDate"
+            showIcon
+            dateFormat="yy-mm-dd"
+            placeholder="Start Date"
+            class="w-full custom-dropdown small date-picker"
+          />
         </div>
         <span class="text-slate-400 dark:text-zinc-600 font-bold">-</span>
         <div class="min-w-[150px] shrink-0">
-          <DatePicker v-model="endDate" showIcon dateFormat="yy-mm-dd" placeholder="End Date" class="w-full custom-dropdown small date-picker" />
+          <DatePicker
+            v-model="endDate"
+            showIcon
+            dateFormat="yy-mm-dd"
+            placeholder="End Date"
+            class="w-full custom-dropdown small date-picker"
+          />
         </div>
       </div>
 
@@ -43,132 +61,223 @@
           rounded
           class="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !w-8 !h-8 !text-xs"
           @click="searchData"
-          :disabled="isLoading" 
+          :disabled="isLoading"
         />
       </div>
     </div>
 
     <div v-if="hasSearched" class="flex-1 flex flex-col gap-3 min-h-0 animate-fade-in relative">
-      
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
-        <div class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+        <div
+          class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between"
+        >
           <div class="flex-1 min-w-0 pr-2">
-            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Active Users</p>
+            <p
+              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1"
+            >
+              Total Active Users
+            </p>
             <div class="flex items-end gap-2">
-              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">{{ kpiData.totalUsers }}</h4>
-              <span v-if="kpiData.usersDelta !== undefined" :class="kpiData.usersDelta >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'" class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5">
-                <i :class="kpiData.usersDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'" style="font-size: 0.4rem"></i>
+              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">
+                {{ kpiData.totalUsers }}
+              </h4>
+              <span
+                v-if="kpiData.usersDelta !== undefined"
+                :class="
+                  kpiData.usersDelta >= 0
+                    ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                "
+                class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5"
+              >
+                <i
+                  :class="kpiData.usersDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'"
+                  style="font-size: 0.4rem"
+                ></i>
                 {{ Math.abs(kpiData.usersDelta) }}%
               </span>
             </div>
           </div>
-          <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+          <div
+            class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0"
+          >
             <i class="pi pi-users text-lg text-blue-500"></i>
           </div>
         </div>
 
-        <div class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+        <div
+          class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between"
+        >
           <div class="flex-1 min-w-0 pr-2">
-            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Page Views</p>
+            <p
+              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1"
+            >
+              Total Page Views
+            </p>
             <div class="flex items-end gap-2">
-              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">{{ kpiData.totalViews }}</h4>
-              <span v-if="kpiData.viewsDelta !== undefined" :class="kpiData.viewsDelta >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'" class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5">
-                <i :class="kpiData.viewsDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'" style="font-size: 0.4rem"></i>
+              <h4 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none">
+                {{ kpiData.totalViews }}
+              </h4>
+              <span
+                v-if="kpiData.viewsDelta !== undefined"
+                :class="
+                  kpiData.viewsDelta >= 0
+                    ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                "
+                class="px-1.5 py-0.5 rounded text-[9px] font-bold mb-0.5 flex items-center gap-0.5"
+              >
+                <i
+                  :class="kpiData.viewsDelta >= 0 ? 'pi pi-arrow-up' : 'pi pi-arrow-down'"
+                  style="font-size: 0.4rem"
+                ></i>
                 {{ Math.abs(kpiData.viewsDelta) }}%
               </span>
             </div>
           </div>
-          <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
+          <div
+            class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0"
+          >
             <i class="pi pi-eye text-lg text-emerald-500"></i>
           </div>
         </div>
-        
-        <div class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+
+        <div
+          class="bg-white dark:bg-[#111111] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-center justify-between"
+        >
           <div class="flex-1 min-w-0 pr-2">
-            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Most Popular Page</p>
-            <h4 class="text-base font-black text-slate-800 dark:text-white truncate" :title="formatMenuName(kpiData.topPage)">
+            <p
+              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1"
+            >
+              Most Popular Page
+            </p>
+            <h4
+              class="text-base font-black text-slate-800 dark:text-white truncate"
+              :title="formatMenuName(kpiData.topPage)"
+            >
               {{ formatMenuName(kpiData.topPage) }}
             </h4>
           </div>
-          <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center shrink-0">
+          <div
+            class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center shrink-0"
+          >
             <i class="pi pi-star text-lg text-purple-500"></i>
           </div>
         </div>
       </div>
 
-      <div class="flex-[1.2] grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-0">
-        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative col-span-1 min-h-0">
-          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0">
-            <i class="pi pi-chart-line text-indigo-500"></i> Daily Access Trend (Views)
+      <div class="flex-[1.2] grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-0">
+        <div
+          class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative min-h-0"
+        >
+          <h3
+            class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0"
+          >
+            <i class="pi pi-users text-indigo-500"></i>
+            Daily User Access Trend
           </h3>
           <div class="flex-1 w-full relative min-h-0">
-            <EChart v-if="trendChartOption" :option="trendChartOption" class="absolute inset-0 w-full h-full" />
+            <EChart
+              v-if="trendChartOption"
+              :option="trendChartOption"
+              class="absolute inset-0 w-full h-full"
+            />
           </div>
         </div>
-        
-        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative col-span-1 lg:col-span-2 min-h-0">
-          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0">
-            <i class="pi pi-sitemap text-emerald-500"></i> Page Access Trend
+
+        <div
+          class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative min-h-0"
+        >
+          <h3
+            class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0"
+          >
+            <i class="pi pi-sitemap text-emerald-500"></i>
+            Page Access Trend
           </h3>
           <div class="flex-1 w-full relative min-h-0">
-            <EChart v-if="pageTrendChartOption" :option="pageTrendChartOption" class="absolute inset-0 w-full h-full" />
+            <EChart
+              v-if="pageTrendChartOption"
+              :option="pageTrendChartOption"
+              class="absolute inset-0 w-full h-full"
+            />
           </div>
         </div>
       </div>
 
-      <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-0">
-        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative col-span-1 min-h-0">
-          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0">
-            <i class="pi pi-chart-bar text-indigo-500"></i> Page Utilization Ranking
+      <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-0">
+        <div
+          class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative min-h-0"
+        >
+          <h3
+            class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0"
+          >
+            <i class="pi pi-chart-bar text-indigo-500"></i>
+            Page Utilization Ranking
           </h3>
           <div class="flex-1 w-full relative min-h-0">
-            <EChart v-if="rankingChartOption" :option="rankingChartOption" class="absolute inset-0 w-full h-full" />
+            <EChart
+              v-if="rankingChartOption"
+              :option="rankingChartOption"
+              class="absolute inset-0 w-full h-full"
+            />
           </div>
         </div>
 
-        <div class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col col-span-1 lg:col-span-2 min-h-0">
-          <div class="flex items-center justify-between px-3 py-1.5 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0">
+        <div
+          class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col min-h-0"
+        >
+          <div
+            class="flex items-center justify-between px-3 h-8 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0"
+          >
             <div class="flex items-center gap-2">
               <i class="text-xs text-indigo-500 pi pi-list"></i>
-              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Recent Access Logs ({{ mockLogs.length }})</h3>
+              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">
+                Recent Access Logs ({{ mockLogs.length }})
+              </h3>
             </div>
-            
-            <Paginator 
+
+            <Paginator
               v-if="mockLogs.length > 0"
-              v-model:first="firstRow" 
-              v-model:rows="rowsPerPage" 
-              :totalRecords="mockLogs.length" 
+              v-model:first="firstRow"
+              v-model:rows="rowsPerPage"
+              :totalRecords="mockLogs.length"
               :rowsPerPageOptions="[5, 10, 20, 50]"
               template="RowsPerPageDropdown PrevPageLink CurrentPageReport NextPageLink"
               currentPageReportTemplate="{currentPage} / {totalPages}"
               class="custom-top-paginator"
             />
           </div>
-          
+
           <div class="flex-1 relative min-h-0">
             <div class="absolute inset-0 p-1">
-              <DataTable 
-                :value="paginatedLogs" 
-                :paginator="false" 
+              <DataTable
+                :value="paginatedLogs"
+                :paginator="false"
                 class="p-datatable-sm w-full h-full text-xs"
                 stripedRows
-                scrollable 
+                scrollable
                 scrollHeight="flex"
                 emptyMessage="No log data found for this period."
               >
                 <Column field="time" header="Timestamp" style="width: 25%">
                   <template #body="slotProps">
-                    <span class="font-mono text-slate-500 text-[11px]">{{ slotProps.data.time }}</span>
+                    <span class="font-mono text-slate-500 text-[11px]">
+                      {{ slotProps.data.time }}
+                    </span>
                   </template>
                 </Column>
                 <Column field="loginId" header="Login ID" style="width: 25%">
                   <template #body="slotProps">
-                    <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">{{ slotProps.data.loginId }}</span>
+                    <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">
+                      {{ slotProps.data.loginId }}
+                    </span>
                   </template>
                 </Column>
                 <Column field="menu" header="Accessed Page" style="width: 50%">
                   <template #body="slotProps">
-                    <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded font-medium text-[10px] text-slate-700 dark:text-slate-300">
+                    <span
+                      class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded font-medium text-[10px] text-slate-700 dark:text-slate-300"
+                    >
                       {{ formatMenuName(slotProps.data.menu) }}
                     </span>
                   </template>
@@ -178,15 +287,21 @@
           </div>
         </div>
       </div>
-
     </div>
 
-    <div v-else class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-0">
-      <div class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800">
+    <div
+      v-else
+      class="flex flex-col items-center justify-center flex-1 text-slate-400 opacity-50 select-none min-h-0"
+    >
+      <div
+        class="flex items-center justify-center w-20 h-20 mb-4 rounded-full shadow-inner bg-slate-100 dark:bg-zinc-800"
+      >
         <i class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-search"></i>
       </div>
       <p class="text-sm font-bold text-slate-500">Ready to Analyze Usage</p>
-      <p class="mt-1 text-xs text-slate-400">Select Date Range to view system utilization statistics.</p>
+      <p class="mt-1 text-xs text-slate-400">
+        Select Date Range to view system utilization statistics.
+      </p>
     </div>
   </div>
 </template>
@@ -213,48 +328,67 @@ const isLoading = ref(false);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-const kpiData = ref<any>({ totalUsers: 0, totalViews: 0, topPage: '-', viewsDelta: 0, usersDelta: 0 });
+const kpiData = ref<any>({
+  totalUsers: 0,
+  totalViews: 0,
+  topPage: "-",
+  viewsDelta: 0,
+  usersDelta: 0,
+});
 const mockLogs = ref<any[]>([]);
 const trendData = ref({ dates: [] as string[], views: [] as number[], users: [] as number[] });
 const rankingData = ref({ menus: [] as string[], views: [] as number[] });
-const dailyMenuTrendData = ref<any[]>([]); 
+const dailyMenuTrendData = ref<any[]>([]);
 
 const firstRow = ref(0);
-const rowsPerPage = ref(10);
+const rowsPerPage = ref(5);
+
 const paginatedLogs = computed(() => {
   return mockLogs.value.slice(firstRow.value, firstRow.value + rowsPerPage.value);
 });
 
 const formatMenuName = (name: string) => {
-  if (!name || name === '-') return '-';
+  if (!name || name === "-") return "-";
+
   const customNames: Record<string, string> = {
-    'wafer': 'Wafer Flat Data', 'lot-uniformity': 'Lot Uniformity Trend',
-    'spectrum': 'Spectrum Analytics', 'process-matching': 'Process Matching',
-    'equipment': 'Equipment Explorer', 'performance': 'Performance Trend',
-    'process-memory': 'Process Memory', 'lamp': 'Lamp Life',
-    'prealign': 'Pre-Align Analytics', 'error': 'Error Analytics',
-    'health': 'Equipment Health', 'optical-trend': 'Optical Trend',
-    'agent-memory': 'ITM Agent Memory', 'usage-analytics': 'Usage Analytics'
+    wafer: "Wafer Flat Data",
+    "lot-uniformity": "Lot Uniformity Trend",
+    spectrum: "Spectrum Analytics",
+    "process-matching": "Process Matching",
+    equipment: "Equipment Explorer",
+    performance: "Performance Trend",
+    "process-memory": "Process Memory",
+    lamp: "Lamp Life",
+    prealign: "Pre-Align Analytics",
+    error: "Error Analytics",
+    health: "Equipment Health",
+    "optical-trend": "Optical Trend",
+    "agent-memory": "ITM Agent Memory",
+    "usage-analytics": "Usage Analytics",
   };
+
   return customNames[name] || name;
 };
 
 const exportCSV = () => {
   if (!mockLogs.value.length) return;
-  
-  let csvContent = "\uFEFF"; 
+
+  let csvContent = "\uFEFF";
   csvContent += "Timestamp,Login ID,Accessed Page\n";
-  
+
   mockLogs.value.forEach((row: any) => {
     const safeMenu = formatMenuName(row.menu).replace(/"/g, '""');
     csvContent += `"${row.time}","${row.loginId}","${safeMenu}"\n`;
   });
-  
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `IVision_Usage_Analytics_${toLocalISOString(new Date()).slice(0,10)}.csv`);
+  link.setAttribute(
+    "download",
+    `IVision_Usage_Analytics_${toLocalISOString(new Date()).slice(0, 10)}.csv`,
+  );
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -266,49 +400,62 @@ watch(
     if (newStart && newEnd) {
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
+
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) endDate.value = new Date(newStart);
         else if (endMs !== oldEnd?.getTime()) startDate.value = new Date(newEnd);
       }
     }
-  }
+  },
 );
 
 onMounted(() => {
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      if (mutation.attributeName === "class") isDarkMode.value = document.documentElement.classList.contains("dark");
+      if (mutation.attributeName === "class") {
+        isDarkMode.value = document.documentElement.classList.contains("dark");
+      }
     });
   });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+
   searchData();
 });
 
-onUnmounted(() => { if (themeObserver) themeObserver.disconnect(); });
+onUnmounted(() => {
+  if (themeObserver) themeObserver.disconnect();
+});
 
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
+
   const d = new Date(date);
+
   if (isEndDate) d.setHours(23, 59, 59, 999);
   else d.setHours(0, 0, 0, 0);
+
   const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace('T', ' '); 
+  return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace("T", " ");
 };
 
 const searchData = async () => {
   isLoading.value = true;
   hasSearched.value = true;
-  firstRow.value = 0; 
-  
+  firstRow.value = 0;
+
   try {
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
-    
+
     const data = await adminApi.getUsageAnalytics(startStr, endStr);
-    
+
     kpiData.value = data.kpi;
     mockLogs.value = data.recentLogs;
-    
+
     trendData.value.dates = data.dailyTrend.map((d: any) => d.date);
     trendData.value.views = data.dailyTrend.map((d: any) => d.views);
     trendData.value.users = data.dailyTrend.map((d: any) => d.users);
@@ -318,7 +465,6 @@ const searchData = async () => {
     const menuData = data.menuUtilization.slice().reverse();
     rankingData.value.menus = menuData.map((d: any) => formatMenuName(d.menu));
     rankingData.value.views = menuData.map((d: any) => d.views);
-    
   } catch (error) {
     console.error("Failed to fetch usage analytics:", error);
   } finally {
@@ -328,150 +474,258 @@ const searchData = async () => {
 
 const trendChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-  
+  const gridColor = isDarkMode.value
+    ? "rgba(255, 255, 255, 0.1)"
+    : "rgba(0, 0, 0, 0.1)";
+
   return {
     backgroundColor: "transparent",
-    tooltip: { trigger: 'axis' },
-    legend: { show: false }, 
+    tooltip: { trigger: "axis" },
+    legend: { show: false },
     grid: { left: 40, right: 10, top: 30, bottom: 20 },
     xAxis: {
-      type: 'category', data: trendData.value.dates,
-      axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } }
+      type: "category",
+      data: trendData.value.dates,
+      axisLabel: { color: textColor, fontSize: 10 },
+      axisLine: { lineStyle: { color: gridColor } },
     },
-    yAxis: { 
-      type: 'value', name: 'Views', minInterval: 1, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontSize: 10 } 
+    yAxis: {
+      type: "value",
+      name: "Users",
+      minInterval: 1,
+      splitLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, fontSize: 10 },
     },
     series: [
-      { name: 'Total Views', type: 'bar', data: trendData.value.views, itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] } }
-    ]
+      {
+        name: "Active Users",
+        type: "bar",
+        data: trendData.value.users,
+        itemStyle: { color: "#6366f1", borderRadius: [4, 4, 0, 0] },
+      },
+    ],
   };
 });
 
 const pageTrendChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-  
+  const gridColor = isDarkMode.value
+    ? "rgba(255, 255, 255, 0.1)"
+    : "rgba(0, 0, 0, 0.1)";
+
   const topMenus = [...rankingData.value.menus].reverse();
-  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e', '#84cc16', '#6366f1', '#14b8a6'];
+  const colors = [
+    "#3b82f6",
+    "#10b981",
+    "#f59e0b",
+    "#8b5cf6",
+    "#ec4899",
+    "#06b6d4",
+    "#f43f5e",
+    "#84cc16",
+    "#6366f1",
+    "#14b8a6",
+  ];
 
   const series = topMenus.map((menu: string, index: number) => {
-    const data = trendData.value.dates.map(date => {
-      const record = dailyMenuTrendData.value.find((d: any) => d.date === date && formatMenuName(d.menu) === menu);
+    const data = trendData.value.dates.map((date) => {
+      const record = dailyMenuTrendData.value.find(
+        (d: any) => d.date === date && formatMenuName(d.menu) === menu,
+      );
       return record ? record.views : 0;
     });
+
     return {
       name: menu,
-      type: 'line',
+      type: "line",
       smooth: true,
       symbolSize: 4,
       itemStyle: { color: colors[index % colors.length] },
-      data: data
+      data,
     };
   });
 
   return {
     backgroundColor: "transparent",
-    tooltip: { trigger: 'axis' },
+    tooltip: { trigger: "axis" },
     legend: {
-      type: 'scroll',
-      textStyle: { color: textColor, fontSize: 10 },
-      top: 0, right: 10, left: 10,
-      itemGap: 15
+      type: "scroll",
+      orient: "vertical",
+      right: 0,
+      top: "middle",
+      textStyle: { color: textColor, fontSize: 10, width: 110, overflow: "truncate" },
+      itemGap: 12,
     },
-    grid: { left: 40, right: 20, top: 30, bottom: 20 },
+    grid: { left: 40, right: 140, top: 20, bottom: 20 },
     xAxis: {
-      type: 'category', data: trendData.value.dates,
-      axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } }
+      type: "category",
+      data: trendData.value.dates,
+      axisLabel: { color: textColor, fontSize: 10 },
+      axisLine: { lineStyle: { color: gridColor } },
     },
     yAxis: {
-      type: 'value', minInterval: 1, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, fontSize: 10 }
+      type: "value",
+      minInterval: 1,
+      splitLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, fontSize: 10 },
     },
-    series: series
+    series,
   };
 });
 
 const rankingChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-  
+  const gridColor = isDarkMode.value
+    ? "rgba(255, 255, 255, 0.1)"
+    : "rgba(0, 0, 0, 0.1)";
+
   return {
     backgroundColor: "transparent",
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
     grid: { left: 130, right: 20, top: 10, bottom: 20 },
     xAxis: {
-      type: 'value', minInterval: 1,
-      axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } }
+      type: "value",
+      minInterval: 1,
+      axisLabel: { color: textColor, fontSize: 10 },
+      splitLine: { lineStyle: { color: gridColor } },
     },
     yAxis: {
-      type: 'category', data: rankingData.value.menus,
-      axisLabel: { color: textColor, fontSize: 10, width: 120, overflow: 'truncate' },
-      axisLine: { show: false }, axisTick: { show: false }
+      type: "category",
+      data: rankingData.value.menus,
+      axisLabel: { color: textColor, fontSize: 10, width: 120, overflow: "truncate" },
+      axisLine: { show: false },
+      axisTick: { show: false },
     },
     series: [
       {
-        name: 'Views', type: 'bar', data: rankingData.value.views,
+        name: "Views",
+        type: "bar",
+        data: rankingData.value.views,
         itemStyle: {
-          color: function(params: any) {
-            const colors = ['#94a3b8', '#8b5cf6', '#f59e0b', '#0ea5e9', '#ec4899'];
+          color: function (params: any) {
+            const colors = ["#94a3b8", "#8b5cf6", "#f59e0b", "#0ea5e9", "#ec4899"];
             return colors[params.dataIndex % colors.length];
-          }, borderRadius: [0, 4, 4, 0]
+          },
+          borderRadius: [0, 4, 4, 0],
         },
-        label: { show: true, position: 'right', color: textColor, fontSize: 10 }
-      }
-    ]
+        label: { show: true, position: "right", color: textColor, fontSize: 10 },
+      },
+    ],
   };
 });
 </script>
 
 <style scoped>
-:deep(.p-select), :deep(.custom-dropdown) {
+:deep(.p-select),
+:deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
-:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
-:deep(.date-picker .p-inputtext) { @apply !text-[13px] !py-1 !px-2 !h-7; }
-:deep(.custom-dropdown.small) { @apply h-7; }
-:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
-:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
+
+:deep(.custom-dropdown .p-select-label) {
+  @apply text-[13px] py-[5px] px-3;
+}
+
+:deep(.date-picker .p-inputtext) {
+  @apply !text-[13px] !py-1 !px-2 !h-7;
+}
+
+:deep(.custom-dropdown.small) {
+  @apply h-7;
+}
+
+:deep(.custom-dropdown:hover) {
+  @apply !bg-slate-200 dark:!bg-zinc-800;
+}
+
+:deep(.p-select-dropdown) {
+  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
+}
 
 /* DataTable 커스텀 스타일 */
-:deep(.p-datatable-header) { @apply !bg-transparent !p-0 !border-0; }
+:deep(.p-datatable-header) {
+  @apply !bg-transparent !p-0 !border-0;
+}
+
 :deep(.p-datatable-thead > tr > th) {
   @apply !bg-slate-50 dark:!bg-zinc-800/80 !text-slate-500 dark:!text-slate-400 !font-bold !text-[10px] uppercase !py-2.5 !border-b !border-slate-100 dark:!border-zinc-700 z-10 sticky top-0;
 }
+
 :deep(.p-datatable-tbody > tr > td) {
   @apply !py-1.5 !border-b !border-slate-50 dark:!border-zinc-800/50 !bg-white dark:!bg-[#111111];
 }
+
 :deep(.p-datatable-striped-rows .p-datatable-tbody > tr:nth-child(even) > td) {
   @apply !bg-slate-50/50 dark:!bg-zinc-900/30;
 }
+
 :deep(.p-datatable-tbody > tr:hover > td) {
   @apply !bg-slate-50 dark:!bg-zinc-900/50 transition-colors;
 }
 
 /* 탑 페이지네이터 커스텀 스타일 */
 :deep(.custom-top-paginator) {
-  @apply !bg-transparent !p-0 !border-0 text-xs;
+  @apply !bg-transparent !p-0 !m-0 !border-0 text-xs h-full flex items-center;
 }
+
 :deep(.custom-top-paginator .p-paginator-element) {
   @apply !min-w-[24px] !h-6 !text-xs !p-0 !m-0 !text-slate-500 dark:!text-slate-400;
 }
+
 :deep(.custom-top-paginator .p-paginator-current) {
   @apply !h-6 !leading-6 !px-2 !text-[11px] !text-slate-500 dark:!text-slate-400 font-bold;
 }
+
 :deep(.custom-top-paginator .p-select),
 :deep(.custom-top-paginator .p-dropdown) {
   @apply !h-6 !text-[10px] !items-center !border-slate-200 dark:!border-zinc-700 !bg-white dark:!bg-zinc-800 !mr-2 !rounded;
 }
+
 :deep(.custom-top-paginator .p-select .p-select-label),
 :deep(.custom-top-paginator .p-dropdown .p-dropdown-label) {
   @apply !p-0 !px-2 !text-[10px] !font-bold !leading-6;
 }
-:deep(.p-paginator-dropdown-panel .p-select-option),
-:deep(.p-dropdown-panel .p-dropdown-item) {
-  @apply !text-[10px] !py-1 !px-2;
+
+/* RowsPerPage 드롭다운 펼쳤을 때 목록 크기 축소 */
+:deep(.p-select-overlay),
+:deep(.p-dropdown-panel) {
+  @apply !rounded-md !border !border-slate-200 dark:!border-zinc-700 !bg-white dark:!bg-zinc-900 shadow-lg;
 }
 
-.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+:deep(.p-select-list),
+:deep(.p-dropdown-items) {
+  @apply !py-1;
+}
+
+:deep(.p-paginator-dropdown-panel .p-select-option),
+:deep(.p-dropdown-panel .p-dropdown-item),
+:deep(.p-select-option) {
+  @apply !text-[10px] !py-1 !px-2 !min-h-0 !leading-4;
+}
+
+:deep(.p-paginator-dropdown-panel .p-select-option:hover),
+:deep(.p-dropdown-panel .p-dropdown-item:hover),
+:deep(.p-select-option:hover) {
+  @apply !bg-slate-100 dark:!bg-zinc-800;
+}
+
+:deep(.p-paginator-dropdown-panel .p-select-option.p-select-option-selected),
+:deep(.p-dropdown-panel .p-dropdown-item.p-highlight),
+:deep(.p-select-option.p-select-option-selected) {
+  @apply !bg-indigo-50 dark:!bg-indigo-900/30 !text-indigo-600 dark:!text-indigo-300;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 </style>
