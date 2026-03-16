@@ -12,7 +12,7 @@ const props = defineProps<{
   theme?: string | object;
 }>();
 
-// ▼▼▼ [추가] 차트 생성 완료 이벤트를 정의합니다. ▼▼▼
+// 차트 생성 완료 이벤트를 정의합니다.
 const emit = defineEmits(["chartCreated"]);
 
 const chartRef = ref<HTMLElement | null>(null);
@@ -30,17 +30,16 @@ const initChart = () => {
 
     chartInstance = echarts.init(chartRef.value, theme);
     
-    // ▼▼▼ [추가] 차트 인스턴스가 생성되면 부모에게 전달합니다. ▼▼▼
+    // 차트 인스턴스가 생성되면 부모에게 전달합니다.
     emit("chartCreated", chartInstance);
 
     if (props.option) {
-      chartInstance.setOption(props.option);
+      // 초기 렌더링 시에도 확실한 덮어쓰기 적용
+      chartInstance.setOption(props.option, { notMerge: true });
     }
   }
 };
 
-// ... (나머지 코드는 기존과 동일하게 유지) ...
-// setupResizeObserver, watch, themeObserver, onMounted, onUnmounted 등 기존 코드 유지
 const setupResizeObserver = () => {
   if (!chartRef.value) return;
   resizeObserver = new ResizeObserver(() => {
@@ -53,7 +52,10 @@ watch(
   () => props.option,
   (newOption) => {
     if (chartInstance && newOption) {
-      chartInstance.setOption(newOption, { notMerge: false, lazyUpdate: true });
+      // [핵심 변경] notMerge: true 로 설정하여 
+      // 이전 조회 조건(예: 7일)의 차트 잔여물이 현재 조회 조건(예: 1일)에 
+      // 누적되어 중복으로 그려지는(Ghosting) 문제를 완벽히 차단합니다.
+      chartInstance.setOption(newOption, { notMerge: true, lazyUpdate: true });
     }
   },
   { deep: true }
