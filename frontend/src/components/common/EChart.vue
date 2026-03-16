@@ -29,7 +29,7 @@ const initChart = () => {
     const theme = props.theme || (isDark ? "dark" : undefined);
 
     chartInstance = echarts.init(chartRef.value, theme);
-    
+
     // 차트 인스턴스가 생성되면 부모에게 전달합니다.
     emit("chartCreated", chartInstance);
 
@@ -52,13 +52,13 @@ watch(
   () => props.option,
   (newOption) => {
     if (chartInstance && newOption) {
-      // [핵심 변경] notMerge: true 로 설정하여 
-      // 이전 조회 조건(예: 7일)의 차트 잔여물이 현재 조회 조건(예: 1일)에 
+      // [핵심 변경] notMerge: true 로 설정하여
+      // 이전 조회 조건(예: 7일)의 차트 잔여물이 현재 조회 조건(예: 1일)에
       // 누적되어 중복으로 그려지는(Ghosting) 문제를 완벽히 차단합니다.
       chartInstance.setOption(newOption, { notMerge: true, lazyUpdate: true });
     }
   },
-  { deep: true }
+  { deep: true },
 );
 
 const themeObserver = new MutationObserver((mutations) => {
