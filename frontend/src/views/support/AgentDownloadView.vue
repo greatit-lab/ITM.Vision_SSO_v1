@@ -1,7 +1,7 @@
 <!-- frontend/src/views/support/AgentDownloadView.vue -->
 <template>
   <div
-    class="flex flex-col h-full w-full font-sans bg-[#F8FAFC] dark:bg-[#09090B] p-4 md:p-6 overflow-hidden relative"
+    class="flex flex-col h-full w-full font-sans bg-[#F8FAFC] dark:bg-[#09090B] p-4 md:p-5 overflow-hidden relative"
   >
     <div
       v-if="isLoading"
@@ -27,23 +27,23 @@
     </div>
 
     <div
-      class="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in"
+      class="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in"
       style="animation-delay: 0.1s"
     >
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 shrink-0">
-        <div class="flex flex-col gap-4 lg:col-span-2">
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-3 flex-1 min-h-0">
+        <div class="flex flex-col gap-3 lg:col-span-2 h-full min-h-0">
           <div
             v-if="latestVersion"
-            class="relative bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 md:px-8 md:pt-7 md:pb-7 shadow-sm overflow-hidden shrink-0 flex flex-col min-h-[245px]"
+            class="relative bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 md:px-7 md:pt-6 md:pb-5 shadow-sm overflow-hidden shrink-0 flex flex-col"
           >
             <div
               class="absolute top-0 right-0 w-64 h-64 -mt-20 -mr-20 rounded-full pointer-events-none bg-indigo-50 dark:bg-indigo-900/10 blur-3xl opacity-60"
             ></div>
 
             <div
-              class="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-stretch h-full w-full"
+              class="relative z-10 flex flex-col justify-between gap-5 md:flex-row md:items-stretch h-full w-full"
             >
-              <div class="flex flex-col justify-between flex-1 h-full">
+              <div class="flex flex-col flex-1">
                 <div class="pt-1">
                   <div class="flex items-center gap-2 mb-2">
                     <span
@@ -56,7 +56,7 @@
                     </span>
                   </div>
 
-                  <h2 class="mb-3 text-3xl font-black text-slate-800 dark:text-white">
+                  <h2 class="mb-2.5 text-3xl font-black text-slate-800 dark:text-white">
                     ITM Agent for Windows
                   </h2>
 
@@ -70,7 +70,7 @@
                 </div>
 
                 <div
-                  class="flex flex-wrap items-center gap-4 mt-8 md:mt-auto pt-4 text-xs font-medium text-slate-400"
+                  class="flex flex-wrap items-center gap-4 mt-4 pt-2 text-xs font-medium text-slate-400"
                 >
                   <div class="flex items-center gap-1.5">
                     <i class="pi pi-calendar"></i>
@@ -88,9 +88,9 @@
               </div>
 
               <div
-                class="flex flex-col justify-between w-full shrink-0 md:w-auto mt-4 md:mt-0 h-full"
+                class="flex flex-col justify-between w-full shrink-0 md:w-auto mt-3 md:mt-0 h-full md:min-w-[340px]"
               >
-                <div class="flex flex-col justify-center flex-1 gap-3">
+                <div class="flex flex-col justify-center flex-1 gap-2.5">
                   <button
                     @click="downloadFile(latestVersion.fileUrl64 || 'agent/ITM_Agent_Setup.exe')"
                     :disabled="isDownloading"
@@ -136,7 +136,7 @@
                 </div>
 
                 <div
-                  class="mt-5 md:mt-auto pt-4 text-center text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed"
+                  class="mt-4 pt-2 text-center text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed"
                 >
                   설치 환경에 따라
                   <code
@@ -158,83 +158,127 @@
           </div>
 
           <div
-            class="px-6 pt-5 pb-4 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-2xl shrink-0"
+            class="px-5 py-3.5 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-2xl shrink-0"
           >
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+              <div class="flex items-start gap-3">
+                <div
+                  class="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shrink-0"
+                >
+                  <i class="text-base pi pi-share-alt text-slate-600 dark:text-slate-300"></i>
+                </div>
+
+                <div>
+                  <h3 class="text-sm font-bold text-slate-800 dark:text-white">
+                    Main 장비 Proxy 전용 유틸리티
+                  </h3>
+                  <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    Main 장비를 통해 Proxy 방식으로 연결되는 환경에서 사용하는 전용 실행 파일입니다.
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3 md:ml-auto md:pr-2">
+                <span
+                  v-if="latestVersion?.fileSizeProxy"
+                  class="text-[11px] font-medium text-slate-400 dark:text-slate-500 shrink-0"
+                >
+                  {{ latestVersion.fileSizeProxy }}
+                </span>
+
+                <button
+                  @click="downloadFile(latestVersion?.fileUrlProxy || 'agent/ITM_XP_Proxy.exe')"
+                  :disabled="isDownloading"
+                  class="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  <i v-if="isDownloading" class="pi pi-spin pi-spinner text-sm"></i>
+                  <i v-else class="pi pi-download text-sm"></i>
+                  <span class="text-sm font-bold">Download ITM_XP_Proxy</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="flex flex-col flex-1 px-5 pt-4 pb-4 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-2xl min-h-0"
+          >
+            <div class="flex items-center gap-2 mb-3 shrink-0">
               <i class="text-lg text-amber-500 pi pi-bolt"></i>
               <h3 class="text-lg font-bold text-slate-800 dark:text-white">
                 Quick Start Guide
               </h3>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-3 flex-1 min-h-0">
               <div
-                class="relative px-5 pt-4 pb-3 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group"
+                class="relative px-4 py-3.5 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group flex flex-col items-center justify-start text-center h-full"
               >
                 <div
-                  class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110"
+                  class="absolute flex items-center justify-center w-7 h-7 text-[11px] font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-2.5 -left-2.5 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110"
                 >
                   1
                 </div>
-                <div class="mt-1 text-center">
-                  <i
-                    class="mb-2 text-3xl transition-colors pi pi-cloud-download text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400"
-                  ></i>
+            
+                <i
+                  class="mt-1 mb-2 text-[34px] transition-colors pi pi-cloud-download text-slate-300 dark:text-zinc-500 group-hover:text-indigo-400"
+                ></i>
+            
+                <div class="min-w-0">
                   <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                     Downloading
                   </h4>
-                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    운영체제 버전에 맞는 ITM Agent 설치 파일을 다운로드 받아 계측 장비 PC로
-                    이동합니다.
+                  <p class="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                    운영체제 버전에 맞는 ITM Agent 설치 파일을 다운로드 받아 계측 장비 PC로 이동합니다.
                   </p>
                 </div>
               </div>
-
+            
               <div
-                class="relative px-5 pt-4 pb-3 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group"
+                class="relative px-4 py-3.5 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group flex flex-col items-center justify-start text-center h-full"
               >
                 <div
-                  class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110"
+                  class="absolute flex items-center justify-center w-7 h-7 text-[11px] font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-2.5 -left-2.5 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110"
                 >
                   2
                 </div>
-                <div class="mt-1 text-center">
-                  <i
-                    class="mb-2 text-3xl transition-colors pi pi-shield text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400"
-                  ></i>
+            
+                <i
+                  class="mt-1 mb-2 text-[34px] transition-colors pi pi-shield text-slate-300 dark:text-zinc-500 group-hover:text-indigo-400"
+                ></i>
+            
+                <div class="min-w-0">
                   <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                     Install Agent
                   </h4>
-                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  <p class="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
                     다운로드한
-                    <code
-                      class="bg-slate-200 dark:bg-zinc-700 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-300"
-                    >
+                    <code class="bg-slate-200 dark:bg-zinc-700 px-1 rounded text-indigo-600 dark:text-indigo-300">
                       Setup.exe
                     </code>
                     파일을 관리자 권한으로 실행하여 설치를 진행합니다.
                   </p>
                 </div>
               </div>
-
+            
               <div
-                class="relative px-5 pt-4 pb-3 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group"
+                class="relative px-4 py-3.5 transition-colors border bg-slate-50 dark:bg-zinc-900/50 rounded-xl border-slate-100 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 group flex flex-col items-center justify-start text-center h-full"
               >
                 <div
-                  class="absolute flex items-center justify-center w-8 h-8 font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-3 -left-3 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110"
+                  class="absolute flex items-center justify-center w-7 h-7 text-[11px] font-black text-indigo-600 transition-transform bg-white border rounded-full shadow-sm -top-2.5 -left-2.5 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 dark:text-indigo-400 group-hover:scale-110"
                 >
                   3
                 </div>
-                <div class="mt-1 text-center">
-                  <i
-                    class="mb-2 text-3xl transition-colors pi pi-cog text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400"
-                  ></i>
+            
+                <i
+                  class="mt-1 mb-2 text-[34px] transition-colors pi pi-cog text-slate-300 dark:text-zinc-500 group-hover:text-indigo-400"
+                ></i>
+            
+                <div class="min-w-0">
                   <h4 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                     Configure & Start
                   </h4>
-                  <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    설치 중 계측 장비의 EQPID 지정 및 데이터 아카이브 폴더를 선택 후
-                    서비스를 시작합니다.
+                  <p class="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                    설치 중 계측 장비의 EQPID 지정 및 데이터 아카이브 폴더를 선택 후 서비스를 시작합니다.
                   </p>
                 </div>
               </div>
@@ -243,7 +287,7 @@
         </div>
 
         <div
-          class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-0 shadow-sm flex flex-col h-full w-full overflow-hidden min-h-[390px] max-h-[480px]"
+          class="bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 rounded-2xl p-0 shadow-sm flex flex-col h-full w-full overflow-hidden"
         >
           <div
             class="flex items-center gap-2 p-4 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/50"
@@ -259,7 +303,7 @@
             </span>
           </div>
 
-          <div class="flex flex-col flex-1 gap-4 px-5 pt-5 pb-3 overflow-y-auto history-scroll min-h-0">
+          <div class="flex flex-col flex-1 gap-3 px-5 pt-4 pb-3 overflow-y-auto history-scroll min-h-0">
             <div
               v-for="(ver, index) in displayVersions"
               :key="ver.id"
@@ -279,7 +323,7 @@
                 "
               ></div>
 
-              <div class="flex items-baseline justify-between mb-1.5">
+              <div class="flex items-baseline justify-between mb-1">
                 <h4
                   class="text-sm font-bold"
                   :class="
@@ -296,7 +340,7 @@
               </div>
 
               <ul
-                class="ml-3 space-y-1 text-xs leading-relaxed list-disc list-outside"
+                class="ml-3 space-y-0.5 text-xs leading-relaxed list-disc list-outside"
                 :class="
                   index === 0
                     ? 'text-slate-600 dark:text-slate-400'
@@ -321,9 +365,9 @@
         </div>
       </div>
 
-      <div class="w-full mt-0 shrink-0">
+      <div class="w-full shrink-0">
         <div
-          class="flex items-center justify-between px-1 pb-2 mb-3 border-b border-slate-200 dark:border-zinc-800"
+          class="flex items-center justify-between px-1 pb-2 mb-2 border-b border-slate-200 dark:border-zinc-800"
         >
           <div class="flex items-center gap-2">
             <i class="text-xl text-indigo-500 pi pi-puzzle-piece"></i>
@@ -336,45 +380,48 @@
           </span>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 pb-1 md:grid-cols-3 lg:grid-cols-5">
+        <div class="grid grid-cols-2 gap-3 pb-0.5 md:grid-cols-3 lg:grid-cols-5">
           <div
             v-for="plugin in plugins"
             :key="plugin.id"
-            class="flex flex-col h-full p-4 transition-colors bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-xl hover:border-indigo-300 dark:hover:border-indigo-800/50 group min-h-[150px]"
+            class="flex flex-col p-3 transition-colors bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-xl hover:border-indigo-300 dark:hover:border-indigo-800/50 group min-h-[112px]"
           >
-            <div class="flex items-start justify-between gap-2 mb-3 shrink-0">
-              <div class="flex items-center gap-2.5 overflow-hidden">
-                <div
-                  :class="`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${plugin.bg}`"
-                >
-                  <i :class="`pi ${plugin.icon} ${plugin.color} text-sm`"></i>
-                </div>
-                <h4
-                  class="text-[12px] font-bold text-slate-800 dark:text-slate-200 truncate"
-                  :title="plugin.name"
-                >
-                  {{ plugin.name }}
-                </h4>
-              </div>
-              <span
-                class="text-[9px] text-slate-400 font-mono tracking-wider bg-slate-50 dark:bg-zinc-800/80 border border-slate-100 dark:border-zinc-700 px-1.5 py-0.5 rounded shrink-0 mt-0.5"
+            <div class="flex items-start gap-2.5 mb-2">
+              <div
+                :class="`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${plugin.bg}`"
               >
-                {{ plugin.version }}
-              </span>
+                <i :class="`pi ${plugin.icon} ${plugin.color} text-sm`"></i>
+              </div>
+
+              <div class="min-w-0 flex-1">
+                <div class="flex items-start justify-between gap-2">
+                  <h4
+                    class="text-[12px] font-bold text-slate-800 dark:text-slate-200 truncate"
+                    :title="plugin.name"
+                  >
+                    {{ plugin.name }}
+                  </h4>
+                  <span
+                    class="text-[9px] text-slate-400 font-mono tracking-wider bg-slate-50 dark:bg-zinc-800/80 border border-slate-100 dark:border-zinc-700 px-1.5 py-0.5 rounded shrink-0"
+                  >
+                    {{ plugin.version }}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <p
-              class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-4 line-clamp-3 flex-1"
+              class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2"
               :title="plugin.description"
             >
               {{ plugin.description }}
             </p>
 
-            <div class="flex justify-end mt-auto shrink-0">
+            <div class="mt-auto pt-3 flex justify-center">
               <button
                 @click="downloadFile(plugin.filename)"
                 :disabled="isDownloading"
-                class="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-slate-50 hover:bg-indigo-500 dark:bg-zinc-800 dark:hover:bg-indigo-600 text-slate-600 hover:text-white dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-zinc-700 hover:border-indigo-500 dark:hover:border-indigo-600 font-bold rounded-lg text-[11px] transition-all disabled:opacity-50"
+                class="inline-flex items-center justify-center gap-1.5 min-w-[96px] px-5 py-1.5 bg-slate-50 hover:bg-indigo-500 dark:bg-zinc-800 dark:hover:bg-indigo-600 text-slate-600 hover:text-white dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-zinc-700 hover:border-indigo-500 dark:hover:border-indigo-600 font-bold rounded-lg text-[11px] transition-all disabled:opacity-50"
               >
                 <i class="pi pi-download text-[11px]"></i>
                 Get
@@ -417,7 +464,6 @@ onMounted(async () => {
   }
 });
 
-// [핵심 수정] 하드코딩된 .slice(0, 4) 갯수 제한 삭제
 const displayVersions = computed(() => {
   return [...versions.value]
     .filter((v) => v.is_visible_y !== "N")
@@ -457,7 +503,7 @@ const parseFeatures = (featuresStr: string) => {
 };
 
 const downloadFile = async (relativePath: string) => {
-  if (isDownloading.value) return;
+  if (isDownloading.value || !relativePath) return;
 
   isDownloading.value = true;
 
@@ -507,10 +553,10 @@ const downloadFile = async (relativePath: string) => {
   }
 }
 
-.line-clamp-3 {
+.line-clamp-2 {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
