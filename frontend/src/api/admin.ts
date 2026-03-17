@@ -42,13 +42,14 @@ export const deleteAdmin = (loginId: string) => http.delete(`/admin/admins/${log
 // ==========================================
 // [Access Codes] 접근 제어 (Whitelist)
 // ==========================================
+// [수정됨] API 경로 및 파라미터 기준(deptid) 통일
 export const getAccessCodes = () => http.get('/admin/access-codes');
 
-export const createAccessCode = (data: { compid: string; deptid: string; description?: string; isActive?: string; }) => http.post('/admin/access-codes', data);
+export const createAccessCode = (data: { compid?: string; deptid: string; description?: string; isActive?: string; }) => http.post('/admin/access-codes', data);
 
-export const updateAccessCode = (compid: string, data: { deptid: string; description?: string; isActive?: string; }) => http.put(`/admin/access-codes/${compid}`, data);
+export const updateAccessCode = (deptid: string, data: { compid?: string; description?: string; isActive?: string; }) => http.put(`/admin/access-codes/${deptid}`, data);
 
-export const deleteAccessCode = (compid: string) => http.delete(`/admin/access-codes/${compid}`);
+export const deleteAccessCode = (deptid: string) => http.delete(`/admin/access-codes/${deptid}`);
 
 // ==========================================
 // [Guest Management] 게스트 관리
@@ -129,7 +130,7 @@ export const adminApi = {
   // 1. 접속 로그 기록 (Vue Router에서 자동 호출)
   logAccess: async (data: { loginId: string; menuName: string; accessUrl: string }) => {
     
-    // [핵심 변경] sessionStorage를 이용해 외부 진입(세션 생성) 여부를 추적합니다.
+    // sessionStorage를 이용해 외부 진입(세션 생성) 여부를 추적합니다.
     const isFirstEntry = !sessionStorage.getItem('ivision_session_entry');
 
     if (isFirstEntry) {
