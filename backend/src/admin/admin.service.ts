@@ -26,10 +26,11 @@ export class AdminService {
   async addAdmin(data: CreateAdminDto): Promise<AdminUserResult | null> { return this.api.request<AdminUserResult>(this.DOMAIN, 'post', 'admins', data); }
   async deleteAdmin(loginId: string): Promise<AdminUserResult | null> { return this.api.request<AdminUserResult>(this.DOMAIN, 'delete', `admins/${loginId}`); }
 
-  async getAllAccessCodes(): Promise<GuestAccessResult[] | null> { return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guest/access'); }
-  async createAccessCode(data: CreateAccessCodeDto): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'post', 'guest/access', data); }
-  async updateAccessCode(compid: string, data: UpdateAccessCodeDto): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'put', `access-codes/${compid}`, data); }
-  async deleteAccessCode(compid: string): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'delete', `guest/access/${compid}`); }
+  // [수정됨] Data-API의 바뀐 엔드포인트(/admin/access-codes)로 경로 수정 및 파라미터를 deptid로 변경
+  async getAllAccessCodes(): Promise<GuestAccessResult[] | null> { return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'access-codes'); }
+  async createAccessCode(data: CreateAccessCodeDto): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'post', 'access-codes', data); }
+  async updateAccessCode(deptid: string, data: UpdateAccessCodeDto): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'put', `access-codes/${deptid}`, data); }
+  async deleteAccessCode(deptid: string): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'delete', `access-codes/${deptid}`); }
 
   async getAllGuests(): Promise<GuestAccessResult[] | null> { return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guests'); }
   async addGuest(data: CreateGuestDto): Promise<GuestAccessResult | null> { return this.api.request<GuestAccessResult>(this.DOMAIN, 'post', 'guests', data); }
@@ -58,16 +59,11 @@ export class AdminService {
   async updateCfgServer(eqpid: string, data: UpdateCfgServerDto): Promise<GenericResult | null> { return this.api.request<GenericResult>(this.DOMAIN, 'put', `servers/${eqpid}`, data); }
   async deleteCfgServer(eqpid: string): Promise<GenericResult | null> { return this.api.request<GenericResult>(this.DOMAIN, 'delete', `servers/${eqpid}`); }
 
-  // ==========================================
-  // [Usage Analytics] 접속 로그 및 통계 (추가됨)
-  // ==========================================
   async logAccess(data: { loginId: string; menuName: string; accessUrl: string }): Promise<GenericResult | null> {
-    // Data API의 POST /admin/access-log 로 전달
     return this.api.request<GenericResult>(this.DOMAIN, 'post', 'access-log', data);
   }
 
   async getUsageAnalytics(startDate: string, endDate: string): Promise<GenericResult | null> {
-    // Data API의 GET /admin/usage-analytics 로 전달
     return this.api.request<GenericResult>(
       this.DOMAIN, 
       'get', 
