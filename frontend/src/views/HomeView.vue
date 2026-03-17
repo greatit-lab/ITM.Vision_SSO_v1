@@ -493,6 +493,7 @@
                     @click="copyToClipboard(agent.ipAddress)"
                   >
                     <i class="text-[9px] pi pi-globe"></i> {{ agent.ipAddress }}
+                    <span v-if="agent.useProxy === 'Y'" class="px-1 py-[1px] ml-0.5 text-[8px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800 shadow-sm leading-none whitespace-nowrap tracking-wider">PROXY</span>
                   </div>
                 </div>
 
@@ -748,7 +749,6 @@ onMounted(async () => {
     let targetSite = filterStore.selectedSite;
     let targetSdwt = filterStore.selectedSdwt;
 
-    // [수정 핵심] 프로필 설정을 최우선으로, 없을 때만 localStorage 참조
     if (!targetSite) {
       if (authStore.user?.site) {
         targetSite = authStore.user.site;
@@ -877,7 +877,6 @@ const startAutoRefresh = () => {
   if (refreshTimer) clearInterval(refreshTimer);
   refreshCount.value = 30;
   
-  // 강제 형변환 대신 window.setInterval 을 사용하면 TypeScript가 브라우저용 타이머로 완벽히 인식합니다.
   refreshTimer = window.setInterval(() => {
     refreshCount.value--;
     if (refreshCount.value <= 0) {
