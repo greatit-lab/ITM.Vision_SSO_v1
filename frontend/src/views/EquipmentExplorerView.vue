@@ -204,7 +204,7 @@
                 />
                 <Column
                   header="HOST SERVER INFO"
-                  :colspan="10"
+                  :colspan="11"
                   headerClass="text-center bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-300 font-bold"
                 />
                 <Column
@@ -270,6 +270,11 @@
                 <Column
                   header="MAC"
                   field="macAddress"
+                  style="min-width: 140px"
+                />
+                <Column
+                  header="Proxy"
+                  field="proxyIp"
                   style="min-width: 140px"
                 />
                 <Column
@@ -392,6 +397,14 @@
                 }}</span>
               </template>
             </Column>
+            
+            <Column field="proxyIp">
+              <template #body="{ data }">
+                <span v-if="data.useProxy === 'Y'" class="font-mono text-slate-500 dark:text-slate-400">{{ data.proxyIp }}</span>
+                <span v-else class="text-slate-300 dark:text-zinc-600">-</span>
+              </template>
+            </Column>
+
             <Column>
               <template #body="{ data }">
                 <div class="flex items-center gap-1.5">
@@ -518,7 +531,7 @@ onMounted(async () => {
     // 1. Site 목록 로드
     sites.value = await dashboardApi.getSites();
 
-    // 2. 초기 필터 값 결정 [핵심 변경: 사용자 프로파일 설정을 최우선으로 적용]
+    // 2. 초기 필터 값 결정
     let targetSite = "";
     let targetSdwt = "";
 
