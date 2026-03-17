@@ -161,13 +161,9 @@
                  </template>
                  
                  <Column field="compid" header="CompId" sortable style="width: 12%; font-weight: bold"></Column>
-                 
                  <Column field="compName" header="CompName" style="width: 12%"></Column>
-                 
                  <Column field="deptid" header="DeptId" style="width: 12%"></Column>
-                 
                  <Column field="deptName" header="DeptName" style="width: 20%"></Column>
-                 
                  <Column field="description" header="Description" style="width: 26%"></Column>
                  
                  <Column field="isActive" header="Status" align="center" style="width: 8%">
@@ -179,7 +175,7 @@
                    <template #body="slotProps">
                      <div class="flex justify-center gap-1">
                        <i class="pi pi-pencil text-slate-300 hover:text-blue-500 cursor-pointer text-[10px]" @click="editAccessCode(slotProps.data)"></i>
-                       <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAccessCode(slotProps.data.compid)"></i>
+                       <i class="pi pi-trash text-slate-300 hover:text-red-500 cursor-pointer text-[10px]" @click="removeAccessCode(slotProps.data.deptid)"></i>
                      </div>
                    </template>
                  </Column>
@@ -390,12 +386,12 @@
     <Dialog v-model:visible="accessDialogVisible" :header="isAccessEditMode ? 'Edit Whitelist' : 'Add Whitelist'" modal class="w-full max-w-sm">
       <div class="flex flex-col gap-3 pt-2">
          <div>
-            <label class="font-bold text-xs text-slate-500">Company Code (PK)</label>
-            <InputText v-model="newAccess.compid" class="w-full mt-1" :disabled="isAccessEditMode" placeholder="Unique Key" />
+            <label class="font-bold text-xs text-slate-500">Company Code</label>
+            <InputText v-model="newAccess.compid" class="w-full mt-1" />
          </div>
          <div>
-            <label class="font-bold text-xs text-slate-500">Dept Code</label>
-            <InputText v-model="newAccess.deptid" class="w-full mt-1" />
+            <label class="font-bold text-xs text-slate-500">Dept Code (PK)</label>
+            <InputText v-model="newAccess.deptid" class="w-full mt-1" :disabled="isAccessEditMode" placeholder="Unique Key" />
          </div>
          <div>
             <label class="font-bold text-xs text-slate-500">Description</label>
@@ -800,14 +796,15 @@ const editAccessCode = (data: any) => {
 };
 
 const saveAccessCode = async () => {
-  if (!newAccess.value.compid || !newAccess.value.deptid) {
-    toast.add({ severity: 'warn', summary: 'Validation', detail: 'CompId and DeptId are required.', life: 3000 });
+  // [수정됨] 저장 시 검증 기준을 PK인 deptid로 변경
+  if (!newAccess.value.deptid) {
+    toast.add({ severity: 'warn', summary: 'Validation', detail: 'DeptId is required.', life: 3000 });
     return;
   }
   const payload = { ...newAccess.value, isActive: newAccess.value.isActive ? "Y" : "N" };
   try {
     if (isAccessEditMode.value) {
-      await AdminApi.updateAccessCode(newAccess.value.compid, payload);
+      await AdminApi.updateAccessCode(newAccess.value.deptid, payload);
     } else {
       await AdminApi.createAccessCode(payload);
     }
@@ -819,6 +816,7 @@ const saveAccessCode = async () => {
   }
 };
 
+// [수정됨] 삭제 요청 시 삭제 대상을 파라미터로 받음 (deptid)
 const removeAccessCode = async (id: string) => {
   confirm.require({
     message: `Delete access code ${id}?`,
