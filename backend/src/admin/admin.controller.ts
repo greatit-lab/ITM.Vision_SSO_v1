@@ -20,10 +20,11 @@ export class AdminController {
   @Post('admins') async addAdmin(@Body() body: CreateAdminDto) { return this.adminService.addAdmin(body); }
   @Delete('admins/:id') async deleteAdmin(@Param('id') id: string) { return this.adminService.deleteAdmin(id); }
 
+  // [수정됨] 접근 제어(Whitelist) 라우터 파라미터를 deptid로 변경
   @Get('access-codes') async getAccessCodes() { return this.adminService.getAllAccessCodes(); }
   @Post('access-codes') async createAccessCode(@Body() body: CreateAccessCodeDto) { return this.adminService.createAccessCode(body); }
-  @Put('access-codes/:id') async updateAccessCode(@Param('id') id: string, @Body() body: UpdateAccessCodeDto) { return this.adminService.updateAccessCode(id, body); }
-  @Delete('access-codes/:id') async deleteAccessCode(@Param('id') id: string) { return this.adminService.deleteAccessCode(id); }
+  @Put('access-codes/:deptid') async updateAccessCode(@Param('deptid') deptid: string, @Body() body: UpdateAccessCodeDto) { return this.adminService.updateAccessCode(deptid, body); }
+  @Delete('access-codes/:deptid') async deleteAccessCode(@Param('deptid') deptid: string) { return this.adminService.deleteAccessCode(deptid); }
 
   @Get('guests') async getGuests() { return this.adminService.getAllGuests(); }
   @Post('guests') async addGuest(@Body() body: CreateGuestDto) { return this.adminService.addGuest(body); }
@@ -52,9 +53,6 @@ export class AdminController {
   @Put('servers/:eqpid') async updateCfgServer(@Param('eqpid') eqpid: string, @Body() body: UpdateCfgServerDto) { return this.adminService.updateCfgServer(eqpid, body); }
   @Delete('servers/:eqpid') async deleteCfgServer(@Param('eqpid') eqpid: string) { return this.adminService.deleteCfgServer(eqpid); }
 
-  // ==========================================
-  // [Usage Analytics] 접속 로그 및 통계 (추가됨)
-  // ==========================================
   @Post('access-log')
   async logAccess(@Body() body: { loginId: string; menuName: string; accessUrl: string }) {
     return this.adminService.logAccess(body);
