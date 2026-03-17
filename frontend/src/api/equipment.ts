@@ -30,6 +30,8 @@ export interface EquipmentDto {
   application: string;
   version: string;
   dbVersion: string;
+  useProxy?: string | null; // [추가] 내부망 프록시 사용 여부
+  proxyIp?: string | null;  // [추가] 내부망 프록시 IP
 }
 
 /**
