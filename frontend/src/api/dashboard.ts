@@ -26,6 +26,8 @@ export interface AgentStatusDto {
   timezone: string;
   todayAlarmCount: number;
   clockDrift?: number | null;
+  useProxy?: string | null; // [추가] 내부망 프록시 사용 여부
+  proxyIp?: string | null;  // [추가] 내부망 프록시 IP
 }
 
 export const dashboardApi = {
