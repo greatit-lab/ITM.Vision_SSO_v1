@@ -158,9 +158,9 @@
           </div>
 
           <div
-            class="px-5 py-3.5 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-2xl shrink-0"
+            class="px-5 py-3 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-2xl shrink-0"
           >
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <div class="flex flex-col gap-2 md:flex-row md:items-center">
               <div class="flex items-start gap-3">
                 <div
                   class="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shrink-0"
@@ -172,28 +172,28 @@
                   <h3 class="text-sm font-bold text-slate-800 dark:text-white">
                     Main 장비 Proxy 전용 유틸리티
                   </h3>
-                  <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  <p class="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                     Main 장비를 통해 Proxy 방식으로 연결되는 환경에서 사용하는 전용 실행 파일입니다.
                   </p>
                 </div>
               </div>
 
               <div class="flex items-center gap-3 md:ml-auto md:pr-2">
-                <span
-                  v-if="latestVersion?.fileSizeProxy"
-                  class="text-[11px] font-medium text-slate-400 dark:text-slate-500 shrink-0"
-                >
-                  {{ latestVersion.fileSizeProxy }}
-                </span>
-
                 <button
                   @click="downloadFile(latestVersion?.fileUrlProxy || 'agent/ITM_XP_Proxy.exe')"
                   :disabled="isDownloading"
-                  class="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  class="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   <i v-if="isDownloading" class="pi pi-spin pi-spinner text-sm"></i>
                   <i v-else class="pi pi-download text-sm"></i>
-                  <span class="text-sm font-bold">Download ITM_XP_Proxy</span>
+                  <span class="flex items-baseline gap-1.5 text-sm font-bold">
+                    Download ITM_XP_Proxy
+                    <span
+                      v-if="latestVersion?.fileSizeProxy"
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500
+                    >
+                      {{ latestVersion.fileSizeProxy }}
+                  </span>
                 </button>
               </div>
             </div>
