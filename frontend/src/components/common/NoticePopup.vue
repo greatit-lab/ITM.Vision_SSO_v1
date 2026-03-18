@@ -1,7 +1,7 @@
 <!-- frontend/src/components/common/NoticePopup.vue -->
 <template>
   <div v-if="visibleNotices.length > 0" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-    <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[80vh] relative">
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-fit min-w-[400px] max-w-[90vw] overflow-hidden flex flex-col max-h-[80vh] relative">
       
       <div class="p-4 bg-indigo-600 text-white flex justify-between items-center shrink-0">
         <h3 class="font-bold text-sm flex items-center gap-2">
@@ -34,7 +34,7 @@
         <div class="overflow-y-auto custom-scrollbar flex-1 p-6" :class="{'px-12': visibleNotices.length > 1}">
           <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-2">{{ currentNotice.title }}</h2>
           <p class="text-xs text-slate-400 mb-4">{{ formatDate(currentNotice.createdAt) }}</p>
-          <div class="prose dark:prose-invert text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed" v-html="currentNotice.content"></div>
+          <div class="prose dark:prose-invert text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed w-full max-w-none" v-html="currentNotice.content"></div>
         </div>
       </div>
 
@@ -171,4 +171,12 @@ const closeAll = () => {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
+
+/* 추가된 부분: v-html로 렌더링되는 내부 이미지의 스타일 지정 */
+.prose :deep(img) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0.5rem; /* 이미지 모서리를 둥글게 (선택 사항) */
+}
 </style>
