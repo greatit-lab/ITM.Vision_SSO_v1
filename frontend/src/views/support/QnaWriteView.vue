@@ -18,9 +18,9 @@
        <i class="pi pi-spin pi-spinner text-2xl text-indigo-500"></i>
     </div>
 
-    <form v-else @submit.prevent="submitPost" class="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <form v-else @submit.prevent="submitPost" class="flex-1 flex flex-col min-h-0 overflow-hidden relative">
       
-      <div class="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+      <div class="flex-1 flex flex-col p-4 gap-4 min-h-0 relative z-10">
         
         <div class="grid gap-4 md:grid-cols-[1fr_200px] shrink-0">
           <div class="space-y-1">
@@ -42,32 +42,40 @@
             >
               <option value="QNA">Q&A (질문)</option>
               <option value="BUG">Bug Report (버그)</option>
-              <option value="IDEA">Idea (의견 제안)</option> <option value="NOTICE" v-if="isAdmin">Notice (공지)</option>
+              <option value="IDEA">Idea (의견 제안)</option> 
+              <option value="NOTICE" v-if="isAdmin">Notice (공지)</option>
             </select>
           </div>
         </div>
 
         <div class="flex-1 flex flex-col min-h-0 space-y-1">
-          <div class="flex justify-between items-end">
+          <div class="flex justify-between items-end shrink-0">
              <label class="text-[11px] font-bold text-slate-500 uppercase">내용</label>
              <p class="text-[10px] text-slate-400">* 캡처 이미지를 붙여넣을 수 있습니다 (Ctrl+V)</p>
           </div>
           
-          <div class="flex-1 editor-wrapper bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden flex flex-col">
+          <div class="flex-1 editor-wrapper bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col min-h-0 relative">
             <QuillEditor 
               v-model:content="form.content" 
               contentType="html"
               theme="snow"
-              toolbar="essential"
+              :toolbar="[
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+              ]"
               placeholder="내용을 입력하세요..."
-              class="flex-1 overflow-hidden" 
+              class="flex-1 min-h-0 flex flex-col" 
             />
           </div>
         </div>
 
       </div>
 
-      <div class="p-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between shrink-0 z-10">
+      <div class="p-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between shrink-0 z-20 relative">
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-2">
             <input 
@@ -229,14 +237,21 @@ const submitPost = async () => {
   border-bottom-right-radius: 0.5rem;
   font-family: inherit;
   flex: 1;
-  overflow: hidden; 
   display: flex;
   flex-direction: column;
+  min-height: 0; /* 중요: 무한 확장을 막아줌 */
+  /* overflow: hidden 삭제됨 */
 }
 :deep(.ql-editor) {
   flex: 1;
   overflow-y: auto; 
   padding: 1rem;
+  padding-bottom: 2.5rem; /* 하단 텍스트 링크 선택시 팝업이 뜰 여유 공간 마련 */
+}
+
+/* 팝업창(Tooltip)이 다른 요소들에 가려지지 않게 최상단으로 강제 이동 */
+:deep(.ql-tooltip) {
+  z-index: 100 !important;
 }
 
 :deep(html.dark .ql-toolbar) {
