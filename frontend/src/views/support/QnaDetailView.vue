@@ -268,7 +268,6 @@ const formatDate = (dateStr: string | Date) => {
   return date.isValid() ? date.format('YYYY.MM.DD HH:mm') : '-';
 };
 
-// [수정] IDEA 카테고리 색상 추가 (Teal 계열)
 const getCategoryColor = (cat: string) => {
   switch (cat) {
     case 'NOTICE': return 'text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30';
@@ -378,4 +377,25 @@ onMounted(() => {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
+
+/* 본문 내 링크 스타일 적용 추가 */
+:deep(.prose a) {
+  color: #4f46e5; /* 텍스트 파란색(indigo-600) 강조 */
+  text-decoration: underline; /* 밑줄 추가 */
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+:deep(.prose a:hover) {
+  color: #4338ca; /* 호버 시 더 짙은 파란색 */
+}
+
+.dark :deep(.prose a) {
+  color: #818cf8; /* 다크 모드용 링크 색상 */
+}
+
+.dark :deep(.prose a:hover) {
+  color: #a5b4fc;
+}
 </style>
