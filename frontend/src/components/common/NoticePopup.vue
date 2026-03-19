@@ -32,9 +32,17 @@
         </button>
 
         <div class="overflow-y-auto custom-scrollbar flex-1 p-6" :class="{'px-12': visibleNotices.length > 1}">
-          <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-2">{{ currentNotice.title }}</h2>
-          <p class="text-xs text-slate-400 mb-4">{{ formatDate(currentNotice.createdAt) }}</p>
-          <div class="prose dark:prose-invert text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed w-full max-w-none" v-html="currentNotice.content"></div>
+          
+          <div class="flex justify-between items-baseline gap-4 mb-4 border-b border-slate-100 dark:border-zinc-800 pb-3">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white break-keep">{{ currentNotice.title }}</h2>
+            <p class="text-xs text-slate-400 shrink-0">{{ formatDate(currentNotice.createdAt) }}</p>
+          </div>
+          
+          <div 
+            ref="contentRef"
+            class="prose dark:prose-invert text-base text-slate-800 dark:text-slate-300 whitespace-pre-line leading-relaxed w-full max-w-none" 
+            v-html="currentNotice.content">
+          </div>
         </div>
       </div>
 
@@ -72,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue'; 
 import dayjs from 'dayjs';
 
 const props = defineProps<{
@@ -83,6 +91,7 @@ const emit = defineEmits(['close']);
 
 const visibleNotices = ref<any[]>([]);
 const currentIndex = ref(0);
+const contentRef = ref<HTMLElement | null>(null); 
 
 const hideToday = ref(false);
 const hideWeek = ref(false);
@@ -94,6 +103,26 @@ const formatDate = (dateStr: string) => {
   const date = dayjs(dateStr);
   return date.isValid() ? date.format('YYYY-MM-DD') : '-';
 };
+
+const processLinks = async () => {
+  await nextTick(); 
+  if (!contentRef.value) return;
+  
+  const links = contentRef.value.querySelectorAll('a');
+  links.forEach(link => {
+    link.setAttribute('target', '_blank');
+    link.setAttribute('rel', 'noopener noreferrer');
+    
+    const href = link.getAttribute('href');
+    if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('mailto:')) {
+      link.setAttribute('href', `https://${href}`);
+    }
+  });
+};
+
+watch(currentNotice, () => {
+  processLinks();
+}, { immediate: true });
 
 onMounted(() => {
   if (props.notices && props.notices.length > 0) {
@@ -172,11 +201,34 @@ const closeAll = () => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
 
-/* 추가된 부분: v-html로 렌더링되는 내부 이미지의 스타일 지정 */
 .prose :deep(img) {
   max-width: 100%;
   height: auto;
   display: block;
-  border-radius: 0.5rem; /* 이미지 모서리를 둥글게 (선택 사항) */
+  border-radius: 0.5rem;
 }
+
+:deep(.prose a) {
+  color: #4f46e5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+:deep(.prose a:hover) {
+  color: #4338ca;
+}
+
+.dark :deep(.prose a) {
+  color: #818cf8;
+}
+
+.dark :deep(.prose a:hover) {
+  color: #a5b4fc;
+}
+
+:deep(.prose h1) { font-size: 1.875rem !important; font-weight: bold; margin-bottom: 1rem; margin-top: 1.5rem; line-height: 1.2;}
+:deep(.prose h2) { font-size: 1.5rem !important; font-weight: bold; margin-bottom: 0.875rem; margin-top: 1.25rem; line-height: 1.3;}
+:deep(.prose h3) { font-size: 1.25rem !important; font-weight: bold; margin-bottom: 0.75rem; margin-top: 1rem; line-height: 1.4;}
 </style>
