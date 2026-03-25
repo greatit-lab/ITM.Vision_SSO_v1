@@ -8,6 +8,9 @@ import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
 import AppLayout from "@/layout/AppLayout.vue";
 
+// [신규 추가] Global Dashboard 뷰 import
+import GlobalDashboardView from "../views/GlobalDashboardView.vue";
+
 import WaferFlatDataView from "../views/WaferFlatDataView.vue";
 import LotUniformityTrendView from "../views/LotUniformityTrendView.vue";
 import SpectrumAnalysisView from "../views/SpectrumAnalysisView.vue";
@@ -37,19 +40,46 @@ const ManualView = () => import('../views/support/ManualView.vue');
 const AgentDownloadView = () => import('../views/support/AgentDownloadView.vue');
 
 const routes: Array<RouteRecordRaw> = [
-  { path: "/login", name: "login", component: LoginView, meta: { requiresAuth: false } },
+  {
+    path: "/login",
+    name: "login",
+    component: LoginView,
+    meta: { requiresAuth: false },
+  },
   {
     path: "/",
     component: AppLayout,
     meta: { requiresAuth: true },
     children: [
-      // [수정 1] meta: { title: 'Overview' } 를 추가하여 DB에 예쁘게 기록되도록 함
-      { path: "", name: "home", component: HomeView, meta: { title: 'Overview' } },
+      {
+        path: "",
+        name: "home",
+        component: HomeView,
+        meta: { title: "Site Overview" },
+      },
+
+      // [신규 추가] Global Dashboard 라우트
+      {
+        path: "global-dashboard",
+        name: "global-dashboard",
+        component: GlobalDashboardView,
+        meta: { title: "Global Dashboard" },
+      },
+
       {
         path: "support",
         children: [
-          { path: "manual", name: "manual", component: ManualView, meta: { title: 'User Manual' } },
-          { path: "agent-download", name: "agent-download", component: AgentDownloadView, meta: { title: 'Agent Download' } },
+          {
+            path: "manual",
+            name: "manual",
+            component: ManualView,
+            meta: { title: "User Manual" },
+          },
+          {
+            path: "agent-download",
+            name: "agent-download",
+            component: AgentDownloadView,
+            meta: { title: "Agent Download" }},
           {
             path: "qna", component: QnaLayout,
             children: [
