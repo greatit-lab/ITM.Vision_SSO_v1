@@ -77,7 +77,7 @@
               <p
                 class="mt-0.5 text-2xl font-extrabold text-slate-800 dark:text-white"
               >
-                {{ globalStats.total }}
+                {{ globalStats.total }} <span class="text-sm font-bold text-slate-400 dark:text-slate-500">EA</span>
               </p>
             </div>
             <div
@@ -104,7 +104,7 @@
               <p
                 class="mt-0.5 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400"
               >
-                {{ globalStats.online }}
+                {{ globalStats.online }} <span class="text-sm font-bold text-emerald-500/70 dark:text-emerald-500/70">EA</span>
               </p>
             </div>
             <div
@@ -131,7 +131,7 @@
               <p
                 class="mt-0.5 text-2xl font-extrabold text-rose-600 dark:text-rose-400"
               >
-                {{ globalStats.offline }}
+                {{ globalStats.offline }} <span class="text-sm font-bold text-rose-500/70 dark:text-rose-500/70">EA</span>
               </p>
             </div>
             <div
@@ -153,12 +153,12 @@
               <p
                 class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
               >
-                Alerts
+                Today Errors
               </p>
               <p
                 class="mt-0.5 text-2xl font-extrabold text-amber-600 dark:text-amber-400"
               >
-                {{ globalStats.alerts }}
+                {{ globalStats.alerts }} <span class="text-sm font-bold text-amber-500/70 dark:text-amber-500/70">Events</span>
               </p>
             </div>
             <div
@@ -240,10 +240,11 @@
                 </div>
 
                 <div
-                  class="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold border"
+                  class="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold border flex items-baseline gap-0.5"
                   :class="getSiteBadgeClass(site)"
                 >
-                  {{ getSiteStatusText(site) }}
+                  <span>{{ site.siteStats.online }} / {{ site.siteStats.total }}</span>
+                  <span class="text-[9px] font-medium opacity-80">EA</span>
                 </div>
               </div>
 
@@ -384,7 +385,6 @@
 </template>
 
 <script setup lang="ts">
-// [수정] computed 제거
 import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useFilterStore } from "@/stores/filter";
@@ -570,25 +570,17 @@ const getPercent = (part: number, total: number) => {
 };
 
 const getSdwtSeverity = (sdwt: SdwtData): "critical" | "warning" | "healthy" | "empty" => {
-  if (sdwt.offlineCount > 0) return "critical";
-  if (sdwt.summary.todayErrorCount > 0) return "warning";
   if (sdwt.totalCount === 0) return "empty";
-  return "healthy";
+  if (sdwt.onlineCount === sdwt.totalCount) return "healthy";
+  if (sdwt.onlineCount === 0) return "critical";
+  return "warning";
 };
 
 const getSiteSeverity = (site: SiteData): "critical" | "warning" | "healthy" | "empty" => {
-  if (site.siteStats.offline > 0) return "critical";
-  if (site.siteStats.alerts > 0) return "warning";
   if (site.siteStats.total === 0) return "empty";
-  return "healthy";
-};
-
-const getSiteStatusText = (site: SiteData) => {
-  const severity = getSiteSeverity(site);
-  if (severity === "critical") return "Critical";
-  if (severity === "warning") return "Warning";
-  if (severity === "empty") return "Empty";
-  return "Healthy";
+  if (site.siteStats.online === site.siteStats.total) return "healthy";
+  if (site.siteStats.online === 0) return "critical";
+  return "warning";
 };
 
 const getSiteHealthDot = (site: SiteData) => {
@@ -621,10 +613,11 @@ const getSiteBadgeClass = (site: SiteData) => {
   return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-400/20";
 };
 
+// 100% Online 이라는 중복 텍스트를 제거하고 기존의 Stable(안정됨) 상태를 반환하도록 원복
 const getSdwtSeverityText = (sdwt: SdwtData) => {
   const severity = getSdwtSeverity(sdwt);
-  if (severity === "critical") return "Offline detected";
-  if (severity === "warning") return "Alert detected";
+  if (severity === "critical") return "All Offline";
+  if (severity === "warning") return "Partial Offline / Alert";
   if (severity === "empty") return "No registered agent";
   return "Stable";
 };
