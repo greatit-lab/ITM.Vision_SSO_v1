@@ -405,9 +405,10 @@
                 class="px-1 py-0.5 font-medium border rounded cursor-pointer bg-slate-50 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 @change="first = 0"
               >
-                <option :value="20">20</option>
-                <option :value="40">40</option>
+                <option :value="30">30</option>
                 <option :value="60">60</option>
+                <option :value="90">90</option>
+                <option :value="120">120</option>
               </select>
             </div>
             <div class="w-px h-3 mx-1 bg-slate-200 dark:bg-zinc-700"></div>
@@ -454,7 +455,7 @@
 
         <div
           v-else
-          class="grid grid-cols-1 gap-4 pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+          class="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
         >
           <div
             v-for="agent in displayedAgents"
@@ -466,51 +467,59 @@
               :class="getStatusBarClass(agent)"
             ></div>
 
-            <div class="flex flex-col h-full gap-1 p-2 pt-3">
+            <div class="flex flex-col h-full gap-1 p-1.5 pt-2.5">
               <div class="flex items-start justify-between">
-                <div>
-                  <h4
-                    class="flex items-center gap-1.5 text-sm font-black tracking-tight text-slate-800 dark:text-slate-100"
-                  >
-                    {{ agent.eqpId }}
+                
+                <div class="min-w-0 pr-1 flex-1">
+                  <h4 class="flex items-center gap-1.5 text-sm font-black tracking-tight text-slate-800 dark:text-slate-100 min-w-0">
+                    <span class="truncate">{{ agent.eqpId }}</span>
                     <img
                       v-if="isImageType(agent.type)"
                       :src="getTypeLogoUrl(agent.type)"
                       :alt="agent.type || ''"
-                      class="object-contain w-auto h-3 drop-shadow-sm"
+                      class="object-contain w-auto h-3 drop-shadow-sm shrink-0"
                       :title="agent.type || ''"
                     />
                     <span
                       v-else
-                      class="px-1 py-[1px] rounded text-[10px] scale-90 origin-left font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-zinc-700"
+                      class="px-1 py-[1px] rounded text-[10px] scale-90 origin-left font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-zinc-700 shrink-0"
                     >
                       {{ agent.type || "Unknown" }}
                     </span>
                   </h4>
+                  
                   <div
-                    class="flex items-center gap-1 mt-0.5 text-[10px] scale-90 origin-left text-slate-400 font-mono cursor-pointer hover:text-slate-600 dark:hover:text-slate-300"
+                    class="flex items-center mt-1 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 w-full origin-left scale-[0.88]"
                     title="Click to copy IP"
                     @click="copyToClipboard(agent.ipAddress)"
                   >
-                    <i class="text-[9px] pi pi-globe"></i> {{ agent.ipAddress }}
+                    <i class="text-[8px] pi pi-globe shrink-0 mr-1 text-slate-400"></i>
+
+                    <span
+                      class="text-[8.5px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap tracking-tight"
+                    >
+                      {{ agent.ipAddress }}
+                    </span>
+
                     <span
                       v-if="agent.useProxy === 'Y'"
-                      class="px-1 py-[1px] ml-0.5 text-[8px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800 shadow-sm leading-none whitespace-nowrap tracking-wider"
-                      >PROXY</span
+                      class="ml-1 px-1 py-[0.5px] text-[6.5px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-sm dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800 shadow-sm leading-none shrink-0"
                     >
+                      PROXY
+                    </span>
                   </div>
                 </div>
 
-                <div class="flex flex-col items-end gap-0.5">
+                <div class="flex flex-col items-end gap-0.5 shrink-0">
                   <span
-                    class="px-1.5 py-[1px] text-[10px] scale-90 origin-right font-bold rounded-full uppercase tracking-wider flex items-center gap-1 border shadow-sm"
+                    class="px-1.5 py-[1px] text-[10px] scale-90 origin-right font-bold rounded-full uppercase tracking-wider flex items-center gap-1 border shadow-sm whitespace-nowrap"
                     :class="getStatusBadgeClass(agent)"
                   >
                     <i :class="getStatusIcon(agent)" class="text-[9px]"></i>
                     {{ getStatusLabel(agent) }}
                   </span>
                   <span
-                    class="text-[10px] scale-90 origin-right font-mono font-bold flex items-center gap-1 transition-colors"
+                    class="text-[10px] scale-90 origin-right font-mono font-bold flex items-center gap-1 transition-colors whitespace-nowrap"
                     :class="getAgentVerStyle(agent.appVersion)"
                   >
                     {{ agent.appVersion }}
@@ -519,17 +528,17 @@
               </div>
 
               <div
-                class="grid grid-cols-5 gap-1.5 text-[10px] scale-95 origin-left w-[105%]"
+                class="grid grid-cols-5 gap-1 text-[10px] scale-95 origin-left w-[105%]"
               >
                 <div
                   class="flex items-center justify-between col-span-5 p-1 border rounded bg-slate-50 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-800"
                 >
                   <span
-                    class="flex items-center gap-1 font-semibold text-slate-400"
+                    class="flex items-center gap-1 font-semibold text-slate-400 shrink-0"
                     ><i class="text-[9px] pi pi-microsoft"></i> OS</span
                   >
                   <span
-                    class="font-medium truncate text-slate-600 dark:text-slate-300 max-w-[180px]"
+                    class="ml-1 font-medium truncate text-slate-600 dark:text-slate-300 w-0 flex-1 text-right"
                     :class="getOsStyle(agent.os).text"
                   >
                     {{ formatOperatingSystem(agent.os, agent.systemType) }}
@@ -540,12 +549,12 @@
                   class="flex items-center justify-between col-span-3 p-1 overflow-hidden border rounded bg-slate-50 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-800"
                 >
                   <span
-                    class="font-semibold text-slate-400 text-[9px] whitespace-nowrap flex items-center gap-1"
+                    class="font-semibold text-slate-400 text-[9px] whitespace-nowrap flex items-center gap-1 shrink-0"
                   >
                     <i class="pi pi-desktop text-[9px]"></i> PC
                   </span>
                   <span
-                    class="ml-1 font-medium text-right truncate text-slate-600 dark:text-slate-300"
+                    class="ml-1 font-medium text-right truncate text-slate-600 dark:text-slate-300 w-0 flex-1"
                     :title="agent.pcName"
                     >{{ agent.pcName }}</span
                   >
@@ -556,12 +565,12 @@
                 >
                   <span
                     v-tooltip.top="'+: Agent Fast, -: Agent Slow'"
-                    class="flex items-center gap-1 font-semibold text-slate-400 text-[9px] whitespace-nowrap cursor-help hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    class="flex items-center gap-1 font-semibold text-slate-400 text-[9px] whitespace-nowrap cursor-help hover:text-slate-600 dark:hover:text-slate-300 transition-colors shrink-0"
                   >
                     <i class="text-[9px] pi pi-clock"></i>
                   </span>
                   <span
-                    class="ml-1 font-mono font-bold text-right truncate"
+                    class="ml-1 font-mono font-bold text-right truncate w-0 flex-1"
                     :class="getClockDriftColor(agent.clockDrift)"
                   >
                     {{ formatTimeDifference(agent.clockDrift) }}
@@ -574,7 +583,7 @@
                 @click="openChart(agent)"
               >
                 <div class="flex items-center gap-1 mb-1">
-                  <span class="text-[9px] font-bold text-slate-400 w-6"
+                  <span class="text-[9px] font-bold text-slate-400 w-6 shrink-0"
                     >CPU</span
                   >
                   <div
@@ -586,13 +595,13 @@
                     ></div>
                   </div>
                   <span
-                    class="text-[9px] font-mono text-right text-slate-500 w-8"
+                    class="text-[9px] font-mono text-right text-slate-500 w-8 shrink-0"
                     >{{ agent.cpuUsage.toFixed(0) }}%</span
                   >
                 </div>
 
                 <div class="flex items-center gap-1">
-                  <span class="text-[9px] font-bold text-slate-400 w-6"
+                  <span class="text-[9px] font-bold text-slate-400 w-6 shrink-0"
                     >MEM</span
                   >
                   <div
@@ -606,7 +615,7 @@
                     ></div>
                   </div>
                   <span
-                    class="text-[9px] font-mono text-right text-slate-500 w-8"
+                    class="text-[9px] font-mono text-right text-slate-500 w-8 shrink-0"
                     >{{ agent.memoryUsage.toFixed(0) }}%</span
                   >
                 </div>
@@ -615,16 +624,16 @@
               <div
                 class="flex items-center justify-between pt-1 text-[9px] scale-95 origin-left w-[105%]"
               >
-                <span class="text-slate-400">Last Contact</span>
+                <span class="text-slate-400 shrink-0">Last Contact</span>
                 <span
-                  class="font-mono font-medium"
+                  class="font-mono font-medium truncate ml-1 text-right"
                   :class="
                     agent.isOnline
                       ? 'text-slate-500 dark:text-slate-400'
                       : 'text-rose-500'
                   "
                 >
-                  {{ agent.lastContact || "-" }}
+                  {{ formatLastContact(agent.lastContact) }}
                 </span>
               </div>
             </div>
@@ -745,6 +754,18 @@ let refreshTimer: number | null = null;
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
+
+const formatLastContact = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+  
+  const cleanStr = dateStr.replace("T", " ").split(".")[0];
+  if (!cleanStr) return "-"; 
+  
+  if (cleanStr.length >= 19 && cleanStr.startsWith("20")) {
+    return cleanStr.substring(2, 19);
+  }
+  return cleanStr;
+};
 
 onMounted(async () => {
   try {
@@ -1071,7 +1092,7 @@ const chartOption = computed(() => {
 });
 
 const first = ref(0);
-const rowsPerPage = ref(20);
+const rowsPerPage = ref(30);
 
 const isImageType = (type: string | null) => {
   const lowerType = (type || "").toLowerCase();
@@ -1174,15 +1195,17 @@ const getOsStyle = (os: string | null) => {
 };
 
 const getStatusLabel = (data: AgentStatusDto) => {
-  if (!data.isOnline) return "Unknown";
+  if (!data.isOnline) return "Off";
   if (data.todayAlarmCount > 0) return "Alert";
   return "Run";
 };
+
 const getStatusIcon = (data: AgentStatusDto) => {
   if (!data.isOnline) return "pi pi-question-circle";
   if (data.todayAlarmCount > 0) return "pi pi-exclamation-triangle";
   return "pi pi-shield";
 };
+
 const getStatusBadgeClass = (data: AgentStatusDto) => {
   if (!data.isOnline)
     return "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20";
