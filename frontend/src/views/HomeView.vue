@@ -1,379 +1,382 @@
 <!-- frontend/src/views/HomeView.vue -->
 <template>
   <div
-    class="min-h-full transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
+    class="min-h-full transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans flex flex-col"
   >
-    <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0">
-      <div class="flex items-center gap-2">
-        <div
-          class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
-        >
-          <i class="text-lg text-indigo-500 pi pi-sitemap"></i>
-        </div>
-
-        <div class="flex items-baseline gap-2">
-          <h1
-            class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white"
-          >
-            Global Matrix
-          </h1>
-          <span
-            class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
-          >
-            Integrated Site &amp; SDWT Monitoring Board
-          </span>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-        <div class="hidden sm:flex flex-col items-end min-w-[95px] px-2">
-          <span
-            v-if="isRefreshing"
-            class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 animate-pulse"
-          >
-            Syncing...
-          </span>
-          <span
-            v-else
-            class="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono"
-          >
-            {{ lastSyncTime }}
-          </span>
-        </div>
-        <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 hidden sm:block"></div>
-        <Button
-          icon="pi pi-sync"
-          rounded
-          text
-          severity="secondary"
-          :loading="isRefreshing"
-          @click="fetchAllData"
-          v-tooltip.left="'Refresh Data'"
-          class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
-        />
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 gap-3 px-1 mb-5 md:grid-cols-2 lg:grid-cols-4 shrink-0">
+    <div class="flex flex-col h-[calc(100vh-100px)] min-h-[600px] overflow-hidden">
       
-      <div
-        class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
-      >
-        <div
-          class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-indigo-200/40 dark:bg-indigo-500/15 blur-2xl"
-        ></div>
-        <div class="flex items-center justify-between relative z-10">
-          <div>
-            <p
-              class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
-            >
-              Total Agents
-            </p>
-            <p
-              class="mt-0.5 text-2xl font-extrabold text-slate-800 dark:text-white"
-            >
-              {{ globalStats.total }}
-            </p>
-          </div>
+      <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0">
+        <div class="flex items-center gap-2">
           <div
-            class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-zinc-800/80 text-indigo-500 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-zinc-700"
+            class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
           >
-            <i class="pi pi-server text-base"></i>
+            <i class="text-lg text-indigo-500 pi pi-sitemap"></i>
           </div>
+
+          <div class="flex items-baseline gap-2">
+            <h1
+              class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white"
+            >
+              Global Matrix
+            </h1>
+            <span
+              class="text-slate-400 dark:text-slate-500 font-medium text-[11px]"
+            >
+              Integrated Site &amp; SDWT Monitoring Board
+            </span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+          <div class="hidden sm:flex flex-col items-end min-w-[95px] px-2">
+            <span
+              v-if="isRefreshing"
+              class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 animate-pulse"
+            >
+              Syncing...
+            </span>
+            <span
+              v-else
+              class="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono"
+            >
+              {{ lastSyncTime }}
+            </span>
+          </div>
+          <div class="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1 hidden sm:block"></div>
+          <Button
+            icon="pi pi-sync"
+            rounded
+            text
+            severity="secondary"
+            :loading="isRefreshing"
+            @click="fetchAllData"
+            v-tooltip.left="'Refresh Data'"
+            class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
+          />
         </div>
       </div>
 
-      <div
-        class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
-      >
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 mb-5 shrink-0 px-1">
+        
         <div
-          class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-emerald-200/40 dark:bg-emerald-500/15 blur-2xl"
-        ></div>
-        <div class="flex items-center justify-between relative z-10">
-          <div>
-            <p
-              class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
-            >
-              Online
-            </p>
-            <p
-              class="mt-0.5 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400"
-            >
-              {{ globalStats.online }}
-            </p>
-          </div>
-          <div
-            class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-zinc-800/80 text-emerald-500 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-zinc-700"
-          >
-            <i class="pi pi-check-circle text-base"></i>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
-      >
-        <div
-          class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-rose-200/40 dark:bg-rose-500/15 blur-2xl"
-        ></div>
-        <div class="flex items-center justify-between relative z-10">
-          <div>
-            <p
-              class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
-            >
-              Offline
-            </p>
-            <p
-              class="mt-0.5 text-2xl font-extrabold text-rose-600 dark:text-rose-400"
-            >
-              {{ globalStats.offline }}
-            </p>
-          </div>
-          <div
-            class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-zinc-800/80 text-rose-500 dark:text-rose-400 flex items-center justify-center border border-rose-100 dark:border-zinc-700"
-          >
-            <i class="pi pi-times-circle text-base"></i>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
-      >
-        <div
-          class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-amber-200/40 dark:bg-amber-500/15 blur-2xl"
-        ></div>
-        <div class="flex items-center justify-between relative z-10">
-          <div>
-            <p
-              class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
-            >
-              Alerts
-            </p>
-            <p
-              class="mt-0.5 text-2xl font-extrabold text-amber-600 dark:text-amber-400"
-            >
-              {{ globalStats.alerts }}
-            </p>
-          </div>
-          <div
-            class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-zinc-800/80 text-amber-500 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-zinc-700"
-          >
-            <i class="pi pi-bell text-base"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div
-      v-if="isInitialLoading"
-      class="flex flex-col items-center justify-center py-20 w-full"
-    >
-      <div
-        class="flex items-center justify-center w-16 h-16 rounded-2xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 shadow-sm"
-      >
-        <i class="pi pi-spin pi-spinner text-2xl text-indigo-500"></i>
-      </div>
-      <p
-        class="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400"
-      >
-        데이터를 불러오는 중입니다...
-      </p>
-    </div>
-
-    <div
-      v-else
-      class="px-1 pb-6"
-    >
-      <div
-        v-if="globalData.length === 0"
-        class="flex flex-col items-center justify-center min-h-[320px] rounded-3xl border border-dashed border-slate-300 dark:border-zinc-700 bg-white/50 dark:bg-black/20"
-      >
-        <div
-          class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center"
+          class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
         >
-          <i class="pi pi-inbox text-xl text-slate-400 dark:text-slate-500"></i>
+          <div
+            class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-indigo-200/40 dark:bg-indigo-500/15 blur-2xl"
+          ></div>
+          <div class="flex items-center justify-between relative z-10">
+            <div>
+              <p
+                class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
+              >
+                Total Agents
+              </p>
+              <p
+                class="mt-0.5 text-2xl font-extrabold text-slate-800 dark:text-white"
+              >
+                {{ globalStats.total }}
+              </p>
+            </div>
+            <div
+              class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-zinc-800/80 text-indigo-500 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-zinc-700"
+            >
+              <i class="pi pi-server text-base"></i>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
+        >
+          <div
+            class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-emerald-200/40 dark:bg-emerald-500/15 blur-2xl"
+          ></div>
+          <div class="flex items-center justify-between relative z-10">
+            <div>
+              <p
+                class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
+              >
+                Online
+              </p>
+              <p
+                class="mt-0.5 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400"
+              >
+                {{ globalStats.online }}
+              </p>
+            </div>
+            <div
+              class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-zinc-800/80 text-emerald-500 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-zinc-700"
+            >
+              <i class="pi pi-check-circle text-base"></i>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
+        >
+          <div
+            class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-rose-200/40 dark:bg-rose-500/15 blur-2xl"
+          ></div>
+          <div class="flex items-center justify-between relative z-10">
+            <div>
+              <p
+                class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
+              >
+                Offline
+              </p>
+              <p
+                class="mt-0.5 text-2xl font-extrabold text-rose-600 dark:text-rose-400"
+              >
+                {{ globalStats.offline }}
+              </p>
+            </div>
+            <div
+              class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-zinc-800/80 text-rose-500 dark:text-rose-400 flex items-center justify-center border border-rose-100 dark:border-zinc-700"
+            >
+              <i class="pi pi-times-circle text-base"></i>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300"
+        >
+          <div
+            class="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-amber-200/40 dark:bg-amber-500/15 blur-2xl"
+          ></div>
+          <div class="flex items-center justify-between relative z-10">
+            <div>
+              <p
+                class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500"
+              >
+                Alerts
+              </p>
+              <p
+                class="mt-0.5 text-2xl font-extrabold text-amber-600 dark:text-amber-400"
+              >
+                {{ globalStats.alerts }}
+              </p>
+            </div>
+            <div
+              class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-zinc-800/80 text-amber-500 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-zinc-700"
+            >
+              <i class="pi pi-bell text-base"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="isInitialLoading"
+        class="flex flex-col items-center justify-center flex-1 w-full"
+      >
+        <div
+          class="flex items-center justify-center w-16 h-16 rounded-2xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 shadow-sm"
+        >
+          <i class="pi pi-spin pi-spinner text-2xl text-indigo-500"></i>
         </div>
         <p
-          class="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400"
+          class="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400"
         >
-          표시할 데이터가 없습니다.
+          데이터를 불러오는 중입니다...
         </p>
       </div>
 
       <div
         v-else
-        class="flex flex-wrap items-start gap-4"
+        class="flex-1 overflow-y-auto custom-scrollbar px-1 pb-3"
       >
         <div
-          v-for="site in globalData"
-          :key="site.siteName"
-          class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] shadow-sm flex flex-col w-full sm:w-fit min-w-[100%] sm:min-w-[230px] max-w-full"
+          v-if="globalData.length === 0"
+          class="flex flex-col items-center justify-center min-h-[320px] rounded-3xl border border-dashed border-slate-300 dark:border-zinc-700 bg-white/50 dark:bg-black/20"
         >
           <div
-            class="absolute right-[-32px] top-[-24px] w-28 h-28 rounded-full blur-3xl opacity-60 pointer-events-none"
-            :class="getSiteGlowClass(site)"
-          ></div>
+            class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center"
+          >
+            <i class="pi pi-inbox text-xl text-slate-400 dark:text-slate-500"></i>
+          </div>
+          <p
+            class="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400"
+          >
+            표시할 데이터가 없습니다.
+          </p>
+        </div>
 
-          <div class="relative">
+        <div
+          v-else
+          class="flex flex-wrap items-start gap-4"
+        >
+          <div
+            v-for="site in globalData"
+            :key="site.siteName"
+            class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] shadow-sm flex flex-col w-full sm:w-fit min-w-[100%] sm:min-w-[230px] max-w-full"
+          >
             <div
-              class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-black/20"
-            >
-              <div class="flex items-center gap-2 min-w-0">
-                <span
-                  class="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor]"
-                  :class="getSiteHealthDot(site)"
-                ></span>
+              class="absolute right-[-32px] top-[-24px] w-28 h-28 rounded-full blur-3xl opacity-60 pointer-events-none"
+              :class="getSiteGlowClass(site)"
+            ></div>
 
-                <div class="min-w-0 pr-4">
-                  <h2
-                    class="text-sm font-extrabold tracking-tight text-slate-800 dark:text-white truncate"
-                  >
-                    {{ site.siteName }}
-                  </h2>
+            <div class="relative">
+              <div
+                class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-black/20"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    class="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor]"
+                    :class="getSiteHealthDot(site)"
+                  ></span>
+
+                  <div class="min-w-0 pr-4">
+                    <h2
+                      class="text-sm font-extrabold tracking-tight text-slate-800 dark:text-white truncate"
+                    >
+                      {{ site.siteName }}
+                    </h2>
+                  </div>
+                </div>
+
+                <div
+                  class="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold border"
+                  :class="getSiteBadgeClass(site)"
+                >
+                  {{ getSiteStatusText(site) }}
                 </div>
               </div>
 
-              <div
-                class="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold border"
-                :class="getSiteBadgeClass(site)"
-              >
-                {{ getSiteStatusText(site) }}
-              </div>
-            </div>
-
-            <div class="px-4 pb-4 pt-3">
-              <div
-                v-if="site.sdwts.length === 0"
-                class="rounded-2xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/70 dark:bg-zinc-900/30 px-4 py-6 text-center"
-              >
-                <span
-                  class="text-[11px] font-medium text-slate-400 dark:text-slate-500"
+              <div class="px-4 pb-4 pt-3">
+                <div
+                  v-if="site.sdwts.length === 0"
+                  class="rounded-2xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/70 dark:bg-zinc-900/30 px-4 py-6 text-center"
                 >
-                  설정된 SDWT가 없습니다.
-                </span>
-              </div>
+                  <span
+                    class="text-[11px] font-medium text-slate-400 dark:text-slate-500"
+                  >
+                    설정된 SDWT가 없습니다.
+                  </span>
+                </div>
 
-              <div
-                v-else
-                class="flex flex-wrap justify-center gap-3"
-              >
-                <button
-                  v-for="sdwt in site.sdwts"
-                  :key="sdwt.name"
-                  type="button"
-                  class="w-full sm:w-[190px] xl:w-[200px] shrink-0 group relative overflow-hidden text-left rounded-2xl border px-3 py-2.5 transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
-                  :class="getSdwtCardClass(sdwt)"
-                  @click="goToDetail(site.siteName, sdwt.name)"
+                <div
+                  v-else
+                  class="flex flex-wrap justify-center gap-3"
                 >
-                  <div
-                    class="absolute left-[-22px] bottom-[-28px] w-24 h-24 rounded-full blur-2xl opacity-70 pointer-events-none"
-                    :class="getSdwtGlowClass(sdwt)"
-                  ></div>
+                  <button
+                    v-for="sdwt in site.sdwts"
+                    :key="sdwt.name"
+                    type="button"
+                    class="w-full sm:w-[190px] xl:w-[200px] shrink-0 group relative overflow-hidden text-left rounded-2xl border px-3 py-2.5 transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+                    :class="getSdwtCardClass(sdwt)"
+                    @click="goToDetail(site.siteName, sdwt.name)"
+                  >
+                    <div
+                      class="absolute left-[-22px] bottom-[-28px] w-24 h-24 rounded-full blur-2xl opacity-70 pointer-events-none"
+                      :class="getSdwtGlowClass(sdwt)"
+                    ></div>
 
-                  <div class="relative">
-                    <div class="flex items-start justify-between gap-2">
-                      <div class="min-w-0">
-                        <p
-                          class="text-[13px] font-extrabold tracking-tight text-slate-800 dark:text-white truncate"
-                        >
-                          {{ sdwt.name }}
-                        </p>
-                        <p
-                          class="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500"
-                        >
-                          {{ getSdwtSeverityText(sdwt) }}
-                        </p>
-                      </div>
+                    <div class="relative">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p
+                            class="text-[13px] font-extrabold tracking-tight text-slate-800 dark:text-white truncate"
+                          >
+                            {{ sdwt.name }}
+                          </p>
+                          <p
+                            class="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                          >
+                            {{ getSdwtSeverityText(sdwt) }}
+                          </p>
+                        </div>
 
-                      <div class="flex flex-col items-end gap-1 shrink-0">
-                        <span
-                          class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold"
-                          :class="getSdwtMiniBadgeClass(sdwt)"
-                        >
+                        <div class="flex flex-col items-end gap-1 shrink-0">
                           <span
-                            class="w-1.5 h-1.5 rounded-full"
-                            :class="getSdwtMiniBadgeDotClass(sdwt)"
-                          ></span>
-                          {{ getPercent(sdwt.onlineCount, sdwt.totalCount) }}%
-                        </span>
-                      </div>
-                    </div>
-
-                    <div class="mt-2 flex items-end justify-between">
-                      <div>
-                        <p
-                          class="text-[10px] font-semibold text-slate-400 dark:text-slate-500"
-                        >
-                          Agent Status
-                        </p>
-                        <div class="mt-0.5 flex items-baseline gap-1">
-                          <span
-                            class="text-base font-extrabold text-slate-800 dark:text-white"
+                            class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold"
+                            :class="getSdwtMiniBadgeClass(sdwt)"
                           >
-                            {{ sdwt.onlineCount }}
-                          </span>
-                          <span
-                            class="text-xs font-bold text-slate-300 dark:text-zinc-600"
-                          >
-                            /
-                          </span>
-                          <span
-                            class="text-xs font-bold text-slate-500 dark:text-slate-400"
-                          >
-                            {{ sdwt.totalCount }}
+                            <span
+                              class="w-1.5 h-1.5 rounded-full"
+                              :class="getSdwtMiniBadgeDotClass(sdwt)"
+                            ></span>
+                            {{ getPercent(sdwt.onlineCount, sdwt.totalCount) }}%
                           </span>
                         </div>
                       </div>
 
-                      <div class="flex gap-1 shrink-0">
-                        <span
-                          v-if="sdwt.offlineCount > 0"
-                          class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/80 dark:border-rose-400/10"
-                        >
-                          OFF {{ sdwt.offlineCount }}
-                        </span>
-                        <span
-                          v-if="sdwt.summary.todayErrorCount > 0"
-                          class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/80 dark:border-amber-400/10"
-                        >
-                          ERR {{ sdwt.summary.todayErrorCount }}
-                        </span>
-                      </div>
-                    </div>
+                      <div class="mt-2 flex items-end justify-between">
+                        <div>
+                          <p
+                            class="text-[10px] font-semibold text-slate-400 dark:text-slate-500"
+                          >
+                            Agent Status
+                          </p>
+                          <div class="mt-0.5 flex items-baseline gap-1">
+                            <span
+                              class="text-base font-extrabold text-slate-800 dark:text-white"
+                            >
+                              {{ sdwt.onlineCount }}
+                            </span>
+                            <span
+                              class="text-xs font-bold text-slate-300 dark:text-zinc-600"
+                            >
+                              /
+                            </span>
+                            <span
+                              class="text-xs font-bold text-slate-500 dark:text-slate-400"
+                            >
+                              {{ sdwt.totalCount }}
+                            </span>
+                          </div>
+                        </div>
 
-                    <div class="mt-2">
-                      <div
-                        class="flex justify-between items-center mb-1 text-[10px] font-semibold"
-                      >
-                        <span class="text-slate-400 dark:text-slate-500">
-                          Availability
-                        </span>
-                        <span
-                          class="text-slate-600 dark:text-slate-300"
-                        >
-                          {{ getPercent(sdwt.onlineCount, sdwt.totalCount) }}%
-                        </span>
+                        <div class="flex gap-1 shrink-0">
+                          <span
+                            v-if="sdwt.offlineCount > 0"
+                            class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/80 dark:border-rose-400/10"
+                          >
+                            OFF {{ sdwt.offlineCount }}
+                          </span>
+                          <span
+                            v-if="sdwt.summary.todayErrorCount > 0"
+                            class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/80 dark:border-amber-400/10"
+                          >
+                            ERR {{ sdwt.summary.todayErrorCount }}
+                          </span>
+                        </div>
                       </div>
 
-                      <div
-                        class="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden"
-                      >
+                      <div class="mt-2">
                         <div
-                          class="h-full rounded-full transition-all duration-500"
-                          :class="getSdwtProgressBarClass(sdwt)"
-                          :style="{ width: `${getPercent(sdwt.onlineCount, sdwt.totalCount)}%` }"
-                        ></div>
+                          class="flex justify-between items-center mb-1 text-[10px] font-semibold"
+                        >
+                          <span class="text-slate-400 dark:text-slate-500">
+                            Availability
+                          </span>
+                          <span
+                            class="text-slate-600 dark:text-slate-300"
+                          >
+                            {{ getPercent(sdwt.onlineCount, sdwt.totalCount) }}%
+                          </span>
+                        </div>
+
+                        <div
+                          class="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden"
+                        >
+                          <div
+                            class="h-full rounded-full transition-all duration-500"
+                            :class="getSdwtProgressBarClass(sdwt)"
+                            :style="{ width: `${getPercent(sdwt.onlineCount, sdwt.totalCount)}%` }"
+                          ></div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      </div>
   </div>
 </template>
 
@@ -559,6 +562,10 @@ const getSiteSeverity = (site: SiteData): "critical" | "warning" | "healthy" | "
   return "healthy";
 };
 
+const getSiteOnlinePercent = (site: SiteData) => {
+  return getPercent(site.siteStats.online, site.siteStats.total);
+};
+
 const getSiteStatusText = (site: SiteData) => {
   const severity = getSiteSeverity(site);
   if (severity === "critical") return "Critical";
@@ -665,3 +672,30 @@ const getSdwtProgressBarClass = (sdwt: SdwtData) => {
   return "bg-gradient-to-r from-emerald-500 to-cyan-500";
 };
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.6);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.85);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(63, 63, 70, 0.8);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(82, 82, 91, 1);
+}
+</style>
