@@ -55,21 +55,99 @@
           </div>
           
           <div class="flex-1 editor-wrapper bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col min-h-0 relative">
+            
             <QuillEditor 
+              ref="myQuillEditor"
               v-model:content="form.content" 
               contentType="html"
               theme="snow"
-              :toolbar="[
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-              ]"
+              toolbar="#custom-toolbar"
+              @ready="onEditorReady"
               placeholder="내용을 입력하세요..."
               class="flex-1 min-h-0 flex flex-col" 
-            />
+            >
+              <template #toolbar>
+                <div id="custom-toolbar" class="flex items-center flex-wrap gap-1">
+                  
+                  <div class="relative flex items-center mr-2 z-[60]" ref="dropdownRef">
+                    
+                    <span class="ql-formats !mr-0 flex items-center gap-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-l-md px-1.5 h-[26px]"
+                          @mousedown.stop @click.stop @keydown.stop>
+                      <input
+                        type="number"
+                        v-model="fontSizeInput"
+                        @change="applyFontSize"
+                        @keydown.enter.prevent="applyFontSize"
+                        class="w-8 text-xs font-mono font-bold text-center outline-none bg-transparent text-indigo-600 dark:text-indigo-400 pl-0.5"
+                        min="8" max="72"
+                        title="크기를 직접 입력하거나 화살표를 눌러 선택하세요"
+                      />
+                      <span class="text-[10px] font-bold text-slate-400 select-none">px</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      class="h-[26px] px-1.5 border-y border-r border-slate-200 dark:border-zinc-700 rounded-r-md bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
+                      @click.stop="isFontSizeDropdownOpen = !isFontSizeDropdownOpen"
+                      @mousedown.stop
+                    >
+                      <i class="pi pi-chevron-down text-[9px] text-slate-500"></i>
+                    </button>
+
+                    <div v-if="isFontSizeDropdownOpen"
+                         class="absolute top-full left-0 mt-1 w-[74px] bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 max-h-[220px] overflow-y-auto custom-scrollbar"
+                         @mousedown.stop @click.stop>
+                      <button v-for="size in [10, 11, 12, 13, 14, 15, 16, 18, 20, 24, 30, 36]" :key="size"
+                              type="button"
+                              class="w-full text-left px-3 py-1.5 text-[11px] font-mono transition-colors flex items-center justify-between"
+                              :class="fontSizeInput === size ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-700'"
+                              @click="selectFontSize(size)">
+                        <span>{{ size }}</span>
+                        <span class="text-[9px] text-slate-400 dark:text-zinc-500 font-sans" v-if="fontSizeInput === size">✓</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="w-px h-4 bg-slate-200 dark:bg-zinc-700 mr-2"></div>
+
+                  <span class="ql-formats">
+                    <select class="ql-header">
+                      <option value="1"></option>
+                      <option value="2"></option>
+                      <option value="3"></option>
+                      <option selected></option>
+                    </select>
+                  </span>
+
+                  <span class="ql-formats">
+                    <button type="button" class="ql-bold"></button>
+                    <button type="button" class="ql-italic"></button>
+                    <button type="button" class="ql-underline"></button>
+                    <button type="button" class="ql-strike"></button>
+                  </span>
+                  
+                  <span class="ql-formats">
+                    <select class="ql-color"></select>
+                    <select class="ql-background"></select>
+                  </span>
+                  
+                  <span class="ql-formats">
+                    <button type="button" class="ql-list" value="ordered"></button>
+                    <button type="button" class="ql-list" value="bullet"></button>
+                  </span>
+                  
+                  <span class="ql-formats">
+                    <button type="button" class="ql-link"></button>
+                    <button type="button" class="ql-image"></button>
+                  </span>
+                  
+                  <span class="ql-formats">
+                    <button type="button" class="ql-clean"></button>
+                  </span>
+                </div>
+              </template>
+            </QuillEditor>
+
           </div>
         </div>
 
@@ -130,11 +208,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { boardApi } from '@/api/board';
-import { QuillEditor } from '@vueup/vue-quill';
+import { QuillEditor, Quill } from '@vueup/vue-quill';
+
+const SizeStyle = Quill.import('attributors/style/size');
+SizeStyle.canAdd = function() { return true; };
+Quill.register(SizeStyle, true);
 
 const router = useRouter();
 const route = useRoute();
@@ -144,6 +226,13 @@ const isSubmitting = ref(false);
 const isLoadingData = ref(false);
 const isEditMode = ref(false);
 const targetId = ref(0);
+
+const myQuillEditor = ref<any>(null);
+
+const fontSizeInput = ref<number | string>(13); 
+const isFontSizeDropdownOpen = ref(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+const savedRange = ref<{ index: number, length: number } | null>(null);
 
 const form = reactive({
   title: '',
@@ -155,12 +244,24 @@ const form = reactive({
 
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER');
 
+const closeDropdown = (e: MouseEvent) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+    isFontSizeDropdownOpen.value = false;
+  }
+};
+
 onMounted(async () => {
+  document.addEventListener('mousedown', closeDropdown);
+
   if (route.query.id) {
     isEditMode.value = true;
     targetId.value = Number(route.query.id);
     await loadPostData(targetId.value);
   }
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', closeDropdown);
 });
 
 const loadPostData = async (id: number) => {
@@ -221,9 +322,79 @@ const submitPost = async () => {
     isSubmitting.value = false;
   }
 };
+
+const onEditorReady = (quill: any) => {
+  quill.on('selection-change', (range: any) => {
+    if (range) {
+      savedRange.value = range;
+      
+      let format = quill.getFormat(range.index, range.length);
+      if (range.length === 0) format = quill.getFormat(); 
+
+      if (format.size) {
+        const sizeStr = Array.isArray(format.size) ? format.size[0] : format.size;
+        const sizeNum = parseInt(sizeStr.replace('px', ''), 10);
+        if (!isNaN(sizeNum)) {
+          fontSizeInput.value = sizeNum;
+        }
+      } else {
+        fontSizeInput.value = 14; 
+      }
+    }
+  });
+};
+
+const applyFontSize = () => {
+  if (!myQuillEditor.value) return;
+  const quill = myQuillEditor.value.getQuill();
+  
+  let size = Number(fontSizeInput.value);
+  if (isNaN(size) || size < 8) size = 8;
+  if (size > 72) size = 72;
+
+  let range = savedRange.value || { index: 0, length: 0 };
+  
+  quill.focus();
+  quill.setSelection(range.index, range.length);
+
+  if (range.length > 0) {
+    quill.formatText(range.index, range.length, 'size', `${size}px`, 'user');
+  } else {
+    quill.format('size', `${size}px`, 'user');
+  }
+
+  fontSizeInput.value = size; 
+  isFontSizeDropdownOpen.value = false; 
+};
+
+const selectFontSize = (size: number) => {
+  fontSizeInput.value = size;
+  applyFontSize();
+};
 </script>
 
 <style scoped>
+#custom-toolbar {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 12px;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #52525b; }
+
 :deep(.ql-toolbar) {
   border-color: #e2e8f0 !important;
   background-color: #f8fafc;
@@ -239,17 +410,15 @@ const submitPost = async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 중요: 무한 확장을 막아줌 */
-  /* overflow: hidden 삭제됨 */
+  min-height: 0; 
 }
 :deep(.ql-editor) {
   flex: 1;
   overflow-y: auto; 
   padding: 1rem;
-  padding-bottom: 2.5rem; /* 하단 텍스트 링크 선택시 팝업이 뜰 여유 공간 마련 */
+  padding-bottom: 2.5rem; 
 }
 
-/* 팝업창(Tooltip)이 다른 요소들에 가려지지 않게 최상단으로 강제 이동 */
 :deep(.ql-tooltip) {
   z-index: 100 !important;
 }
@@ -258,7 +427,11 @@ const submitPost = async () => {
   border-color: #27272a !important;
   background-color: #18181b;
 }
+:deep(html.dark #custom-toolbar) {
+  border-bottom-color: #27272a !important;
+}
 :deep(html.dark .ql-toolbar .ql-stroke) { stroke: #a1a1aa; }
 :deep(html.dark .ql-toolbar .ql-fill) { fill: #a1a1aa; }
+:deep(html.dark .ql-picker-options) { background-color: #18181b !important; border-color: #27272a !important; color: #e4e4e7; }
 :deep(html.dark .ql-container) { border-color: #27272a !important; color: #e4e4e7; }
 </style>
