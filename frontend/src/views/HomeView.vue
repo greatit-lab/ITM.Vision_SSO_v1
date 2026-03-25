@@ -1,3 +1,4 @@
+<!-- frontend/src/views/HomeView.vue -->
 <template>
   <div
     class="min-h-full transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
