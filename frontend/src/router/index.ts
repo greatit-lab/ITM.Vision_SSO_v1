@@ -157,7 +157,12 @@ router.beforeEach(async (to, _from, next) => {
       }
     }
     if (menuStore.menus.length === 0) { try { await menuStore.loadMenus(); } catch (e) {} }
-    const isExceptionPath = to.path === "/" || to.path.startsWith("/admin") || to.path.startsWith("/support") || to.name === "not-found";
+    const isExceptionPath =
+      to.path === "/" ||
+      to.path === "/global-dashboard" ||
+      to.path.startsWith("/admin") ||
+      to.path.startsWith("/support") ||
+      to.name === "not-found";
     if (!isExceptionPath) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
       const isAdmin = authStore.user?.role === 'ADMIN';
@@ -172,8 +177,7 @@ import { adminApi } from "@/api/admin";
 router.afterEach((to) => {
   const authStore = useAuthStore();
   if (authStore.isAuthenticated && authStore.user?.userId) {
-    
-    // [수정 2] ignoreList에서 'home'을 제거하여 Overview 접속도 카운트되도록 변경
+
     const ignoreList = ['login', 'not-found']; 
     
     if (!ignoreList.includes(to.name as string)) {
