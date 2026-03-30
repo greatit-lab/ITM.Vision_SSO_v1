@@ -34,7 +34,7 @@ export class PerformanceService {
     startDate: string,
     endDate: string,
     eqpids: string,
-    intervalSeconds: number = 300, // [수정] 5분(300초)으로 변경
+    intervalSeconds: number = 300, 
   ): Promise<PerformanceTrendResponse[]> {
     const params = {
       startDate,
@@ -87,7 +87,7 @@ export class PerformanceService {
     const params = {
       site,
       sdwt,
-      eqpId: eqpid, 
+      eqpid, // [수정] eqpId -> eqpid 로 변경하여 Data API가 인식할 수 있도록 일치시킴
       startDate,
       endDate,
       interval: intervalSeconds, 
