@@ -65,6 +65,20 @@
 
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
+        <div class="min-w-[130px] shrink-0">
+          <Select
+            v-model="selectedYMin"
+            :options="yMinOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Y-Min: Auto"
+            class="w-full custom-dropdown small"
+            overlayClass="custom-dropdown-panel small"
+          />
+        </div>
+
+        <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
+
         <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="startDate"
@@ -105,12 +119,21 @@
         <div class="flex items-center justify-between mb-2 shrink-0">
           <h3 class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
             <i class="text-cyan-500 pi pi-chart-line"></i>
-            Agent Memory Trend (Usage vs Commit) - {{ displayedEqpCount }} Units
+            Agent Memory Trend - {{ displayedEqpCount }} Units
           </h3>
-          <span class="text-[10px] text-slate-400 font-medium border border-slate-200 dark:border-zinc-700 px-2 py-0.5 rounded-full flex gap-3">
-            <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-slate-400 inline-block"></span> Usage (실선)</span>
-            <span class="flex items-center gap-1"><span class="w-3 h-0.5 border-t border-dashed border-slate-400 inline-block"></span> Commit (점선)</span>
-          </span>
+          
+          <div class="flex items-center gap-4">
+            <label class="relative inline-flex items-center cursor-pointer select-none group" v-tooltip.top="'점선(Commit) 데이터를 차트에 표시합니다.'">
+              <input type="checkbox" v-model="showCommit" class="sr-only peer">
+              <div class="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-zinc-600 peer-checked:bg-cyan-500 shadow-inner"></div>
+              <span class="ml-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Show Commit (점선)</span>
+            </label>
+
+            <span class="text-[10px] text-slate-400 font-medium border border-slate-200 dark:border-zinc-700 px-2 py-0.5 rounded-full flex gap-3 transition-all duration-300" :class="showCommit ? 'bg-slate-50 dark:bg-zinc-800/50' : ''">
+              <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-slate-400 inline-block"></span> Usage (실선)</span>
+              <span class="flex items-center gap-1 transition-opacity duration-300" :class="showCommit ? 'opacity-100' : 'opacity-30'"><span class="w-3 h-0.5 border-t border-dashed border-slate-400 inline-block"></span> Commit (점선)</span>
+            </span>
+          </div>
         </div>
 
         <div class="relative w-full flex-1 min-h-0">
@@ -326,6 +349,19 @@ interface EqpStat {
 const filterStore = useFilterStore();
 const selectedEqpId = ref("");
 
+const showCommit = ref(false);
+
+const selectedYMin = ref<number | null>(null);
+const yMinOptions = [
+  { label: 'Y-Min: Auto', value: null },
+  { label: 'Y-Min: 0 MB', value: 0 },
+  { label: 'Y-Min: 200 MB', value: 200 },
+  { label: 'Y-Min: 400 MB', value: 400 },
+  { label: 'Y-Min: 600 MB', value: 600 },
+  { label: 'Y-Min: 800 MB', value: 800 },
+  { label: 'Y-Min: 1,000 MB', value: 1000 },
+];
+
 const now = new Date();
 const todayStart = new Date(now);
 todayStart.setHours(0, 0, 0, 0);
@@ -372,8 +408,17 @@ watch([() => startDate.value, () => endDate.value], ([newStart, newEnd], [oldSta
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
-  if (isEndDate) d.setHours(23, 59, 59, 999);
-  else d.setHours(0, 0, 0, 0);
+  const now = new Date();
+  
+  if (isEndDate) {
+    if (d.toDateString() === now.toDateString()) {
+      d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    } else {
+      d.setHours(23, 59, 59, 999);
+    }
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
   const offset = d.getTimezoneOffset() * 60000;
   return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace("T", " ");
 };
@@ -487,8 +532,15 @@ const searchData = async () => {
   try {
     const fixedStart = new Date(startDate.value);
     fixedStart.setHours(0, 0, 0, 0);
+    
     const fixedEnd = new Date(endDate.value);
-    fixedEnd.setHours(23, 59, 59, 999);
+    const now = new Date();
+    
+    if (fixedEnd.toDateString() === now.toDateString()) {
+      fixedEnd.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 999);
+    } else {
+      fixedEnd.setHours(23, 59, 59, 999);
+    }
 
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
@@ -660,6 +712,8 @@ const processData = (data: ItmAgentDataDto[]) => {
 const resetFilters = () => {
   filterStore.reset();
   selectedEqpId.value = "";
+  selectedYMin.value = null; 
+  showCommit.value = false;
   localStorage.removeItem("agentmem_site");
   localStorage.removeItem("agentmem_sdwt");
   localStorage.removeItem("agentmem_eqpid");
@@ -704,12 +758,22 @@ const chartOption = computed(() => {
           ? params[0].axisValueLabel
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
 
-        let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
-
+        // [수정점] selectedYMin 필터를 적용하여, 설정된 Y최소값보다 작은 데이터는 범례(tooltip)에서 아예 제외시킵니다.
         const sortedParams = [...params]
           .map((p) => ({ ...p, val: p.data && p.seriesId ? p.data[p.seriesId] : null }))
-          .filter((p) => p.val !== undefined && p.val !== null)
+          .filter((p) => {
+             // 1. 값이 아예 없으면 제외
+             if (p.val === undefined || p.val === null) return false;
+             // 2. Y-Min 값이 설정되어 있고, 현재 데이터가 그 값보다 작으면 제외
+             if (selectedYMin.value !== null && p.val < selectedYMin.value) return false;
+             return true;
+          })
           .sort((a, b) => b.val - a.val);
+
+        // 해당 시간대의 모든 데이터가 설정된 Y-Min 값보다 낮아서 필터링되어 배열이 비었다면, 툴팁 자체를 띄우지 않음
+        if (sortedParams.length === 0) return "";
+
+        let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
 
         sortedParams.forEach((p: any) => {
           const isCommit = p.seriesName.includes("(Commit)");
@@ -761,8 +825,11 @@ const chartOption = computed(() => {
       nameTextStyle: { color: textColor, padding: [0, 0, 0, 10] },
       axisLabel: { color: textColor, fontSize: 10 },
       splitLine: { lineStyle: { color: gridColor } },
+      min: selectedYMin.value !== null ? selectedYMin.value : undefined,
     },
-    series: eqpSeries.value,
+    series: showCommit.value 
+      ? eqpSeries.value 
+      : eqpSeries.value.filter(s => !s.id.endsWith('_commit')),
   };
 });
 
