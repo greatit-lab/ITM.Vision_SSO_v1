@@ -276,19 +276,19 @@
 
                 <td class="px-3 py-2 text-center">
                   <span
-                    v-if="stat.last === 0"
+                    v-if="stat.trend === 'unranked'"
                     class="inline-flex items-center justify-center min-w-[118px] text-slate-500 text-[10px] font-bold bg-slate-200 dark:bg-zinc-700 px-2 py-0.5 rounded-full whitespace-nowrap"
                   >
                     순위권 밖 (Unranked)
                   </span>
                   <span
-                    v-else-if="stat.last > stat.avg * 1.1"
+                    v-else-if="stat.trend === 'high'"
                     class="inline-flex items-center justify-center min-w-[118px] text-red-500 text-[10px] font-bold bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full whitespace-nowrap"
                   >
                     높음 (High)
                   </span>
                   <span
-                    v-else-if="stat.last < stat.avg * 0.9"
+                    v-else-if="stat.trend === 'low'"
                     class="inline-flex items-center justify-center min-w-[118px] text-emerald-500 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full whitespace-nowrap"
                   >
                     낮음 (Low)
@@ -344,6 +344,9 @@ interface EqpStat {
   commitMax: number;
   commitAvg: number;
   commitLast: number;
+  // 테이블 정렬 및 최적화를 위한 속성 추가
+  trend: 'unranked' | 'high' | 'low' | 'stable';
+  trendPriority: number; 
 }
 
 const filterStore = useFilterStore();
@@ -688,6 +691,26 @@ const processData = (data: ItmAgentDataDto[]) => {
       maxC = commitVals.reduce((a, b) => Math.max(a, b), 0);
     }
 
+    const avgU = pData.length > 0 ? sumU / pData.length : 0;
+    const lastU = lastBucket && lastBucket[uniqueKey + "_usage"] !== null ? lastBucket[uniqueKey + "_usage"] : 0;
+    const avgC = pData.length > 0 ? sumC / pData.length : 0;
+    const lastC = lastBucket && lastBucket[uniqueKey + "_commit"] !== null ? lastBucket[uniqueKey + "_commit"] : 0;
+
+    // [개선 포인트] 사전에 Trend를 계산하여 Priority Score와 함께 객체에 할당
+    let trend: 'unranked' | 'high' | 'low' | 'stable' = 'stable';
+    let trendPriority = 2; // 1: High, 2: Stable, 3: Low, 4: Unranked
+
+    if (lastU === 0) {
+      trend = 'unranked';
+      trendPriority = 4;
+    } else if (lastU > avgU * 1.1) {
+      trend = 'high';
+      trendPriority = 1;
+    } else if (lastU < avgU * 0.9) {
+      trend = 'low';
+      trendPriority = 3;
+    }
+
     stats.push({
       uniqueKey,
       site: meta.site,
@@ -697,16 +720,27 @@ const processData = (data: ItmAgentDataDto[]) => {
       legendName,
       color,
       max: maxU,
-      avg: pData.length > 0 ? sumU / pData.length : 0,
-      last: lastBucket && lastBucket[uniqueKey + "_usage"] !== null ? lastBucket[uniqueKey + "_usage"] : 0,
+      avg: avgU,
+      last: lastU,
       commitMax: maxC,
-      commitAvg: pData.length > 0 ? sumC / pData.length : 0,
-      commitLast: lastBucket && lastBucket[uniqueKey + "_commit"] !== null ? lastBucket[uniqueKey + "_commit"] : 0,
+      commitAvg: avgC,
+      commitLast: lastC,
+      trend,
+      trendPriority
     });
   });
 
   eqpSeries.value = series;
-  eqpStats.value = stats.sort((a, b) => b.max - a.max);
+  
+  // [개선 포인트] 다중 정렬 로직 적용: 1순위 Last(내림차순), 2순위 Trend 우선순위(오름차순)
+  eqpStats.value = stats.sort((a, b) => {
+    // 1. Last Usage 기준 내림차순 정렬
+    if (b.last !== a.last) {
+      return b.last - a.last;
+    }
+    // 2. 값이 동일할 경우(Tie 발생 시), Trend 기준(High -> Stable -> Low -> Unranked) 정렬
+    return a.trendPriority - b.trendPriority;
+  });
 };
 
 const resetFilters = () => {
@@ -758,19 +792,15 @@ const chartOption = computed(() => {
           ? params[0].axisValueLabel
           : `${String(xDate.getHours()).padStart(2, "0")}:${String(xDate.getMinutes()).padStart(2, "0")}`;
 
-        // [수정점] selectedYMin 필터를 적용하여, 설정된 Y최소값보다 작은 데이터는 범례(tooltip)에서 아예 제외시킵니다.
         const sortedParams = [...params]
           .map((p) => ({ ...p, val: p.data && p.seriesId ? p.data[p.seriesId] : null }))
           .filter((p) => {
-             // 1. 값이 아예 없으면 제외
              if (p.val === undefined || p.val === null) return false;
-             // 2. Y-Min 값이 설정되어 있고, 현재 데이터가 그 값보다 작으면 제외
              if (selectedYMin.value !== null && p.val < selectedYMin.value) return false;
              return true;
           })
           .sort((a, b) => b.val - a.val);
 
-        // 해당 시간대의 모든 데이터가 설정된 Y-Min 값보다 낮아서 필터링되어 배열이 비었다면, 툴팁 자체를 띄우지 않음
         if (sortedParams.length === 0) return "";
 
         let html = `<div class="font-bold mb-1 border-b border-gray-500 pb-1">${timeStr}</div>`;
