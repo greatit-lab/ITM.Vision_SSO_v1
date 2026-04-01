@@ -1,5 +1,9 @@
 // frontend/src/router/index.ts
-import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import {
+  createRouter,
+  createWebHistory,
+  type RouteRecordRaw,
+} from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useMenuStore } from "@/stores/menu";
 import type { MenuNode } from "@/api/menu";
@@ -8,7 +12,6 @@ import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
 import AppLayout from "@/layout/AppLayout.vue";
 
-// [신규 추가] Global Dashboard 뷰 import
 import GlobalDashboardView from "../views/GlobalDashboardView.vue";
 
 import WaferFlatDataView from "../views/WaferFlatDataView.vue";
@@ -31,13 +34,16 @@ import MenuManagementView from "../views/admin/MenuManagementView.vue";
 import UserManagementView from "../views/admin/UserManagementView.vue";
 import InfraManagementView from "../views/admin/InfraManagementView.vue";
 import SystemConfigView from "../views/admin/SystemConfigView.vue";
+// [신규 추가] Storage Usage View 컴포넌트 임포트
+import StorageUsageView from "../views/admin/StorageUsageView.vue";
 
-const QnaLayout = () => import('../views/support/QnaLayout.vue');
-const QnaBoardView = () => import('../views/support/QnaBoardView.vue');
-const QnaWriteView = () => import('../views/support/QnaWriteView.vue');
-const QnaDetailView = () => import('../views/support/QnaDetailView.vue');
-const ManualView = () => import('../views/support/ManualView.vue');
-const AgentDownloadView = () => import('../views/support/AgentDownloadView.vue');
+const QnaLayout = () => import("../views/support/QnaLayout.vue");
+const QnaBoardView = () => import("../views/support/QnaBoardView.vue");
+const QnaWriteView = () => import("../views/support/QnaWriteView.vue");
+const QnaDetailView = () => import("../views/support/QnaDetailView.vue");
+const ManualView = () => import("../views/support/ManualView.vue");
+const AgentDownloadView = () =>
+  import("../views/support/AgentDownloadView.vue");
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -57,15 +63,12 @@ const routes: Array<RouteRecordRaw> = [
         component: HomeView,
         meta: { title: "Site Overview" },
       },
-
-      // [신규 추가] Global Dashboard 라우트
       {
         path: "global-dashboard",
         name: "global-dashboard",
         component: GlobalDashboardView,
         meta: { title: "Global Dashboard" },
       },
-
       {
         path: "support",
         children: [
@@ -79,41 +82,167 @@ const routes: Array<RouteRecordRaw> = [
             path: "agent-download",
             name: "agent-download",
             component: AgentDownloadView,
-            meta: { title: "Agent Download" }},
+            meta: { title: "Agent Download" },
+          },
           {
-            path: "qna", component: QnaLayout,
+            path: "qna",
+            component: QnaLayout,
             children: [
-              { path: "", name: "qna-list", component: QnaBoardView, meta: { title: 'Q&A Board' } },
-              { path: "write", name: "qna-write", component: QnaWriteView, meta: { title: 'Write Question' } },
-              { path: ":id", name: "qna-detail", component: QnaDetailView, meta: { title: 'Q&A Detail' } }
-            ]
-          }
-        ]
+              {
+                path: "",
+                name: "qna-list",
+                component: QnaBoardView,
+                meta: { title: "Q&A Board" },
+              },
+              {
+                path: "write",
+                name: "qna-write",
+                component: QnaWriteView,
+                meta: { title: "Write Question" },
+              },
+              {
+                path: ":id",
+                name: "qna-detail",
+                component: QnaDetailView,
+                meta: { title: "Q&A Detail" },
+              },
+            ],
+          },
+        ],
       },
-      { path: "/waferflatdata", name: "wafer", component: WaferFlatDataView, meta: { title: 'Wafer Flat Data' } },
-      { path: "/lot-uniformity-trend", name: "lot-uniformity", component: LotUniformityTrendView, meta: { title: 'Lot Uniformity Trend' } },
-      { path: "/spectrum-analytics", name: "spectrum", component: SpectrumAnalysisView, meta: { title: 'Spectrum Analytics' } },
-      { path: "/process-matching", name: "process-matching", component: ProcessMatchingAnalyticsView, meta: { title: 'Process Matching' } },
-      { path: "/equipment-explorer", name: "equipment", component: EquipmentExplorerView, meta: { title: 'Equipment Explorer' } },
-      { path: "/performance-trend", name: "performance", component: PerformanceTrendView, meta: { title: 'Performance Trend' } },
-      { path: "/process-memory", name: "process-memory", component: ProcessMemoryView, meta: { title: 'Process Memory' } },
-      { path: "/lamp-life", name: "lamp", component: LampLifeView, meta: { title: 'Lamp Life' } },
-      { path: "/prealign-analytics", name: "prealign", component: PreAlignAnalyticsView, meta: { title: 'Pre-Align Analytics' } },
-      { path: "/error-analytics", name: "error", component: ErrorAnalyticsView, meta: { title: 'Error Analytics' } },
-      { path: "/health", name: "health", component: EquipmentHealthView, meta: { title: 'Equipment Health' } },
-      { path: "/optical-trend", name: "optical-trend", component: OpticalTrendView, meta: { title: 'Optical Trend' } },
-      
-      { path: "/agent-memory", name: "agent-memory", component: ItmAgentMemoryView, meta: { title: 'ITM Agent Memory', roles: ['ADMIN', 'MANAGER'] } },
-      { path: "/usage-analytics", name: "usage-analytics", component: UsageAnalyticsView, meta: { title: 'Usage Analytics', roles: ['ADMIN', 'MANAGER'] } },
+      {
+        path: "/waferflatdata",
+        name: "wafer",
+        component: WaferFlatDataView,
+        meta: { title: "Wafer Flat Data" },
+      },
+      {
+        path: "/lot-uniformity-trend",
+        name: "lot-uniformity",
+        component: LotUniformityTrendView,
+        meta: { title: "Lot Uniformity Trend" },
+      },
+      {
+        path: "/spectrum-analytics",
+        name: "spectrum",
+        component: SpectrumAnalysisView,
+        meta: { title: "Spectrum Analytics" },
+      },
+      {
+        path: "/process-matching",
+        name: "process-matching",
+        component: ProcessMatchingAnalyticsView,
+        meta: { title: "Process Matching" },
+      },
+      {
+        path: "/equipment-explorer",
+        name: "equipment",
+        component: EquipmentExplorerView,
+        meta: { title: "Equipment Explorer" },
+      },
+      {
+        path: "/performance-trend",
+        name: "performance",
+        component: PerformanceTrendView,
+        meta: { title: "Performance Trend" },
+      },
+      {
+        path: "/process-memory",
+        name: "process-memory",
+        component: ProcessMemoryView,
+        meta: { title: "Process Memory" },
+      },
+      {
+        path: "/lamp-life",
+        name: "lamp",
+        component: LampLifeView,
+        meta: { title: "Lamp Life" },
+      },
+      {
+        path: "/prealign-analytics",
+        name: "prealign",
+        component: PreAlignAnalyticsView,
+        meta: { title: "Pre-Align Analytics" },
+      },
+      {
+        path: "/error-analytics",
+        name: "error",
+        component: ErrorAnalyticsView,
+        meta: { title: "Error Analytics" },
+      },
+      {
+        path: "/health",
+        name: "health",
+        component: EquipmentHealthView,
+        meta: { title: "Equipment Health" },
+      },
+      {
+        path: "/optical-trend",
+        name: "optical-trend",
+        component: OpticalTrendView,
+        meta: { title: "Optical Trend" },
+      },
 
       {
-        path: "/admin", component: AdminLayout,
+        path: "/agent-memory",
+        name: "agent-memory",
+        component: ItmAgentMemoryView,
+        meta: { title: "ITM Agent Memory", roles: ["ADMIN", "MANAGER"] },
+      },
+      {
+        path: "/usage-analytics",
+        name: "usage-analytics",
+        component: UsageAnalyticsView,
+        meta: { title: "Usage Analytics", roles: ["ADMIN", "MANAGER"] },
+      },
+
+      {
+        path: "/admin",
+        component: AdminLayout,
         children: [
-          { path: "", redirect: () => { const authStore = useAuthStore(); return authStore.user?.role === 'ADMIN' ? { name: "admin-menus" } : { name: "admin-users" }; } },
-          { path: "menus", name: "admin-menus", component: MenuManagementView, meta: { title: 'Menu Management', roles: ['ADMIN'] } },
-          { path: "users", name: "admin-users", component: UserManagementView, meta: { title: 'User Management', roles: ['ADMIN', 'MANAGER'] } },
-          { path: "infra", name: "admin-infra", component: InfraManagementView, meta: { title: 'Infra Management', roles: ['ADMIN', 'MANAGER', 'ENGINEER'] } },
-          { path: "system", name: "admin-system", component: SystemConfigView, meta: { title: 'System Config', roles: ['ADMIN'] } },
+          {
+            path: "",
+            redirect: () => {
+              const authStore = useAuthStore();
+              return authStore.user?.role === "ADMIN"
+                ? { name: "admin-menus" }
+                : { name: "admin-users" };
+            },
+          },
+          {
+            path: "menus",
+            name: "admin-menus",
+            component: MenuManagementView,
+            meta: { title: "Menu Management", roles: ["ADMIN"] },
+          },
+          {
+            path: "users",
+            name: "admin-users",
+            component: UserManagementView,
+            meta: { title: "User Management", roles: ["ADMIN", "MANAGER"] },
+          },
+          {
+            path: "infra",
+            name: "admin-infra",
+            component: InfraManagementView,
+            meta: {
+              title: "Infra Management",
+              roles: ["ADMIN", "MANAGER", "ENGINEER"],
+            },
+          },
+          // [신규 추가] Storage Usage View 라우트 등록
+          {
+            path: "storage",
+            name: "admin-storage",
+            component: StorageUsageView,
+            meta: { title: "Storage Analytics", roles: ["ADMIN", "MANAGER"] },
+          },
+          {
+            path: "system",
+            name: "admin-system",
+            component: SystemConfigView,
+            meta: { title: "System Config", roles: ["ADMIN"] },
+          },
         ],
       },
     ],
@@ -121,15 +250,24 @@ const routes: Array<RouteRecordRaw> = [
   { path: "/:pathMatch(.*)*", name: "not-found", redirect: "/" },
 ];
 
-const router = createRouter({ history: createWebHistory(import.meta.env.BASE_URL), routes });
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+});
 
 function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
-  const normalizedTarget = targetPath.endsWith('/') && targetPath.length > 1 ? targetPath.slice(0, -1) : targetPath;
+  const normalizedTarget =
+    targetPath.endsWith("/") && targetPath.length > 1
+      ? targetPath.slice(0, -1)
+      : targetPath;
   for (const menu of menus) {
     if (menu.routerPath) {
-      const menuPath = menu.routerPath.endsWith('/') && menu.routerPath.length > 1 ? menu.routerPath.slice(0, -1) : menu.routerPath;
+      const menuPath =
+        menu.routerPath.endsWith("/") && menu.routerPath.length > 1
+          ? menu.routerPath.slice(0, -1)
+          : menu.routerPath;
       if (menuPath === normalizedTarget) return true;
-      if (normalizedTarget.startsWith(menuPath + '/')) return true;
+      if (normalizedTarget.startsWith(menuPath + "/")) return true;
     }
     if (menu.children && menu.children.length > 0) {
       if (checkRoutePermission(targetPath, menu.children)) return true;
@@ -144,19 +282,24 @@ router.beforeEach(async (to, _from, next) => {
   const isAuthenticated = authStore.isAuthenticated;
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
-  if (requiresAuth && !isAuthenticated) return next({ name: "login", query: { redirect: to.fullPath } });
+  if (requiresAuth && !isAuthenticated)
+    return next({ name: "login", query: { redirect: to.fullPath } });
   if (to.path === "/login" && isAuthenticated) return next({ name: "home" });
 
   if (isAuthenticated) {
     if (to.meta.roles) {
       const allowedRoles = to.meta.roles as string[];
-      const userRole = authStore.user?.role || 'GUEST';
+      const userRole = authStore.user?.role || "GUEST";
       if (!allowedRoles.includes(userRole)) {
         alert("접근 권한이 없습니다.");
         return next({ name: "home" });
       }
     }
-    if (menuStore.menus.length === 0) { try { await menuStore.loadMenus(); } catch (e) {} }
+    if (menuStore.menus.length === 0) {
+      try {
+        await menuStore.loadMenus();
+      } catch (e) {}
+    }
     const isExceptionPath =
       to.path === "/" ||
       to.path === "/global-dashboard" ||
@@ -165,7 +308,7 @@ router.beforeEach(async (to, _from, next) => {
       to.name === "not-found";
     if (!isExceptionPath) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
-      const isAdmin = authStore.user?.role === 'ADMIN';
+      const isAdmin = authStore.user?.role === "ADMIN";
       if (!hasPermission && !isAdmin) return next({ name: "home" });
     }
   }
@@ -177,16 +320,20 @@ import { adminApi } from "@/api/admin";
 router.afterEach((to) => {
   const authStore = useAuthStore();
   if (authStore.isAuthenticated && authStore.user?.userId) {
+    const ignoreList = ["login", "not-found"];
 
-    const ignoreList = ['login', 'not-found']; 
-    
     if (!ignoreList.includes(to.name as string)) {
-      const menuName = (to.meta.title as string) || (to.name as string) || to.path;
-      adminApi.logAccess({
-        loginId: authStore.user.userId,
-        menuName: menuName,
-        accessUrl: to.fullPath
-      }).catch((e) => { console.error("Usage Analytics Logging Failed:", e); });
+      const menuName =
+        (to.meta.title as string) || (to.name as string) || to.path;
+      adminApi
+        .logAccess({
+          loginId: authStore.user.userId,
+          menuName: menuName,
+          accessUrl: to.fullPath,
+        })
+        .catch((e) => {
+          console.error("Usage Analytics Logging Failed:", e);
+        });
     }
   }
 });
