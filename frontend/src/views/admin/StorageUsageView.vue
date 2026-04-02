@@ -171,7 +171,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import EChart from "@/components/common/EChart.vue";
-import type { ECharts } from "echarts"; // ★ 타입 임포트 추가
+import type { ECharts } from "echarts";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import { adminApi } from "@/api/admin";
@@ -181,7 +181,6 @@ import dayjs from "dayjs";
 const isLoading = ref(false);
 const isSyncing = ref(false);
 
-// ★ 줌 관련 상태 및 인스턴스 추가
 const isZoomed = ref(false);
 let dailyChartInstance: ECharts | null = null;
 
@@ -222,7 +221,6 @@ const fetchData = async () => {
     dailyTrendData.value = resData?.dailyTrends || [];
     monthlyTrendData.value = resData?.monthlyTrends || [];
     
-    // 데이터 새로 불러올 때 줌 초기화
     if (isZoomed.value) resetDailyZoom();
   } catch (error) {
     console.error("Failed to fetch storage usage", error);
@@ -257,7 +255,6 @@ onMounted(() => {
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 });
 
-// ★ Daily 차트 생성 완료 시 인스턴스 저장 및 이벤트 리스너 등록
 const onDailyChartCreated = (instance: any) => {
   dailyChartInstance = instance;
   instance.on("dataZoom", (params: any) => {
@@ -268,7 +265,6 @@ const onDailyChartCreated = (instance: any) => {
   });
 };
 
-// ★ Zoom 초기화 (Restore) 함수
 const resetDailyZoom = () => {
   if (dailyChartInstance) {
     dailyChartInstance.dispatchAction({ type: "restore" });
@@ -281,14 +277,31 @@ const monthlyChartOption = computed(() => {
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
   return {
     backgroundColor: "transparent",
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", textStyle: { color: textColor, fontSize: 11 } },
+    // 툴팁 단위 GB 포맷팅 추가
+    tooltip: { 
+      trigger: "axis", 
+      axisPointer: { type: "shadow" }, 
+      backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", 
+      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", 
+      textStyle: { color: textColor, fontSize: 11 },
+      formatter: function (params: any) { 
+        let html = `<div class="pb-1 mb-1 font-bold border-b border-gray-500">${params[0].name}</div>`; 
+        params.forEach((p: any) => { 
+          const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`; 
+          html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5"><span>${colorDot} ${p.seriesName}</span><span class="font-mono font-bold">${Number(p.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} GB</span></div>`; 
+        }); 
+        return html; 
+      }
+    },
     legend: { textStyle: { color: textColor, fontSize: 10 }, top: 0, right: 15, itemGap: 10 },
     grid: { left: 45, right: 10, top: 35, bottom: 25 },
     xAxis: { type: "category", data: monthlyTrendData.value.map((d) => d.date), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
-    yAxis: { type: "value", name: "(MB)", nameTextStyle: { color: textColor, fontSize: 10, padding: [0,20,0,0] }, axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
+    // Y축 단위를 GB로 수정
+    yAxis: { type: "value", name: "(GB)", nameTextStyle: { color: textColor, fontSize: 10, padding: [0,20,0,0] }, axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
     series: [
-      { name: "DB Input", type: "bar", stack: 'monthly', barMaxWidth: 20, itemStyle: { color: "rgba(99, 102, 241, 0.8)", borderRadius: [0, 0, 0, 0] }, data: monthlyTrendData.value.map((d) => Number(d.monthlyDbMB || 0).toFixed(2)) },
-      { name: "Obj Input", type: "bar", stack: 'monthly', barMaxWidth: 20, itemStyle: { color: "rgba(20, 184, 166, 0.8)", borderRadius: [2, 2, 0, 0] }, data: monthlyTrendData.value.map((d) => Number(d.monthlyObjMB || 0).toFixed(2)) }
+      // 데이터를 1024로 나누어 GB 단위로 매핑
+      { name: "DB Input", type: "bar", stack: 'monthly', barMaxWidth: 20, itemStyle: { color: "rgba(99, 102, 241, 0.8)", borderRadius: [0, 0, 0, 0] }, data: monthlyTrendData.value.map((d) => (Number(d.monthlyDbMB || 0) / 1024).toFixed(2)) },
+      { name: "Obj Input", type: "bar", stack: 'monthly', barMaxWidth: 20, itemStyle: { color: "rgba(20, 184, 166, 0.8)", borderRadius: [2, 2, 0, 0] }, data: monthlyTrendData.value.map((d) => (Number(d.monthlyObjMB || 0) / 1024).toFixed(2)) }
     ]
   };
 });
@@ -297,23 +310,22 @@ const dailyChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
   
-  // 정방향 누적(Forward Cumulative)
   let currentDbCum = 0;
   let currentObjCum = 0;
   
+  // 누적 계산 후 1024로 나누어 GB 단위로 변환
   const safeCumDbData = dailyTrendData.value.map((d) => {
     currentDbCum += Number(d.dailyDbMB || 0);
-    return currentDbCum.toFixed(2);
+    return (currentDbCum / 1024).toFixed(2);
   });
   
   const safeCumObjData = dailyTrendData.value.map((d) => {
     currentObjCum += Number(d.dailyObjMB || 0);
-    return currentObjCum.toFixed(2);
+    return (currentObjCum / 1024).toFixed(2);
   });
 
   return {
     backgroundColor: "transparent",
-    // ★ Wafer Flat 기준과 동일한 dataZoom 설정 (마우스 휠/드래그만 작동, 툴박스/슬라이더 없음)
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
     tooltip: { 
       trigger: "axis", 
@@ -324,8 +336,10 @@ const dailyChartOption = computed(() => {
       formatter: function (params: any) { 
         let html = `<div class="pb-1 mb-1 font-bold border-b border-gray-500">${params[0].name}</div>`; 
         params.forEach((p: any) => { 
+          // 시리즈 이름에 'Cum.' 이 포함되면 GB, 아니면 MB 단위 표기
+          const unit = p.seriesName.includes("Cum.") ? "GB" : "MB";
           const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`; 
-          html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5"><span>${colorDot} ${p.seriesName}</span><span class="font-mono font-bold">${Number(p.value).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB</span></div>`; 
+          html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5"><span>${colorDot} ${p.seriesName}</span><span class="font-mono font-bold">${Number(p.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${unit}</span></div>`; 
         }); 
         return html; 
       } 
@@ -341,13 +355,15 @@ const dailyChartOption = computed(() => {
     yAxis: [
       { 
         type: "value", 
-        name: "Cum. (MB)", 
+        // Y축 1번 단위를 GB로 수정
+        name: "Cum. (GB)", 
         nameTextStyle: { color: textColor, padding: [0, 0, 0, 10], fontSize: 10 }, 
         axisLabel: { color: textColor, fontSize: 10 }, 
         splitLine: { lineStyle: { color: gridColor } } 
       },
       { 
         type: "value", 
+        // Y축 2번(일별) 단위는 MB 그대로 유지
         name: "Daily (MB)", 
         nameTextStyle: { color: textColor, padding: [0, 10, 0, 0], fontSize: 10 }, 
         axisLabel: { color: textColor, fontSize: 10 }, 
@@ -406,7 +422,6 @@ const pieChartOption = computed(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
 
-/* ★ 버튼 오버레이 애니메이션 (fade-in/out) */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
