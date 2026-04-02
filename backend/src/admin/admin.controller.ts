@@ -176,4 +176,10 @@ export class AdminController {
   ) {
     return this.adminService.getStorageUsage(startDate, endDate, interval);
   }
+
+  // [신규 추가] 수동 동기화 Proxy
+  @Post('storage-sync')
+  async syncStorageNow() {
+    return this.adminService.syncStorageNow();
+  }
 }
