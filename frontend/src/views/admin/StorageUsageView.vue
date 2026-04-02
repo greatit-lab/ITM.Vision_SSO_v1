@@ -19,9 +19,10 @@
         <span class="text-xs text-slate-400">-</span>
         <DatePicker v-model="endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-[130px] custom-dropdown small date-picker" />
         
-        <Button icon="pi pi-search" class="!w-7 !h-7 !bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !p-0 ml-1" @click="fetchData" :loading="isLoading" title="조회" />
-        
-        <Button icon="pi pi-sync" class="!w-7 !h-7 !bg-teal-600 !border-teal-600 hover:!bg-teal-700 !p-0 ml-0.5" @click="forceSyncStorage" :loading="isSyncing" title="현재 용량 강제 기록 (누락 시 사용)" />
+        <div class="flex items-center gap-1 ml-1 border-l pl-1.5 border-slate-200 dark:border-zinc-700">
+          <Button icon="pi pi-search" class="!w-7 !h-7 !bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !p-0" @click="fetchData" :loading="isLoading" v-tooltip.top="'조회'" />
+          <Button icon="pi pi-download" class="!w-7 !h-7 !bg-emerald-600 !border-emerald-600 hover:!bg-emerald-700 !p-0" @click="exportDataToCSV" :disabled="isLoading || dailyTrendData.length === 0" v-tooltip.top="'CSV 다운로드'" />
+        </div>
       </div>
     </div>
 
@@ -175,11 +176,9 @@ import type { ECharts } from "echarts";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
 import { adminApi } from "@/api/admin";
-import http from "@/api/http"; 
 import dayjs from "dayjs";
 
 const isLoading = ref(false);
-const isSyncing = ref(false);
 
 const isZoomed = ref(false);
 let dailyChartInstance: ECharts | null = null;
@@ -229,17 +228,51 @@ const fetchData = async () => {
   }
 };
 
-const forceSyncStorage = async () => {
-  isSyncing.value = true;
+// [추가됨] 화면의 데이터를 CSV 파일로 내보내는 Export 기능
+const exportDataToCSV = () => {
   try {
-    await http.post("/admin/storage-sync");
-    await fetchData();
-    alert("스토리지 사용량이 성공적으로 동기화되었습니다.");
+    // 엑셀에서 한글이 깨지지 않도록 UTF-8 BOM(\uFEFF) 삽입
+    let csvContent = '\uFEFF';
+
+    const startStr = dayjs(startDate.value).format("YYYY-MM-DD");
+    const endStr = dayjs(endDate.value).format("YYYY-MM-DD");
+
+    // --- 1. 일별 트렌드 데이터 (Daily Trends) ---
+    csvContent += `[Daily Storage Trends (${startStr} ~ ${endStr})]\n`;
+    csvContent += "Date,Total DB Usage (MB),Total Object Storage (MB),Daily Object Input (MB)\n";
+    
+    dailyTrendData.value.forEach((row) => {
+      csvContent += `${row.date},${Number(row.cumDbMB).toFixed(2)},${Number(row.cumObjMB).toFixed(2)},${Number(row.dailyObjMB).toFixed(2)}\n`;
+    });
+
+    csvContent += "\n\n"; // 데이터 섹션 간 공백 분리
+
+    // --- 2. 실시간 테이블 스냅샷 (Table Snapshot) ---
+    csvContent += "[Real-time Table Snapshot]\n";
+    csvContent += "Table Name,Table Type,Row Count,Size (MB),Percentage (%)\n";
+    
+    tableData.value.forEach((row) => {
+      const percentage = summaryData.value.totalDbUsageMB 
+        ? ((row.sizeMB / summaryData.value.totalDbUsageMB) * 100).toFixed(2) 
+        : "0.00";
+      csvContent += `${row.tableName},${row.type},${row.rowCount},${Number(row.sizeMB).toFixed(2)},${percentage}%\n`;
+    });
+
+    // Blob 변환 및 다운로드 트리거
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Storage_Analytics_${dayjs(startDate.value).format("YYYYMMDD")}_${dayjs(endDate.value).format("YYYYMMDD")}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   } catch (error) {
-    console.error("Force sync failed", error);
-    alert("동기화 중 오류가 발생했습니다. (백엔드 로그 확인 필요)");
-  } finally {
-    isSyncing.value = false;
+    console.error("Failed to export CSV", error);
   }
 };
 
@@ -277,7 +310,6 @@ const monthlyChartOption = computed(() => {
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
   return {
     backgroundColor: "transparent",
-    // 툴팁 단위 GB 포맷팅 추가
     tooltip: { 
       trigger: "axis", 
       axisPointer: { type: "shadow" }, 
@@ -296,12 +328,10 @@ const monthlyChartOption = computed(() => {
     legend: { textStyle: { color: textColor, fontSize: 10 }, top: 0, right: 15, itemGap: 10 },
     grid: { left: 45, right: 10, top: 35, bottom: 25 },
     xAxis: { type: "category", data: monthlyTrendData.value.map((d) => d.date), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
-    // Y축 단위를 GB로 수정
     yAxis: { type: "value", name: "(GB)", nameTextStyle: { color: textColor, fontSize: 10, padding: [0,20,0,0] }, axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
     series: [
-      // 데이터를 1024로 나누어 GB 단위로 매핑
-      { name: "DB Input", type: "bar", stack: 'monthly', barMaxWidth: 20, itemStyle: { color: "rgba(99, 102, 241, 0.8)", borderRadius: [0, 0, 0, 0] }, data: monthlyTrendData.value.map((d) => (Number(d.monthlyDbMB || 0) / 1024).toFixed(2)) },
-      { name: "Obj Input", type: "bar", stack: 'monthly', barMaxWidth: 20, itemStyle: { color: "rgba(20, 184, 166, 0.8)", borderRadius: [2, 2, 0, 0] }, data: monthlyTrendData.value.map((d) => (Number(d.monthlyObjMB || 0) / 1024).toFixed(2)) }
+      { name: "DB Usage", type: "bar", barMaxWidth: 20, itemStyle: { color: "rgba(99, 102, 241, 0.8)", borderRadius: [2, 2, 0, 0] }, data: monthlyTrendData.value.map((d) => (Number(d.monthlyDbMB || 0) / 1024).toFixed(2)) },
+      { name: "Obj Input", type: "bar", barMaxWidth: 20, itemStyle: { color: "rgba(20, 184, 166, 0.8)", borderRadius: [2, 2, 0, 0] }, data: monthlyTrendData.value.map((d) => (Number(d.monthlyObjMB || 0) / 1024).toFixed(2)) }
     ]
   };
 });
@@ -310,20 +340,6 @@ const dailyChartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
   
-  let currentDbCum = 0;
-  let currentObjCum = 0;
-  
-  // 누적 계산 후 1024로 나누어 GB 단위로 변환
-  const safeCumDbData = dailyTrendData.value.map((d) => {
-    currentDbCum += Number(d.dailyDbMB || 0);
-    return (currentDbCum / 1024).toFixed(2);
-  });
-  
-  const safeCumObjData = dailyTrendData.value.map((d) => {
-    currentObjCum += Number(d.dailyObjMB || 0);
-    return (currentObjCum / 1024).toFixed(2);
-  });
-
   return {
     backgroundColor: "transparent",
     dataZoom: [{ type: "inside", xAxisIndex: [0], filterMode: "filter" }],
@@ -336,7 +352,6 @@ const dailyChartOption = computed(() => {
       formatter: function (params: any) { 
         let html = `<div class="pb-1 mb-1 font-bold border-b border-gray-500">${params[0].name}</div>`; 
         params.forEach((p: any) => { 
-          // 시리즈 이름에 'Cum.' 이 포함되면 GB, 아니면 MB 단위 표기
           const unit = p.seriesName.includes("Cum.") ? "GB" : "MB";
           const colorDot = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>`; 
           html += `<div class="flex justify-between items-center gap-4 text-[10px] mb-0.5"><span>${colorDot} ${p.seriesName}</span><span class="font-mono font-bold">${Number(p.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${unit}</span></div>`; 
@@ -355,7 +370,6 @@ const dailyChartOption = computed(() => {
     yAxis: [
       { 
         type: "value", 
-        // Y축 1번 단위를 GB로 수정
         name: "Cum. (GB)", 
         nameTextStyle: { color: textColor, padding: [0, 0, 0, 10], fontSize: 10 }, 
         axisLabel: { color: textColor, fontSize: 10 }, 
@@ -363,7 +377,6 @@ const dailyChartOption = computed(() => {
       },
       { 
         type: "value", 
-        // Y축 2번(일별) 단위는 MB 그대로 유지
         name: "Daily (MB)", 
         nameTextStyle: { color: textColor, padding: [0, 10, 0, 0], fontSize: 10 }, 
         axisLabel: { color: textColor, fontSize: 10 }, 
@@ -371,9 +384,9 @@ const dailyChartOption = computed(() => {
       },
     ],
     series: [
-      { name: "Cum. DB Usage", type: "line", yAxisIndex: 0, smooth: true, showSymbol: false, itemStyle: { color: "#6366f1" }, lineStyle: { width: 2 }, data: safeCumDbData },
-      { name: "Cum. Object", type: "line", yAxisIndex: 0, smooth: true, showSymbol: false, itemStyle: { color: "#14b8a6" }, lineStyle: { width: 2 }, data: safeCumObjData },
-      { name: "Daily DB Input", type: "bar", yAxisIndex: 1, barWidth: "20%", itemStyle: { color: "rgba(99, 102, 241, 0.7)", borderRadius: [2, 2, 0, 0] }, data: dailyTrendData.value.map((d) => Number(d.dailyDbMB || 0).toFixed(2)) },
+      { name: "Cum. DB Usage", type: "line", yAxisIndex: 0, smooth: true, showSymbol: false, itemStyle: { color: "#6366f1" }, lineStyle: { width: 2 }, data: dailyTrendData.value.map((d) => (Number(d.cumDbMB) / 1024).toFixed(2)) },
+      { name: "Cum. Object", type: "line", yAxisIndex: 0, smooth: true, showSymbol: false, itemStyle: { color: "#14b8a6" }, lineStyle: { width: 2 }, data: dailyTrendData.value.map((d) => (Number(d.cumObjMB) / 1024).toFixed(2)) },
+      { name: "Daily DB Usage", type: "bar", yAxisIndex: 1, barWidth: "20%", itemStyle: { color: "rgba(99, 102, 241, 0.7)", borderRadius: [2, 2, 0, 0] }, data: dailyTrendData.value.map((d) => Number(d.dailyDbMB || 0).toFixed(2)) },
       { name: "Daily Obj Input", type: "bar", yAxisIndex: 1, barWidth: "20%", itemStyle: { color: "rgba(20, 184, 166, 0.7)", borderRadius: [2, 2, 0, 0] }, data: dailyTrendData.value.map((d) => Number(d.dailyObjMB || 0).toFixed(2)) },
     ],
   };
