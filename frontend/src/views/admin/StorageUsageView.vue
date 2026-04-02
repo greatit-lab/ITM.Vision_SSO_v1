@@ -60,8 +60,8 @@
       </div>
     </div>
 
-    <div class="flex gap-3 h-[240px] shrink-0">
-      <div class="flex flex-col w-1/3 p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
+    <div class="grid grid-cols-12 gap-3 h-[240px] shrink-0">
+      <div class="flex flex-col col-span-4 p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
         <h3 class="flex items-center gap-2 mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">
           <i class="text-indigo-500 pi pi-calendar"></i> Monthly Growth Trend
         </h3>
@@ -73,7 +73,7 @@
         </div>
       </div>
       
-      <div class="flex flex-col w-2/3 p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
+      <div class="flex flex-col col-span-8 p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
         <h3 class="flex items-center gap-2 mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">
           <i class="text-teal-500 pi pi-chart-line"></i> Daily Actuals & Cumulative
         </h3>
@@ -228,16 +228,13 @@ const fetchData = async () => {
   }
 };
 
-// [추가됨] 화면의 데이터를 CSV 파일로 내보내는 Export 기능
 const exportDataToCSV = () => {
   try {
-    // 엑셀에서 한글이 깨지지 않도록 UTF-8 BOM(\uFEFF) 삽입
     let csvContent = '\uFEFF';
 
     const startStr = dayjs(startDate.value).format("YYYY-MM-DD");
     const endStr = dayjs(endDate.value).format("YYYY-MM-DD");
 
-    // --- 1. 일별 트렌드 데이터 (Daily Trends) ---
     csvContent += `[Daily Storage Trends (${startStr} ~ ${endStr})]\n`;
     csvContent += "Date,Total DB Usage (MB),Total Object Storage (MB),Daily Object Input (MB)\n";
     
@@ -245,9 +242,8 @@ const exportDataToCSV = () => {
       csvContent += `${row.date},${Number(row.cumDbMB).toFixed(2)},${Number(row.cumObjMB).toFixed(2)},${Number(row.dailyObjMB).toFixed(2)}\n`;
     });
 
-    csvContent += "\n\n"; // 데이터 섹션 간 공백 분리
+    csvContent += "\n\n";
 
-    // --- 2. 실시간 테이블 스냅샷 (Table Snapshot) ---
     csvContent += "[Real-time Table Snapshot]\n";
     csvContent += "Table Name,Table Type,Row Count,Size (MB),Percentage (%)\n";
     
@@ -258,7 +254,6 @@ const exportDataToCSV = () => {
       csvContent += `${row.tableName},${row.type},${row.rowCount},${Number(row.sizeMB).toFixed(2)},${percentage}%\n`;
     });
 
-    // Blob 변환 및 다운로드 트리거
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
