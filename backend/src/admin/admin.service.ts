@@ -299,4 +299,9 @@ export class AdminService {
       `storage-usage?startDate=${startDate}&endDate=${endDate}&interval=${interval}`,
     );
   }
+
+  // [신규 추가] 수동 동기화 Proxy
+  async syncStorageNow(): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'storage-sync');
+  }
 }
