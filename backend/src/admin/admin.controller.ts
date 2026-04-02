@@ -182,4 +182,9 @@ export class AdminController {
   async syncStorageNow() {
     return this.adminService.syncStorageNow();
   }
+
+  // [신규 추가] 수동 동기화 Proxy
+  async syncStorageNow(): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'storage-sync');
+  }
 }
