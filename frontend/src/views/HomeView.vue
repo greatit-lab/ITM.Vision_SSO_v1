@@ -92,7 +92,7 @@
           text
           severity="secondary"
           @click="manualRefresh"
-          :disabled="!hasSearched"
+          :disabled="!hasSearched || isSummaryLoading"
           v-tooltip.left="'Refresh Now'"
           class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
         />
@@ -116,16 +116,22 @@
       </p>
     </div>
 
-    <div v-else class="space-y-5 fade-in">
-      <div
-        v-if="isSummaryLoading"
-        class="flex flex-col items-center justify-center h-20"
-      >
-        <ProgressSpinner style="width: 20px; height: 20px" strokeWidth="4" />
-        <p class="mt-2 text-[10px] text-slate-400">Loading Summary...</p>
-      </div>
+    <div
+      v-else-if="isSummaryLoading"
+      class="flex flex-col items-center justify-center border-2 border-dashed h-72 fade-in border-slate-200 dark:border-zinc-800 rounded-3xl bg-white/40 dark:bg-[#111111]/40"
+    >
+      <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
+      <h3 class="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+        Loading Dashboard Data...
+      </h3>
+      <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-500">
+        Gathering system performance and agent metrics.
+      </p>
+    </div>
 
-      <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+    <div v-else class="space-y-5 fade-in">
+      
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
         <div
           @click="setActiveFilter('All')"
           class="relative h-20 p-3 overflow-hidden transition-all duration-300 border cursor-pointer rounded-xl hover:-translate-y-1"
@@ -449,12 +455,7 @@
           </div>
         </div>
 
-        <div v-if="isTableLoading" class="flex justify-center py-20">
-          <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
-        </div>
-
         <div
-          v-else
           class="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
         >
           <div
@@ -855,54 +856,60 @@ const loadData = async (showLoading = true) => {
   }
   hasSearched.value = true;
 
-  dashboardApi
-    .getSummary(filterStore.selectedSite, filterStore.selectedSdwt)
-    .then((res: any) => {
-      const data = res.data || res;
-      if (data) {
-        summary.value = { ...summary.value, ...data };
-      }
-    })
-    .catch((e) => {
-      console.error("Summary load failed", e);
-    })
-    .finally(() => {
+  try {
+    const [summaryRes, agentData] = await Promise.all([
+      dashboardApi.getSummary(filterStore.selectedSite, filterStore.selectedSdwt).catch(e => {
+        console.error("Summary load failed", e);
+        return null;
+      }),
+      dashboardApi.getAgentStatus(filterStore.selectedSite, filterStore.selectedSdwt).catch(e => {
+        console.error("Agent status load failed", e);
+        return null;
+      })
+    ]);
+
+    agentList.value = agentData || [];
+
+    const total = agentList.value.length;
+    const online = agentList.value.filter((a) => a.isOnline).length;
+    const offline = total - online;
+
+    let newSummary = { ...summary.value };
+    if (summaryRes) {
+      const fetchedData = ('data' in summaryRes) ? (summaryRes as any).data : summaryRes;
+      newSummary = { ...newSummary, ...fetchedData };
+    }
+
+    summary.value = {
+      ...newSummary,
+      totalEqpCount: total,
+      onlineAgentCount: online,
+      inactiveAgentCount: offline,
+      serverHealth: total > 0 ? Math.round((online / total) * 100) : 0,
+    };
+
+    startAutoRefresh();
+  } catch (e) {
+    console.error("Data load failed", e);
+    agentList.value = [];
+    summary.value = {
+      totalEqpCount: 0,
+      onlineAgentCount: 0,
+      todayErrorCount: 0,
+      todayErrorTotalCount: 0,
+      newAlarmCount: 0,
+      latestAgentVersion: "",
+      totalServers: 0,
+      inactiveAgentCount: 0,
+      totalSdwts: 0,
+      serverHealth: 0,
+    };
+  } finally {
+    if (showLoading) {
       isSummaryLoading.value = false;
-    });
-
-  dashboardApi
-    .getAgentStatus(filterStore.selectedSite, filterStore.selectedSdwt)
-    .then((data) => {
-      agentList.value = data || [];
-
-      const total = agentList.value.length;
-      const online = agentList.value.filter((a) => a.isOnline).length;
-      const offline = total - online;
-
-      summary.value = {
-        ...summary.value,
-        totalEqpCount: total,
-        onlineAgentCount: online,
-        inactiveAgentCount: offline,
-        serverHealth: total > 0 ? Math.round((online / total) * 100) : 0,
-      };
-
-      startAutoRefresh();
-    })
-    .catch((e) => {
-      console.error("Agent status load failed", e);
-      agentList.value = [];
-      summary.value = {
-        ...summary.value,
-        totalEqpCount: 0,
-        onlineAgentCount: 0,
-        inactiveAgentCount: 0,
-        serverHealth: 0,
-      };
-    })
-    .finally(() => {
       isTableLoading.value = false;
-    });
+    }
+  }
 };
 
 const startAutoRefresh = () => {
@@ -912,7 +919,7 @@ const startAutoRefresh = () => {
   refreshTimer = window.setInterval(() => {
     refreshCount.value--;
     if (refreshCount.value <= 0) {
-      loadData(false);
+      loadData(false); 
       refreshCount.value = 30;
     }
   }, 1000);
