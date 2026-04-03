@@ -64,7 +64,7 @@ export class AdminController {
   }
 
   // ==========================================
-  // 🌟 [신규 추가] 예외 접근 허용 관리 엔드포인트
+  // [신규 추가] 예외 접근 허용 관리 엔드포인트
   // ==========================================
   @Get('exceptions') async getExceptionUsers() {
     return this.adminService.getExceptionUsers();
