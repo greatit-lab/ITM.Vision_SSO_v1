@@ -263,23 +263,23 @@
       </template>
     </Dialog>
 
-    <Dialog v-model:visible="exceptionDialogVisible" modal header="예외 접근 사내 직원 추가" :style="{ width: '25rem' }">
+    <Dialog v-model:visible="exceptionDialogVisible" modal header="예외 접근 사용자 추가" :style="{ width: '25rem' }">
       <div class="flex flex-col gap-4 pt-2">
         <div class="p-3 mb-2 text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
           <i class="pi pi-info-circle mr-1"></i> 부서 단위 접근이 차단되어 있어도 개별적으로 일반 User 권한을 부여합니다.
         </div>
         <div class="flex flex-col gap-1">
-          <label class="text-xs font-bold text-slate-500">사번 (User ID)</label>
-          <InputText v-model="newException.loginId" class="!text-sm" placeholder="허용할 직원의 사번을 입력하세요" />
+          <label class="text-xs font-bold text-slate-500">User ID</label>
+          <InputText v-model="newException.loginId" class="!text-sm" placeholder="허용할 사용자의 UserID를 입력하세요" />
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div class="flex flex-col gap-1">
             <label class="text-xs font-bold text-slate-500">소속 부서코드</label>
-            <InputText v-model="newException.deptCode" class="!text-sm" placeholder="예: 1234" />
+            <InputText v-model="newException.deptCode" class="!text-sm" placeholder="예: 2404..." />
           </div>
           <div class="flex flex-col gap-1">
             <label class="text-xs font-bold text-slate-500">부서명</label>
-            <InputText v-model="newException.deptName" class="!text-sm" placeholder="예: IT운영팀" />
+            <InputText v-model="newException.deptName" class="!text-sm" placeholder="예: 메모리CMP기술팀" />
           </div>
         </div>
       </div>
@@ -413,7 +413,7 @@ const exceptionDialogVisible = ref(false);
 const newException = ref({ loginId: "", deptCode: "", deptName: "" });
 
 const saveExceptionUser = async () => {
-  if (!newException.value.loginId) return alert("User ID(사번)는 필수입니다.");
+  if (!newException.value.loginId) return alert("User ID는 필수입니다.");
   try {
     // 1. 유저 ID 가져오기
     const userId = authStore.user?.loginId || authStore.user?.userId || "Admin";
@@ -435,6 +435,7 @@ const saveExceptionUser = async () => {
     alert("예외 사용자 등록에 실패했습니다.");
   }
 };
+
 const toggleExceptionStatus = async (user: any) => {
   const newStatus = user.isActive === 'Y' ? 'N' : 'Y';
   try {
