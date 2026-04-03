@@ -31,30 +31,27 @@ export class AuthService {
 
     let isWhitelisted = false;
 
-    // 1. Whitelist Check
+    // 1. Whitelist Check (보안 결함 수정: 부서 코드로만 정확히 검사)
     try {
-      if (user.companyCode) {
-        const companyAuth = await this.api.request<{ isActive: string }>(
+      if (user.department) {
+        // 회사 코드로 먼저 통과시키는 로직(user.companyCode 단독 검사)을 완전 삭제했습니다.
+        // 오직 사번(username), 회사코드, 부서코드 3가지를 한 번에 보내 엄격하게 검증합니다.
+        const authCheck = await this.api.request<{ isActive: string }>(
           this.DOMAIN,
           'get',
           'whitelist/check',
           undefined,
-          { compId: user.companyCode },
+          { 
+            username: rawUserId, 
+            compId: user.companyCode, 
+            deptId: user.department 
+          },
           { returnNullOn404: true },
         );
-        if (companyAuth?.isActive === 'Y') isWhitelisted = true;
-      }
-
-      if (user.department && !isWhitelisted) {
-        const deptAuth = await this.api.request<{ isActive: string }>(
-          this.DOMAIN,
-          'get',
-          'whitelist/check',
-          undefined,
-          { deptId: user.department },
-          { returnNullOn404: true },
-        );
-        if (deptAuth?.isActive === 'Y') isWhitelisted = true;
+        
+        if (authCheck?.isActive === 'Y') {
+           isWhitelisted = true;
+        }
       }
     } catch (e) {
       this.logger.error(`[Whitelist Check Error] ${e}`);
@@ -94,7 +91,6 @@ export class AuthService {
       if (adminUser) {
         role = adminUser.role.toUpperCase();
       } else {
-        // [수정] Data API 호출 및 로그 추가
         const guestUser = await this.api.request<{ grantedRole: string; validUntil?: string }>(
           this.DOMAIN,
           'get',
@@ -104,12 +100,11 @@ export class AuthService {
           { returnNullOn404: true },
         );
 
-        // >>> [디버깅 로그] Data API 응답 확인
         if (guestUser) {
           this.logger.log(`[Debug] Guest User Found: ${JSON.stringify(guestUser)}`);
           role = guestUser.grantedRole.toUpperCase();
           hasGuestAccess = true;
-          guestValidUntil = guestUser.validUntil; // 유효기간 저장
+          guestValidUntil = guestUser.validUntil; 
         }
       }
     } catch (e) {
@@ -177,10 +172,9 @@ export class AuthService {
       role,
       site: contextSite || undefined,
       sdwt: contextSdwt || undefined,
-      validUntil: guestValidUntil, // [확인] 여기서 값이 들어가야 함
+      validUntil: guestValidUntil, 
     };
     
-    // >>> [디버깅 로그] 최종 사용자 객체 확인
     this.logger.log(`[Debug] Final User Object: ${JSON.stringify(finalUser)}`);
 
     const payload = {
