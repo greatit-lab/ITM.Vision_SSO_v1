@@ -160,7 +160,13 @@
             </Column>
             <Column header="등록자" style="width: 15%">
                <template #body="{ data }">
-                 <span :class="data.isActive === 'N' ? 'opacity-50 grayscale text-slate-400' : 'font-bold text-indigo-600 dark:text-indigo-400'">{{ data.registeredBy }}</span>
+                 <span 
+                   :class="data.isActive === 'N' ? 'opacity-50 grayscale text-slate-400' : 'font-bold text-indigo-600 dark:text-indigo-400'"
+                   class="block w-full truncate cursor-help"
+                   v-tooltip.top="data.registeredBy"
+                 >
+                   {{ data.registeredBy }}
+                 </span>
                </template>
             </Column>
             <Column header="상태 (활성화)" align="center" style="width: 15%">
@@ -409,10 +415,19 @@ const newException = ref({ loginId: "", deptCode: "", deptName: "" });
 const saveExceptionUser = async () => {
   if (!newException.value.loginId) return alert("User ID(사번)는 필수입니다.");
   try {
+    // 1. 유저 ID 가져오기
+    const userId = authStore.user?.loginId || authStore.user?.userId || "Admin";
+    
+    // 2. 권한명 가져와서 보기 좋게 변환 (예: ADMIN -> Admin, MANAGER -> Manager)
+    const rawRole = authStore.user?.role || "ADMIN";
+    const roleName = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
+
     await AdminApi.addExceptionUser({
       ...newException.value,
-      registeredBy: authStore.user?.username || authStore.user?.loginId || "Admin"
+      // 3. Role (UserID) 형태로 문자열 조합 -> 결과: "Admin (user123)", "Manager (user456)"
+      registeredBy: `${roleName} (${userId})`
     });
+    
     exceptionDialogVisible.value = false;
     newException.value = { loginId: "", deptCode: "", deptName: "" };
     fetchAllData();
@@ -420,7 +435,6 @@ const saveExceptionUser = async () => {
     alert("예외 사용자 등록에 실패했습니다.");
   }
 };
-
 const toggleExceptionStatus = async (user: any) => {
   const newStatus = user.isActive === 'Y' ? 'N' : 'Y';
   try {
