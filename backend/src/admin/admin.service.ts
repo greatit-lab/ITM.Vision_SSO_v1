@@ -103,7 +103,7 @@ export class AdminService {
   }
 
   // ==========================================
-  // 🌟 [신규 추가] 예외 접근 권한 (Exception User) 프록시
+  // [신규 추가] 예외 접근 권한 (Exception User) 프록시
   // ==========================================
   async getExceptionUsers(): Promise<GenericResult[] | null> {
     return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'exceptions');
