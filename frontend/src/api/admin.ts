@@ -35,7 +35,7 @@ export const createAccessCode = (data: { compid?: string; deptid: string; descri
 export const updateAccessCode = ( deptid: string, data: { compid?: string; description?: string; isActive?: string }, ) => http.put(`/admin/access-codes/${deptid}`, data);
 export const deleteAccessCode = (deptid: string) => http.delete(`/admin/access-codes/${deptid}`);
 
-// 🌟 [추가됨] 예외 접근 사용자 API
+// [추가됨] 예외 접근 사용자 API
 export const getExceptionUsers = () => http.get("/admin/exceptions");
 export const addExceptionUser = (data: { loginId: string; deptCode?: string; deptName?: string; registeredBy: string }) => http.post("/admin/exceptions", data);
 export const updateExceptionUserStatus = (loginId: string, isActive: string) => http.put(`/admin/exceptions/${loginId}/status`, { isActive });
