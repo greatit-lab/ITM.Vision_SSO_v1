@@ -43,7 +43,6 @@ export class AdminController {
     return this.adminService.deleteAdmin(id);
   }
 
-  // [수정됨] 접근 제어(Whitelist) 라우터 파라미터를 deptid로 변경
   @Get('access-codes') async getAccessCodes() {
     return this.adminService.getAllAccessCodes();
   }
@@ -63,6 +62,28 @@ export class AdminController {
   ) {
     return this.adminService.deleteAccessCode(deptid);
   }
+
+  // ==========================================
+  // 🌟 [신규 추가] 예외 접근 허용 관리 엔드포인트
+  // ==========================================
+  @Get('exceptions') async getExceptionUsers() {
+    return this.adminService.getExceptionUsers();
+  }
+  @Post('exceptions') async addExceptionUser(@Body() body: any) {
+    return this.adminService.addExceptionUser(body);
+  }
+  @Put('exceptions/:loginId/status') async updateExceptionUserStatus(
+    @Param('loginId') loginId: string, 
+    @Body() body: { isActive: string }
+  ) {
+    return this.adminService.updateExceptionUserStatus(loginId, body.isActive);
+  }
+  @Delete('exceptions/:loginId') async deleteExceptionUser(
+    @Param('loginId') loginId: string
+  ) {
+    return this.adminService.deleteExceptionUser(loginId);
+  }
+  // ==========================================
 
   @Get('guests') async getGuests() {
     return this.adminService.getAllGuests();
@@ -167,7 +188,6 @@ export class AdminController {
     return this.adminService.getUsageAnalytics(startDate, endDate);
   }
 
-  // [신규 추가] 프론트엔드(http)의 요청을 받아 Service로 넘김
   @Get('storage-usage')
   async getStorageUsage(
     @Query('startDate') startDate: string,
@@ -177,7 +197,6 @@ export class AdminController {
     return this.adminService.getStorageUsage(startDate, endDate, interval);
   }
 
-  // [신규 추가] 수동 동기화 Proxy
   @Post('storage-sync')
   async syncStorageNow() {
     return this.adminService.syncStorageNow();
