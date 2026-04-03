@@ -66,7 +66,6 @@ export class AdminService {
     );
   }
 
-  // [수정됨] Data-API의 바뀐 엔드포인트(/admin/access-codes)로 경로 수정 및 파라미터를 deptid로 변경
   async getAllAccessCodes(): Promise<GuestAccessResult[] | null> {
     return this.api.request<GuestAccessResult[]>(
       this.DOMAIN,
@@ -102,6 +101,23 @@ export class AdminService {
       `access-codes/${deptid}`,
     );
   }
+
+  // ==========================================
+  // 🌟 [신규 추가] 예외 접근 권한 (Exception User) 프록시
+  // ==========================================
+  async getExceptionUsers(): Promise<GenericResult[] | null> {
+    return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'exceptions');
+  }
+  async addExceptionUser(data: any): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'exceptions', data);
+  }
+  async updateExceptionUserStatus(loginId: string, isActive: string): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'put', `exceptions/${loginId}/status`, { isActive });
+  }
+  async deleteExceptionUser(loginId: string): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'delete', `exceptions/${loginId}`);
+  }
+  // ==========================================
 
   async getAllGuests(): Promise<GuestAccessResult[] | null> {
     return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guests');
@@ -287,7 +303,6 @@ export class AdminService {
     );
   }
 
-  // [신규 추가] Data API(8081)의 /admin/storage-usage 로 요청을 토스(Proxy)
   async getStorageUsage(
     startDate: string,
     endDate: string,
@@ -300,7 +315,6 @@ export class AdminService {
     );
   }
 
-  // [신규 추가] 수동 동기화 Proxy
   async syncStorageNow(): Promise<GenericResult | null> {
     return this.api.request<GenericResult>(this.DOMAIN, 'post', 'storage-sync');
   }
