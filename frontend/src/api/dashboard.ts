@@ -4,8 +4,8 @@ import http from "./http";
 export interface DashboardSummaryDto {
   totalEqpCount: number;
   onlineAgentCount: number;
-  todayErrorCount: number; // 이제 "장비 대수"를 의미함
-  todayErrorTotalCount: number; // [추가] 총 발생 건수 (UI에 (Total: 18) 처럼 표시 가능)
+  todayErrorCount: number;
+  todayErrorTotalCount: number; 
   newAlarmCount: number;
   latestAgentVersion: string;
 }
@@ -26,11 +26,17 @@ export interface AgentStatusDto {
   timezone: string;
   todayAlarmCount: number;
   clockDrift?: number | null;
-  useProxy?: string | null; // [추가] 내부망 프록시 사용 여부
-  proxyIp?: string | null;  // [추가] 내부망 프록시 IP
+  useProxy?: string | null; 
+  proxyIp?: string | null;  
 }
 
 export const dashboardApi = {
+  // [신규 추가] 한 번의 호출로 Global Dashboard의 모든 데이터를 가져옵니다.
+  getGlobalFleetData: async () => {
+    const { data } = await http.get<any[]>("/dashboard/global-fleet");
+    return data;
+  },
+
   getSites: async () => {
     const { data } = await http.get<string[]>("/Filters/sites");
     return data;
