@@ -104,11 +104,11 @@
                   :class="{'bg-blue-50/50 dark:bg-blue-900/10': !alert.isRead}"
                 >
                   <div class="flex items-start gap-3">
-                    <div class="mt-0.5 text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-full">
-                      <i class="pi pi-comment text-xs"></i>
+                    <div class="mt-0.5 p-1.5 rounded-full" :class="[getAlertUI(alert.type).bg, getAlertUI(alert.type).text]">
+                      <i class="pi text-xs" :class="getAlertUI(alert.type).icon"></i>
                     </div>
                     <div>
-                      <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">문의 답변 등록</p>
+                      <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ getAlertUI(alert.type).title }}</p>
                       <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
                         {{ alert.message }}
                       </p>
@@ -316,7 +316,7 @@ import { useMenuStore } from "@/stores/menu";
 import { dashboardApi } from "@/api/dashboard"; 
 import * as AdminApi from "@/api/admin";
 import http from "@/api/http"; 
-import httpData from "@/api/http-data"; // [추가] Data API 호출용
+import httpData from "@/api/http-data"; 
 import type { MenuNode } from "@/api/menu"; 
 
 const route = useRoute();
@@ -340,7 +340,6 @@ const selectedSite = ref("");
 const selectedSdwt = ref("");
 const pendingRequestCount = ref(0);
 
-// [신규] Q&A 알림 상태
 const qnaAlerts = ref<any[]>([]);
 
 const userAvatarInitial = computed(() => {
@@ -433,12 +432,11 @@ const toggleUserDropdown = () => {
   if(isUserDropdownOpen.value) showNotifications.value = false;
 };
 
-// [수정] 알림 토글 시 목록 갱신
 const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value;
   if(showNotifications.value) {
     isUserDropdownOpen.value = false;
-    fetchNotifications(); // 열릴 때 최신 데이터 조회
+    fetchNotifications(); 
   }
 };
 
@@ -519,9 +517,21 @@ const saveProfileSettings = async () => {
   } finally { isSaving.value = false; }
 };
 
+// [수정 포인트] 알림 타입에 따른 동적 UI 매핑 함수
+const getAlertUI = (type: string) => {
+  switch(type) {
+    case 'NOTICE_POST':
+      return { title: '새로운 공지사항', icon: 'pi-bullhorn', bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-500' };
+    case 'NEW_BOARD_POST':
+      return { title: '새로운 게시글 등록', icon: 'pi-file-edit', bg: 'bg-indigo-50 dark:bg-indigo-900/20', text: 'text-indigo-500' };
+    case 'BOARD_REPLY':
+    default:
+      return { title: '문의 답변 등록', icon: 'pi-comment', bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-500' };
+  }
+};
+
 // 통합 알림 조회 함수
 const fetchNotifications = async () => {
-  // 1. 관리자 권한 - 승인 대기 요청
   if (authStore.user?.role === 'ADMIN') {
     try {
       const res = await AdminApi.getGuestRequests();
@@ -529,14 +539,15 @@ const fetchNotifications = async () => {
     } catch (e) {}
   }
 
-  // 2. [신규] Q&A 알림 (모든 사용자)
   if (authStore.isAuthenticated) {
     try {
-      // Alert API 호출 (Data API 8081)
-      const res = await httpData.get('/alert'); 
-      qnaAlerts.value = res.data;
+      // [수정 포인트] 명시적 userId 파라미터 전달 및 데이터 방어 로직 추가
+      const res = await httpData.get('/alert', { params: { userId: authStore.user?.userId } }); 
+      // 데이터가 객체 형태로 랩핑되어 올 경우를 대비한 안전망 추가
+      const alertsData = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      qnaAlerts.value = alertsData;
     } catch (e) {
-      // console.error("Failed to fetch alerts"); // 조용히 실패
+      console.error("Failed to fetch alerts:", e);
     }
   }
 };
@@ -558,10 +569,7 @@ const guestNotification = computed(() => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays >= 0) {
-      return {
-        dDay: diffDays,
-        date: dateStr
-      };
+      return { dDay: diffDays, date: dateStr };
     }
     return null;
   } catch (e) {
@@ -569,7 +577,6 @@ const guestNotification = computed(() => {
   }
 });
 
-// 알림 여부 (배지 표시용)
 const hasNotification = computed(() => {
   const hasPending = pendingRequestCount.value > 0;
   const hasGuest = !!guestNotification.value;
@@ -577,16 +584,12 @@ const hasNotification = computed(() => {
   return hasPending || hasGuest || hasUnreadAlerts;
 });
 
-// [신규] 알림 클릭 처리
 const handleAlertClick = async (alert: any) => {
   try {
-    // 읽음 처리
     if (!alert.isRead) {
       await httpData.post(`/alert/${alert.id}/read`);
-      alert.isRead = true; // UI 즉시 반영
+      alert.isRead = true; 
     }
-    
-    // 링크 이동
     if (alert.link) {
       showNotifications.value = false;
       router.push(alert.link);
@@ -596,13 +599,11 @@ const handleAlertClick = async (alert: any) => {
   }
 };
 
-// [신규] 날짜 포맷팅
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 };
 
-// 폴링용 타이머
 let pollingInterval: any = null;
 
 onMounted(() => {
@@ -610,7 +611,6 @@ onMounted(() => {
   
   if (authStore.isAuthenticated) {
     fetchNotifications();
-    // 30초마다 폴링하여 알림 갱신
     pollingInterval = setInterval(fetchNotifications, 30000);
   }
   
