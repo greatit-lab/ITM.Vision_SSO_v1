@@ -202,7 +202,7 @@
           <p
             class="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400"
           >
-            표시할 데이터가 없습니다.
+            표시할 데이터가 없습니다. (서버 연결을 확인해주세요)
           </p>
         </div>
 
@@ -222,7 +222,7 @@
 
             <div class="relative">
               <div
-                class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-black/20"
+                class="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-black/20"
               >
                 <div class="flex items-center gap-2 min-w-0">
                   <span
@@ -248,10 +248,10 @@
                 </div>
               </div>
 
-              <div class="px-4 pb-4 pt-3">
+              <div class="px-4 pb-3 pt-2.5">
                 <div
                   v-if="site.sdwts.length === 0"
-                  class="rounded-2xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/70 dark:bg-zinc-900/30 px-4 py-6 text-center"
+                  class="rounded-2xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/70 dark:bg-zinc-900/30 px-4 py-5 text-center"
                 >
                   <span
                     class="text-[11px] font-medium text-slate-400 dark:text-slate-500"
@@ -262,13 +262,13 @@
 
                 <div
                   v-else
-                  class="flex flex-wrap justify-center gap-3"
+                  class="flex flex-wrap justify-center gap-2.5"
                 >
                   <button
                     v-for="sdwt in site.sdwts"
                     :key="sdwt.name"
                     type="button"
-                    class="w-full sm:w-[190px] xl:w-[200px] shrink-0 group relative overflow-hidden text-left rounded-2xl border px-3 py-2.5 transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+                    class="w-full sm:w-[190px] xl:w-[200px] shrink-0 group relative overflow-hidden text-left rounded-2xl border px-3 py-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
                     :class="getSdwtCardClass(sdwt)"
                     @click="goToDetail(site.siteName, sdwt.name)"
                   >
@@ -464,82 +464,23 @@ const fetchAllData = async () => {
   }
 
   try {
-    const sites = await dashboardApi.getSites();
+    const finalData = await dashboardApi.getGlobalFleetData();
 
-    let totalAgt = 0;
-    let totalOn = 0;
-    let totalOff = 0;
-    let totalAlerts = 0;
+    if (!finalData || !Array.isArray(finalData)) {
+      console.warn("API Return Data is Invalid:", finalData);
+      globalData.value = [];
+      return;
+    }
 
-    const sitePromises = sites.map(async (siteName, siteIndex) => {
-      const sdwtsList = await dashboardApi.getSdwts(siteName);
-      
-      let siteTotal = 0;
-      let siteOn = 0;
-      let siteOff = 0;
-      let siteAlerts = 0;
+    globalData.value = finalData.sort((a: SiteData, b: SiteData) => a.index - b.index);
 
-      const sdwtPromises = sdwtsList.map(async (sdwtName, sdwtIndex) => {
-        try {
-          const [summaryData, agentData] = await Promise.all([
-            dashboardApi.getSummary(siteName, sdwtName),
-            dashboardApi.getAgentStatus(siteName, sdwtName).catch(() => []),
-          ]);
-
-          const total = agentData?.length || 0;
-          const online = agentData?.filter((a) => a.isOnline).length || 0;
-          const offline = total - online;
-          const alerts = summaryData?.todayErrorCount || 0;
-
-          siteTotal += total;
-          siteOn += online;
-          siteOff += offline;
-          siteAlerts += alerts;
-
-          return {
-            name: sdwtName,
-            totalCount: total,
-            onlineCount: online,
-            offlineCount: offline,
-            summary:
-              summaryData ||
-              ({
-                todayErrorCount: 0,
-              } as DashboardSummaryDto),
-            index: sdwtIndex,
-          };
-        } catch (error) {
-          console.error(`Fetch failed for ${siteName} - ${sdwtName}`, error);
-          return null;
-        }
-      });
-
-      const sdwtDataArrayRaw = await Promise.all(sdwtPromises);
-      const sdwtDataArray = sdwtDataArrayRaw
-        .filter((item): item is SdwtData => item !== null)
-        .sort((a, b) => a.index - b.index);
-
-      totalAgt += siteTotal;
-      totalOn += siteOn;
-      totalOff += siteOff;
-      totalAlerts += siteAlerts;
-
-      return {
-        siteName,
-        sdwts: sdwtDataArray,
-        siteStats: {
-          total: siteTotal,
-          online: siteOn,
-          offline: siteOff,
-          alerts: siteAlerts,
-        },
-        index: siteIndex,
-      };
+    let totalAgt = 0, totalOn = 0, totalOff = 0, totalAlerts = 0;
+    finalData.forEach((site: SiteData) => {
+      totalAgt += site.siteStats.total;
+      totalOn += site.siteStats.online;
+      totalOff += site.siteStats.offline;
+      totalAlerts += site.siteStats.alerts;
     });
-
-    const finalData = await Promise.all(sitePromises);
-
-    globalData.value = finalData.sort((a, b) => a.index - b.index);
 
     globalStats.value = {
       total: totalAgt,
@@ -549,6 +490,7 @@ const fetchAllData = async () => {
     };
   } catch (error) {
     console.error("Dashboard Data Fetch Error:", error);
+    globalData.value = []; 
   } finally {
     isInitialLoading.value = false;
     isRefreshing.value = false;
@@ -613,7 +555,6 @@ const getSiteBadgeClass = (site: SiteData) => {
   return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-400/20";
 };
 
-// 100% Online 이라는 중복 텍스트를 제거하고 기존의 Stable(안정됨) 상태를 반환하도록 원복
 const getSdwtSeverityText = (sdwt: SdwtData) => {
   const severity = getSdwtSeverity(sdwt);
   if (severity === "critical") return "All Offline";
