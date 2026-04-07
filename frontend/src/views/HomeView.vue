@@ -26,21 +26,26 @@
       </div>
 
       <div
-        v-if="hasSearched"
-        class="flex items-center gap-2 px-3 py-1 transition-all border rounded-full bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-900/50 animate-pulse"
+        v-if="hasSearched && !isSummaryLoading"
+        class="flex items-center gap-2 px-3 py-1 transition-all border rounded-full"
+        :class="isRefreshing ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/50' : 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/50 animate-pulse'"
       >
         <span class="relative flex w-1.5 h-1.5">
           <span
-            class="absolute inline-flex w-full h-full rounded-full opacity-75 bg-rose-400 animate-ping"
+            class="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping"
+            :class="isRefreshing ? 'bg-indigo-400' : 'bg-rose-400'"
           ></span>
           <span
-            class="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"
+            class="relative inline-flex rounded-full h-1.5 w-1.5"
+            :class="isRefreshing ? 'bg-indigo-500' : 'bg-rose-500'"
           ></span>
         </span>
         <span
-          class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider"
-          >LIVE</span
-        >
+          class="text-[10px] font-bold uppercase tracking-wider"
+          :class="isRefreshing ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'"
+          >
+          {{ isRefreshing ? 'SYNCING' : 'LIVE' }}
+        </span>
       </div>
     </div>
 
@@ -60,6 +65,7 @@
             :class="{ '!text-slate-400': !filterStore.selectedSite }"
             showClear
             @change="onSiteChanged"
+            :disabled="isSummaryLoading || isRefreshing"
           />
         </div>
         <div class="min-w-[160px] shrink-0">
@@ -70,7 +76,7 @@
             class="w-full custom-dropdown small"
             overlayClass="custom-dropdown-panel small"
             :class="{ '!text-slate-400': !filterStore.selectedSdwt }"
-            :disabled="!filterStore.selectedSite"
+            :disabled="!filterStore.selectedSite || isSummaryLoading || isRefreshing"
             showClear
             @change="onSdwtChange"
           />
@@ -80,10 +86,11 @@
       <div
         class="flex items-center gap-1 pl-2 pr-1 border-l border-slate-100 dark:border-zinc-800"
       >
-        <div v-if="hasSearched" class="flex items-center justify-center w-6">
+        <div v-if="hasSearched && !isSummaryLoading" class="flex items-center justify-center w-8">
           <span
-            class="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500"
-            >{{ refreshCount }}s</span
+            class="text-[10px] font-bold font-mono text-center inline-block w-full transition-colors"
+            :class="isRefreshing ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'"
+            >{{ isRefreshing ? '...' : refreshCount + 's' }}</span
           >
         </div>
         <Button
@@ -92,9 +99,10 @@
           text
           severity="secondary"
           @click="manualRefresh"
-          :disabled="!hasSearched || isSummaryLoading"
+          :disabled="!hasSearched || isSummaryLoading || isRefreshing"
           v-tooltip.left="'Refresh Now'"
-          class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors"
+          class="!w-7 !h-7 transition-colors"
+          :class="isRefreshing ? '!text-indigo-500 dark:!text-indigo-400 animate-spin' : '!text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300'"
         />
       </div>
     </div>
@@ -116,21 +124,59 @@
       </p>
     </div>
 
-    <div
-      v-else-if="isSummaryLoading"
-      class="flex flex-col items-center justify-center border-2 border-dashed h-72 fade-in border-slate-200 dark:border-zinc-800 rounded-3xl bg-white/40 dark:bg-[#111111]/40"
-    >
-      <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
-      <h3 class="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
-        Loading Dashboard Data...
-      </h3>
-      <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-500">
-        Gathering system performance and agent metrics.
-      </p>
+    <div v-else-if="isSummaryLoading" class="w-full relative fade-in min-h-[500px]">
+      <div class="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
+        <div class="flex flex-col items-center justify-center p-6 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 dark:border-indigo-900/30 mb-20 transform scale-105 transition-all">
+          <ProgressSpinner style="width: 45px; height: 45px" strokeWidth="4" animationDuration="1s" />
+          <h3 class="mt-5 text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+            데이터를 조회하는 중입니다
+          </h3>
+          <p class="mt-1.5 text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] animate-pulse">
+            Loading Dashboard Data
+          </p>
+        </div>
+      </div>
+
+      <div class="space-y-5 opacity-40 pointer-events-none select-none transition-opacity duration-300">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+          <div v-for="i in 5" :key="i" class="h-20 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 p-3 flex justify-between items-center relative overflow-hidden shadow-sm">
+             <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-800/50 to-transparent"></div>
+             <div class="space-y-2 z-10">
+               <div class="w-20 h-2.5 rounded bg-slate-200 dark:bg-zinc-700/80"></div>
+               <div class="w-12 h-6 rounded bg-slate-200 dark:bg-zinc-700/80"></div>
+             </div>
+             <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-zinc-800/80 z-10"></div>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-center justify-between px-2 md:flex-row gap-3">
+          <div class="w-48 h-5 rounded bg-slate-200 dark:bg-zinc-800/80 relative overflow-hidden">
+             <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-700/30 to-transparent"></div>
+          </div>
+          <div class="w-64 h-8 rounded-lg bg-slate-200 dark:bg-zinc-800/80 relative overflow-hidden">
+             <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-700/30 to-transparent"></div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+          <div v-for="i in rowsPerPage" :key="i" class="h-[148px] rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 p-2 relative overflow-hidden flex flex-col shadow-sm">
+              <div class="absolute top-0 left-0 w-full h-2 bg-slate-200 dark:bg-zinc-700"></div>
+              <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-800/50 to-transparent"></div>
+              
+              <div class="flex justify-between items-start mt-2.5 px-1 z-10">
+                <div class="w-16 h-4 rounded bg-slate-200 dark:bg-zinc-700/80"></div>
+                <div class="w-12 h-4 rounded-full bg-slate-200 dark:bg-zinc-700/80"></div>
+              </div>
+              <div class="w-24 h-2 rounded bg-slate-100 dark:bg-zinc-800 mt-2 mx-1 z-10"></div>
+              <div class="w-full h-[38px] rounded bg-slate-50 dark:bg-zinc-800/50 mt-2 z-10 border border-slate-100 dark:border-zinc-800"></div>
+              <div class="w-full h-2 rounded bg-slate-200 dark:bg-zinc-700/80 mt-auto mx-1 z-10 max-w-[80%]"></div>
+              <div class="w-full h-2 rounded bg-slate-200 dark:bg-zinc-700/80 mt-2 mb-1 mx-1 z-10 max-w-[60%]"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else class="space-y-5 fade-in">
-      
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
         <div
           @click="setActiveFilter('All')"
@@ -713,26 +759,19 @@ import ProgressSpinner from "primevue/progressspinner";
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
 
-const isSummaryLoading = ref(false);
+// [상태 관리 개선] 전역 스켈레톤 로딩(isSummaryLoading)과 백그라운드 새로고침(isRefreshing) 완벽 분리
+const isSummaryLoading = ref(false); 
 const isTableLoading = ref(false);
 const isChartLoading = ref(false);
+const isRefreshing = ref(false);
 const hasSearched = ref(false);
 
-const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">(
-  "All",
-);
+const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">("All");
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-const summary = ref<
-  DashboardSummaryDto & {
-    totalServers: number;
-    inactiveAgentCount: number;
-    totalSdwts: number;
-    serverHealth: number;
-  }
->({
+const defaultSummary = {
   totalEqpCount: 0,
   onlineAgentCount: 0,
   todayErrorCount: 0,
@@ -743,7 +782,16 @@ const summary = ref<
   inactiveAgentCount: 0,
   totalSdwts: 0,
   serverHealth: 0,
-});
+};
+
+const summary = ref<
+  DashboardSummaryDto & {
+    totalServers: number;
+    inactiveAgentCount: number;
+    totalSdwts: number;
+    serverHealth: number;
+  }
+>({ ...defaultSummary });
 
 const agentList = ref<AgentStatusDto[]>([]);
 const showChart = ref(false);
@@ -847,13 +895,21 @@ const onSdwtChange = async () => {
   }
 };
 
-const loadData = async (showLoading = true) => {
+// [로직 개선] isInitialLoad 파라미터에 따라 스켈레톤 UI 작동 여부를 분기 처리
+const loadData = async (isInitialLoad = true) => {
   if (!filterStore.selectedSite || !filterStore.selectedSdwt) return;
 
-  if (showLoading) {
+  if (isInitialLoad) {
     isSummaryLoading.value = true;
     isTableLoading.value = true;
+    
+    agentList.value = [];
+    summary.value = { ...defaultSummary };
+    first.value = 0; 
+  } else {
+    isRefreshing.value = true;
   }
+  
   hasSearched.value = true;
 
   try {
@@ -888,26 +944,19 @@ const loadData = async (showLoading = true) => {
       serverHealth: total > 0 ? Math.round((online / total) * 100) : 0,
     };
 
-    startAutoRefresh();
+    if (isInitialLoad) startAutoRefresh();
   } catch (e) {
     console.error("Data load failed", e);
-    agentList.value = [];
-    summary.value = {
-      totalEqpCount: 0,
-      onlineAgentCount: 0,
-      todayErrorCount: 0,
-      todayErrorTotalCount: 0,
-      newAlarmCount: 0,
-      latestAgentVersion: "",
-      totalServers: 0,
-      inactiveAgentCount: 0,
-      totalSdwts: 0,
-      serverHealth: 0,
-    };
+    if (isInitialLoad) {
+      agentList.value = [];
+      summary.value = { ...defaultSummary };
+    }
   } finally {
-    if (showLoading) {
+    if (isInitialLoad) {
       isSummaryLoading.value = false;
       isTableLoading.value = false;
+    } else {
+      isRefreshing.value = false;
     }
   }
 };
@@ -917,10 +966,13 @@ const startAutoRefresh = () => {
   refreshCount.value = 30;
 
   refreshTimer = window.setInterval(() => {
-    refreshCount.value--;
-    if (refreshCount.value <= 0) {
-      loadData(false); 
-      refreshCount.value = 30;
+    // 갱신 중일 때는 타이머 카운트를 멈추고 API 중복 호출 방지
+    if (!isRefreshing.value) {
+      refreshCount.value--;
+      if (refreshCount.value <= 0) {
+        refreshCount.value = 30;
+        loadData(false); 
+      }
     }
   }, 1000);
 };
@@ -933,8 +985,9 @@ const stopAutoRefresh = () => {
 };
 
 const manualRefresh = () => {
-  loadData(true);
+  if (isRefreshing.value || isSummaryLoading.value) return;
   refreshCount.value = 30;
+  loadData(false); // 스켈레톤을 띄우지 않고 백그라운드 갱신
 };
 
 const openChart = async (agent: AgentStatusDto) => {
@@ -1153,7 +1206,6 @@ const prevPage = () => {
 const nextPage = () => {
   if (first.value + rowsPerPage.value < totalRecords.value)
     first.value += rowsPerPage.value;
-  loadData(true);
 };
 const lastPage = () => {
   first.value =
@@ -1310,6 +1362,12 @@ const getClockDriftColor = (s: number | null | undefined) => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>
