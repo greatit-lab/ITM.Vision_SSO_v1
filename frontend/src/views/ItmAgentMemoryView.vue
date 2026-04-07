@@ -206,7 +206,7 @@
 
             <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
               <tr
-                v-for="(stat, index) in eqpStats"
+                v-for="(stat, index) in filteredEqpStats"
                 :key="stat.uniqueKey"
                 class="transition-colors hover:bg-slate-50 dark:hover:bg-zinc-900/50 group"
               >
@@ -344,7 +344,6 @@ interface EqpStat {
   commitMax: number;
   commitAvg: number;
   commitLast: number;
-  // 테이블 정렬 및 최적화를 위한 속성 추가
   trend: 'unranked' | 'high' | 'low' | 'stable';
   trendPriority: number; 
 }
@@ -380,7 +379,6 @@ const eqpIds = ref<string[]>([]);
 const chartData = ref<any[]>([]);
 const eqpSeries = ref<any[]>([]);
 const eqpStats = ref<EqpStat[]>([]);
-const displayedEqpCount = ref(0);
 
 const isLoading = ref(false);
 const isEqpIdLoading = ref(false);
@@ -396,6 +394,25 @@ const colorPalette = [
   "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#f97316",
   "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#64748b"
 ];
+
+// ============================================================================
+// [UX 개선 1] Y-Min 및 Show Commit 설정에 따라 테이블 데이터를 동적으로 필터링
+// ============================================================================
+const filteredEqpStats = computed(() => {
+  let stats = eqpStats.value;
+  if (selectedYMin.value !== null) {
+    stats = stats.filter(stat => {
+      // Show Commit 상태면 Commit Max값도 검사 대상에 포함
+      const targetMax = showCommit.value ? Math.max(stat.max, stat.commitMax) : stat.max;
+      return targetMax >= selectedYMin.value!;
+    });
+  }
+  return stats;
+});
+
+// 타이틀에 표시되는 장비 개수도 필터링된 배열의 길이에 맞게 동기화
+const displayedEqpCount = computed(() => filteredEqpStats.value.length);
+
 
 watch([() => startDate.value, () => endDate.value], ([newStart, newEnd], [oldStart, oldEnd]) => {
   if (newStart && newEnd) {
@@ -572,11 +589,15 @@ const searchData = async () => {
   }
 };
 
+// ============================================================================
+// [성능 개선 2] 25초 병목의 원인인 O(N*M) 이중 루프를 해시맵(Map) 단일 루프로 완전 개편
+// ============================================================================
 const processData = (data: ItmAgentDataDto[]) => {
   if (!data || data.length === 0) return;
 
   const activeEqpSet = new Set<string>();
   const eqpMetaMap = new Map<string, { site: string; sdwt: string; eqpId: string; version: string }>();
+  const eqpDataMap = new Map<string, any[]>(); // 장비별 데이터를 미리 분류하여 저장 (브라우저 프리징 해결)
 
   data.forEach((item) => {
     const d = item as any;
@@ -589,6 +610,7 @@ const processData = (data: ItmAgentDataDto[]) => {
     if (rawId && (usage > 0 || commit > 0)) {
       const uniqueKey = `${site}_${sdwt}_${rawId}`;
       activeEqpSet.add(uniqueKey);
+      
       if (!eqpMetaMap.has(uniqueKey)) {
         eqpMetaMap.set(uniqueKey, {
           site,
@@ -597,11 +619,16 @@ const processData = (data: ItmAgentDataDto[]) => {
           version: d.agentVersion || "Unknown",
         });
       }
+
+      // 한 번의 순회로 각 장비별 데이터를 Map에 할당 (이후 값비싼 .filter() 사용 방지)
+      if (!eqpDataMap.has(uniqueKey)) {
+        eqpDataMap.set(uniqueKey, []);
+      }
+      eqpDataMap.get(uniqueKey)!.push(item);
     }
   });
 
   const sortedUniqueKeys = Array.from(activeEqpSet).sort();
-  displayedEqpCount.value = sortedUniqueKeys.length;
   if (sortedUniqueKeys.length === 0) return;
 
   const timeMap = new Map<string, any>();
@@ -672,11 +699,8 @@ const processData = (data: ItmAgentDataDto[]) => {
       connectNulls: true,
     });
 
-    const pData = data.filter((item) => {
-      const d = item as any;
-      const rawId = d.eqpid ?? d.eqpId;
-      return `${d.site || "-"}_${d.sdwt || "-"}_${rawId}` === uniqueKey;
-    });
+    // Map에서 미리 분류해둔 데이터를 O(1) 속도로 꺼내옴
+    const pData = eqpDataMap.get(uniqueKey) || [];
 
     const usageVals = pData.map((d) => Number((d as any).memoryUsageMB ?? (d as any).memoryUsageMb) || 0);
     const commitVals = pData.map((d) => Number((d as any).memoryCommitMB ?? (d as any).memoryCommitMb) || 0);
@@ -696,9 +720,8 @@ const processData = (data: ItmAgentDataDto[]) => {
     const avgC = pData.length > 0 ? sumC / pData.length : 0;
     const lastC = lastBucket && lastBucket[uniqueKey + "_commit"] !== null ? lastBucket[uniqueKey + "_commit"] : 0;
 
-    // [개선 포인트] 사전에 Trend를 계산하여 Priority Score와 함께 객체에 할당
     let trend: 'unranked' | 'high' | 'low' | 'stable' = 'stable';
-    let trendPriority = 2; // 1: High, 2: Stable, 3: Low, 4: Unranked
+    let trendPriority = 2; 
 
     if (lastU === 0) {
       trend = 'unranked';
@@ -732,13 +755,10 @@ const processData = (data: ItmAgentDataDto[]) => {
 
   eqpSeries.value = series;
   
-  // [개선 포인트] 다중 정렬 로직 적용: 1순위 Last(내림차순), 2순위 Trend 우선순위(오름차순)
   eqpStats.value = stats.sort((a, b) => {
-    // 1. Last Usage 기준 내림차순 정렬
     if (b.last !== a.last) {
       return b.last - a.last;
     }
-    // 2. 값이 동일할 경우(Tie 발생 시), Trend 기준(High -> Stable -> Low -> Unranked) 정렬
     return a.trendPriority - b.trendPriority;
   });
 };
@@ -774,9 +794,25 @@ const formatNumber = (val: any) => {
   return num.toLocaleString(undefined, { maximumFractionDigits: 1 });
 };
 
+// ============================================================================
+// [UX 개선 2] Y-Min 필터링을 차트 범례(Legend)에도 적용하여 선택된 장비만 표시
+// ============================================================================
 const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+
+  // 필터링 통과한 장비의 Key 목록 추출
+  const validKeys = new Set(filteredEqpStats.value.map(s => s.uniqueKey));
+  
+  // 차트 Series에도 필터링 적용
+  let activeSeries = eqpSeries.value.filter(s => {
+    const key = s.id.replace('_usage', '').replace('_commit', '');
+    return validKeys.has(key);
+  });
+
+  if (!showCommit.value) {
+    activeSeries = activeSeries.filter(s => !s.id.endsWith('_commit'));
+  }
 
   return {
     backgroundColor: "transparent",
@@ -857,9 +893,8 @@ const chartOption = computed(() => {
       splitLine: { lineStyle: { color: gridColor } },
       min: selectedYMin.value !== null ? selectedYMin.value : undefined,
     },
-    series: showCommit.value 
-      ? eqpSeries.value 
-      : eqpSeries.value.filter(s => !s.id.endsWith('_commit')),
+    // 최적화된 activeSeries를 주입하여 Y-Min 조건 미달 데이터는 차트(범례 포함)에서 완전 제거
+    series: activeSeries,
   };
 });
 
