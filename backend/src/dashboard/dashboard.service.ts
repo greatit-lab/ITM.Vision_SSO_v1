@@ -1,7 +1,4 @@
-// [전체 코드 교체]
-// 프로젝트: ITM.Vision_SSO_v1
-// 파일 경로: backend/src/dashboard/dashboard.service.ts
-
+// backend/src/dashboard/dashboard.service.ts
 import { Injectable } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
 
@@ -43,6 +40,18 @@ export class DashboardService {
   private readonly DOMAIN = 'dashboard';
 
   constructor(private readonly dataApiService: DataApiService) {}
+
+  // [신규 추가] Data API의 global-fleet 엔드포인트를 호출하여 데이터를 프론트엔드로 전달
+  async getGlobalFleetData(): Promise<any[]> {
+    const result = await this.dataApiService.request<any[]>(
+      this.DOMAIN,
+      'get',
+      'global-fleet',
+      undefined, 
+      undefined, 
+    );
+    return result || [];
+  }
 
   async getSummary(
     site?: string,
