@@ -1,7 +1,4 @@
-// [전체 코드 교체]
-// 프로젝트: ITM.Vision_SSO_v1
-// 파일 경로: backend/src/dashboard/dashboard.controller.ts
-
+// backend/src/dashboard/dashboard.controller.ts
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -11,6 +8,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @UseGuards(JwtAuthGuard) // JWT 인증 및 데모 모드 지원 Guard
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
+
+  // [신규 추가] 프론트엔드의 404 에러를 해결할 신규 라우트
+  @Get('global-fleet')
+  async getGlobalFleetData() {
+    return this.dashboardService.getGlobalFleetData();
+  }
 
   @Get('summary')
   async getSummary(
