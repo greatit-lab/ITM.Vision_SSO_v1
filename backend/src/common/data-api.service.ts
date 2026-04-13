@@ -11,10 +11,11 @@ import axios, { AxiosError, AxiosResponse } from 'axios';
 import * as http from 'http';
 import * as https from 'https';
 
-// [수정] RequestOptions에 token 추가
+// [수정] RequestOptions에 token 및 timeout 추가
 export interface RequestOptions {
   returnNullOn404?: boolean;
   token?: string; // 인증 토큰 전달용 (옵션)
+  timeout?: number; // [추가] 개별 API 타임아웃 설정용 (옵션)
 }
 
 @Injectable()
@@ -46,20 +47,18 @@ export class DataApiService {
     );
   }
 
-  // [수정] 파라미터 순서 원상 복구 (token 파라미터 제거 -> options에 포함)
   async request<T>(
     domain: string,
     method: 'get' | 'post' | 'patch' | 'delete' | 'put',
     endpoint: string | undefined = '',
     data?: unknown,
     params?: unknown,
-    options?: RequestOptions, // token은 이 안에 포함됨
+    options?: RequestOptions, 
   ): Promise<T | null> {
     const safeEndpoint = endpoint || '';
     const baseUrl = `${this.dataApiHost}/api/${domain}`;
     const targetUrl = safeEndpoint ? `${baseUrl}/${safeEndpoint}` : baseUrl;
 
-    // options에서 토큰 추출
     const token = options?.token;
 
     try {
@@ -71,7 +70,6 @@ export class DataApiService {
 
       const headers: Record<string, string> = {};
       
-      // 토큰이 존재하면 헤더에 추가
       if (token) {
         const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
         headers['Authorization'] = authHeader;
@@ -83,11 +81,13 @@ export class DataApiService {
           url: targetUrl,
           data,
           params,
-          headers, // 헤더 적용
+          headers,
           httpAgent: this.httpAgent,
           httpsAgent: this.httpsAgent,
           proxy: false,
-          timeout: 100000, 
+          // [핵심 수정] 기본값을 100,000ms(100초)에서 300,000ms(300초/5분)으로 연장
+          // 필요시 호출부에서 options.timeout 으로 덮어씌울 수 있습니다.
+          timeout: options?.timeout || 300000, 
         }),
       );
 
@@ -134,6 +134,11 @@ export class DataApiService {
         }
       } else {
         errorMessage = axiosError.message;
+      }
+
+      // [추가] 타임아웃 발생 시 로그를 좀 더 명확하게 찍어줍니다.
+      if (axiosError.code === 'ECONNABORTED') {
+        errorMessage = `Request Timeout (${axiosError.message})`;
       }
 
       this.logger.error(
