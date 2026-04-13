@@ -356,10 +356,10 @@ const showCommit = ref(false);
 const selectedYMin = ref<number | null>(null);
 const yMinOptions = [
   { label: 'Y-Min: Auto', value: null },
-  { label: 'Y-Min: 0 MB', value: 0 },
-  { label: 'Y-Min: 200 MB', value: 200 },
-  { label: 'Y-Min: 400 MB', value: 400 },
-  { label: 'Y-Min: 600 MB', value: 600 },
+  { label: 'Y-Min: 50 MB', value: 50 },
+  { label: 'Y-Min: 100 MB', value: 100 },
+  { label: 'Y-Min: 300 MB', value: 300 },
+  { label: 'Y-Min: 500 MB', value: 500 },
   { label: 'Y-Min: 800 MB', value: 800 },
   { label: 'Y-Min: 1,000 MB', value: 1000 },
 ];
