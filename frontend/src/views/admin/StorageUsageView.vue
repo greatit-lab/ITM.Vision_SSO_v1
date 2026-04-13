@@ -22,6 +22,7 @@
         <div class="flex items-center gap-1 ml-1 border-l pl-1.5 border-slate-200 dark:border-zinc-700">
           <Button icon="pi pi-search" class="!w-7 !h-7 !bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !p-0" @click="fetchData" :loading="isLoading" v-tooltip.top="'조회'" />
           <Button icon="pi pi-download" class="!w-7 !h-7 !bg-emerald-600 !border-emerald-600 hover:!bg-emerald-700 !p-0" @click="exportDataToCSV" :disabled="isLoading || dailyTrendData.length === 0" v-tooltip.top="'CSV 다운로드'" />
+          <Button icon="pi pi-sync" label="동기화" class="!h-7 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !px-2.5 !py-0 !text-[11px] font-bold ml-1" @click="triggerSync" :loading="isSyncing" v-tooltip.top="'전일 데이터 즉시 동기화'" />
         </div>
       </div>
     </div>
@@ -175,10 +176,11 @@ import EChart from "@/components/common/EChart.vue";
 import type { ECharts } from "echarts";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
-import { adminApi } from "@/api/admin";
+import { adminApi, syncStorageNow } from "@/api/admin";
 import dayjs from "dayjs";
 
 const isLoading = ref(false);
+const isSyncing = ref(false);
 
 const isZoomed = ref(false);
 let dailyChartInstance: ECharts | null = null;
@@ -201,6 +203,28 @@ const formatSize = (mb: number) => {
   if (!mb || isNaN(mb) || mb === 0) return { value: "0.00", unit: "MB" };
   if (mb < 1024) return { value: mb.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "MB" };
   return { value: (mb / 1024).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "GB" };
+};
+
+// [개선] 동기화 실행 함수 (중복 응답 처리)
+const triggerSync = async () => {
+  isSyncing.value = true;
+  try {
+    const response = await syncStorageNow();
+    const resData = response.data || response;
+    
+    // 백엔드에서 전달된 성공/중단 메시지를 사용자에게 알림
+    alert(resData.message || '스토리지 수동 동기화 요청이 완료되었습니다.');
+    
+    // DB에 데이터가 없어서 실제로 동기화가 이루어졌을(success: true) 때만 데이터를 새로고침함
+    if (resData.success !== false) {
+      await fetchData();
+    }
+  } catch (error: any) {
+    console.error("Failed to sync storage", error);
+    alert("동기화 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+  } finally {
+    isSyncing.value = false;
+  }
 };
 
 const fetchData = async () => {
