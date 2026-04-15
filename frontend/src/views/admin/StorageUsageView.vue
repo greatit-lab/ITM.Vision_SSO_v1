@@ -27,38 +27,73 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 shrink-0">
-      <div class="flex items-center justify-between p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
-        <div class="flex items-center gap-3">
-          <div class="flex items-center justify-center w-10 h-10 bg-indigo-50 rounded-lg dark:bg-indigo-900/30">
-            <i class="text-lg text-indigo-600 pi pi-server dark:text-indigo-400"></i>
+    <div class="grid grid-cols-3 gap-3 shrink-0">
+      
+      <div class="relative flex flex-col justify-between p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 overflow-hidden min-h-[90px]">
+        <div class="absolute top-0 left-0 h-full transition-all duration-1000 ease-out bg-gradient-to-r from-blue-50 to-blue-200/80 dark:from-blue-900/30 dark:to-blue-700/40 z-0" :style="{ width: `${usagePercentage}%` }"></div>
+        <div class="absolute bottom-0 left-0 h-1 transition-all duration-1000 ease-out bg-blue-500 z-0" :style="{ width: `${usagePercentage}%` }"></div>
+
+        <div class="relative flex flex-col h-full z-10">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-10 h-10 bg-white border border-blue-100 rounded-lg shadow-sm dark:bg-[#18181b] dark:border-zinc-700">
+                <i class="text-lg text-blue-600 pi pi-box dark:text-blue-400"></i>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Total Server Storage</span>
+                <span class="text-[10px] text-slate-500 dark:text-zinc-400">DB + Object Storage</span>
+              </div>
+            </div>
+            <div class="flex items-baseline gap-1 text-right">
+              <span class="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{{ formatSize(totalUsedMB).value }}</span>
+              <span class="text-xs font-bold text-slate-400">{{ formatSize(totalUsedMB).unit }}</span>
+            </div>
           </div>
-          <div class="flex flex-col">
-            <span class="text-base font-bold text-slate-700 dark:text-slate-200">Total Database Size</span>
-            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Targeted specific tables & monthly tables</span>
+          <div class="flex flex-col mt-auto pt-2 border-t border-slate-100/50 dark:border-zinc-800/50">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <span class="text-blue-700 dark:text-blue-400">{{ usagePercentage }}% Used</span>
+              <span>Total: {{ formatSize(serverCapacityMB).value }} {{ formatSize(serverCapacityMB).unit }}</span>
+            </div>
           </div>
-        </div>
-        <div class="flex items-baseline gap-1">
-          <span class="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{{ formatSize(summaryData.totalDbUsageMB).value }}</span>
-          <span class="text-xs font-bold text-slate-400">{{ formatSize(summaryData.totalDbUsageMB).unit }}</span>
         </div>
       </div>
 
-      <div class="flex items-center justify-between p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
-        <div class="flex items-center gap-3">
-          <div class="flex items-center justify-center w-10 h-10 bg-teal-50 rounded-lg dark:bg-teal-900/30">
-            <i class="text-lg text-teal-600 pi pi-cloud dark:text-teal-400"></i>
+      <div class="relative flex flex-col justify-center p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 min-h-[90px]">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-lg dark:bg-[#18181b] dark:border-zinc-700">
+              <i class="text-lg text-indigo-600 pi pi-database dark:text-indigo-400"></i>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Total Database Size</span>
+              <span class="text-[10px] text-slate-500 dark:text-zinc-400">Targeted specific tables</span>
+            </div>
           </div>
-          <div class="flex flex-col">
-            <span class="text-base font-bold text-slate-700 dark:text-slate-200">Object Storage Size</span>
-            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Uploaded files, logs, and images</span>
+          <div class="flex items-baseline gap-1 text-right">
+            <span class="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{{ formatSize(summaryData.totalDbUsageMB).value }}</span>
+            <span class="text-xs font-bold text-slate-400">{{ formatSize(summaryData.totalDbUsageMB).unit }}</span>
           </div>
-        </div>
-        <div class="flex items-baseline gap-1">
-          <span class="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{{ formatSize(summaryData.totalObjectStorageMB).value }}</span>
-          <span class="text-xs font-bold text-slate-400">{{ formatSize(summaryData.totalObjectStorageMB).unit }}</span>
         </div>
       </div>
+
+      <div class="relative flex flex-col justify-center p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800 min-h-[90px]">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-10 h-10 bg-teal-50 border border-teal-100 rounded-lg dark:bg-[#18181b] dark:border-zinc-700">
+              <i class="text-lg text-teal-600 pi pi-cloud dark:text-teal-400"></i>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Object Storage Size</span>
+              <span class="text-[10px] text-slate-500 dark:text-zinc-400">Uploaded files & images</span>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-1 text-right">
+            <span class="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{{ formatSize(summaryData.totalObjectStorageMB).value }}</span>
+            <span class="text-xs font-bold text-slate-400">{{ formatSize(summaryData.totalObjectStorageMB).unit }}</span>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <div class="grid grid-cols-12 gap-3 h-[240px] shrink-0">
@@ -192,6 +227,8 @@ lastMonth.setMonth(today.getMonth() - 1);
 const startDate = ref(lastMonth);
 const endDate = ref(today);
 
+// 서버 전체 용량을 저장할 반응형 변수 (기본값 4TB 설정, API 응답으로 덮어씌워짐)
+const serverCapacityMB = ref(4194304);
 const summaryData = ref({ totalDbUsageMB: 0, totalObjectStorageMB: 0 });
 const tableData = ref<any[]>([]);
 const dailyTrendData = ref<any[]>([]);
@@ -199,23 +236,36 @@ const monthlyTrendData = ref<any[]>([]);
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 
+// ==========================================
+// 총 사용량 및 서버 용량 퍼센트 계산
+// ==========================================
+// DB와 오브젝트 스토리지 통합 사용량
+const totalUsedMB = computed(() => {
+  return (summaryData.value.totalDbUsageMB || 0) + (summaryData.value.totalObjectStorageMB || 0);
+});
+
+// 백엔드에서 받아온 전체 디스크 대비 사용률 동적 계산 (서버 전체 카드에만 사용)
+const usagePercentage = computed(() => {
+  if (serverCapacityMB.value === 0) return '0.0';
+  const pct = (totalUsedMB.value / serverCapacityMB.value) * 100;
+  return pct > 100 ? '100.0' : pct.toFixed(1);
+});
+// ==========================================
+
 const formatSize = (mb: number) => {
   if (!mb || isNaN(mb) || mb === 0) return { value: "0.00", unit: "MB" };
   if (mb < 1024) return { value: mb.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "MB" };
   return { value: (mb / 1024).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), unit: "GB" };
 };
 
-// [개선] 동기화 실행 함수 (중복 응답 처리)
 const triggerSync = async () => {
   isSyncing.value = true;
   try {
     const response = await syncStorageNow();
     const resData = response.data || response;
     
-    // 백엔드에서 전달된 성공/중단 메시지를 사용자에게 알림
     alert(resData.message || '스토리지 수동 동기화 요청이 완료되었습니다.');
     
-    // DB에 데이터가 없어서 실제로 동기화가 이루어졌을(success: true) 때만 데이터를 새로고침함
     if (resData.success !== false) {
       await fetchData();
     }
@@ -240,6 +290,9 @@ const fetchData = async () => {
       totalDbUsageMB: resData?.summary?.totalDbUsageMB || 0,
       totalObjectStorageMB: resData?.summary?.totalObjectStorageMB || 0,
     };
+    
+    serverCapacityMB.value = resData?.summary?.serverCapacityMB || 4194304;
+
     tableData.value = resData?.tableDetails || [];
     dailyTrendData.value = resData?.dailyTrends || [];
     monthlyTrendData.value = resData?.monthlyTrends || [];
