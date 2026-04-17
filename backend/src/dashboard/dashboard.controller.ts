@@ -1,17 +1,15 @@
 // backend/src/dashboard/dashboard.controller.ts
 import { Controller, Get, Post, Query, Body, UseGuards, Req } from '@nestjs/common';
-import { Request } from 'express'; // Express Request 임포트
+import { Request } from 'express';
 import { DashboardService, EasterEggResponse, EasterEggRank } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-// JWT Guard를 통과한 후 req.user에 담기는 Payload 타입 정의
 interface JwtPayload {
   userId?: string;
   username?: string;
-  [key: string]: unknown; // 기타 속성들 허용
+  [key: string]: unknown;
 }
 
-// Request 타입을 확장하여 user 속성 명시
 interface RequestWithUser extends Request {
   user?: JwtPayload;
 }
@@ -27,7 +25,7 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('global-fleet')
-  async getGlobalFleetData(): Promise<unknown[]> { // any 대신 unknown 사용 권장, 서비스에서 구체적 타입이면 변경
+  async getGlobalFleetData(): Promise<unknown[]> {
     return this.dashboardService.getGlobalFleetData();
   }
 
@@ -47,12 +45,12 @@ export class DashboardController {
     return this.dashboardService.getAgentStatus(site, sdwt);
   }
 
-  // [수정됨] any 제거 및 타입 안정성 확보
+  // [수정됨] Data API에서 null이 반환될 수 있으므로 '| null' 추가
   @Post('easter-egg')
   async saveEasterEgg(
-    @Req() req: RequestWithUser, // 명시적 타입 지정
+    @Req() req: RequestWithUser,
     @Body() body: EasterEggDto
-  ): Promise<EasterEggResponse> { // 반환 타입 명시
+  ): Promise<EasterEggResponse | null> { 
     const user = req.user;
     let userId = 'Unknown_Agent';
 
@@ -67,8 +65,9 @@ export class DashboardController {
     return this.dashboardService.saveEasterEgg(userId, body.eggType, body.score);
   }
 
+  // [수정됨] 사용하지 않던 'EasterEggRank' 임포트를 반환 타입으로 명시하여 ESLint 에러 해결
   @Get('easter-egg/ranking')
-  async getEasterEggRanking(@Query('eggType') eggType: string) {
+  async getEasterEggRanking(@Query('eggType') eggType: string): Promise<EasterEggRank[]> {
     return this.dashboardService.getEasterEggRanking(eggType);
   }
 }
