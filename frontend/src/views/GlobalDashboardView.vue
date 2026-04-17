@@ -2,18 +2,8 @@
 <template>
   <div
     class="absolute inset-0 transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans flex flex-col overflow-hidden"
-    :class="{ 'matrix-theme': isMatrixMode, 'money-theme': isMoneyMode }"
+    :class="{ 'money-theme': isMoneyMode }"
   >
-    <canvas
-      v-if="isMatrixMode"
-      ref="matrixCanvas"
-      class="fixed inset-0 z-0 w-full h-full pointer-events-none opacity-80"
-    ></canvas>
-    <div
-      v-if="isMatrixMode"
-      class="pointer-events-none absolute inset-0 z-[9999] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-20"
-    ></div>
-
     <canvas
       v-if="isMoneyMode"
       ref="moneyCanvas"
@@ -258,52 +248,7 @@ const countdown = ref(30);
 let timerInterval: number | undefined;
 
 // ============================================================================
-// 1. 매트릭스 이스터에그 (Konami Code)
-// ============================================================================
-const isMatrixMode = ref(false);
-const matrixCanvas = ref<HTMLCanvasElement | null>(null);
-let matrixReqId: number;
-let drops: number[] = [];
-const matrixChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*日ﾊミﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ".split("");
-
-const startMatrixRain = () => {
-  const canvas = matrixCanvas.value;
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const columns = Math.floor(canvas.width / 14);
-  drops = Array(columns).fill(1);
-
-  const draw = () => {
-    // TS2532 해결: draw 클로저 진입 시 canvas 유효성 재검증
-    if (!canvas || !ctx) return;
-    
-    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0F0";
-    ctx.font = "14px monospace";
-
-    for (let i = 0; i < drops.length; i++) {
-      const text = matrixChars[Math.floor(Math.random() * matrixChars.length)] || "";
-      const currentDrop = drops[i] ?? 0;
-      ctx.fillText(text, i * 14, currentDrop * 14);
-      
-      // TS2532 해결: canvas.height 안전한 접근 보장
-      if (currentDrop * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
-      else drops[i] = currentDrop + 1;
-    }
-    matrixReqId = requestAnimationFrame(draw);
-  };
-  draw();
-};
-
-const stopMatrixRain = () => { if (matrixReqId) cancelAnimationFrame(matrixReqId); };
-
-// ============================================================================
-// 2. Show Me The Money 이스터에그 (money Code)
+// Show Me The Money 이스터에그 (money Code)
 // ============================================================================
 const isMoneyMode = ref(false);
 const moneyCanvas = ref<HTMLCanvasElement | null>(null);
@@ -329,7 +274,6 @@ const startMoneyRain = () => {
   }));
 
   const draw = () => {
-    // TS2532 해결: draw 클로저 진입 시 canvas 유효성 재검증
     if (!canvas || !ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -346,7 +290,6 @@ const startMoneyRain = () => {
       ctx.strokeStyle = '#d97706'; 
       ctx.stroke();
 
-      // TS2532 해결: canvas.height 안전한 접근 보장
       if (c.y > canvas.height + 30) {
         c.y = -30;
         c.x = Math.random() * canvas.width;
@@ -361,48 +304,27 @@ const startMoneyRain = () => {
 const stopMoneyRain = () => { if (moneyReqId) cancelAnimationFrame(moneyReqId); };
 
 // ============================================================================
-// 통합 키보드 감지 로직 (Multiplexer)
+// 통합 키보드 감지 로직
 // ============================================================================
-const konamiCode = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
 const moneyCode = ["m", "o", "n", "e", "y"];
-let konamiPos = 0;
 let moneyPos = 0;
 
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === "Escape") {
-    if (isMatrixMode.value) { isMatrixMode.value = false; stopMatrixRain(); }
     if (isMoneyMode.value) { isMoneyMode.value = false; stopMoneyRain(); }
-    konamiPos = 0; moneyPos = 0;
+    moneyPos = 0;
     return;
   }
 
   // 입력창 무시 (안전성 검사 포함)
   const target = e.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.p-dropdown-filter'))) {
-    konamiPos = 0; moneyPos = 0; return;
+    moneyPos = 0; return;
   }
 
   const keyLower = e.key.toLowerCase();
 
-  // 1. Konami Code 체크
-  const konamiExpected = konamiCode[konamiPos];
-  if (konamiExpected && keyLower === konamiExpected.toLowerCase()) {
-    konamiPos++;
-    if (konamiPos === konamiCode.length) {
-      isMatrixMode.value = !isMatrixMode.value;
-      konamiPos = 0;
-      if (isMatrixMode.value) {
-        isMoneyMode.value = false; stopMoneyRain(); 
-        nextTick(() => startMatrixRain());
-        dashboardApi.saveEasterEgg({ eggType: "MATRIX", score: 0 }).catch(err => console.error(err));
-      } else stopMatrixRain();
-    }
-  } else {
-    const firstKonami = konamiCode[0];
-    konamiPos = (firstKonami && keyLower === firstKonami.toLowerCase()) ? 1 : 0;
-  }
-
-  // 2. Money Code 체크
+  // Money Code 체크
   const moneyExpected = moneyCode[moneyPos];
   if (moneyExpected && keyLower === moneyExpected) {
     moneyPos++;
@@ -410,7 +332,6 @@ const handleKeydown = (e: KeyboardEvent) => {
       isMoneyMode.value = !isMoneyMode.value;
       moneyPos = 0;
       if (isMoneyMode.value) {
-        isMatrixMode.value = false; stopMatrixRain(); 
         nextTick(() => startMoneyRain());
         dashboardApi.saveEasterEgg({ eggType: "MONEY", score: 99999999 }).catch(err => console.error(err));
       } else stopMoneyRain();
@@ -436,10 +357,6 @@ onMounted(() => {
   window.addEventListener("keydown", handleKeydown);
 
   window.addEventListener("resize", () => {
-    if (isMatrixMode.value && matrixCanvas.value) {
-      matrixCanvas.value.width = window.innerWidth;
-      matrixCanvas.value.height = window.innerHeight;
-    }
     if (isMoneyMode.value && moneyCanvas.value) {
       moneyCanvas.value.width = window.innerWidth;
       moneyCanvas.value.height = window.innerHeight;
@@ -450,7 +367,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
   window.removeEventListener("keydown", handleKeydown);
-  stopMatrixRain();
   stopMoneyRain();
 });
 
@@ -594,24 +510,6 @@ const getSdwtProgressBarClass = (sdwt: SdwtData) => {
   100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
 }
 .animate-halo { animation: halo-pulse 2s infinite cubic-bezier(0.66, 0, 0, 1); }
-
-/* Matrix Theme */
-.matrix-theme { background-color: #000 !important; }
-.matrix-theme :deep(*) {
-  background-color: transparent !important; border-color: #00ff41 !important; color: #00ff41 !important;
-  font-family: "Courier New", Courier, monospace !important; box-shadow: none !important;
-}
-.matrix-theme :deep(.rounded-3xl), .matrix-theme :deep(.rounded-2xl), .matrix-theme :deep(.rounded-xl) {
-  background-color: rgba(0, 0, 0, 0.6) !important;
-}
-.matrix-theme :deep(h1), .matrix-theme :deep(h2), .matrix-theme :deep(p), .matrix-theme :deep(span), .matrix-theme :deep(i) {
-  text-shadow: 0 0 4px #00ff41 !important; background-color: transparent !important;
-}
-.matrix-theme :deep(.bg-gradient-to-br), .matrix-theme :deep(.bg-gradient-to-r), .matrix-theme :deep(.blur-2xl), .matrix-theme :deep(.blur-3xl), .matrix-theme :deep(.shadow-\[0_0_8px_currentColor\]) {
-  background: none !important; display: none !important;
-}
-.matrix-theme :deep(.rounded-full) { border-radius: 0 !important; }
-.matrix-theme :deep(.h-full.transition-all) { background-color: #00ff41 !important; border-right: 2px solid #000 !important; }
 
 /* Show Me The Money Theme */
 .money-theme :deep(.border-slate-200), .money-theme :deep(.dark\:border-zinc-800) {
