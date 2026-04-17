@@ -125,3 +125,28 @@ html, body {
 :deep(.p-datatable-thead > tr > th) {
   @apply font-extrabold text-xs text-slate-500 dark:text-slate-400 bg-transparent uppercase tracking-wider py-3 border-b border-slate-200 dark:border-zinc-700;
 }
+
+/* ==========================================================================
+   4. Page Transition: Page Zoom (Fade + Scale)
+   글로벌 대시보드에서 상세 페이지로 진입 시 공간감을 부여하는 애니메이션
+   ========================================================================== */
+
+.page-zoom-enter-active,
+.page-zoom-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-zoom-enter-from {
+  opacity: 0;
+  transform: scale(0.98) translateY(10px);
+}
+
+.page-zoom-leave-to {
+  opacity: 0;
+  transform: scale(1.02) translateY(-10px);
+}
+
+.page-zoom-enter-active, 
+.page-zoom-leave-active {
+  will-change: transform, opacity;
+}
