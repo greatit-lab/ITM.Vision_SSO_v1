@@ -1,9 +1,20 @@
 <!-- frontend/src/views/EquipmentExplorerView.vue -->
 <template>
   <div
-    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden"
+    class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden relative"
+    :class="{ 'matrix-theme': isMatrixMode }"
   >
-    <div class="flex flex-col items-center justify-between gap-3 md:flex-row">
+    <canvas
+      v-if="isMatrixMode"
+      ref="matrixCanvas"
+      class="fixed inset-0 z-0 w-full h-full pointer-events-none opacity-80"
+    ></canvas>
+    <div
+      v-if="isMatrixMode"
+      class="pointer-events-none fixed inset-0 z-[9999] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-20"
+    ></div>
+
+    <div class="relative z-10 flex flex-col items-center justify-between gap-3 md:flex-row">
       <div class="flex items-center gap-2 px-1 mb-2 shrink-0">
         <div
           class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
@@ -28,7 +39,7 @@
     </div>
 
     <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0"
+      class="relative z-10 mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm shrink-0"
     >
       <div
         class="flex flex-wrap items-center flex-1 gap-2 px-1 py-1"
@@ -91,7 +102,7 @@
     </div>
 
     <div
-      class="flex-1 min-h-0 w-full pb-2 overflow-hidden grid grid-rows-1 grid-cols-1"
+      class="relative z-10 flex-1 min-h-0 w-full pb-2 overflow-hidden grid grid-rows-1 grid-cols-1"
     >
       <div
         v-if="isLoading"
@@ -477,7 +488,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, nextTick, onUnmounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getEquipmentDetails, type EquipmentDto } from "@/api/equipment";
@@ -525,13 +536,91 @@ const filteredRecords = computed(() => {
 
 const totalRecords = computed(() => filteredRecords.value.length);
 
+// ============================================================================
+// 매트릭스 이스터에그 (Matrix Code)
+// ============================================================================
+const isMatrixMode = ref(false);
+const matrixCanvas = ref<HTMLCanvasElement | null>(null);
+let matrixReqId: number;
+let drops: number[] = [];
+const matrixChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*日ﾊミﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ".split("");
+
+const startMatrixRain = () => {
+  const canvas = matrixCanvas.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const columns = Math.floor(canvas.width / 14);
+  drops = Array(columns).fill(1);
+
+  const draw = () => {
+    if (!canvas || !ctx) return;
+    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0F0";
+    ctx.font = "14px monospace";
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = matrixChars[Math.floor(Math.random() * matrixChars.length)] || "";
+      const currentDrop = drops[i] ?? 0;
+      ctx.fillText(text, i * 14, currentDrop * 14);
+      
+      if (currentDrop * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      else drops[i] = currentDrop + 1;
+    }
+    matrixReqId = requestAnimationFrame(draw);
+  };
+  draw();
+};
+
+const stopMatrixRain = () => { if (matrixReqId) cancelAnimationFrame(matrixReqId); };
+
+// 키보드 트리거 ('m', 'a', 't', 'r', 'i', 'x')
+const matrixCode = ["m", "a", "t", "r", "i", "x"];
+let matrixPos = 0;
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === "Escape") {
+    if (isMatrixMode.value) { isMatrixMode.value = false; stopMatrixRain(); }
+    matrixPos = 0;
+    return;
+  }
+
+  const target = e.target as HTMLElement | null;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.p-dropdown-filter'))) {
+    matrixPos = 0; return;
+  }
+
+  const keyLower = e.key.toLowerCase();
+  const expected = matrixCode[matrixPos];
+  
+  if (expected && keyLower === expected) {
+    matrixPos++;
+    if (matrixPos === matrixCode.length) {
+      isMatrixMode.value = !isMatrixMode.value;
+      matrixPos = 0;
+      if (isMatrixMode.value) {
+        nextTick(() => startMatrixRain());
+        dashboardApi.saveEasterEgg({ eggType: "MATRIX", score: 0 }).catch(err => console.error(err));
+      } else {
+        stopMatrixRain();
+      }
+    }
+  } else {
+    const first = matrixCode[0];
+    matrixPos = (first && keyLower === first) ? 1 : 0;
+  }
+};
+
 // Lifecycle
 onMounted(async () => {
   try {
-    // 1. Site 목록 로드
     sites.value = await dashboardApi.getSites();
 
-    // 2. 초기 필터 값 결정
     let targetSite = "";
     let targetSdwt = "";
 
@@ -543,17 +632,14 @@ onMounted(async () => {
       targetSdwt = localStorage.getItem("explorer_sdwt") || "";
     }
 
-    // 3. Site 적용 및 SDWT 로드
     if (targetSite && sites.value.includes(targetSite)) {
       selectedSite.value = targetSite;
       sdwts.value = await dashboardApi.getSdwts(targetSite);
 
-      // 4. SDWT 적용 및 데이터 로드
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         selectedSdwt.value = targetSdwt;
-        await loadEquipmentData(); // 장비 리스트 로드
+        await loadEquipmentData(); 
 
-        // 5. EQP ID 복원 (필터링용)
         const savedEqpId = localStorage.getItem("explorer_eqpid");
         if (savedEqpId) {
           const exists = equipmentList.value.some((e) => e.eqpId === savedEqpId);
@@ -571,6 +657,20 @@ onMounted(async () => {
   } catch (e) {
     console.error(e);
   }
+
+  // 매트릭스 리스너 등록
+  window.addEventListener("keydown", handleKeydown);
+  window.addEventListener("resize", () => {
+    if (isMatrixMode.value && matrixCanvas.value) {
+      matrixCanvas.value.width = window.innerWidth;
+      matrixCanvas.value.height = window.innerHeight;
+    }
+  });
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeydown);
+  stopMatrixRain();
 });
 
 // Handlers
@@ -588,7 +688,6 @@ const onSiteChange = async () => {
     sdwts.value = [];
   }
 
-  // 하위 필터 초기화
   selectedSdwt.value = "";
   localStorage.removeItem("explorer_sdwt");
   selectedEqpId.value = "";
@@ -606,7 +705,6 @@ const onSdwtChange = async () => {
     equipmentList.value = [];
   }
 
-  // 하위 필터 초기화
   selectedEqpId.value = "";
   localStorage.removeItem("explorer_eqpid");
   first.value = 0;
@@ -804,4 +902,22 @@ const copyToClipboard = async (text: string) => {
 :deep(.p-autocomplete-dropdown svg) {
   @apply w-3 h-3;
 }
+
+/* Matrix Theme */
+.matrix-theme { background-color: #000 !important; }
+.matrix-theme :deep(*) {
+  background-color: transparent !important; border-color: #00ff41 !important; color: #00ff41 !important;
+  font-family: "Courier New", Courier, monospace !important; box-shadow: none !important;
+}
+.matrix-theme :deep(.bg-white), .matrix-theme :deep(.dark\:bg-\[\#111111\]), .matrix-theme :deep(.dark\:bg-zinc-900), .matrix-theme :deep(.rounded-xl) {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+.matrix-theme :deep(h1), .matrix-theme :deep(h2), .matrix-theme :deep(h3), .matrix-theme :deep(p), .matrix-theme :deep(span), .matrix-theme :deep(i), .matrix-theme :deep(th), .matrix-theme :deep(td) {
+  text-shadow: 0 0 4px #00ff41 !important; background-color: transparent !important;
+}
+.matrix-theme :deep(.bg-gradient-to-br), .matrix-theme :deep(.bg-gradient-to-r), .matrix-theme :deep(.blur-2xl), .matrix-theme :deep(.blur-3xl), .matrix-theme :deep(.shadow-\[0_0_8px_currentColor\]) {
+  background: none !important; display: none !important;
+}
+.matrix-theme :deep(.rounded-full) { border-radius: 0 !important; }
+.matrix-theme :deep(.h-full.transition-all) { background-color: #00ff41 !important; border-right: 2px solid #000 !important; }
 </style>
