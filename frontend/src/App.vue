@@ -15,9 +15,9 @@
       <Header v-if="showSidebar" />
 
       <div class="relative flex-1" :class="{ 'px-5 pt-2 pb-0': showSidebar }">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
+        <router-view v-slot="{ Component, route }">
+          <transition :name="transitionName" mode="out-in">
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </div>
@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import Header from "@/components/layout/Header.vue";
@@ -48,11 +48,27 @@ import { boardApi } from '@/api/board';
 import NoticePopup from '@/components/common/NoticePopup.vue';
 
 const route = useRoute();
+const router = useRouter(); // [추가] 라우터 객체 가져오기
 const authStore = useAuthStore();
 const isSidebarOpen = ref(true);
 
 // 팝업 목록 상태 (배열 구조 유지)
 const popups = ref<any[]>([]);
+
+// [신규] 동적 전환 애니메이션 상태 (기본값: fade)
+const transitionName = ref("fade");
+
+// [신규] 페이지 이동을 감지하여 조건부로 애니메이션 이름 변경
+router.beforeEach((to, from, next) => {
+  // Global Dashboard에서 Site Overview(home)로 갈 때만 page-zoom 적용
+  if (from.name === "global-dashboard" && to.name === "home") {
+    transitionName.value = "page-zoom";
+  } else {
+    // 그 외의 모든 이동은 기본 fade 적용
+    transitionName.value = "fade";
+  }
+  next();
+});
 
 const isLoginPage = computed(() => route.path === "/login");
 
@@ -64,7 +80,7 @@ const handleSidebarToggle = (event: Event) => {
   isSidebarOpen.value = customEvent.detail;
 };
 
-// [수정] 팝업 데이터 조회 로직 정리 (LocalStorage 검사는 컴포넌트 내부로 위임)
+// 팝업 데이터 조회 로직 정리
 const fetchPopups = async () => {
   if (!authStore.isAuthenticated) {
     popups.value = [];
@@ -80,7 +96,7 @@ const fetchPopups = async () => {
   }
 };
 
-// [변경] 슬라이드 컴포넌트에서 모두 닫기 이벤트가 오면 팝업 배열 비우기
+// 슬라이드 컴포넌트에서 모두 닫기 이벤트가 오면 팝업 배열 비우기
 const closeAllPopups = () => {
   popups.value = [];
 };
@@ -129,7 +145,7 @@ onUnmounted(() => {
   background: #52525b;
 }
 
-/* 라우터 뷰 전환 애니메이션 */
+/* [복구] 기존의 일반적인 라우터 뷰 전환 애니메이션 (Fade) */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
