@@ -34,6 +34,21 @@ export interface AgentStatusResponse {
   clockDrift: number | null;
 }
 
+// [신규] 이스터에그 저장 응답 타입 - 컨트롤러에서 참조할 수 있도록 반드시 export
+export interface EasterEggResponse {
+  id: number;
+  userId: string;
+  eggType: string;
+  score: number;
+  createdAt: string | Date;
+}
+
+// [신규] 이스터에그 랭킹 아이템 타입 - 컨트롤러에서 참조할 수 있도록 반드시 export
+export interface EasterEggRank {
+  id: string;
+  score: number;
+}
+
 @Injectable()
 export class DashboardService {
   // Data API의 기본 경로 (Controller Prefix)
@@ -41,18 +56,23 @@ export class DashboardService {
 
   constructor(private readonly dataApiService: DataApiService) {}
 
-  // [신규 추가] Data API의 global-fleet 엔드포인트를 호출하여 데이터를 프론트엔드로 전달
-  async getGlobalFleetData(): Promise<any[]> {
-    const result = await this.dataApiService.request<any[]>(
+  /**
+   * Data API의 global-fleet 엔드포인트를 호출하여 데이터를 프론트엔드로 전달
+   */
+  async getGlobalFleetData(): Promise<unknown[]> {
+    const result = await this.dataApiService.request<unknown[]>(
       this.DOMAIN,
       'get',
       'global-fleet',
-      undefined, 
-      undefined, 
+      undefined,
+      undefined,
     );
     return result || [];
   }
 
+  /**
+   * 대시보드 요약 정보 조회
+   */
   async getSummary(
     site?: string,
     sdwt?: string,
@@ -70,6 +90,9 @@ export class DashboardService {
     );
   }
 
+  /**
+   * 에이전트 상태 정보 상세 조회
+   */
   async getAgentStatus(
     site?: string,
     sdwt?: string,
@@ -85,6 +108,39 @@ export class DashboardService {
       'agentstatus',
       undefined,
       params,
+    );
+    return result || [];
+  }
+
+  /**
+   * [신규] 이스터에그 기록 저장 (매트릭스 발견 또는 디펜스 게임 점수)
+   * Data-API(Prisma 서버)로 요청을 전달합니다.
+   */
+  async saveEasterEgg(
+    userId: string,
+    eggType: string,
+    score?: number,
+  ): Promise<EasterEggResponse> {
+    return this.dataApiService.request<EasterEggResponse>(
+      this.DOMAIN,
+      'post',
+      'easter-egg',
+      { userId, eggType, score: score || 0 }, // Request Body
+      undefined,
+    );
+  }
+
+  /**
+   * [신규] 이스터에그 타입별 글로벌 랭킹 조회
+   * Data-API(Prisma 서버)로 요청을 전달합니다.
+   */
+  async getEasterEggRanking(eggType: string): Promise<EasterEggRank[]> {
+    const result = await this.dataApiService.request<EasterEggRank[]>(
+      this.DOMAIN,
+      'get',
+      'easter-egg/ranking',
+      undefined,
+      { eggType }, // Query Params
     );
     return result || [];
   }
