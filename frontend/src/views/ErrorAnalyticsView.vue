@@ -1,6 +1,14 @@
 <!-- frontend/src/views/ErrorAnalyticsView.vue -->
 <template>
-  <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B]">
+  <div class="flex flex-col h-full w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] relative">
+    
+    <div v-if="isDefenderMode" class="fixed inset-0 z-[9999] cursor-none bg-slate-900/90 backdrop-blur-sm">
+      <canvas 
+        ref="defenderCanvas" 
+        class="w-full h-full block absolute inset-0"
+      ></canvas>
+    </div>
+
     <div class="flex items-center gap-2 px-1 mb-2 shrink-0">
       <div class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800">
         <i class="text-lg text-rose-500 pi pi-bell dark:text-rose-400"></i>
@@ -188,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from "vue";
+import { ref, reactive, onMounted, computed, watch, nextTick, onUnmounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
 import { getEqpIds } from "@/api/equipment";
@@ -222,7 +230,7 @@ const eqpIds = ref<string[]>([]);
 const isLoading = ref(false);
 const isGridLoading = ref(false);
 const hasSearched = ref(false);
-const isExporting = ref(false); // CSV Export 상태 관리
+const isExporting = ref(false);
 
 const summary = ref<ErrorSummary>({ totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] });
 const trendData = ref<ErrorTrendItem[]>([]);
@@ -239,6 +247,319 @@ const themeObserver = new MutationObserver((mutations) => {
     }
   });
 });
+
+// ============================================================================
+// DB를 연동하는 글로벌 리더보드 디펜스 이스터에그 로직
+// ============================================================================
+const isDefenderMode = ref(false);
+const defenderCanvas = ref<HTMLCanvasElement | null>(null);
+let defenderReqId: number;
+
+const defenderCode = ['e', 'r', 'r', 'o', 'r'];
+let defenderPos = 0;
+
+const handleDefenderKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && isDefenderMode.value) {
+    stopDefenderGame();
+    return;
+  }
+
+  const target = e.target as HTMLElement;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.p-dropdown-filter'))) {
+    defenderPos = 0;
+    return;
+  }
+
+  if (!isDefenderMode.value) {
+    const expectedKey = defenderCode[defenderPos];
+    if (expectedKey && e.key.toLowerCase() === expectedKey.toLowerCase()) {
+      defenderPos++;
+      if (defenderPos === defenderCode.length) {
+        isDefenderMode.value = true;
+        defenderPos = 0;
+        nextTick(() => startDefenderGame());
+      }
+    } else {
+      defenderPos = 0;
+      const firstKey = defenderCode[0];
+      if (firstKey && e.key.toLowerCase() === firstKey.toLowerCase()) {
+        defenderPos = 1;
+      }
+    }
+  }
+};
+
+const startDefenderGame = () => {
+  const canvas = defenderCanvas.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  let mouseX = canvas.width / 2;
+  let mouseY = canvas.height - 50;
+  
+  const onMouseMove = (e: MouseEvent) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  };
+  
+  let lasers: {x: number, y: number}[] = [];
+  const onClick = () => {
+    if (!isGameOver) {
+      lasers.push({ x: mouseX, y: mouseY - 20 });
+    }
+  };
+
+  const onResize = () => {
+    if (isDefenderMode.value && defenderCanvas.value) {
+      defenderCanvas.value.width = window.innerWidth;
+      defenderCanvas.value.height = window.innerHeight;
+    }
+  };
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('click', onClick);
+  window.addEventListener('resize', onResize);
+
+  let enemies: {x: number, y: number, speed: number, text: string, isBonus: boolean}[] = [];
+  let explosions: {x: number, y: number, life: number}[] = [];
+  let floatingTexts: {x: number, y: number, text: string, life: number, color: string}[] = [];
+  
+  let score = 0;
+  let timeLeft = 10.0;
+  let isGameOver = false;
+  let isSaving = false;
+  let lastTime = performance.now();
+  
+  // DB에서 불러온 실제 리더보드 데이터 저장용
+  let leaderboard: any[] = [];
+
+  const icons = ['⚠️', '🔔', '❌', '🔥', '🐛'];
+  let lastSpawn = performance.now();
+  let spawnRate = 600;
+
+  const draw = (time: number) => {
+    if (!isDefenderMode.value) return;
+
+    const delta = time - lastTime;
+    lastTime = time;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (!isGameOver) {
+      timeLeft -= delta / 1000;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        isGameOver = true;
+        isSaving = true;
+        
+        // 게임 오버 시 백엔드 DB에 점수를 기록하고 리더보드를 받아옵니다.
+        dashboardApi.saveEasterEgg({ eggType: 'DEFENDER', score: score })
+          .then(() => dashboardApi.getEasterEggRanking('DEFENDER'))
+          .then((res: any[]) => {
+             leaderboard = res;
+             isSaving = false;
+          })
+          .catch(e => {
+             console.error("Leaderboard fetch failed", e);
+             isSaving = false;
+          });
+      }
+    }
+
+    if (isGameOver) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.fillStyle = '#10b981';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '900 48px sans-serif';
+      ctx.shadowColor = '#059669';
+      ctx.shadowBlur = 20;
+      ctx.fillText('🎉 오늘의 장애 대응 완료! 🎉', canvas.width / 2, canvas.height / 2 - 20);
+      
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '600 20px sans-serif';
+      ctx.fillText(`최종 방어 건수: ${score}건`, canvas.width / 2, canvas.height / 2 + 30);
+      ctx.fillText('ESC 키를 눌러 업무로 복귀하기', canvas.width / 2, canvas.height / 2 + 70);
+
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText('🏆 Global Top Defenders', canvas.width - 40, 40);
+
+      ctx.font = 'bold 18px monospace';
+      
+      if (isSaving) {
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText('서버에 기록 저장 중...', canvas.width - 40, 80);
+      } else {
+        const currentUser = authStore.user?.username || authStore.user?.userId || '';
+        
+        if (leaderboard.length === 0) {
+           ctx.fillStyle = '#cbd5e1';
+           ctx.fillText('아직 등록된 기록이 없습니다.', canvas.width - 40, 80);
+        } else {
+           leaderboard.forEach((entry: any, idx: number) => {
+             const y = 80 + (idx * 30);
+             const isMe = entry.id === currentUser;
+             ctx.fillStyle = isMe ? '#10b981' : '#cbd5e1';
+             ctx.fillText(`${idx + 1}. ${entry.id.padEnd(12, ' ')} ${String(entry.score).padStart(3, ' ')}건`, canvas.width - 40, y);
+           });
+        }
+      }
+
+      defenderReqId = requestAnimationFrame(draw);
+      return;
+    }
+
+    if (time - lastSpawn > spawnRate) {
+      const isBonus = Math.random() < 0.12;
+      const randomIcon = isBonus ? '⏱️' : (icons[Math.floor(Math.random() * icons.length)] || '⚠️');
+      
+      enemies.push({
+        x: Math.random() * (canvas.width - 60) + 30,
+        y: -30,
+        speed: Math.random() * 3 + 2 + (score * 0.1),
+        text: randomIcon,
+        isBonus: isBonus
+      });
+      lastSpawn = time;
+      spawnRate = Math.max(200, 700 - score * 10);
+    }
+
+    ctx.fillStyle = '#06b6d4';
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur = 10;
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const laser = lasers[i];
+      if (!laser) continue;
+      
+      laser.y -= 15;
+      ctx.fillRect(laser.x - 2, laser.y, 4, 20);
+      if (laser.y < -20) lasers.splice(i, 1);
+    }
+    ctx.shadowBlur = 0;
+
+    ctx.font = '28px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy = enemies[i];
+      if (!enemy) continue;
+
+      enemy.y += enemy.speed;
+      ctx.fillText(enemy.text, enemy.x, enemy.y);
+
+      let hit = false;
+      for (let j = lasers.length - 1; j >= 0; j--) {
+        const laser = lasers[j];
+        if (!laser) continue;
+
+        const dx = enemy.x - laser.x;
+        const dy = enemy.y - laser.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 30) {
+          hit = true;
+          lasers.splice(j, 1);
+          
+          if (enemy.isBonus) {
+            timeLeft += 1.0;
+            floatingTexts.push({ x: enemy.x, y: enemy.y, text: '+1 Sec', life: 40, color: '#10b981' });
+          } else {
+            score++;
+            floatingTexts.push({ x: enemy.x, y: enemy.y, text: '+1', life: 20, color: '#06b6d4' });
+          }
+          break;
+        }
+      }
+
+      if (hit) {
+        explosions.push({ x: enemy.x, y: enemy.y, life: 15 });
+        enemies.splice(i, 1);
+        continue;
+      }
+
+      if (enemy.y > canvas.height + 30) {
+        enemies.splice(i, 1);
+        score = Math.max(0, score - 1);
+      }
+    }
+
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      const exp = explosions[i];
+      if (!exp) continue;
+
+      ctx.font = `${20 + (15 - exp.life) * 2.5}px Arial`;
+      ctx.globalAlpha = exp.life / 15;
+      ctx.fillText('💥', exp.x, exp.y);
+      ctx.globalAlpha = 1.0;
+      exp.life--;
+      if (exp.life <= 0) explosions.splice(i, 1);
+    }
+    
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      const ft = floatingTexts[i];
+      if (!ft) continue;
+      
+      ctx.globalAlpha = Math.max(0, ft.life / 40);
+      ctx.fillStyle = ft.color;
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.globalAlpha = 1.0;
+      ft.y -= 1.5;
+      ft.life--;
+      if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
+
+    ctx.save();
+    ctx.translate(mouseX, mouseY);
+    ctx.rotate(-45 * Math.PI / 180);
+    ctx.font = '40px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚀', 0, 0);
+    ctx.restore();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${score}`, 30, 50);
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillStyle = timeLeft <= 3 ? '#f43f5e' : '#10b981';
+    ctx.fillText(`⏱️ ${Math.ceil(timeLeft)}s`, canvas.width / 2, 50);
+
+    defenderReqId = requestAnimationFrame(draw);
+  };
+
+  defenderReqId = requestAnimationFrame(draw);
+
+  (canvas as any).cleanup = () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('click', onClick);
+    window.removeEventListener('resize', onResize);
+  };
+};
+
+const stopDefenderGame = () => {
+  isDefenderMode.value = false;
+  if (defenderReqId) cancelAnimationFrame(defenderReqId);
+  if (defenderCanvas.value && (defenderCanvas.value as any).cleanup) {
+    (defenderCanvas.value as any).cleanup();
+  }
+};
+// ============================================================================
+
 
 watch(
   [() => filter.startDate, () => filter.endDate],
@@ -295,13 +616,20 @@ onMounted(async () => {
     }
   }
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+  window.addEventListener('keydown', handleDefenderKeydown);
+});
+
+onUnmounted(() => {
+  themeObserver.disconnect();
+  window.removeEventListener('keydown', handleDefenderKeydown);
+  stopDefenderGame();
 });
 
 watch(() => filter.site, (n) => n ? localStorage.setItem(LS_KEYS.SITE, n) : localStorage.removeItem(LS_KEYS.SITE));
 watch(() => filter.sdwt, (n) => n ? localStorage.setItem(LS_KEYS.SDWT, n) : localStorage.removeItem(LS_KEYS.SDWT));
 watch(() => filter.eqpId, (n) => n ? localStorage.setItem(LS_KEYS.EQPID, n) : localStorage.removeItem(LS_KEYS.EQPID));
 
-// 날짜 문자열 생성 로직
 const toDateTimeString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -348,10 +676,7 @@ const onSdwtChange = async () => {
   }
 };
 
-const onEqpIdChange = () => {
-  // EQP ID 선택 시 화면을 지우지도, 자동 조회를 하지도 않음.
-  // v-model에 의해 값만 저장되며, 조회는 사용자가 직접 검색 버튼을 눌러 실행함.
-};
+const onEqpIdChange = () => {};
 
 const getEffectiveParams = () => {
   let startStr = toDateTimeString(filter.startDate);
@@ -459,7 +784,6 @@ const exportCSV = async () => {
   isExporting.value = true;
   
   try {
-    // 화면에 보이는 페이지만이 아닌, 전체 검색된 데이터를 가져오기 위해 pageSize를 totalRecords로 요청
     const params = { 
         ...getEffectiveParams(), 
         page: 0, 
@@ -472,10 +796,8 @@ const exportCSV = async () => {
     const exportItems = (data && Array.isArray(data.items)) ? data.items : [];
     if (exportItems.length === 0) return;
 
-    // CSV 헤더 정의
     const headers = ['Time', 'EQP ID', 'Error ID', 'Label', 'Description', 'Extra 1', 'Extra 2'];
     
-    // CSV 데이터 파싱 (콤마, 따옴표 예외 처리 및 엑셀 날짜 형식 보호)
     const rows = exportItems.map((d: any) => [
       `="${formatDate(d.timeStamp, false, true)}"`, 
       `"${d.eqpId || ''}"`,
@@ -486,13 +808,11 @@ const exportCSV = async () => {
       `"${(d.extraMessage2 || '').replace(/"/g, '""')}"`
     ]);
 
-    // 한글 깨짐 방지를 위한 BOM(\uFEFF) 추가
     const csvContent = '\uFEFF' + [
       headers.join(','),
-      ...rows.map((row: string[]) => row.join(',')) // row에 명시적 타입 지정
+      ...rows.map((row: string[]) => row.join(','))
     ].join('\n');
 
-    // 파일 다운로드 처리
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -616,4 +936,3 @@ const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
