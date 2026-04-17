@@ -31,7 +31,7 @@ export interface AgentStatusDto {
 }
 
 export const dashboardApi = {
-  // [신규 추가] 한 번의 호출로 Global Dashboard의 모든 데이터를 가져옵니다.
+  // 한 번의 호출로 Global Dashboard의 모든 데이터를 가져옵니다.
   getGlobalFleetData: async () => {
     const { data } = await http.get<any[]>("/dashboard/global-fleet");
     return data;
@@ -62,4 +62,18 @@ export const dashboardApi = {
     );
     return data;
   },
+
+  // [신규 추가] 이스터에그 기록 저장 (매트릭스 뷰, 디펜스 게임 완료 시 호출)
+  saveEasterEgg: async (payload: { eggType: string; score?: number }) => {
+    const { data } = await http.post("/dashboard/easter-egg", payload);
+    return data;
+  },
+
+  // [신규 추가] 이스터에그 글로벌 랭킹 리더보드 조회
+  getEasterEggRanking: async (eggType: string) => {
+    const { data } = await http.get<any[]>(`/dashboard/easter-egg/ranking`, {
+      params: { eggType }
+    });
+    return data;
+  }
 };
