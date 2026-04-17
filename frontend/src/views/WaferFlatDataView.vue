@@ -166,8 +166,11 @@
       
       <div class="w-full 2xl:w-[450px] shrink-0 flex flex-col gap-4 2xl:h-full">
         <div class="h-[420px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-7 overflow-hidden">
-          <div class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center"><i class="pi pi-image mr-2 text-teal-500"></i> Wafer Map</div>
+          <div class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center">
+            <i class="pi pi-image mr-2 text-teal-500"></i> Wafer Map
+          </div>
           <div class="relative h-full w-auto aspect-square max-w-full rounded-full border-4 border-slate-100 dark:border-zinc-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] overflow-hidden bg-slate-50 dark:bg-black flex items-center justify-center">
+            
             <transition name="fade">
               <div v-if="isImageLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-black/60 backdrop-blur-sm z-20">
                 <ProgressSpinner style="width: 40px; height: 40px" strokeWidth="4" />
@@ -180,14 +183,20 @@
               </div>
             </transition>
             <transition name="fade">
-              <img v-if="pdfImageUrl && !isImageLoading" :src="pdfImageUrl" class="absolute inset-0 w-full h-full object-contain" alt="Wafer Map" />
+              <img v-if="pdfImageUrl && !isImageLoading" :src="pdfImageUrl" class="absolute inset-0 w-full h-full object-contain z-10" alt="Wafer Map" />
             </transition>
-            <div v-if="pdfImageUrl && selectedPointIdx !== -1" class="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-10">
+
+            <div v-if="pdfImageUrl && selectedPointIdx !== -1" class="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-20">
               <div class="absolute top-0 bottom-0 left-1/2 w-px bg-red-500 transform -translate-x-1/2 opacity-70"></div>
               <div class="absolute left-0 right-0 top-1/2 h-px bg-red-500 transform -translate-y-1/2 opacity-70"></div>
             </div>
+
+            <canvas v-show="isBugMode && pdfImageUrl && !isImageLoading" ref="bugCanvas" class="absolute inset-0 w-full h-full z-30 pointer-events-none"></canvas>
           </div>
-          <div v-if="pdfExists && selectedPointIdx !== -1" class="absolute bottom-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md font-mono shadow-lg border border-white/10 z-30">{{ selectedRow?.lotId }} W{{ selectedRow?.waferId }} #{{ selectedPointValue }}</div>
+
+          <div v-if="pdfExists && selectedPointIdx !== -1" class="absolute bottom-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-md font-mono shadow-lg border border-white/10 z-40">
+            {{ selectedRow?.lotId }} W{{ selectedRow?.waferId }} #{{ selectedPointValue }}
+          </div>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col h-[290px]">
@@ -297,6 +306,167 @@ let spectrumChartInstance: ECharts | null = null;
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
+
+// ============================================================================
+// Bug Easter Egg State & Logic
+// ============================================================================
+const isBugMode = ref(false);
+const bugCanvas = ref<HTMLCanvasElement | null>(null);
+let bugReqId: number;
+const bugCode = ['b', 'u', 'g'];
+let bugPos = 0;
+
+interface Bug { 
+  x: number; 
+  y: number; 
+  angle: number;
+  speed: number;
+  emoji: string; 
+  size: number;
+  lastEatTime: number;
+}
+let bugs: Bug[] = [];
+let eatenPaths: {x: number, y: number, r: number}[] = [];
+
+const startBugCrawling = () => {
+  const canvas = bugCanvas.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  
+  const emojis = ['🕷️', '🐞']; 
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  
+  // 웨이퍼 맵 패딩 등을 고려하여 테두리 반지름 설정
+  const radius = (Math.min(canvas.width, canvas.height) / 2) - 15; 
+  
+  eatenPaths = []; 
+  
+  const bugCount = Math.floor(Math.random() * 2) + 3;
+  const sizeSteps = [7, 9, 11]; 
+
+  bugs = Array.from({ length: bugCount }, () => {
+    // 웨이퍼 원형 내부의 랜덤한 지점에서 스폰되도록 수정
+    const spawnAngle = Math.random() * Math.PI * 2;
+    const spawnRadius = Math.sqrt(Math.random()) * (radius - 10);
+    
+    return {
+      x: cx + Math.cos(spawnAngle) * spawnRadius,
+      y: cy + Math.sin(spawnAngle) * spawnRadius,
+      angle: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.1 + 0.05, // 속도를 0.05~0.15 픽셀/프레임으로 매우 느리게
+      emoji: emojis[Math.floor(Math.random() * emojis.length)] || '🐞',
+      size: sizeSteps[Math.floor(Math.random() * sizeSteps.length)] || 9,
+      lastEatTime: 0
+    };
+  });
+
+  const draw = () => {
+    if (!canvas || !ctx || !isBugMode.value) return;
+    
+    if (canvas.width !== canvas.offsetWidth || canvas.height !== canvas.offsetHeight) {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 지나간 자리에 먹은 흔적 그리기
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.7)'; 
+    eatenPaths.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    bugs.forEach(bug => {
+      if (Math.random() < 0.05) {
+        bug.angle += (Math.random() - 0.5) * 0.8;
+      }
+
+      let nextX = bug.x + Math.cos(bug.angle) * bug.speed;
+      let nextY = bug.y + Math.sin(bug.angle) * bug.speed;
+      
+      const dist = Math.hypot(nextX - cx, nextY - cy);
+      if (dist > radius) {
+         const angleToCenter = Math.atan2(cy - bug.y, cx - bug.x);
+         bug.angle = angleToCenter + (Math.random() - 0.5); 
+         
+         nextX = bug.x + Math.cos(bug.angle) * bug.speed;
+         nextY = bug.y + Math.sin(bug.angle) * bug.speed;
+      }
+
+      bug.x = nextX;
+      bug.y = nextY;
+
+      const now = Date.now();
+      if (now - bug.lastEatTime > 300) {
+        eatenPaths.push({ x: bug.x, y: bug.y, r: bug.size * 0.25 + Math.random() * 1.0 });
+        if (eatenPaths.length > 1000) eatenPaths.shift(); 
+        bug.lastEatTime = now;
+      }
+
+      ctx.save();
+      ctx.translate(bug.x, bug.y);
+      ctx.rotate(bug.angle + Math.PI / 2); 
+      
+      ctx.filter = 'brightness(0.25) sepia(0.2) drop-shadow(0px 1px 1px rgba(0,0,0,0.4))';
+      
+      ctx.font = `${bug.size}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(bug.emoji, 0, 0);
+      ctx.restore();
+    });
+
+    bugReqId = requestAnimationFrame(draw);
+  };
+  draw();
+};
+
+const stopBugCrawling = () => {
+  isBugMode.value = false;
+  if (bugReqId) cancelAnimationFrame(bugReqId);
+  bugs = [];
+  eatenPaths = [];
+  bugPos = 0;
+};
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && isBugMode.value) {
+    stopBugCrawling();
+    return;
+  }
+
+  const target = e.target as HTMLElement;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.p-dropdown-filter'))) {
+    bugPos = 0; return;
+  }
+
+  const keyLower = e.key.toLowerCase();
+  if (bugCode[bugPos] && keyLower === bugCode[bugPos]) {
+    bugPos++;
+    if (bugPos === bugCode.length) {
+      if (pdfImageUrl.value && !isImageLoading.value) {
+        isBugMode.value = !isBugMode.value;
+        if (isBugMode.value) {
+          nextTick(() => startBugCrawling());
+        } else {
+          stopBugCrawling();
+        }
+      }
+      bugPos = 0;
+    }
+  } else {
+    bugPos = (keyLower === bugCode[0]) ? 1 : 0;
+  }
+};
+// ============================================================================
+
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
@@ -429,6 +599,8 @@ const getStatValue = (stats: StatisticsDto | null, header: string, type: keyof S
 };
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleKeydown);
+
   sites.value = await dashboardApi.getSites();
   
   let targetSite = filterStore.selectedSite;
@@ -456,7 +628,6 @@ onMounted(async () => {
         await loadLotOptions();
         await loadCassetteOptions();
         
-        // 새로고침 시 저장된 EQP ID가 있으면 자동 조회 실행
         searchData();
       }
     } else {
@@ -474,7 +645,11 @@ onMounted(async () => {
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 });
 
-onUnmounted(() => { if (themeObserver) themeObserver.disconnect(); });
+onUnmounted(() => { 
+  window.removeEventListener('keydown', handleKeydown);
+  stopBugCrawling();
+  if (themeObserver) themeObserver.disconnect(); 
+});
 
 const onChartCreated = (instance: any) => {
   spectrumChartInstance = instance;
@@ -594,7 +769,6 @@ const onEqpChange = async () => {
     loadLotOptions(); 
     loadCassetteOptions();
 
-    // 장비 선택 시 자동 조회 기능 추가
     searchData();
   } else { 
     localStorage.removeItem("wafer_eqpid"); 
@@ -652,7 +826,6 @@ const onStageGroupChange = () => {
 };
 
 const onFilmChange = () => {
-  // Final selection
 };
 
 const onDateChange = () => {
@@ -770,6 +943,8 @@ const resetDetails = () => {
     URL.revokeObjectURL(pdfImageUrl.value);
   }
   pdfImageUrl.value = null;
+  
+  stopBugCrawling(); // 벌레 이스터에그 정지
   
   selectedPointIdx.value = -1;
   selectedPointValue.value = "";
@@ -956,4 +1131,3 @@ table th, table td { @apply px-4 py-2; }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
-
