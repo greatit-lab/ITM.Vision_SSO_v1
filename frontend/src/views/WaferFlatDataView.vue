@@ -341,7 +341,6 @@ const startBugCrawling = () => {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   
-  // 웨이퍼 맵 패딩 등을 고려하여 테두리 반지름 설정
   const radius = (Math.min(canvas.width, canvas.height) / 2) - 15; 
   
   eatenPaths = []; 
@@ -350,7 +349,6 @@ const startBugCrawling = () => {
   const sizeSteps = [7, 9, 11]; 
 
   bugs = Array.from({ length: bugCount }, () => {
-    // 웨이퍼 원형 내부의 랜덤한 지점에서 스폰되도록 수정
     const spawnAngle = Math.random() * Math.PI * 2;
     const spawnRadius = Math.sqrt(Math.random()) * (radius - 10);
     
@@ -358,7 +356,7 @@ const startBugCrawling = () => {
       x: cx + Math.cos(spawnAngle) * spawnRadius,
       y: cy + Math.sin(spawnAngle) * spawnRadius,
       angle: Math.random() * Math.PI * 2,
-      speed: Math.random() * 0.1 + 0.05, // 속도를 0.05~0.15 픽셀/프레임으로 매우 느리게
+      speed: Math.random() * 0.1 + 0.05, 
       emoji: emojis[Math.floor(Math.random() * emojis.length)] || '🐞',
       size: sizeSteps[Math.floor(Math.random() * sizeSteps.length)] || 9,
       lastEatTime: 0
@@ -455,6 +453,8 @@ const handleKeydown = (e: KeyboardEvent) => {
         isBugMode.value = !isBugMode.value;
         if (isBugMode.value) {
           nextTick(() => startBugCrawling());
+          // 백엔드 API를 호출하여 이스터에그 발동 기록을 sys_easter_egg 테이블에 적재합니다.
+          dashboardApi.saveEasterEgg({ eggType: "BUG", score: 0 }).catch(err => console.error(err));
         } else {
           stopBugCrawling();
         }
