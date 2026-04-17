@@ -249,7 +249,7 @@ const themeObserver = new MutationObserver((mutations) => {
 });
 
 // ============================================================================
-// DB를 연동하는 글로벌 리더보드 디펜스 이스터에그 로직
+// DB 연동 + UPSERT 글로벌 리더보드 디펜스 게임
 // ============================================================================
 const isDefenderMode = ref(false);
 const defenderCanvas = ref<HTMLCanvasElement | null>(null);
@@ -334,7 +334,6 @@ const startDefenderGame = () => {
   let isSaving = false;
   let lastTime = performance.now();
   
-  // DB에서 불러온 실제 리더보드 데이터 저장용
   let leaderboard: any[] = [];
 
   const icons = ['⚠️', '🔔', '❌', '🔥', '🐛'];
@@ -357,7 +356,6 @@ const startDefenderGame = () => {
         isGameOver = true;
         isSaving = true;
         
-        // 게임 오버 시 백엔드 DB에 점수를 기록하고 리더보드를 받아옵니다.
         dashboardApi.saveEasterEgg({ eggType: 'DEFENDER', score: score })
           .then(() => dashboardApi.getEasterEggRanking('DEFENDER'))
           .then((res: any[]) => {
@@ -389,6 +387,7 @@ const startDefenderGame = () => {
       ctx.fillText(`최종 방어 건수: ${score}건`, canvas.width / 2, canvas.height / 2 + 30);
       ctx.fillText('ESC 키를 눌러 업무로 복귀하기', canvas.width / 2, canvas.height / 2 + 70);
 
+      // 리더보드 그리기 영역 (날짜 표시 제거)
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
       ctx.shadowBlur = 0;
@@ -396,21 +395,25 @@ const startDefenderGame = () => {
       ctx.font = 'bold 24px sans-serif';
       ctx.fillText('🏆 Global Top Defenders', canvas.width - 40, 40);
 
-      ctx.font = 'bold 18px monospace';
-      
       if (isSaving) {
+        ctx.font = 'bold 18px monospace';
         ctx.fillStyle = '#cbd5e1';
         ctx.fillText('서버에 기록 저장 중...', canvas.width - 40, 80);
       } else {
         const currentUser = authStore.user?.username || authStore.user?.userId || '';
         
         if (leaderboard.length === 0) {
+           ctx.font = 'bold 18px monospace';
            ctx.fillStyle = '#cbd5e1';
            ctx.fillText('아직 등록된 기록이 없습니다.', canvas.width - 40, 80);
         } else {
            leaderboard.forEach((entry: any, idx: number) => {
-             const y = 80 + (idx * 30);
+             // 랭킹 목록 간격을 원래대로 줄임 (날짜 표시 제거)
+             const y = 80 + (idx * 30); 
              const isMe = entry.id === currentUser;
+             
+             // 유저명 및 점수 출력
+             ctx.font = 'bold 18px monospace';
              ctx.fillStyle = isMe ? '#10b981' : '#cbd5e1';
              ctx.fillText(`${idx + 1}. ${entry.id.padEnd(12, ' ')} ${String(entry.score).padStart(3, ' ')}건`, canvas.width - 40, y);
            });
