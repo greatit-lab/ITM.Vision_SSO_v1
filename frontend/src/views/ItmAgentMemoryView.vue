@@ -138,10 +138,15 @@
 
         <div class="relative w-full flex-1 min-h-0">
           <EChart v-if="!isLoading && chartData.length > 0" :option="chartOption" @chartCreated="onChartCreated" />
+          
           <div v-else-if="!isLoading && chartData.length === 0" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-            <i class="mb-2 text-2xl opacity-50 pi pi-info-circle"></i>
-            <span class="text-xs">No agent data found for this period.</span>
+            <i class="mb-2 text-3xl opacity-50" :class="errorMessage ? 'pi pi-exclamation-triangle text-red-400' : 'pi pi-info-circle'"></i>
+            <span class="text-sm font-bold" :class="{'text-red-400 dark:text-red-400': errorMessage}">
+              {{ errorMessage || 'No agent data found for this period.' }}
+            </span>
+            <span v-if="errorMessage" class="text-xs mt-1 opacity-70 font-medium">Please refine your search filters or select a specific equipment.</span>
           </div>
+
           <transition name="fade">
             <button v-if="isZoomed" @click="resetZoom" class="absolute top-2 right-2 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1 transition-colors z-10">
               <i class="pi pi-refresh" style="font-size: 0.7rem"></i> Reset Zoom
@@ -352,6 +357,7 @@ const filterStore = useFilterStore();
 const selectedEqpId = ref("");
 
 const showCommit = ref(false);
+const errorMessage = ref("");
 
 const selectedYMin = ref<number | null>(null);
 const yMinOptions = [
@@ -395,14 +401,10 @@ const colorPalette = [
   "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#64748b"
 ];
 
-// ============================================================================
-// [UX 개선 1] Y-Min 및 Show Commit 설정에 따라 테이블 데이터를 동적으로 필터링
-// ============================================================================
 const filteredEqpStats = computed(() => {
   let stats = eqpStats.value;
   if (selectedYMin.value !== null) {
     stats = stats.filter(stat => {
-      // Show Commit 상태면 Commit Max값도 검사 대상에 포함
       const targetMax = showCommit.value ? Math.max(stat.max, stat.commitMax) : stat.max;
       return targetMax >= selectedYMin.value!;
     });
@@ -410,9 +412,7 @@ const filteredEqpStats = computed(() => {
   return stats;
 });
 
-// 타이틀에 표시되는 장비 개수도 필터링된 배열의 길이에 맞게 동기화
 const displayedEqpCount = computed(() => filteredEqpStats.value.length);
-
 
 watch([() => startDate.value, () => endDate.value], ([newStart, newEnd], [oldStart, oldEnd]) => {
   if (newStart && newEnd) {
@@ -472,7 +472,7 @@ onMounted(async () => {
     filterStore.selectedSdwt = "";
   }
 
-  searchData();
+  // [수정] 페이지 로드 시 자동 조회 로직 제거
 
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -501,7 +501,7 @@ const onSiteChange = async () => {
   selectedEqpId.value = "";
   localStorage.removeItem("agentmem_eqpid");
   eqpIds.value = [];
-  searchData();
+  // [수정] 필터 변경 시 자동 조회 로직 제거
 };
 
 const onSdwtChange = async () => {
@@ -514,17 +514,18 @@ const onSdwtChange = async () => {
   }
   selectedEqpId.value = "";
   localStorage.removeItem("agentmem_eqpid");
-  searchData();
+  // [수정] 필터 변경 시 자동 조회 로직 제거
 };
 
 const onEqpIdChange = () => {
   if (selectedEqpId.value) localStorage.setItem("agentmem_eqpid", selectedEqpId.value);
   else localStorage.removeItem("agentmem_eqpid");
-  searchData();
+  // [수정] 필터 변경 시 자동 조회 로직 제거
 };
 
 const resetView = () => {
   hasSearched.value = false;
+  errorMessage.value = "";
   chartData.value = [];
   eqpStats.value = [];
   eqpSeries.value = [];
@@ -545,6 +546,7 @@ const searchData = async () => {
   hasSearched.value = true;
   isLoading.value = true;
   isZoomed.value = false;
+  errorMessage.value = ""; 
   chartData.value = [];
   eqpSeries.value = [];
   eqpStats.value = [];
@@ -564,14 +566,23 @@ const searchData = async () => {
 
     const startStr = toLocalISOString(startDate.value);
     const endStr = toLocalISOString(endDate.value, true);
-
     const diffDays = (fixedEnd.getTime() - fixedStart.getTime()) / (1000 * 3600 * 24);
+
     let fetchInterval = 60;
-    if (diffDays <= 1) fetchInterval = 60;
-    else if (diffDays <= 3) fetchInterval = 300;
-    else if (diffDays <= 7) fetchInterval = 600;
-    else if (diffDays <= 30) fetchInterval = 1800;
-    else fetchInterval = 3600;
+    const isGlobalScan = !filterStore.selectedSite && !selectedEqpId.value;
+    const isSiteScan = filterStore.selectedSite && !selectedEqpId.value;
+
+    if (isGlobalScan) {
+      fetchInterval = diffDays <= 1 ? 600 : (diffDays <= 3 ? 1800 : 3600);
+    } else if (isSiteScan) {
+      fetchInterval = diffDays <= 1 ? 300 : (diffDays <= 3 ? 600 : 1800);
+    } else {
+      if (diffDays <= 1) fetchInterval = 60;
+      else if (diffDays <= 3) fetchInterval = 300;
+      else if (diffDays <= 7) fetchInterval = 600;
+      else if (diffDays <= 30) fetchInterval = 1800;
+      else fetchInterval = 3600;
+    }
 
     const rawData = await performanceApi.getItmAgentTrend(
       filterStore.selectedSite || "",
@@ -582,22 +593,24 @@ const searchData = async () => {
       fetchInterval
     );
     processData(rawData);
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
+    if (e.message?.includes("504") || e.message?.includes("timeout") || e.code === "ERR_BAD_RESPONSE") {
+      errorMessage.value = "데이터 량이 너무 많아 조회가 지연되었습니다 (Timeout).";
+    } else {
+      errorMessage.value = "데이터를 불러오는 중 오류가 발생했습니다.";
+    }
   } finally {
     isLoading.value = false;
   }
 };
 
-// ============================================================================
-// [성능 개선 2] 25초 병목의 원인인 O(N*M) 이중 루프를 해시맵(Map) 단일 루프로 완전 개편
-// ============================================================================
 const processData = (data: ItmAgentDataDto[]) => {
   if (!data || data.length === 0) return;
 
   const activeEqpSet = new Set<string>();
   const eqpMetaMap = new Map<string, { site: string; sdwt: string; eqpId: string; version: string }>();
-  const eqpDataMap = new Map<string, any[]>(); // 장비별 데이터를 미리 분류하여 저장 (브라우저 프리징 해결)
+  const eqpDataMap = new Map<string, any[]>();
 
   data.forEach((item) => {
     const d = item as any;
@@ -620,7 +633,6 @@ const processData = (data: ItmAgentDataDto[]) => {
         });
       }
 
-      // 한 번의 순회로 각 장비별 데이터를 Map에 할당 (이후 값비싼 .filter() 사용 방지)
       if (!eqpDataMap.has(uniqueKey)) {
         eqpDataMap.set(uniqueKey, []);
       }
@@ -699,7 +711,6 @@ const processData = (data: ItmAgentDataDto[]) => {
       connectNulls: true,
     });
 
-    // Map에서 미리 분류해둔 데이터를 O(1) 속도로 꺼내옴
     const pData = eqpDataMap.get(uniqueKey) || [];
 
     const usageVals = pData.map((d) => Number((d as any).memoryUsageMB ?? (d as any).memoryUsageMb) || 0);
@@ -794,17 +805,12 @@ const formatNumber = (val: any) => {
   return num.toLocaleString(undefined, { maximumFractionDigits: 1 });
 };
 
-// ============================================================================
-// [UX 개선 2] Y-Min 필터링을 차트 범례(Legend)에도 적용하여 선택된 장비만 표시
-// ============================================================================
 const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
 
-  // 필터링 통과한 장비의 Key 목록 추출
   const validKeys = new Set(filteredEqpStats.value.map(s => s.uniqueKey));
   
-  // 차트 Series에도 필터링 적용
   let activeSeries = eqpSeries.value.filter(s => {
     const key = s.id.replace('_usage', '').replace('_commit', '');
     return validKeys.has(key);
@@ -893,7 +899,6 @@ const chartOption = computed(() => {
       splitLine: { lineStyle: { color: gridColor } },
       min: selectedYMin.value !== null ? selectedYMin.value : undefined,
     },
-    // 최적화된 activeSeries를 주입하여 Y-Min 조건 미달 데이터는 차트(범례 포함)에서 완전 제거
     series: activeSeries,
   };
 });
