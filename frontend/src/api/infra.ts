@@ -11,6 +11,7 @@ export interface ServerMetrics {
   ip: string;
   status: "healthy" | "warning" | "critical";
   cpu: number;
+  cpuDetails: string; // [신규 추가] vCPU 절대 용량 텍스트 타입 정의
   memory: number;
   memoryDetails: string;
   disk: number;
@@ -26,12 +27,15 @@ export interface TrendData {
 
 // 1. 서버 리소스 모니터링 데이터 호출 API (상단 카드 영역)
 export const getServerMetrics = () =>
-  http.get<ServerMetrics[]>("http://[API Server IP]:8081/api/admin/server-metrics");
+  http.get<ServerMetrics[]>(
+    "http://10.172.111.88:8081/api/admin/server-metrics",
+  );
 
 // 2. 30일치 트렌드 데이터 조회 (하단 차트 영역)
 export const getServerTrend = (serverId: string, days: number = 30) =>
-  http.get<TrendData>(`http://[API Server IP]:8081/api/admin/server-trend/${serverId}?days=${days}`);
-
+  http.get<TrendData>(
+    `http://10.172.111.88:8081/api/admin/server-trend/${serverId}?days=${days}`,
+  );
 
 // ==========================================
 // [기존 코드 유지] 기존 인프라 관리 API (8080 포트 유지)
