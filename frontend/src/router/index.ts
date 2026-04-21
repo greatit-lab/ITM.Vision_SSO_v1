@@ -34,8 +34,9 @@ import MenuManagementView from "../views/admin/MenuManagementView.vue";
 import UserManagementView from "../views/admin/UserManagementView.vue";
 import InfraManagementView from "../views/admin/InfraManagementView.vue";
 import SystemConfigView from "../views/admin/SystemConfigView.vue";
-// [신규 추가] Storage Usage View 컴포넌트 임포트
 import StorageUsageView from "../views/admin/StorageUsageView.vue";
+// [신규 추가] Server Monitoring View 컴포넌트 임포트
+import ServerMonitoringView from "../views/admin/ServerMonitoringView.vue";
 
 const QnaLayout = () => import("../views/support/QnaLayout.vue");
 const QnaBoardView = () => import("../views/support/QnaBoardView.vue");
@@ -230,12 +231,18 @@ const routes: Array<RouteRecordRaw> = [
               roles: ["ADMIN", "MANAGER", "ENGINEER"],
             },
           },
-          // [신규 추가] Storage Usage View 라우트 등록
           {
             path: "storage",
             name: "admin-storage",
             component: StorageUsageView,
             meta: { title: "Storage Analytics", roles: ["ADMIN", "MANAGER"] },
+          },
+          // [신규 추가] Server Monitoring View 라우트 등록
+          {
+            path: "monitoring",
+            name: "admin-monitoring",
+            component: ServerMonitoringView,
+            meta: { title: "Server Monitoring", roles: ["ADMIN", "MANAGER", "ENGINEER"] },
           },
           {
             path: "system",
