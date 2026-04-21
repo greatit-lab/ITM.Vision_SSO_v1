@@ -32,11 +32,11 @@ export interface TrendData {
 
 // 1. 서버 리소스 모니터링 데이터 호출 API (상단 카드 영역)
 export const getServerMetrics = () =>
-  http.get<ServerMetrics[]>("https://10.135.77.222:8081/api/admin/server-metrics");
+  http.get<ServerMetrics[]>("http://[API Server IP]:8081/api/admin/server-metrics");
 
 // 2. 30일치 트렌드 데이터 조회 (하단 차트 영역)
 export const getServerTrend = (serverId: string, days: number = 30) =>
-  http.get<TrendData>(`https://10.135.77.222:8081/api/admin/server-trend/${serverId}?days=${days}`);
+  http.get<TrendData>(`http://[API Server IP]:8081/api/admin/server-trend/${serverId}?days=${days}`);
 
 
 // ==========================================
