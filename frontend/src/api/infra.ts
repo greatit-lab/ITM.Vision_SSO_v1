@@ -24,12 +24,6 @@ export interface TrendData {
   disk: number[];
 }
 
-/**
- * [수정 포인트] 
- * 기존 http 객체는 8080 포트를 바라보고 있으므로, 
- * 서버 모니터링 API는 8081 포트(ITM-Data-API)를 직접 호출하도록 수정했습니다.
- */
-
 // 1. 서버 리소스 모니터링 데이터 호출 API (상단 카드 영역)
 export const getServerMetrics = () =>
   http.get<ServerMetrics[]>("http://[API Server IP]:8081/api/admin/server-metrics");
