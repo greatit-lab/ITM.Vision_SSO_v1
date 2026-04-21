@@ -4,7 +4,7 @@
     class="w-full bg-white border-b dark:bg-[#09090b] border-slate-200 dark:border-zinc-800"
   >
     <div class="px-6">
-      <nav class="flex gap-6 -mb-px" aria-label="Tabs">
+      <nav class="flex gap-6 -mb-px overflow-x-auto" aria-label="Tabs">
         <router-link
           v-for="tab in visibleTabs"
           :key="tab.name"
@@ -48,13 +48,20 @@ const allTabs = [
     icon: "pi pi-server",
     requiredRole: ["ADMIN", "MANAGER", "ENGINEER"],
   },
-  // [신규 추가] 스토리지 현황 탭 추가
   {
     name: "storage",
     label: "스토리지 현황 (Storage)",
     routeName: "admin-storage",
     icon: "pi pi-database",
     requiredRole: ["ADMIN", "MANAGER"],
+  },
+  // [신규 추가] 서버 모니터링 탭 추가
+  {
+    name: "monitoring",
+    label: "서버 모니터링 (Server Monitoring)",
+    routeName: "admin-monitoring",
+    icon: "pi pi-desktop", 
+    requiredRole: ["ADMIN", "MANAGER", "ENGINEER"],
   },
   {
     name: "menu",
