@@ -14,7 +14,7 @@
         <i class="text-lg text-rose-500 pi pi-bell dark:text-rose-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Alert History</h1>
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Error History</h1>
         <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">System error logs & trend analysis.</span>
       </div>
     </div>
@@ -53,13 +53,13 @@
           <div class="w-10 h-10 border-4 rounded-full border-slate-100 dark:border-zinc-800"></div>
           <div class="absolute top-0 left-0 w-10 h-10 border-4 rounded-full border-rose-500 border-t-transparent animate-spin"></div>
         </div>
-        <p class="mt-3 text-xs font-bold text-slate-500 animate-pulse">Loading Alert History...</p>
+        <p class="mt-3 text-xs font-bold text-slate-500 animate-pulse">Loading Error History...</p>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-3 shrink-0">
         <div class="relative p-4 overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl group">
           <div class="absolute right-0 top-0 w-24 h-24 bg-rose-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-          <p class="text-xs font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">Total Alerts</p>
+          <p class="text-xs font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">Total Errors</p>
           <div class="flex items-end gap-2 mt-1">
             <span class="text-3xl font-black text-rose-500">{{ summary.totalErrorCount?.toLocaleString() ?? 0 }}</span>
             <span class="mb-1 text-xs font-medium text-slate-400">events</span>
@@ -75,7 +75,7 @@
         </div>
         <div class="relative p-4 overflow-hidden bg-white border shadow-sm dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 rounded-xl group">
           <div class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-          <p class="text-xs font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">Most Frequent Alert</p>
+          <p class="text-xs font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">Most Frequent Error</p>
           <div class="mt-1">
             <div class="flex items-baseline justify-between">
               <span class="text-lg font-bold text-blue-600 dark:text-blue-400 truncate pr-2" :title="summary.topErrorId">{{ summary.topErrorId || "-" }}</span>
@@ -116,7 +116,7 @@
             <i class="text-slate-400 pi pi-list"></i>
             <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Error Log Details</h3>
             <div class="flex gap-1 ml-2">
-              <span v-if="gridFilter.date" class="px-2 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded border border-blue-100 dark:border-blue-900/30">Date: {{ formatDate(gridFilter.date, true) }}</span>
+              <span v-if="gridFilter.date" class="px-2 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded border border-blue-100 dark:border-blue-900/30">Date: {{ formatGridFilterDate(gridFilter.date) }}</span>
               <span v-if="gridFilter.eqpId" class="px-2 py-0.5 text-[10px] bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded border border-purple-100 dark:border-purple-900/30">EQP: {{ gridFilter.eqpId }}</span>
             </div>
           </div>
@@ -190,7 +190,7 @@
         <i class="text-4xl text-slate-300 dark:text-zinc-600 pi pi-search"></i>
       </div>
       <p class="text-sm font-bold text-slate-500">Ready to Search</p>
-      <p class="mt-1 text-xs text-slate-400">Please select filters to analyze alert history.</p>
+      <p class="mt-1 text-xs text-slate-400">Please select filters to analyze error history.</p>
     </div>
   </div>
 </template>
@@ -210,7 +210,6 @@ import {
 } from "@/api/error";
 import EChart from "@/components/common/EChart.vue";
 
-// Components
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Button from "primevue/button";
@@ -387,7 +386,6 @@ const startDefenderGame = () => {
       ctx.fillText(`최종 방어 건수: ${score}건`, canvas.width / 2, canvas.height / 2 + 30);
       ctx.fillText('ESC 키를 눌러 업무로 복귀하기', canvas.width / 2, canvas.height / 2 + 70);
 
-      // 리더보드 그리기 영역 (날짜 표시 제거)
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
       ctx.shadowBlur = 0;
@@ -408,11 +406,9 @@ const startDefenderGame = () => {
            ctx.fillText('아직 등록된 기록이 없습니다.', canvas.width - 40, 80);
         } else {
            leaderboard.forEach((entry: any, idx: number) => {
-             // 랭킹 목록 간격을 원래대로 줄임 (날짜 표시 제거)
              const y = 80 + (idx * 30); 
              const isMe = entry.id === currentUser;
              
-             // 유저명 및 점수 출력
              ctx.font = 'bold 18px monospace';
              ctx.fillStyle = isMe ? '#10b981' : '#cbd5e1';
              ctx.fillText(`${idx + 1}. ${entry.id.padEnd(12, ' ')} ${String(entry.score).padStart(3, ' ')}건`, canvas.width - 40, y);
@@ -563,6 +559,18 @@ const stopDefenderGame = () => {
 };
 // ============================================================================
 
+const formatGridFilterDate = (rawDate: any) => {
+  const dStr = String(rawDate || "");
+  const match4 = dStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  const m4_1 = match4?.[1], m4_2 = match4?.[2], m4_3 = match4?.[3];
+  if (m4_1 && m4_2 && m4_3) return `${m4_1.slice(2)}-${m4_2}-${m4_3}`;
+  
+  const match2 = dStr.match(/(\d{2})-(\d{2})-(\d{2})/);
+  const m2_1 = match2?.[1], m2_2 = match2?.[2], m2_3 = match2?.[3];
+  if (m2_1 && m2_2 && m2_3) return `${m2_1}-${m2_2}-${m2_3}`;
+  
+  return dStr;
+};
 
 watch(
   [() => filter.startDate, () => filter.endDate],
@@ -633,9 +641,12 @@ watch(() => filter.site, (n) => n ? localStorage.setItem(LS_KEYS.SITE, n) : loca
 watch(() => filter.sdwt, (n) => n ? localStorage.setItem(LS_KEYS.SDWT, n) : localStorage.removeItem(LS_KEYS.SDWT));
 watch(() => filter.eqpId, (n) => n ? localStorage.setItem(LS_KEYS.EQPID, n) : localStorage.removeItem(LS_KEYS.EQPID));
 
-const toDateTimeString = (date: Date, isEndDate: boolean = false) => {
-  if (!date) return "";
-  const d = new Date(date);
+// 날짜 변환 보조 함수
+const toDateTimeString = (rawDate: any, isEndDate: boolean = false) => {
+  if (!rawDate) return "";
+  const d = new Date(rawDate);
+  if (isNaN(d.getTime())) return "";
+
   if (isEndDate) {
     d.setHours(23, 59, 59, 999);
   } else {
@@ -649,7 +660,7 @@ const toDateTimeString = (date: Date, isEndDate: boolean = false) => {
   const mi = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
   
-  return `${yy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  return `${yy}-${mm}-${dd}T${hh}:${mi}:${ss}`;
 };
 
 const resetView = () => {
@@ -681,18 +692,26 @@ const onSdwtChange = async () => {
 
 const onEqpIdChange = () => {};
 
-const getEffectiveParams = () => {
+// [해결 핵심 로직 1] '호출 타겟(Target)' 분리!
+// Trend 차트가 자기를 필터링 하거나 Summary 차트가 자신을 1개로 축소시켜버리는 교차 충돌 방지
+const getEffectiveParams = (target: 'trend' | 'summary' | 'list' | 'export' = 'list') => {
   let startStr = toDateTimeString(filter.startDate);
   let endStr = toDateTimeString(filter.endDate, true);
   let eqps = filter.eqpId;
 
-  if (gridFilter.date) {
-    const d = new Date(gridFilter.date);
-    startStr = toDateTimeString(d);
-    endStr = toDateTimeString(d, true);
+  // Trend 차트는 '항상 전체 기간'을 봐야 하므로 날짜 필터를 무시해야 합니다!
+  if (target !== 'trend' && gridFilter.date) {
+    const dStr = String(gridFilter.date).trim();
+    const m = dStr.match(/(\d{2,4})-(\d{2})-(\d{2})/);
+    if (m && m[1] && m[2] && m[3]) {
+      const year = m[1].length === 2 ? `20${m[1]}` : m[1];
+      startStr = `${year}-${m[2]}-${m[3]}T00:00:00`;
+      endStr = `${year}-${m[2]}-${m[3]}T23:59:59`;
+    }
   }
   
-  if (gridFilter.eqpId) {
+  // Summary 차트(장비별)는 '항상 모든 장비'를 봐야 하므로 장비 필터를 무시해야 합니다!
+  if (target !== 'summary' && gridFilter.eqpId) {
     eqps = gridFilter.eqpId;
   }
   
@@ -701,7 +720,9 @@ const getEffectiveParams = () => {
     sdwt: filter.sdwt, 
     eqpId: eqps,
     startDate: startStr, 
-    endDate: endStr 
+    endDate: endStr,
+    start: startStr, 
+    end: endStr       
   };
 };
 
@@ -730,9 +751,10 @@ const search = async () => {
   
 const updateSummaryData = async () => {
   try {
-    const res = await getErrorSummary(getEffectiveParams());
-    if (res && res.data) {
-      summary.value = res.data;
+    const res = await getErrorSummary(getEffectiveParams('summary'));
+    const resData = (res as any)?.data || res; 
+    if (resData) {
+      summary.value = resData;
     } else {
       summary.value = { totalErrorCount: 0, errorEqpCount: 0, topErrorId: "", topErrorCount: 0, topErrorLabel: "", errorCountByEqp: [] };
     }
@@ -743,9 +765,10 @@ const updateSummaryData = async () => {
 
 const updateTrendData = async () => {
   try {
-    const res = await getErrorTrend(getEffectiveParams());
-    if (res && res.data && Array.isArray(res.data)) {
-      trendData.value = res.data;
+    const res = await getErrorTrend(getEffectiveParams('trend'));
+    const resData = (res as any)?.data || res;
+    if (resData && Array.isArray(resData)) {
+      trendData.value = resData;
     } else {
       trendData.value = [];
     }
@@ -758,9 +781,10 @@ const loadGridData = async () => {
   isGridLoading.value = true;
   try {
     const params = { 
-        ...getEffectiveParams(), 
+        ...getEffectiveParams('list'), 
         page: Math.floor(first.value / rowsPerPage.value), 
-        pageSize: rowsPerPage.value 
+        pageSize: rowsPerPage.value,
+        limit: rowsPerPage.value 
     };
     const res = await getErrorLogs(params);
     
@@ -788,9 +812,10 @@ const exportCSV = async () => {
   
   try {
     const params = { 
-        ...getEffectiveParams(), 
+        ...getEffectiveParams('export'), 
         page: 0, 
-        pageSize: totalRecords.value 
+        pageSize: totalRecords.value,
+        limit: totalRecords.value
     };
     const res = await getErrorLogs(params);
     const responseData = res as any;
@@ -802,13 +827,13 @@ const exportCSV = async () => {
     const headers = ['Time', 'EQP ID', 'Error ID', 'Label', 'Description', 'Extra 1', 'Extra 2'];
     
     const rows = exportItems.map((d: any) => [
-      `="${formatDate(d.timeStamp, false, true)}"`, 
-      `"${d.eqpId || ''}"`,
-      `"${d.errorId || ''}"`,
-      `"${(d.errorLabel || '').replace(/"/g, '""')}"`,
-      `"${(d.errorDesc || '').replace(/"/g, '""')}"`,
-      `"${(d.extraMessage1 || '').replace(/"/g, '""')}"`,
-      `"${(d.extraMessage2 || '').replace(/"/g, '""')}"`
+      `="${formatDate(d?.timeStamp, false, true)}"`, 
+      `"${d?.eqpId || ''}"`,
+      `"${d?.errorId || ''}"`,
+      `"${(d?.errorLabel || '').replace(/"/g, '""')}"`,
+      `"${(d?.errorDesc || '').replace(/"/g, '""')}"`,
+      `"${(d?.extraMessage1 || '').replace(/"/g, '""')}"`,
+      `"${(d?.extraMessage2 || '').replace(/"/g, '""')}"`
     ]);
 
     const csvContent = '\uFEFF' + [
@@ -822,7 +847,8 @@ const exportCSV = async () => {
     
     const d = new Date();
     const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-    const fileName = `AlertHistory_${filter.sdwt || 'All'}_${dateStr}.csv`;
+    
+    const fileName = `ErrorHistory_${filter.sdwt || 'All'}_${dateStr}.csv`;
     
     link.setAttribute('href', url);
     link.setAttribute('download', fileName);
@@ -838,30 +864,91 @@ const exportCSV = async () => {
   }
 };
 
-const onTrendChartInit = (inst: any) =>
-  inst.on("click", async (p: any) => {
-    const idx = p.dataIndex;
-    if (typeof idx !== "number") return;
-    const item = trendData.value[idx];
-    if (!item) return;
+// ==============================================================================
+// [조치 2] 클릭 시 올바른 렌더링 파이프라인 호출
+// ==============================================================================
+let isTrendClicking = false;
+let isEqpClicking = false;
 
-    gridFilter.date = item.date;
+const handleTrendClick = async (p: any) => {
+  if (isTrendClicking) return;
+  isTrendClicking = true;
+
+  try {
+    const idx = p?.dataIndex;
+    const item = typeof idx === 'number' ? trendData.value[idx] : null;
+    const targetDate = item?.date || p?.name;
+    if (!targetDate || typeof targetDate !== 'string') return;
+
+    if (gridFilter.date === targetDate) {
+      gridFilter.date = null;
+    } else {
+      gridFilter.date = targetDate;
+    }
+    
     first.value = 0;
+    
+    // Summary(장비차트)와 List만 갱신. Trend는 스스로 갱신할 필요 없음!
     await updateSummaryData();
-    loadGridData();
-  });
+    await loadGridData();
+  } finally {
+    setTimeout(() => { isTrendClicking = false; }, 200);
+  }
+};
 
-const onEqpChartInit = (inst: any) => inst.on("click", async (p: any) => { 
-  if (p.name) { 
-    gridFilter.eqpId = p.name; 
+const onTrendChartInit = (inst: any) => {
+  if (inst && typeof inst.on === "function") {
+    inst.off("click"); 
+    inst.on("click", handleTrendClick);
+  }
+};
+
+const handleEqpClick = async (p: any) => { 
+  if (isEqpClicking) return;
+  isEqpClicking = true;
+
+  try {
+    const targetEqp = p?.name;
+    if (!targetEqp || typeof targetEqp !== 'string') return;
+
+    if (gridFilter.eqpId === targetEqp) {
+      gridFilter.eqpId = null;
+    } else {
+      gridFilter.eqpId = targetEqp; 
+    }
+    
     first.value = 0; 
+    
+    // Trend(날짜차트)와 List만 갱신. Summary는 스스로 갱신할 필요 없음!
     await updateTrendData(); 
-    loadGridData(); 
-  } 
-});
+    await loadGridData(); 
+  } finally {
+    setTimeout(() => { isEqpClicking = false; }, 200);
+  }
+};
 
-const clearGridDateFilter = async () => { gridFilter.date = null; await updateSummaryData(); first.value = 0; loadGridData(); };
-const clearGridEqpFilter = async () => { gridFilter.eqpId = null; await updateTrendData(); first.value = 0; loadGridData(); };
+const onEqpChartInit = (inst: any) => {
+  if (inst && typeof inst.on === "function") {
+    inst.off("click");
+    inst.on("click", handleEqpClick);
+  }
+};
+// ==============================================================================
+
+// 필터 리셋 시에도 각각 필요한 데이터만 복구 업데이트하도록 조정
+const clearGridDateFilter = async () => { 
+  gridFilter.date = null; 
+  first.value = 0; 
+  await updateSummaryData(); 
+  await loadGridData(); 
+};
+
+const clearGridEqpFilter = async () => { 
+  gridFilter.eqpId = null; 
+  first.value = 0; 
+  await updateTrendData(); 
+  await loadGridData(); 
+};
 
 const prevPage = () => { if (first.value > 0) { first.value -= rowsPerPage.value; loadGridData(); } };
 const nextPage = () => { if (first.value + rowsPerPage.value < totalRecords.value) { first.value += rowsPerPage.value; loadGridData(); } };
@@ -882,34 +969,52 @@ const trendOption = computed(() => {
     backgroundColor: "transparent",
     tooltip: { trigger: "axis", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" } },
     grid: { left: 40, right: 20, top: 30, bottom: 20, containLabel: true },
-    xAxis: { type: "category", data: trendData.value.map((d) => formatDate(d.date, false, true).split(' ')[0]), axisLabel: { color: textColor, fontSize: 10 }, axisLine: { lineStyle: { color: gridColor } } },
+    xAxis: { 
+      type: "category", 
+      data: trendData.value.map((d) => {
+        const ds = String(d?.date || "");
+        
+        const m = ds.match(/(\d{2,4})-(\d{2})-(\d{2})/);
+        if (m && m[1] && m[2] && m[3]) {
+            const yy = m[1].length === 4 ? m[1].slice(2) : m[1];
+            return `${yy}-${m[2]}-${m[3]}`;
+        }
+
+        const fallback = ds.split('T')[0] ?? "";
+        return (fallback.split(' ')[0] ?? "").substring(0, 10);
+      }), 
+      axisLabel: { color: textColor, fontSize: 10 }, 
+      axisLine: { lineStyle: { color: gridColor } } 
+    },
     yAxis: { type: "value", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
-    series: [{ name: "Alerts", type: "bar", data: trendData.value.map((d) => d.count), itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 50, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
+    series: [{ name: "Errors", type: "bar", data: trendData.value.map((d) => d?.count || 0), itemStyle: { color: "#f43f5e", borderRadius: [4, 4, 0, 0] }, barMaxWidth: 50, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
   };
 });
 
 const byEqpOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-  const data = (summary.value.errorCountByEqp || []).slice(0, 10);
+  const data = (summary.value?.errorCountByEqp || []).slice(0, 10);
   const colors = ["#f97316", "#ef4444", "#f59e0b", "#84cc16", "#10b981", "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#ec4899"];
   return {
     backgroundColor: "transparent",
     tooltip: { trigger: "item", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b" } },
     grid: { left: 40, right: 20, top: 30, bottom: 30, containLabel: true },
-    xAxis: { type: "category", data: data.map((d) => d.label), axisLabel: { color: textColor, fontSize: 10, interval: 0, rotate: 30 }, axisLine: { lineStyle: { color: gridColor } } },
+    xAxis: { type: "category", data: data.map((d) => d?.label || "-"), axisLabel: { color: textColor, fontSize: 10, interval: 0, rotate: 30 }, axisLine: { lineStyle: { color: gridColor } } },
     yAxis: { type: "value", axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } } },
-    series: [{ name: "Count", type: "bar", data: data.map((d, index) => ({ value: d.value, itemStyle: { color: colors[index % colors.length], borderRadius: [4, 4, 0, 0] } })), barMaxWidth: 30, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
+    series: [{ name: "Count", type: "bar", data: data.map((d, index) => ({ value: d?.value || 0, itemStyle: { color: colors[index % colors.length] ?? "#f97316", borderRadius: [4, 4, 0, 0] } })), barMaxWidth: 30, cursor: "pointer", label: { show: true, position: "top", color: textColor, fontSize: 10, formatter: "{c} 건" } }]
   };
 });
 
-const formatDate = (dateStr: string, short = false, twoDigitYear = false) => {
-  if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return "-";
+const formatDate = (rawDate: any, short = false, twoDigitYear = false) => {
+  if (!rawDate) return "-";
+  const dateStr = String(rawDate);
+  if (dateStr === 'null' || dateStr === 'undefined') return "-";
   
   const isFormatted = /^\d{2,4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr);
   if (isFormatted) {
       if (short) return dateStr.substring(5, 10);
-      if (twoDigitYear) return dateStr.substring(dateStr.indexOf("-") - 2); 
+      if (twoDigitYear) return dateStr.substring(Math.max(0, dateStr.indexOf("-") - 2)); 
       return dateStr;
   }
   
