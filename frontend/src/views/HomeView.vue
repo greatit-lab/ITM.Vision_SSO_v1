@@ -338,7 +338,7 @@
                     : 'text-slate-500 dark:text-slate-400'
                 "
               >
-                Today Alerts
+                TODAY ERRORS
               </p>
               <div class="flex items-baseline gap-1.5">
                 <p
@@ -538,18 +538,29 @@
                   <div
                     class="flex items-center mt-1 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 w-full origin-left scale-[0.88]"
                     title="Click to copy IP"
-                    @click="copyToClipboard(agent.ipAddress)"
+                    @click="copyToClipboard(agent)"
                   >
-                    <i class="text-[8px] pi pi-globe shrink-0 mr-1 text-slate-400"></i>
+                    <i 
+                      class="text-[8px] shrink-0 mr-1 transition-colors duration-300"
+                      :class="copiedAgentId === agent.eqpId ? 'pi pi-check text-emerald-500' : 'pi pi-globe text-slate-400'"
+                    ></i>
 
                     <span
-                      class="text-[8.5px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap tracking-tight"
+                      class="text-[8.5px] font-mono whitespace-nowrap tracking-tight transition-all duration-300"
+                      :class="copiedAgentId === agent.eqpId ? 'text-emerald-500 dark:text-emerald-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
                     >
                       {{ agent.ipAddress }}
                     </span>
 
+                    <span 
+                      v-if="copiedAgentId === agent.eqpId" 
+                      class="ml-1 text-[8.5px] font-bold text-emerald-500 animate-pulse"
+                    >
+                      Copied!
+                    </span>
+
                     <span
-                      v-if="agent.useProxy === 'Y'"
+                      v-if="agent.useProxy === 'Y' && copiedAgentId !== agent.eqpId"
                       class="ml-1 px-1 py-[0.5px] text-[6.5px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-sm dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800 shadow-sm leading-none shrink-0"
                     >
                       PROXY
@@ -561,6 +572,7 @@
                   <span
                     class="px-1.5 py-[1px] text-[10px] scale-90 origin-right font-bold rounded-full uppercase tracking-wider flex items-center gap-1 border shadow-sm whitespace-nowrap"
                     :class="getStatusBadgeClass(agent)"
+                    @click.stop="openErrorPopup(agent)"
                   >
                     <i :class="getStatusIcon(agent)" class="text-[9px]"></i>
                     {{ getStatusLabel(agent) }}
@@ -737,6 +749,68 @@
         </div>
       </div>
     </Dialog>
+
+    <Dialog
+      v-model:visible="showErrorPopup"
+      modal
+      :style="{ width: '40vw', minWidth: '400px' }"
+      class="backdrop-blur-xl"
+      :dismissableMask="true"
+    >
+      <template #header>
+        <div class="flex items-center justify-between flex-1 pr-3">
+          <span class="font-bold text-[1.125rem] text-slate-800 dark:text-white">
+            {{ selectedErrorAgentId || '' }} 호기 최근 ERROR 상세 내역
+          </span>
+          <div class="px-2.5 py-1.5 text-[11px] font-black tracking-widest text-amber-800 bg-amber-100 border border-amber-300 rounded-md dark:bg-amber-900/50 dark:text-amber-400 dark:border-amber-700 shadow-sm uppercase whitespace-nowrap flex items-baseline gap-1">
+            <span>TODAY :</span>
+            <span class="text-[15px] leading-none text-amber-900 dark:text-amber-300">{{ selectedErrorAgentCount }}</span>
+            <span>건</span>
+          </div>
+        </div>
+      </template>
+
+      <div class="w-full bg-white dark:bg-zinc-950 rounded-xl p-4 border border-slate-100 dark:border-zinc-800 relative min-h-[300px] max-h-[60vh] overflow-y-auto">
+        <div v-if="isErrorLogLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-950/80">
+          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
+          <p class="mt-4 text-sm font-medium text-slate-500 animate-pulse">
+            에러 데이터를 불러오는 중입니다...
+          </p>
+        </div>
+
+        <div v-else-if="errorLogs.length === 0" class="flex flex-col items-center justify-center h-[200px] text-slate-400">
+          <div class="flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-slate-50 dark:bg-zinc-900">
+            <i class="text-3xl pi pi-check-circle text-slate-300 dark:text-zinc-700"></i>
+          </div>
+          <h3 class="mb-1 text-base font-bold text-slate-600 dark:text-slate-300">발견된 알람이 없습니다</h3>
+          <p class="text-xs text-slate-500">선택한 날짜에 조회된 에러 내역이 없습니다.</p>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div v-for="(log, idx) in errorLogs" :key="idx" class="p-3 border rounded-lg border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 transition-all hover:shadow-sm">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 text-[10px] font-bold text-white bg-amber-500 rounded-md">
+                  {{ log.errorId }}
+                </span>
+                <span class="text-sm font-bold text-amber-700 dark:text-amber-400">
+                  {{ log.errorLabel }}
+                </span>
+              </div>
+              <span class="text-[11px] font-mono font-medium text-slate-500 shrink-0">
+                {{ log.timeStamp }}
+              </span>
+            </div>
+            <p class="text-xs leading-relaxed text-slate-700 dark:text-slate-300">{{ log.errorDesc }}</p>
+            
+            <div v-if="log.extraMessage1 || log.extraMessage2" class="mt-2 pt-2 border-t border-amber-200/50 dark:border-amber-800/50 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+              <p v-if="log.extraMessage1"><span class="font-semibold mr-1">Extra 1:</span> {{ log.extraMessage1 }}</p>
+              <p v-if="log.extraMessage2"><span class="font-semibold mr-1">Extra 2:</span> {{ log.extraMessage2 }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -750,6 +824,8 @@ import {
   type AgentStatusDto,
 } from "@/api/dashboard";
 import { performanceApi } from "@/api/performance";
+import { getErrorLogs, type ErrorLogItem } from "@/api/error";
+
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
@@ -759,7 +835,6 @@ import ProgressSpinner from "primevue/progressspinner";
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
 
-// [상태 관리 개선] 전역 스켈레톤 로딩(isSummaryLoading)과 백그라운드 새로고침(isRefreshing) 완벽 분리
 const isSummaryLoading = ref(false); 
 const isTableLoading = ref(false);
 const isChartLoading = ref(false);
@@ -797,6 +872,16 @@ const agentList = ref<AgentStatusDto[]>([]);
 const showChart = ref(false);
 const selectedAgentId = ref<string | null>(null);
 const chartData = ref<any[]>([]);
+
+const showErrorPopup = ref(false);
+const selectedErrorAgentId = ref<string | null>(null);
+const selectedErrorAgentCount = ref<number>(0);
+
+const errorLogs = ref<ErrorLogItem[]>([]);
+const isErrorLogLoading = ref(false);
+
+const copiedAgentId = ref<string | null>(null);
+let copyTimeout: number | null = null;
 
 const refreshCount = ref(30);
 let refreshTimer: number | null = null;
@@ -868,6 +953,7 @@ onMounted(async () => {
 onUnmounted(() => {
   stopAutoRefresh();
   if (themeObserver) themeObserver.disconnect();
+  if (copyTimeout) clearTimeout(copyTimeout);
 });
 
 const onSiteChanged = async () => {
@@ -895,7 +981,6 @@ const onSdwtChange = async () => {
   }
 };
 
-// [로직 개선] isInitialLoad 파라미터에 따라 스켈레톤 UI 작동 여부를 분기 처리
 const loadData = async (isInitialLoad = true) => {
   if (!filterStore.selectedSite || !filterStore.selectedSdwt) return;
 
@@ -966,7 +1051,6 @@ const startAutoRefresh = () => {
   refreshCount.value = 30;
 
   refreshTimer = window.setInterval(() => {
-    // 갱신 중일 때는 타이머 카운트를 멈추고 API 중복 호출 방지
     if (!isRefreshing.value) {
       refreshCount.value--;
       if (refreshCount.value <= 0) {
@@ -987,7 +1071,7 @@ const stopAutoRefresh = () => {
 const manualRefresh = () => {
   if (isRefreshing.value || isSummaryLoading.value) return;
   refreshCount.value = 30;
-  loadData(false); // 스켈레톤을 띄우지 않고 백그라운드 갱신
+  loadData(false); 
 };
 
 const openChart = async (agent: AgentStatusDto) => {
@@ -1017,6 +1101,47 @@ const openChart = async (agent: AgentStatusDto) => {
     chartData.value = [];
   } finally {
     isChartLoading.value = false;
+  }
+};
+
+const openErrorPopup = async (agent: AgentStatusDto) => {
+  if (agent.todayAlarmCount <= 0) return;
+
+  selectedErrorAgentId.value = agent.eqpId;
+  selectedErrorAgentCount.value = agent.todayAlarmCount;
+  
+  showErrorPopup.value = true;
+  isErrorLogLoading.value = true;
+  errorLogs.value = [];
+
+  try {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    const startDateStr = `${todayStr}T00:00:00`;
+    const endDateStr = `${todayStr}T23:59:59`;
+
+    const response = await getErrorLogs({
+      eqpId: agent.eqpId,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      page: 0,
+      limit: 50,
+      pageSize: 50
+    });
+
+    const responseData = response?.data || response;
+    
+    if (responseData && responseData.items) {
+       errorLogs.value = responseData.items;
+    } else if (Array.isArray(responseData)) {
+       errorLogs.value = responseData; 
+    }
+  } catch (error) {
+    console.error("Failed to load error logs:", error);
+  } finally {
+    isErrorLogLoading.value = false;
   }
 };
 
@@ -1255,7 +1380,7 @@ const getOsStyle = (os: string | null) => {
 
 const getStatusLabel = (data: AgentStatusDto) => {
   if (!data.isOnline) return "Off";
-  if (data.todayAlarmCount > 0) return "Alert";
+  if (data.todayAlarmCount > 0) return "ERROR";
   return "Run";
 };
 
@@ -1269,20 +1394,26 @@ const getStatusBadgeClass = (data: AgentStatusDto) => {
   if (!data.isOnline)
     return "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20";
   if (data.todayAlarmCount > 0)
-    return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20";
+    return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-500/20 hover:scale-105 transition-all";
   return "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20";
 };
 
 const getStatusBarClass = (agent: AgentStatusDto) => {
   if (!agent.isOnline) return "bg-slate-300 dark:bg-zinc-700";
-  if (agent.todayAlarmCount > 0) return "bg-amber-500";
+  if (agent.todayAlarmCount > 0) return "bg-amber-500"; 
   return "bg-emerald-500";
 };
 
-const copyToClipboard = async (text: string) => {
-  if (!text) return;
+const copyToClipboard = async (agent: AgentStatusDto) => {
+  if (!agent.ipAddress) return;
   try {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(agent.ipAddress);
+    copiedAgentId.value = agent.eqpId;
+
+    if (copyTimeout) clearTimeout(copyTimeout);
+    copyTimeout = window.setTimeout(() => {
+      copiedAgentId.value = null;
+    }, 1500); 
   } catch (err) {
     console.error("Failed to copy: ", err);
   }
