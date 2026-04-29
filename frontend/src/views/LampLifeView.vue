@@ -257,7 +257,7 @@
               <template #body="{ data }">
                 <div class="flex flex-col gap-1 w-full">
                   <div class="flex justify-between text-[10px]">
-                    <span class="font-mono">{{ data.ageHour.toLocaleString() }} hrs</span>
+                    <span class="font-mono text-indigo-600 dark:text-indigo-400" v-tooltip.top="'Includes Offset correction'">{{ data.ageHour.toLocaleString() }} hrs</span>
                     <span class="text-slate-400">Limit: {{ data.lifespanHour.toLocaleString() }}</span>
                   </div>
                   <div class="w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
@@ -310,6 +310,7 @@ interface LampDisplay extends LampLife {
   usageRatio: number;
   status: string;
   prc_group: string; 
+  offsetHour?: number; // 오프셋 속성 추가
 }
 
 const authStore = useAuthStore();
@@ -362,8 +363,6 @@ onMounted(async () => {
       sdwts.value = await dashboardApi.getSdwts(targetSite);
       if (targetSdwt && sdwts.value.includes(targetSdwt)) {
         filter.sdwt = targetSdwt;
-        
-        // 새로고침 시 저장된 SDWT가 있으면 자동 조회 실행
         fetchData();
       } else {
         filter.sdwt = "";
@@ -410,18 +409,14 @@ const onSiteChange = async () => {
     sdwts.value = [];
   }
   filter.sdwt = "";
-  
-  // Site 변경/해제 시 조회된 데이터 화면만 초기화 (전체 reset 방지)
   hasSearched.value = false;
   allLamps.value = [];
 };
 
 const onSdwtChange = () => {
   if (filter.sdwt) {
-    // SDWT 선택 시 자동 조회 실행
     fetchData();
   } else {
-    // SDWT 선택 해제 시 조회된 데이터 화면만 초기화
     hasSearched.value = false;
     allLamps.value = [];
   }
@@ -445,10 +440,15 @@ const fetchData = async () => {
     allLamps.value = rawData.map((l: any) => {
       let calculatedAge = l.ageHour || 0; 
       
+      // 👨‍💻 [수정] 버전 파편화에 완벽 대응하는 보정 로직 적용
+      // 1. 기존처럼 "현재 시각 - 마지막 교체 시간" 계산을 유지
+      // 2. 에이전트가 오프셋 보정값을 보내주었다면 해당 값(Offset_hour)을 결과에 더해 정합성을 확보
       if (l.lastChanged) {
         const lastChangedDate = parseSafeDate(l.lastChanged);
         if (lastChangedDate.isValid()) {
-          calculatedAge = now.diff(lastChangedDate, 'hour');
+          const timeDiff = now.diff(lastChangedDate, 'hour');
+          const offset = l.offsetHour ? Number(l.offsetHour) : 0;
+          calculatedAge = timeDiff + offset;
         }
       }
       calculatedAge = Math.max(0, calculatedAge);
@@ -513,11 +513,9 @@ const sortedData = computed(() => {
   return [...filteredLamps.value].sort((a, b) => a.prc_group.localeCompare(b.prc_group));
 });
 
-// [수정/개선] TypeScript 엄격모드 호환을 위한 안전한 그룹핑 로직
 const processGroupData = computed(() => {
   const groups = filteredLamps.value.reduce((acc, curr) => {
     const key = curr.prc_group || 'UNKNOWN';
-    // 객체가 비어있을 수 있는 상황에 대한 안전장치 (Type Guard)
     const group = acc[key] || { sumRatio: 0, count: 0 };
     
     group.sumRatio += curr.usageRatio;
@@ -531,7 +529,6 @@ const processGroupData = computed(() => {
     const group = groups[key];
     return {
       prc_group: key,
-      // undefined 체크를 통한 안전한 계산
       avgRatio: (group && group.count > 0) ? (group.sumRatio / group.count) : 0
     };
   }).sort((a, b) => b.avgRatio - a.avgRatio);
@@ -550,14 +547,11 @@ const chartOption = computed(() => {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        // [수정/개선] params 배열 및 내부 속성의 undefined 체크 방어 코드 추가
         formatter: (params: any) => {
           const p = Array.isArray(params) ? params[0] : params;
           if (!p || typeof p.dataIndex === 'undefined') return "";
-          
           const item = data[p.dataIndex];
           if (!item) return "";
-          
           return `<div class="font-bold mb-1">${item.eqpId} <span style="font-weight:normal; opacity:0.7">(${item.lampId})</span></div><div class="text-xs">Age: ${item.ageHour.toLocaleString()} / ${item.lifespanHour.toLocaleString()} hrs</div><div class="text-xs font-bold mt-1">Ratio: ${item.usageRatio.toFixed(2)}%</div>`;
         },
       },
@@ -611,14 +605,11 @@ const chartOption = computed(() => {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        // [수정/개선] params 배열 및 내부 속성의 undefined 체크 방어 코드 추가
         formatter: (params: any) => {
           const p = Array.isArray(params) ? params[0] : params;
           if (!p) return "";
-          
           const name = p.name || '';
           const val = p.value !== undefined && p.value !== null ? Number(p.value).toFixed(2) : '0.00';
-          
           return `<div class="font-bold mb-1">${name} Process</div><div class="text-xs">Avg Life Usage: <b>${val}%</b></div>`;
         }
       },
@@ -726,4 +717,3 @@ const getStatusBadgeClass = (status: string) => {
   }
 }
 </style>
-
