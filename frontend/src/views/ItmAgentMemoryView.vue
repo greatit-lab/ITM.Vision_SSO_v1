@@ -79,23 +79,30 @@
 
         <div class="w-px h-6 mx-1 bg-slate-200 dark:bg-zinc-700 shrink-0"></div>
 
+        <!-- 👨‍💻 [수정] showTime, hourFormat="24", stepMinute="60" 속성 추가 -->
         <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="startDate"
+            showTime
+            hourFormat="24"
             showIcon
             dateFormat="yy-mm-dd"
-            placeholder="Start Date"
+            placeholder="Start Time"
             class="w-full custom-dropdown small date-picker"
+            :stepMinute="60"
           />
         </div>
 
         <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="endDate"
+            showTime
+            hourFormat="24"
             showIcon
             dateFormat="yy-mm-dd"
-            placeholder="End Date"
+            placeholder="End Time"
             class="w-full custom-dropdown small date-picker"
+            :stepMinute="60"
           />
         </div>
       </div>
@@ -162,6 +169,7 @@
             <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Memory Statistics Summary</h3>
           </div>
           <div class="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+            <i class="pi pi-calendar mr-1 text-[10px]"></i>
             Period: <span class="font-bold text-slate-600 dark:text-slate-300">{{ formattedPeriod }}</span>
           </div>
         </div>
@@ -370,13 +378,9 @@ const yMinOptions = [
   { label: 'Y-Min: 1,000 MB', value: 1000 },
 ];
 
-const now = new Date();
-const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0);
-const yesterday = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-
-const startDate = ref(yesterday);
-const endDate = ref(new Date());
+// 👨‍💻 [수정] 현재 시간 및 24시간 전을 기본 검색일자로 세팅합니다.
+const startDate = ref<Date>(dayjs().subtract(24, 'hour').toDate());
+const endDate = ref<Date>(dayjs().toDate());
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -425,27 +429,8 @@ watch([() => startDate.value, () => endDate.value], ([newStart, newEnd], [oldSta
   }
 });
 
-const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
-  if (!date) return "";
-  const d = new Date(date);
-  const now = new Date();
-  
-  if (isEndDate) {
-    if (d.toDateString() === now.toDateString()) {
-      d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-    } else {
-      d.setHours(23, 59, 59, 999);
-    }
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-  const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace("T", " ");
-};
-
 const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
   let str = String(ts || "");
-  if (str.includes("Z")) str = str.replace("Z", "");
   if (/^\d{2}-\d{2}-\d{2}/.test(str)) str = "20" + str;
   return dayjs(str);
 };
@@ -471,8 +456,6 @@ onMounted(async () => {
     filterStore.selectedSite = "";
     filterStore.selectedSdwt = "";
   }
-
-  // [수정] 페이지 로드 시 자동 조회 로직 제거
 
   themeObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -501,7 +484,6 @@ const onSiteChange = async () => {
   selectedEqpId.value = "";
   localStorage.removeItem("agentmem_eqpid");
   eqpIds.value = [];
-  // [수정] 필터 변경 시 자동 조회 로직 제거
 };
 
 const onSdwtChange = async () => {
@@ -514,13 +496,11 @@ const onSdwtChange = async () => {
   }
   selectedEqpId.value = "";
   localStorage.removeItem("agentmem_eqpid");
-  // [수정] 필터 변경 시 자동 조회 로직 제거
 };
 
 const onEqpIdChange = () => {
   if (selectedEqpId.value) localStorage.setItem("agentmem_eqpid", selectedEqpId.value);
   else localStorage.removeItem("agentmem_eqpid");
-  // [수정] 필터 변경 시 자동 조회 로직 제거
 };
 
 const resetView = () => {
@@ -552,21 +532,10 @@ const searchData = async () => {
   eqpStats.value = [];
 
   try {
-    const fixedStart = new Date(startDate.value);
-    fixedStart.setHours(0, 0, 0, 0);
-    
-    const fixedEnd = new Date(endDate.value);
-    const now = new Date();
-    
-    if (fixedEnd.toDateString() === now.toDateString()) {
-      fixedEnd.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 999);
-    } else {
-      fixedEnd.setHours(23, 59, 59, 999);
-    }
-
-    const startStr = toLocalISOString(startDate.value);
-    const endStr = toLocalISOString(endDate.value, true);
-    const diffDays = (fixedEnd.getTime() - fixedStart.getTime()) / (1000 * 3600 * 24);
+    // 👨‍💻 [수정] 타임존 오류 없이 정확히 UTC ISO 문자열로 API 호출
+    const startStr = startDate.value.toISOString();
+    const endStr = endDate.value.toISOString();
+    const diffDays = (endDate.value.getTime() - startDate.value.getTime()) / (1000 * 3600 * 24);
 
     let fetchInterval = 60;
     const isGlobalScan = !filterStore.selectedSite && !selectedEqpId.value;
@@ -786,16 +755,15 @@ const resetFilters = () => {
   eqpIds.value = [];
   resetView();
 
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  startDate.value = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-  endDate.value = new Date();
+  // 👨‍💻 [수정] 24시간 전 (시간 포함)으로 리셋 변경
+  endDate.value = dayjs().toDate();
+  startDate.value = dayjs().subtract(24, 'hour').toDate();
 };
 
 const formattedPeriod = computed(() => {
   if (!startDate.value || !endDate.value) return "";
-  const fmt = (d: Date) => dayjs(d).format("YYYY-MM-DD");
+  // 👨‍💻 [수정] 포맷 변경
+  const fmt = (d: Date) => dayjs(d).format("YYYY-MM-DD HH:mm");
   return `${fmt(startDate.value)} ~ ${fmt(endDate.value)}`;
 });
 
@@ -933,8 +901,35 @@ const resetZoom = () => {
   @apply text-[13px] py-[5px] px-3;
 }
 
+/* 👨‍💻 [수정] DatePicker UI 일관성을 위한 스타일 통일 */
+:deep(.custom-input-text.small) {
+  @apply !text-[13px] !p-1 !h-7 !bg-transparent !border-0;
+}
 :deep(.date-picker .p-inputtext) {
   @apply !text-[13px] !py-1 !px-2 !h-7;
+}
+:deep(.date-picker .p-datepicker-input) {
+  height: 28px !important;
+}
+:deep(.date-picker button.p-datepicker-dropdown) {
+  width: 40px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+:deep(.date-picker button.p-datepicker-dropdown .pi) {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+:deep(.p-select-clear-icon),
+:deep(.p-datepicker-clear-icon) {
+  @apply text-[9px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300;
 }
 
 :deep(.custom-dropdown.small) {
