@@ -410,10 +410,11 @@ const chartColors = [
   "#ec4899",
   "#84cc16",
 ];
-const startDate = ref<Date>(
-  new Date(new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000),
-);
-const endDate = ref<Date>(new Date());
+
+// 👨‍💻 [수정 1] 현재시간 기준 24시간 전을 기본 startDate로 설정 (dayjs 활용)
+const startDate = ref<Date>(dayjs().subtract(24, 'hour').toDate());
+const endDate = ref<Date>(dayjs().toDate());
+
 const intervalSeconds = ref(0);
 
 const sites = ref<string[]>([]);
@@ -451,13 +452,10 @@ watch([startDate, endDate], ([newStart, newEnd], [oldStart]) => {
   }
 });
 
-const toLocalISOString = (date: Date | null | undefined): string => {
+// 👨‍💻 [수정 2] 9시간 파싱 오차를 막기 위해 타임존 정보를 포함한 표준 ISO 포맷 사용
+const getISODateString = (date: Date | null | undefined): string => {
   if (!date) return "";
-  const d = new Date(date);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 19)
-    .replace("T", " ");
+  return date.toISOString();
 };
 
 onMounted(async () => {
@@ -486,7 +484,6 @@ onMounted(async () => {
             eqpIds.value.includes(id),
           );
           
-          // 새로고침 시 저장된 EQP ID가 있으면 자동 조회 실행
           if (selectedEqpIds.value.length > 0) {
             searchData();
           }
@@ -536,11 +533,9 @@ const onEqpIdsChange = () => {
     JSON.stringify(selectedEqpIds.value),
   );
   
-  // EQP ID가 1개 이상 선택된 경우 자동 조회
   if (selectedEqpIds.value.length > 0) {
     searchData();
   } else {
-    // 모두 선택 해제되었을 때의 처리 (화면 초기화)
     hasSearched.value = false;
     chartData.value = [];
     summaryData.value = [];
@@ -571,10 +566,9 @@ const resetFilters = () => {
   summaryData.value = [];
   hasSearched.value = false;
   intervalSeconds.value = 0;
-  startDate.value = new Date(
-    new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000,
-  );
-  endDate.value = new Date();
+  // 👨‍💻 [수정 3] 리셋 시에도 24시간 전으로 초기화
+  startDate.value = dayjs().subtract(24, 'hour').toDate();
+  endDate.value = dayjs().toDate();
 };
 
 const searchData = async (silent = false) => {
@@ -582,8 +576,8 @@ const searchData = async (silent = false) => {
   hasSearched.value = true;
   if (!silent) isLoading.value = true;
   try {
-    const startStr = toLocalISOString(startDate.value);
-    const endStr = toLocalISOString(endDate.value);
+    const startStr = getISODateString(startDate.value);
+    const endStr = getISODateString(endDate.value);
     const diffDays =
       (new Date(endDate.value || new Date()).getTime() -
         new Date(startDate.value || new Date()).getTime()) /
@@ -605,9 +599,8 @@ const searchData = async (silent = false) => {
       .filter((d) => d.timestamp)
       .map((d) => ({
         ...d,
-        timestamp: dayjs(String(d.timestamp).replace("Z", "")).format(
-          "YYYY-MM-DD HH:mm:ss",
-        ),
+        // 👨‍💻 [수정 4] replace("Z", "")를 제거하여 dayjs가 올바르게 KST로 렌더링하도록 보장
+        timestamp: dayjs(d.timestamp).format("YYYY-MM-DD HH:mm:ss"),
         cpuUsage: Number(d.cpuUsage ?? 0),
         memoryUsage: Number(d.memoryUsage ?? 0),
         cpuTemp: Number(d.cpuTemp ?? 0),
@@ -820,8 +813,8 @@ const toggleRealtime = () => {
 };
 
 const updateRealtimeDates = () => {
-  endDate.value = new Date();
-  startDate.value = new Date(endDate.value.getTime() - 3600000);
+  endDate.value = dayjs().toDate();
+  startDate.value = dayjs(endDate.value).subtract(1, 'hour').toDate();
 };
 
 const formatDate = (v: string | undefined) =>
@@ -987,4 +980,3 @@ const fmt = (v: any, d: number) =>
   transform: scale(0.9);
 }
 </style>
-
