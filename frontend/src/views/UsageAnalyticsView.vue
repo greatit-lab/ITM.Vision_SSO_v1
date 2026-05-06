@@ -246,17 +246,29 @@
         <div
           class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative min-h-0"
         >
-          <h3
-            class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 px-1 flex items-center gap-2 shrink-0"
-          >
-            <i class="pi pi-chart-bar text-indigo-500"></i>
-            Page Utilization Ranking
-          </h3>
-          <div class="flex-1 w-full relative min-h-0">
+          <div class="flex items-center justify-between shrink-0 mb-1 px-1">
+            <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+              <i class="pi pi-chart-bar text-indigo-500"></i>
+              Page Utilization Ranking
+            </h3>
+            
+            <transition name="fade">
+              <button 
+                v-if="hiddenRankingMenus.length > 0" 
+                @click="resetHiddenMenus"
+                class="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                v-tooltip.top="'Click to restore hidden bars'"
+              >
+                <i class="pi pi-eye text-[9px]"></i> Restore {{ hiddenRankingMenus.length }} hidden
+              </button>
+            </transition>
+          </div>
+          <div class="flex-1 w-full relative min-h-0 cursor-pointer">
             <EChart
               v-if="rankingChartOption"
               :option="rankingChartOption"
               class="absolute inset-0 w-full h-full"
+              @chartCreated="onRankingChartCreated"
             />
           </div>
         </div>
@@ -353,6 +365,7 @@ import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Paginator from "primevue/paginator";
 import EChart from "@/components/common/EChart.vue";
+import type { ECharts } from "echarts";
 
 const now = new Date();
 const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -382,6 +395,9 @@ const dailyMenuTrendData = ref<any[]>([]);
 
 const firstRow = ref(0);
 const rowsPerPage = ref(5);
+
+const hiddenRankingMenus = ref<string[]>([]);
+let rankingChartInst: ECharts | null = null;
 
 const paginatedLogs = computed(() => {
   return mockLogs.value.slice(firstRow.value, firstRow.value + rowsPerPage.value);
@@ -468,6 +484,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
+  if (rankingChartInst) {
+    rankingChartInst.off('click');
+  }
 });
 
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
@@ -486,6 +505,7 @@ const searchData = async () => {
   isLoading.value = true;
   hasSearched.value = true;
   firstRow.value = 0;
+  hiddenRankingMenus.value = [];
 
   try {
     const startStr = toLocalISOString(startDate.value);
@@ -522,37 +542,71 @@ const trendChartOption = computed(() => {
   return {
     backgroundColor: "transparent",
     tooltip: { trigger: "axis" },
-    // [수정] 범례(Legend) 위치를 상단으로 변경 (bottom -> top)
     legend: { show: true, top: 0, textStyle: { color: textColor, fontSize: 10 } },
-    // [수정] 범례가 위로 갔으므로 차트 윗부분 여백(top)을 늘리고 아랫부분(bottom)을 줄임
-    grid: { left: 40, right: 10, top: 35, bottom: 20 },
+    grid: { left: 45, right: 45, top: 45, bottom: 20 },
     xAxis: {
       type: "category",
       data: trendData.value.dates,
       axisLabel: { color: textColor, fontSize: 10 },
       axisLine: { lineStyle: { color: gridColor } },
     },
-    yAxis: {
-      type: "value",
-      minInterval: 1,
-      splitLine: { lineStyle: { color: gridColor } },
-      axisLabel: { color: textColor, fontSize: 10 },
-    },
+    yAxis: [
+      {
+        type: "value",
+        name: "Visits",
+        nameTextStyle: { color: textColor, fontSize: 10, align: 'left', padding: [0, 0, 5, 0] },
+        minInterval: 1,
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor, fontSize: 10 },
+        max: (value: any) => Math.max(5, Math.ceil(value.max * 1.8))
+      },
+      {
+        type: "value",
+        name: "Users",
+        nameTextStyle: { color: textColor, fontSize: 10, align: 'right', padding: [0, 0, 5, 0] },
+        minInterval: 1,
+        splitLine: { show: false }, 
+        // 👨‍💻 [수정] Users의 우측 축 레이블을 숨겨서 군더더기를 없앱니다
+        axisLabel: { show: false },
+        max: (value: any) => Math.max(5, Math.ceil(value.max * 1.2))
+      }
+    ],
     series: [
       {
         name: "Web Visits (세션)",
         type: "bar",
+        yAxisIndex: 0,
         data: trendData.value.visits,
         itemStyle: { color: "#14b8a6", borderRadius: [4, 4, 0, 0] },
+        label: {
+          show: true,
+          position: "top",
+          color: textColor,
+          fontSize: 10,
+          // 👨‍💻 [수정] Bold 제거하여 일반 굵기로 세련되게 변경
+          fontWeight: "normal",
+        }
       },
       {
         name: "Active Users (순수 방문자)",
         type: "line",
+        yAxisIndex: 1,
         smooth: true,
+        symbol: "circle",
         symbolSize: 6,
+        showSymbol: true,
         data: trendData.value.users,
         itemStyle: { color: "#6366f1" },
-        lineStyle: { width: 3 }
+        lineStyle: { width: 3 },
+        label: {
+          show: true,
+          position: "top",
+          color: "#6366f1", 
+          fontSize: 11,
+          // 👨‍💻 [수정] Bold 제거하여 일반 굵기로 세련되게 변경
+          fontWeight: "normal",
+          distance: 5
+        }
       },
     ],
   };
@@ -591,7 +645,7 @@ const pageTrendChartOption = computed(() => {
       type: "line",
       smooth: true,
       symbolSize: 4,
-      itemStyle: { color: colors[index % colors.length] },
+      itemStyle: { color: colors[index % colors.length] ?? "#3b82f6" },
       data,
     };
   });
@@ -630,6 +684,16 @@ const rankingChartOption = computed(() => {
     ? "rgba(255, 255, 255, 0.1)"
     : "rgba(0, 0, 0, 0.1)";
 
+  const filteredMenus: string[] = [];
+  const filteredViews: number[] = [];
+  
+  rankingData.value.menus.forEach((menu, index) => {
+    if (!hiddenRankingMenus.value.includes(menu)) {
+      filteredMenus.push(menu);
+      filteredViews.push(rankingData.value.views[index] ?? 0);
+    }
+  });
+
   return {
     backgroundColor: "transparent",
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
@@ -642,7 +706,7 @@ const rankingChartOption = computed(() => {
     },
     yAxis: {
       type: "category",
-      data: rankingData.value.menus,
+      data: filteredMenus,
       axisLabel: { color: textColor, fontSize: 10, width: 120, overflow: "truncate" },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -651,19 +715,36 @@ const rankingChartOption = computed(() => {
       {
         name: "Views",
         type: "bar",
-        data: rankingData.value.views,
+        data: filteredViews,
         itemStyle: {
           color: function (params: any) {
             const colors = ["#94a3b8", "#8b5cf6", "#f59e0b", "#0ea5e9", "#ec4899"];
-            return colors[params.dataIndex % colors.length];
+            return colors[params.dataIndex % colors.length] ?? "#94a3b8";
           },
           borderRadius: [0, 4, 4, 0],
         },
-        label: { show: true, position: "right", color: textColor, fontSize: 10 },
+        // 값 레이블도 폰트 두께 normal 적용 (안정성)
+        label: { show: true, position: "right", color: textColor, fontSize: 10, fontWeight: "normal" },
       },
     ],
   };
 });
+
+const onRankingChartCreated = (instance: ECharts) => {
+  rankingChartInst = instance;
+  
+  rankingChartInst.off('click');
+  rankingChartInst.on('click', (params: any) => {
+    const clickedMenu = params.name;
+    if (clickedMenu && !hiddenRankingMenus.value.includes(clickedMenu)) {
+      hiddenRankingMenus.value.push(clickedMenu);
+    }
+  });
+};
+
+const resetHiddenMenus = () => {
+  hiddenRankingMenus.value = [];
+};
 </script>
 
 <style scoped>
@@ -763,6 +844,16 @@ const rankingChartOption = computed(() => {
 :deep(.p-dropdown-panel .p-dropdown-item.p-highlight),
 :deep(.p-select-option.p-select-option-selected) {
   @apply !bg-indigo-50 dark:!bg-indigo-900/30 !text-indigo-600 dark:!text-indigo-300;
+}
+
+/* Fade 애니메이션 (버튼 등) */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .animate-fade-in {
