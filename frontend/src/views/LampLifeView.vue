@@ -203,7 +203,20 @@
             <i class="text-slate-400 pi pi-list"></i>
             <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Lamp Status Details</h3>
           </div>
-          <span class="text-[10px] text-slate-400">{{ filteredLamps.length }} records</span>
+          <div class="flex items-center gap-3">
+            <!-- 👨‍💻 [수정] CSV Export 버튼을 records 좌측으로 이동하여 액션 시인성을 높임 -->
+            <button 
+              v-if="filteredLamps.length > 0" 
+              @click="exportCSV" 
+              :disabled="isExporting" 
+              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
+            >
+              <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
+              <i v-else class="pi pi-download"></i>
+              {{ isExporting ? 'Exporting...' : 'CSV Export' }}
+            </button>
+            <span class="text-[10px] text-slate-400">{{ filteredLamps.length }} records</span>
+          </div>
         </div>
 
         <div class="relative w-full flex-1 min-h-0">
@@ -310,7 +323,7 @@ interface LampDisplay extends LampLife {
   usageRatio: number;
   status: string;
   prc_group: string; 
-  offsetHour?: number; // 오프셋 속성 추가
+  offsetHour?: number;
 }
 
 const authStore = useAuthStore();
@@ -331,6 +344,7 @@ const sdwts = ref<string[]>([]);
 const allLamps = ref<LampDisplay[]>([]);
 const isLoading = ref(false);
 const hasSearched = ref(false);
+const isExporting = ref(false);
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
@@ -440,9 +454,6 @@ const fetchData = async () => {
     allLamps.value = rawData.map((l: any) => {
       let calculatedAge = l.ageHour || 0; 
       
-      // 👨‍💻 [수정] 버전 파편화에 완벽 대응하는 보정 로직 적용
-      // 1. 기존처럼 "현재 시각 - 마지막 교체 시간" 계산을 유지
-      // 2. 에이전트가 오프셋 보정값을 보내주었다면 해당 값(Offset_hour)을 결과에 더해 정합성을 확보
       if (l.lastChanged) {
         const lastChangedDate = parseSafeDate(l.lastChanged);
         if (lastChangedDate.isValid()) {
@@ -490,6 +501,51 @@ const formatDate = (dateString: string | null | undefined) => {
   if (!dateString) return "-";
   const date = parseSafeDate(dateString);
   return date.isValid() ? date.format('YYYY-MM-DD HH:mm:ss') : dateString;
+};
+
+const exportCSV = async () => {
+  if (sortedData.value.length === 0) return;
+
+  isExporting.value = true;
+  
+  try {
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const headers = ['EQP ID', 'Process Group', 'Lamp ID', 'Age (hrs)', 'Limit (hrs)', 'Last Changed', 'Status'];
+    
+    const rows = sortedData.value.map(row => {
+      return [
+        `"${row.eqpId}"`,
+        `"${row.prc_group}"`,
+        `"${row.lampId}"`,
+        row.ageHour,
+        row.lifespanHour,
+        `"${formatDate(row.lastChanged)}"`,
+        `"${row.status}"`
+      ].join(',');
+    });
+    
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    
+    const siteName = filter.site || 'ALL';
+    const sdwtName = filter.sdwt || 'ALL';
+    const timestamp = dayjs().format('YYYYMMDD_HHmm');
+    const fileName = `${siteName}_${sdwtName}_lamplife_${timestamp}.csv`;
+
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } finally {
+    isExporting.value = false;
+  }
 };
 
 const filteredLamps = computed(() => {
@@ -681,9 +737,16 @@ const getStatusBadgeClass = (status: string) => {
 :deep(.p-rowgroup-header > td) {
   @apply !bg-slate-50/80 dark:!bg-zinc-900/80 !border-b !border-slate-200 dark:!border-zinc-700 !py-1.5;
 }
+
 :deep(.p-datatable-tbody > tr:not(.p-rowgroup-header):hover) {
-  @apply !bg-[#27272a] !text-white transition-colors cursor-pointer;
+  @apply !bg-indigo-50/70 dark:!bg-indigo-500/20 transition-colors cursor-pointer;
 }
+
+:deep(.p-datatable-tbody > tr:not(.p-rowgroup-header):hover > td),
+:deep(.p-datatable-tbody > tr:not(.p-rowgroup-header):hover > td span:not(.border)) {
+  @apply !text-indigo-800 dark:!text-indigo-100 transition-colors;
+}
+
 :deep(.p-select),
 :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
