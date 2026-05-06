@@ -82,20 +82,26 @@
         <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="startDate"
+            showTime
+            hourFormat="24"
             showIcon
             dateFormat="yy-mm-dd"
-            placeholder="Start Date"
+            placeholder="Start Time"
             class="w-full custom-dropdown small date-picker"
+            :stepMinute="60"
           />
         </div>
 
         <div class="min-w-[150px] shrink-0">
           <DatePicker
             v-model="endDate"
+            showTime
+            hourFormat="24"
             showIcon
             dateFormat="yy-mm-dd"
-            placeholder="End Date"
+            placeholder="End Time"
             class="w-full custom-dropdown small date-picker"
+            :stepMinute="60"
           />
         </div>
       </div>
@@ -151,10 +157,10 @@
             class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200"
           >
             <i class="text-purple-500 pi pi-chart-line"></i>
-            {{ selectedEqpId }} - Top 5 Memory Consumers Trend
+            {{ selectedEqpId }} - Process Memory Usage Trend
           </h3>
           <span class="text-[10px] text-slate-400 font-medium">
-            (Aggregated {{ displayedProcessCount }} unique processes from history)
+            (Showing all {{ displayedProcessCount }} recorded processes)
           </span>
         </div>
 
@@ -292,6 +298,7 @@
                 <td class="px-4 py-2 font-mono text-right" :class="proc.last === 0 ? 'text-slate-400 opacity-50' : 'text-slate-500'">
                   {{ proc.last === 0 ? '-' : formatNumber(proc.last) + ' MB' }}
                 </td>
+                <!-- 👨‍💻 [수정] 요청하신 기존 Trend 상태 표현식 원상복구 반영 -->
                 <td class="px-4 py-2 text-center">
                   <span
                     v-if="proc.last === 0"
@@ -372,13 +379,8 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const selectedEqpId = ref("");
 
-const now = new Date();
-const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); 
-const sevenDaysAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
-
-const startDate = ref(sevenDaysAgo);
-const endDate = ref(new Date());
+const startDate = ref<Date>(dayjs().subtract(24, 'hour').toDate());
+const endDate = ref<Date>(dayjs().toDate());
 
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
@@ -433,31 +435,6 @@ watch(
   }
 );
 
-const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
-  if (!date) return "";
-  const d = new Date(date);
-  
-  if (isEndDate) {
-    d.setHours(23, 59, 59, 999);
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-
-  const offset = d.getTimezoneOffset() * 60000;
-  const localDate = new Date(d.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
-};
-
-const parseSafeDate = (ts: string | Date | undefined): dayjs.Dayjs => {
-  let str = String(ts || "");
-  if (str.includes("Z")) str = str.replace("Z", ""); 
-  
-  if (/^\d{2}-\d{2}-\d{2}/.test(str)) {
-      str = "20" + str;
-  }
-  return dayjs(str);
-};
-
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
 
@@ -485,8 +462,6 @@ onMounted(async () => {
       const savedEqpId = localStorage.getItem("process_eqpid");
       if (savedEqpId && eqpIds.value.includes(savedEqpId)) {
         selectedEqpId.value = savedEqpId;
-        
-        // 새로고침 시 저장된 EQP ID가 있으면 자동 조회 실행
         searchData();
       }
     } else {
@@ -550,12 +525,9 @@ const onSdwtChange = async () => {
 const onEqpIdChange = () => {
   if (selectedEqpId.value) {
     localStorage.setItem("process_eqpid", selectedEqpId.value);
-    
-    // 장비 선택 시 자동 조회 실행
     searchData();
   } else {
     localStorage.removeItem("process_eqpid");
-    // 선택 해제 시에만 화면 초기화
     resetView();
   }
 };
@@ -591,15 +563,10 @@ const searchData = async () => {
   processStats.value = [];
 
   try {
-    const startStr = toLocalISOString(startDate.value);
-    const endStr = toLocalISOString(endDate.value, true);
+    const startStr = startDate.value.toISOString();
+    const endStr = endDate.value.toISOString();
 
-    const fixedStart = new Date(startDate.value);
-    fixedStart.setHours(0, 0, 0, 0);
-    const fixedEnd = new Date(endDate.value);
-    fixedEnd.setHours(23, 59, 59, 999);
-
-    const diffMs = fixedEnd.getTime() - fixedStart.getTime();
+    const diffMs = endDate.value.getTime() - startDate.value.getTime();
     const diffDays = diffMs / (1000 * 3600 * 24);
     let fetchInterval = 60;
     if (diffDays <= 1) fetchInterval = 60;
@@ -614,6 +581,7 @@ const searchData = async () => {
       eqpId: selectedEqpId.value,
       interval: fetchInterval
     });
+    
     processData(rawData);
   } catch (e) {
     console.error(e);
@@ -633,60 +601,84 @@ const processData = (data: ProcessMemoryDataDto[]) => {
     return;
   }
 
+  const tsCache = new Map<string, string>();
+  const getCachedTime = (ts: string | undefined): string => {
+    const str = String(ts || "");
+    if (!tsCache.has(str)) {
+      let dtStr = str;
+      if (dtStr.includes("Z")) dtStr = dtStr.replace("Z", ""); 
+      if (/^\d{2}-\d{2}-\d{2}/.test(dtStr)) dtStr = "20" + dtStr;
+      tsCache.set(str, dayjs(dtStr).format('YYYY-MM-DD HH:mm'));
+    }
+    return tsCache.get(str)!;
+  };
+
   const bucketMap = new Map<string, Record<string, number>>();
+  const procStatsMap = new Map<string, { max: number; sum: number; count: number }>();
   
-  data.forEach(d => {
-     const dt = parseSafeDate(d.timestamp);
-     if(!dt.isValid()) return;
-     
-     const key = dt.format('YYYY-MM-DD HH:mm');
-     
-     if(!bucketMap.has(key)) bucketMap.set(key, {});
-     const bucket = bucketMap.get(key)!;
-     
-     const currentVal = bucket[d.processName] || 0;
-     bucket[d.processName] = Math.max(currentVal, Number(d.memoryUsageMB) || 0);
-  });
+  for (let i = 0; i < data.length; i++) {
+     const d = data[i];
+     if (!d) continue;
+
+     const key = getCachedTime(d.timestamp);
+     const val = Number(d.memoryUsageMB) || 0;
+     const pName = d.processName;
+
+     let bucket = bucketMap.get(key);
+     if (!bucket) {
+        bucket = {};
+        bucketMap.set(key, bucket);
+     }
+     if (bucket[pName] === undefined || bucket[pName] < val) {
+        bucket[pName] = val;
+     }
+
+     let stat = procStatsMap.get(pName);
+     if (!stat) {
+        stat = { max: 0, sum: 0, count: 0 };
+        procStatsMap.set(pName, stat);
+     }
+     if (val > stat.max) stat.max = val;
+     stat.sum += val;
+     stat.count++;
+  }
 
   const sortedKeys = Array.from(bucketMap.keys()).sort();
   xAxisData.value = sortedKeys;
 
-  const procStatsMap = new Map<string, { max: number; sum: number; count: number }>();
-  
-  data.forEach(d => {
-      const val = Number(d.memoryUsageMB) || 0;
-      if(!procStatsMap.has(d.processName)) {
-          procStatsMap.set(d.processName, { max: 0, sum: 0, count: 0 });
-      }
-      const stat = procStatsMap.get(d.processName)!;
-      stat.max = Math.max(stat.max, val);
-      stat.sum += val;
-      stat.count++;
+  const top5Names = new Set<string>();
+  sortedKeys.forEach(key => {
+    const bucket = bucketMap.get(key);
+    if (bucket) {
+      const sortedAtTime = Object.entries(bucket).sort((a, b) => b[1] - a[1]);
+      const top5AtTime = sortedAtTime.slice(0, 5); 
+      top5AtTime.forEach(([name]) => top5Names.add(name));
+    }
   });
 
   const allProcs = Array.from(procStatsMap.entries()).map(([name, stat]) => ({ name, ...stat }));
   const topProcs = allProcs.sort((a, b) => b.max - a.max); 
-  const targetNames = new Set(topProcs.map(p => p.name));
   
-  displayedProcessCount.value = targetNames.size;
+  displayedProcessCount.value = top5Names.size; 
 
   const series: any[] = [];
   const stats: ProcessStat[] = [];
-  const sortedTargetProcs = Array.from(targetNames).sort();
 
   const lastBucketKey = sortedKeys.length > 0 ? sortedKeys[sortedKeys.length - 1] : null;
   const lastBucket = lastBucketKey ? bucketMap.get(lastBucketKey) : null;
 
-  sortedTargetProcs.forEach((name, idx) => {
+  const chartTargetProcs = topProcs.filter(p => top5Names.has(p.name));
+
+  chartTargetProcs.forEach((proc, idx) => {
     const color = colorPalette[idx % colorPalette.length] ?? "#8b5cf6";
     
     const seriesData = sortedKeys.map(key => {
         const bucket = bucketMap.get(key);
-        return (bucket && bucket[name] !== undefined) ? bucket[name] : null;
+        return bucket?.[proc.name] ?? null; 
     });
 
     series.push({
-      name: name,
+      name: proc.name,
       type: "line",
       smooth: true,
       showSymbol: false, 
@@ -696,13 +688,18 @@ const processData = (data: ProcessMemoryDataDto[]) => {
       connectNulls: false, 
       data: seriesData, 
     });
+  });
+
+  topProcs.forEach((p) => {
+    const statEntry = procStatsMap.get(p.name)!;
+    const actualLastValue = lastBucket?.[p.name] ?? 0;
     
-    const statEntry = procStatsMap.get(name)!;
-    
-    const actualLastValue = (lastBucket && lastBucket[name] !== undefined) ? lastBucket[name] : 0;
+    const isTop5 = top5Names.has(p.name);
+    const chartIdx = chartTargetProcs.findIndex(cp => cp.name === p.name);
+    const color = isTop5 ? (colorPalette[chartIdx % colorPalette.length] ?? "#8b5cf6") : "#94a3b8"; 
 
     stats.push({
-      name,
+      name: p.name,
       color,
       max: statEntry.max,
       avg: statEntry.sum / statEntry.count,
@@ -711,7 +708,7 @@ const processData = (data: ProcessMemoryDataDto[]) => {
   });
 
   processSeries.value = series;
-  processStats.value = stats.sort((a, b) => b.max - a.max);
+  processStats.value = stats;
 };
 
 const resetFilters = () => {
@@ -726,18 +723,13 @@ const resetFilters = () => {
   eqpIds.value = [];
   resetView();
   
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0); 
-  const sevenDaysAgo = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000); 
-  
-  endDate.value = now;
-  startDate.value = sevenDaysAgo;
+  endDate.value = dayjs().toDate();
+  startDate.value = dayjs().subtract(24, 'hour').toDate();
 };
 
 const formattedPeriod = computed(() => {
   if (!startDate.value || !endDate.value) return "";
-  const fmt = (d: Date) => dayjs(d).format('YYYY-MM-DD');
+  const fmt = (d: Date) => dayjs(d).format('YYYY-MM-DD HH:mm');
   return `${fmt(startDate.value)} ~ ${fmt(endDate.value)}`;
 });
 
@@ -861,6 +853,25 @@ const resetZoom = () => {
 :deep(.date-picker .p-inputtext) {
   @apply !text-[13px] !py-1 !px-2 !h-7;
 }
+:deep(.date-picker .p-datepicker-input) {
+  height: 28px !important;
+}
+:deep(.date-picker button.p-datepicker-dropdown) {
+  width: 40px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+:deep(.date-picker button.p-datepicker-dropdown .pi) {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
 :deep(.p-select-clear-icon),
 :deep(.p-datepicker-clear-icon) {
   @apply text-[9px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300;
@@ -910,4 +921,3 @@ const resetZoom = () => {
   background: #94a3b8;
 }
 </style>
-
