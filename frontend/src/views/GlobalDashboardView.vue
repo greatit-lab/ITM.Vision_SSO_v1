@@ -193,13 +193,14 @@
                         </div>
                       </div>
 
+                      <!-- 개선된 부분: 중립적 색상이 적용된 Agent Latest Ratio Progress Bar -->
                       <div class="mt-2">
                         <div class="flex justify-between items-center mb-1 text-[10px] font-semibold">
-                          <span class="text-slate-400 dark:text-slate-500">Availability</span>
-                          <span class="text-slate-600 dark:text-slate-300">{{ isMoneyMode ? '100' : getPercent(sdwt.onlineCount, sdwt.totalCount) }}%</span>
+                          <span class="text-slate-400 dark:text-slate-500">Agent Latest Ratio</span>
+                          <span class="text-slate-600 dark:text-slate-300">{{ isMoneyMode ? '100' : getPercent(sdwt.latestCount || 0, sdwt.totalCount) }}%</span>
                         </div>
                         <div class="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
-                          <div class="h-full transition-all duration-500 rounded-full" :class="getSdwtProgressBarClass(sdwt)" :style="{ width: isMoneyMode ? '100%' : `${getPercent(sdwt.onlineCount, sdwt.totalCount)}%` }"></div>
+                          <div class="h-full transition-all duration-500 rounded-full" :class="getAgentVersionProgressBarClass(sdwt)" :style="{ width: isMoneyMode ? '100%' : `${getPercent(sdwt.latestCount || 0, sdwt.totalCount)}%` }"></div>
                         </div>
                       </div>
                     </div>
@@ -228,6 +229,7 @@ interface SdwtData {
   totalCount: number;
   onlineCount: number;
   offlineCount: number;
+  latestCount?: number; // 백엔드에서 제공되는 최신 버전 Agent 갯수
   summary: DashboardSummaryDto;
   isAllLatest?: boolean;
   index: number;
@@ -490,13 +492,17 @@ const getSdwtMiniBadgeDotClass = (sdwt: SdwtData) => {
   return "bg-emerald-500";
 };
 
-const getSdwtProgressBarClass = (sdwt: SdwtData) => {
+// 개선된 부분: 에러(빨강)가 아닌 '버전 분포 비율'을 표현하는 안정적인 색상 로직 적용
+const getAgentVersionProgressBarClass = (sdwt: SdwtData) => {
   if (isMoneyMode.value) return "bg-gradient-to-r from-amber-500 to-yellow-400";
-  const severity = getSdwtSeverity(sdwt);
-  if (severity === "critical") return "bg-gradient-to-r from-rose-500 to-rose-400";
-  if (severity === "warning") return "bg-gradient-to-r from-amber-500 to-amber-400";
-  if (severity === "empty") return "bg-gradient-to-r from-slate-400 to-slate-300 dark:from-zinc-600 dark:to-zinc-500";
-  return "bg-gradient-to-r from-emerald-500 to-cyan-500";
+  if (sdwt.totalCount === 0) return "bg-gradient-to-r from-slate-400 to-slate-300 dark:from-zinc-600 dark:to-zinc-500";
+  
+  const ratio = getPercent(sdwt.latestCount || 0, sdwt.totalCount);
+  
+  if (ratio >= 90) return "bg-gradient-to-r from-blue-500 to-indigo-500"; // 90% 이상: 파란색/남색 (최상, 확산 거의 완료)
+  if (ratio >= 60) return "bg-gradient-to-r from-emerald-500 to-teal-400"; // 60% 이상: 초록/청록색 (안정적 확산 중)
+  if (ratio >= 30) return "bg-gradient-to-r from-indigo-400 to-violet-400"; // 30% 이상: 보라/연보라색 (경고 느낌 없는 중립적 색상)
+  return "bg-gradient-to-r from-slate-400 to-slate-300 dark:from-zinc-500 dark:to-zinc-400"; // 30% 미만: 회색/무채색 (시선 분산 방지)
 };
 </script>
 
