@@ -29,11 +29,12 @@
           <div class="min-w-[100px] shrink-0">
             <Select v-model="filters.waferId" :options="waferIds" filter resetFilterOnHide placeholder="Wafer" :disabled="!filters.lotId" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" />
           </div>
-          <div class="min-w-[130px] shrink-0">
-            <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
+          
+          <div class="min-w-[130px] shrink-0" v-tooltip.bottom="filters.lotId ? 'Date is ignored when searching by Lot ID' : null">
+            <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId || !!filters.lotId" />
           </div>
-          <div class="min-w-[130px] shrink-0">
-            <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId" />
+          <div class="min-w-[130px] shrink-0" v-tooltip.bottom="filters.lotId ? 'Date is ignored when searching by Lot ID' : null">
+            <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId || !!filters.lotId" />
           </div>
         </div>
         <div class="flex items-center gap-1 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800">
@@ -164,8 +165,8 @@
         </div>
       </div>
       
-      <div class="w-full 2xl:w-[450px] shrink-0 flex flex-col gap-4 2xl:h-full">
-        <div class="h-[420px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-7 overflow-hidden">
+      <div class="w-full 2xl:w-[450px] shrink-0 flex flex-col gap-4 2xl:h-full min-h-0">
+        <div class="h-[424px] shrink-0 rounded-xl dark:border-zinc-800 relative flex flex-col items-center justify-center p-7 overflow-hidden">
           <div class="absolute top-3 left-4 text-sm font-bold text-slate-700 dark:text-slate-200 z-10 flex items-center">
             <i class="pi pi-image mr-2 text-teal-500"></i> Wafer Map
           </div>
@@ -199,7 +200,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col h-[290px]">
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-sm p-4 flex flex-col flex-1 min-h-[200px] 2xl:min-h-0">
           <div class="flex items-center justify-between relative mb-2 shrink-0">
             <h2 class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><i class="pi pi-wave-pulse text-teal-500"></i> Wave Spectrum</h2>
             <span v-if="selectedPointValue && selectedRow" class="absolute right-0 text-xs font-mono px-2 py-0.5 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded border border-teal-100 dark:border-teal-800">{{ selectedRow.lotId }} W{{ selectedRow.waferId }} #{{ selectedPointValue }}</span>
@@ -373,7 +374,6 @@ const startBugCrawling = () => {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 지나간 자리에 먹은 흔적 그리기
     ctx.fillStyle = 'rgba(40, 40, 40, 0.7)'; 
     eatenPaths.forEach(p => {
       ctx.beginPath();
@@ -453,7 +453,6 @@ const handleKeydown = (e: KeyboardEvent) => {
         isBugMode.value = !isBugMode.value;
         if (isBugMode.value) {
           nextTick(() => startBugCrawling());
-          // 백엔드 API를 호출하여 이스터에그 발동 기록을 sys_easter_egg 테이블에 적재합니다.
           dashboardApi.saveEasterEgg({ eggType: "BUG", score: 0 }).catch(err => console.error(err));
         } else {
           stopBugCrawling();
@@ -466,7 +465,6 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 };
 // ============================================================================
-
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
@@ -830,7 +828,6 @@ const onFilmChange = () => {
 
 const onDateChange = () => {
     if (filters.eqpId) {
-        loadLotOptions();
         loadCassetteOptions();
         if (filters.lotId) loadWaferOptions();
         if (filters.cassetteRcp) loadStageOptions();
@@ -842,8 +839,6 @@ const loadLotOptions = async () => {
   if (!filters.eqpId) return;
   const params = { 
     eqpId: filters.eqpId, 
-    startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined, 
   };
   try {
     const lots = await waferApi.getDistinctValues("lotids", params);
@@ -944,7 +939,7 @@ const resetDetails = () => {
   }
   pdfImageUrl.value = null;
   
-  stopBugCrawling(); // 벌레 이스터에그 정지
+  stopBugCrawling();
   
   selectedPointIdx.value = -1;
   selectedPointValue.value = "";
