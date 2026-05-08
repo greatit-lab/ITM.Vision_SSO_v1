@@ -21,7 +21,7 @@
               {{ isMoneyMode ? 'Global Wealth Dashboard' : 'Global Fleet Dashboard' }}
             </h1>
             <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">
-              {{ isMoneyMode ? 'Infinite Resources Activated' : 'Integrated Site & SDWT Topology' }}
+              {{ isMoneyMode ? 'Infinite Resources Activated' : 'Integrated Version Stability Analysis' }}
             </span>
           </div>
         </div>
@@ -82,16 +82,16 @@
         </div>
 
         <div class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] px-4 py-3 shadow-sm hover:-translate-y-1 transition-transform duration-300">
-          <div class="absolute w-20 h-20 rounded-full -right-6 -top-6 bg-rose-200/40 dark:bg-rose-500/15 blur-2xl"></div>
+          <div class="absolute w-20 h-20 rounded-full -right-6 -top-6 bg-slate-200/40 dark:bg-slate-500/15 blur-2xl"></div>
           <div class="relative z-10 flex items-center justify-between">
             <div>
               <p class="text-[10px] uppercase tracking-[0.16em] font-bold text-slate-400 dark:text-slate-500">Offline</p>
-              <p class="mt-0.5 text-2xl font-extrabold text-rose-600 dark:text-rose-400">
+              <p class="mt-0.5 text-2xl font-extrabold text-slate-600 dark:text-slate-400">
                 {{ isMoneyMode ? '0' : globalStats.offline }}
-                <span class="text-sm font-bold text-rose-500/70 dark:text-rose-500/70">EA</span>
+                <span class="text-sm font-bold text-slate-500/70 dark:text-slate-500/70">EA</span>
               </p>
             </div>
-            <div class="flex items-center justify-center w-10 h-10 border rounded-xl bg-rose-50 dark:bg-zinc-800/80 text-rose-500 dark:text-rose-400 border-rose-100 dark:border-zinc-700">
+            <div class="flex items-center justify-center w-10 h-10 border rounded-xl bg-slate-50 dark:bg-zinc-800/80 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-zinc-700">
               <i class="text-base pi pi-times-circle"></i>
             </div>
           </div>
@@ -158,12 +158,12 @@
                       <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
                           <div class="flex items-center gap-1.5">
-                            <div v-if="sdwt.isAllLatest || isMoneyMode" class="relative flex items-center justify-center w-[14px] h-[14px] rounded-full animate-halo shrink-0">
-                              <i class="absolute pi pi-verified text-blue-500 dark:text-blue-400 text-[14px]" title="최신 버전 확산 완료"></i>
+                            <div v-if="getStabilityScore(sdwt) === 100 || isMoneyMode" class="relative flex items-center justify-center w-[14px] h-[14px] rounded-full animate-halo shrink-0">
+                              <i class="absolute pi pi-verified text-blue-500 dark:text-blue-400 text-[14px]" title="전체 장비 최신화 완료"></i>
                             </div>
                             <p class="text-[13px] font-extrabold tracking-tight text-slate-800 dark:text-white truncate">{{ sdwt.name }}</p>
                           </div>
-                          <p class="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500">{{ isMoneyMode ? 'Rich & Stable' : getSdwtSeverityText(sdwt) }}</p>
+                          <p class="mt-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500">{{ getSdwtStatusText(sdwt) }}</p>
                         </div>
                         <div class="flex flex-col items-end gap-1 shrink-0">
                           <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold" :class="getSdwtMiniBadgeClass(sdwt)">
@@ -184,7 +184,7 @@
                         </div>
 
                         <div class="flex gap-1 shrink-0">
-                          <span v-if="(sdwt.offlineCount > 0) && !isMoneyMode" class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200/80 dark:border-rose-400/10">
+                          <span v-if="(sdwt.offlineCount > 0) && !isMoneyMode" class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-slate-400 border border-slate-200/80 dark:border-zinc-700/50">
                             OFF {{ sdwt.offlineCount }}
                           </span>
                           <span v-if="(sdwt.summary.todayErrorCount > 0) && !isMoneyMode" class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 border border-amber-200/80 dark:border-amber-400/10">
@@ -193,14 +193,17 @@
                         </div>
                       </div>
 
-                      <!-- 개선된 부분: 중립적 색상이 적용된 Agent Latest Ratio Progress Bar -->
-                      <div class="mt-2">
-                        <div class="flex justify-between items-center mb-1 text-[10px] font-semibold">
-                          <span class="text-slate-400 dark:text-slate-500">Agent Latest Ratio</span>
-                          <span class="text-slate-600 dark:text-slate-300">{{ isMoneyMode ? '100' : getPercent(sdwt.latestCount || 0, sdwt.totalCount) }}%</span>
+                      <div class="mt-2" :title="`버전 최신화 지수: ${getStabilityScore(sdwt)}점 (장비수: ${sdwt.totalCount}대)`">
+                        <div class="flex justify-between items-baseline mb-1">
+                          <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Version Health Index</span>
+                          <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                            <span class="text-base font-extrabold text-slate-700 dark:text-slate-200">{{ getStabilityScore(sdwt) }}</span> pts
+                          </span>
                         </div>
                         <div class="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
-                          <div class="h-full transition-all duration-500 rounded-full" :class="getAgentVersionProgressBarClass(sdwt)" :style="{ width: isMoneyMode ? '100%' : `${getPercent(sdwt.latestCount || 0, sdwt.totalCount)}%` }"></div>
+                          <div class="h-full transition-all duration-700 rounded-full" 
+                               :class="getStabilityBarClass(sdwt)" 
+                               :style="{ width: `${getStabilityScore(sdwt)}%` }"></div>
                         </div>
                       </div>
                     </div>
@@ -229,7 +232,8 @@ interface SdwtData {
   totalCount: number;
   onlineCount: number;
   offlineCount: number;
-  latestCount?: number; // 백엔드에서 제공되는 최신 버전 Agent 갯수
+  latestCount?: number;
+  stabilityScore?: number; 
   summary: DashboardSummaryDto;
   isAllLatest?: boolean;
   index: number;
@@ -318,15 +322,12 @@ const handleKeydown = (e: KeyboardEvent) => {
     return;
   }
 
-  // 입력창 무시 (안전성 검사 포함)
   const target = e.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.p-dropdown-filter'))) {
     moneyPos = 0; return;
   }
 
   const keyLower = e.key.toLowerCase();
-
-  // Money Code 체크
   const moneyExpected = moneyCode[moneyPos];
   if (moneyExpected && keyLower === moneyExpected) {
     moneyPos++;
@@ -406,6 +407,45 @@ const goToDetail = (siteName: string, sdwtName: string) => {
 };
 
 const getPercent = (part: number, total: number) => total === 0 ? 0 : Math.round((part / total) * 100);
+
+const getStabilityScore = (sdwt: SdwtData): number => {
+  if (isMoneyMode.value) return 100;
+  if (sdwt.totalCount === 0) return 0;
+  if (sdwt.stabilityScore !== undefined) {
+    return Math.max(0, Math.min(100, Math.round(sdwt.stabilityScore)));
+  }
+  return getPercent(sdwt.latestCount || 0, sdwt.totalCount);
+};
+
+// ============================================================================
+// [기능 수정] 장비의 실제 가동 상태를 기반으로 한 텍스트 출력 로직
+// ============================================================================
+const getSdwtStatusText = (sdwt: SdwtData) => {
+  if (isMoneyMode.value) return 'Rich & Stable';
+  if (sdwt.totalCount === 0) return 'No registered agent';
+  if (sdwt.onlineCount === 0) return 'All Offline';
+  
+  const hasOffline = sdwt.offlineCount > 0;
+  const hasError = sdwt.summary.todayErrorCount > 0;
+
+  if (hasOffline && hasError) return 'Partial Offline / Error';
+  if (hasOffline) return 'Partial Offline';
+  if (hasError) return 'Partial Error';
+  
+  return 'Stable';
+};
+
+const getStabilityBarClass = (sdwt: SdwtData) => {
+  if (isMoneyMode.value) return "bg-gradient-to-r from-amber-500 to-yellow-400";
+  if (sdwt.totalCount === 0) return "bg-gradient-to-r from-slate-400 to-slate-300 dark:from-zinc-600 dark:to-zinc-500";
+  
+  const score = getStabilityScore(sdwt);
+  if (score >= 90) return "bg-gradient-to-r from-blue-500 to-indigo-500";
+  if (score >= 70) return "bg-gradient-to-r from-emerald-500 to-teal-400";
+  if (score >= 50) return "bg-gradient-to-r from-amber-400 to-orange-400";
+  return "bg-gradient-to-r from-rose-500 to-red-400";
+};
+
 const getSdwtSeverity = (sdwt: SdwtData): "critical" | "warning" | "healthy" | "empty" => {
   if (isMoneyMode.value) return "healthy";
   if (sdwt.totalCount === 0) return "empty";
@@ -448,14 +488,6 @@ const getSiteBadgeClass = (site: SiteData) => {
   return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-400/20";
 };
 
-const getSdwtSeverityText = (sdwt: SdwtData) => {
-  const severity = getSdwtSeverity(sdwt);
-  if (severity === "critical") return "All Offline";
-  if (severity === "warning") return "Partial Offline / Alert";
-  if (severity === "empty") return "No registered agent";
-  return "Stable";
-};
-
 const getSdwtCardClass = (sdwt: SdwtData) => {
   if (isMoneyMode.value) return "border-amber-300 bg-gradient-to-br from-white to-amber-50/70 dark:border-amber-600/50 dark:bg-[linear-gradient(180deg,rgba(39,39,42,0.8),rgba(251,191,36,0.1))] hover:border-amber-400 dark:hover:border-amber-400/80 shadow-[0_0_15px_rgba(251,191,36,0.15)]";
   const severity = getSdwtSeverity(sdwt);
@@ -491,19 +523,6 @@ const getSdwtMiniBadgeDotClass = (sdwt: SdwtData) => {
   if (severity === "empty") return "bg-slate-400 dark:bg-zinc-500";
   return "bg-emerald-500";
 };
-
-// 개선된 부분: 에러(빨강)가 아닌 '버전 분포 비율'을 표현하는 안정적인 색상 로직 적용
-const getAgentVersionProgressBarClass = (sdwt: SdwtData) => {
-  if (isMoneyMode.value) return "bg-gradient-to-r from-amber-500 to-yellow-400";
-  if (sdwt.totalCount === 0) return "bg-gradient-to-r from-slate-400 to-slate-300 dark:from-zinc-600 dark:to-zinc-500";
-  
-  const ratio = getPercent(sdwt.latestCount || 0, sdwt.totalCount);
-  
-  if (ratio >= 90) return "bg-gradient-to-r from-blue-500 to-indigo-500"; // 90% 이상: 파란색/남색 (최상, 확산 거의 완료)
-  if (ratio >= 60) return "bg-gradient-to-r from-emerald-500 to-teal-400"; // 60% 이상: 초록/청록색 (안정적 확산 중)
-  if (ratio >= 30) return "bg-gradient-to-r from-indigo-400 to-violet-400"; // 30% 이상: 보라/연보라색 (경고 느낌 없는 중립적 색상)
-  return "bg-gradient-to-r from-slate-400 to-slate-300 dark:from-zinc-500 dark:to-zinc-400"; // 30% 미만: 회색/무채색 (시선 분산 방지)
-};
 </script>
 
 <style scoped>
@@ -519,7 +538,7 @@ const getAgentVersionProgressBarClass = (sdwt: SdwtData) => {
 
 /* Show Me The Money Theme */
 .money-theme :deep(.border-slate-200), .money-theme :deep(.dark\:border-zinc-800) {
-  border-color: rgba(251, 191, 36, 0.4) !important; /* amber-400 */
+  border-color: rgba(251, 191, 36, 0.4) !important;
 }
 .money-theme :deep(h1), .money-theme :deep(p.font-extrabold) {
   color: #fbbf24 !important; text-shadow: 0 0 8px rgba(251, 191, 36, 0.3) !important;
