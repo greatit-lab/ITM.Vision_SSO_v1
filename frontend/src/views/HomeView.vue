@@ -826,6 +826,9 @@ import {
 import { performanceApi } from "@/api/performance";
 import { getErrorLogs, type ErrorLogItem } from "@/api/error";
 
+// 👨‍💻 [수정] 명확한 날짜 제어 및 타임존 KST 동기화를 위해 dayjs 임포트
+import dayjs from "dayjs";
+
 import EChart from "@/components/common/EChart.vue";
 import Select from "primevue/select";
 import Button from "primevue/button";
@@ -889,16 +892,10 @@ let refreshTimer: number | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
+// 👨‍💻 [수정] 문자열 자르기가 아닌 dayjs로 확실하게 시간 파싱 (KST 매칭)
 const formatLastContact = (dateStr: string | null | undefined) => {
   if (!dateStr) return "-";
-  
-  const cleanStr = dateStr.replace("T", " ").split(".")[0];
-  if (!cleanStr) return "-"; 
-  
-  if (cleanStr.length >= 19 && cleanStr.startsWith("20")) {
-    return cleanStr.substring(2, 19);
-  }
-  return cleanStr;
+  return dayjs(dateStr).format("YY-MM-DD HH:mm:ss");
 };
 
 onMounted(async () => {
@@ -1080,18 +1077,15 @@ const openChart = async (agent: AgentStatusDto) => {
   chartData.value = [];
   isChartLoading.value = true;
 
-  const endDate = new Date();
-  const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
-
-  const formatLocal = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  };
+  // 👨‍💻 [수정] 9시간 타임존 오차 방지를 위해 dayjs로 정확한 Date 객체 생성
+  const endDate = dayjs().toDate();
+  const startDate = dayjs().subtract(24, 'hour').toDate();
 
   try {
+    // 👨‍💻 [수정] 임의의 포맷 함수 대신 명확한 .toISOString() (UTC 표준)을 API로 전달
     const data = await performanceApi.getHistory(
-      formatLocal(startDate),
-      formatLocal(endDate),
+      startDate.toISOString(),
+      endDate.toISOString(),
       [agent.eqpId],
       300,
     );
@@ -1115,12 +1109,9 @@ const openErrorPopup = async (agent: AgentStatusDto) => {
   errorLogs.value = [];
 
   try {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-
-    const startDateStr = `${todayStr}T00:00:00`;
-    const endDateStr = `${todayStr}T23:59:59`;
+    // 👨‍💻 [수정] 에러 팝업 역시 dayjs와 .toISOString()을 사용하여 날짜 파싱 오차 제거
+    const startDateStr = dayjs().startOf('day').toISOString();
+    const endDateStr = dayjs().endOf('day').toISOString();
 
     const response = await getErrorLogs({
       eqpId: agent.eqpId,
@@ -1198,18 +1189,10 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
+      // 👨‍💻 [수정] X축 렌더링 시에도 문자열 컷팅을 버리고 dayjs로 안전하게 KST 매칭
       data: timestamps.map((t: string) => {
         if (!t) return "";
-
-        if (t.length >= 16) {
-          const yy = t.substring(2, 4);
-          const mm = t.substring(5, 7);
-          const dd = t.substring(8, 10);
-          const hh = t.substring(11, 13);
-          const min = t.substring(14, 16);
-          return `${yy}-${mm}-${dd} ${hh}:${min}`;
-        }
-        return t;
+        return dayjs(t).format("YY-MM-DD HH:mm");
       }),
       axisLabel: { color: textColor },
       axisLine: { lineStyle: { color: gridColor } },
