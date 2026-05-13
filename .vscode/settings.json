@@ -1,7 +1,17 @@
 {
-  // 기존 설정이 있다면 콤마(,)로 구분하여 아래 내용을 추가하세요.
-
-  "css.lint.unknownAtRules": "ignore",
-  "scss.lint.unknownAtRules": "ignore",
-  "less.lint.unknownAtRules": "ignore"
+  "css.lint.unknownProperties": "ignore",
+  "css.lint.propertyIgnoredDueToDisplay": "ignore",
+  "css.lint.vendorPrefix": "ignore",
+  "tailwindcss.files.exclude": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/.hg/**",
+    "**/.svn/**",
+    "**/dist/**",
+    "**/build/**"
+  ],
+  "search.exclude": {
+    "**/dist": true,
+    "**/node_modules": true
+  }
 }
