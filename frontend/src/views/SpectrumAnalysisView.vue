@@ -94,12 +94,18 @@
                 <span class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[9px]">3</span>
                 Wafers ({{ selectedWafers.length }})
               </div>
-              <button v-if="filters.stageGroup" @click="toggleAllWafers" class="text-[10px] text-indigo-500 hover:text-indigo-600 font-bold transition-colors">
+              <button v-if="filters.stageGroup && !isPointsLoading && !isWafersLoading" @click="toggleAllWafers" class="text-[10px] text-indigo-500 hover:text-indigo-600 font-bold transition-colors">
                 {{ selectedWafers.length === waferList.length && waferList.length > 0 ? "Deselect All" : "Select All" }}
               </button>
             </div>
             <div class="pl-2 flex-1 min-h-0 flex flex-col">
               <div v-if="!filters.stageGroup" class="text-[10px] text-slate-400 italic py-2">Select conditions first.</div>
+              <div v-else-if="isPointsLoading" class="text-[10px] text-slate-400 italic py-2 flex items-center gap-2">
+                <i class="pi pi-spin pi-spinner"></i> Waiting for Points...
+              </div>
+              <div v-else-if="isWafersLoading" class="text-[10px] text-slate-400 italic py-2 flex items-center gap-2">
+                <i class="pi pi-spin pi-spinner"></i> Loading Wafers...
+              </div>
               <div v-else class="overflow-y-auto custom-scrollbar flex-1 pr-1 space-y-1 h-full">
                 <div v-for="w in waferList" :key="w" @click="toggleWafer(w)" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all border group" :class="selectedWafers.includes(w) ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800/50' : 'border-transparent hover:bg-slate-50 dark:hover:bg-zinc-800/50'">
                   <div class="w-4 h-4 rounded border flex items-center justify-center transition-colors" :class="selectedWafers.includes(w) ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800'">
@@ -116,7 +122,16 @@
         </div>
       </div>
 
-      <div class="flex flex-col flex-1 gap-3 overflow-hidden h-full">
+      <div class="flex flex-col flex-1 gap-3 overflow-hidden h-full relative">
+        
+        <div v-if="isLoading" class="absolute inset-0 z-30 flex items-center justify-center bg-slate-50/60 dark:bg-[#09090B]/60 backdrop-blur-sm rounded-xl transition-all duration-300">
+            <div class="bg-white dark:bg-zinc-900 p-6 px-10 rounded-2xl shadow-xl flex flex-col items-center border border-slate-200 dark:border-zinc-800">
+                <i class="pi pi-spin pi-spinner text-4xl text-indigo-500 mb-3 drop-shadow-sm"></i>
+                <span class="text-[13px] font-extrabold tracking-wide text-slate-700 dark:text-slate-200 uppercase">Analyzing Spectrum Data...</span>
+                <span class="text-[11px] text-slate-400 mt-1 font-medium">Extracting trend and results from DB</span>
+            </div>
+        </div>
+
         <div class="flex-[3] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 relative flex flex-col">
           <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30">
             <div class="flex items-center gap-3">
@@ -149,14 +164,16 @@
             </div>
           </div>
           <div class="relative flex-1 w-full min-h-0 bg-slate-50/30 dark:bg-black/20">
-            <div v-if="!hasSearched" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60 select-none">
+            <div v-if="!hasSearched && !isLoading" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-60 select-none">
               <div class="w-16 h-16 bg-slate-100 dark:bg-zinc-800/50 rounded-full flex items-center justify-center mb-3">
                 <i class="pi pi-chart-line text-2xl text-slate-300 dark:text-zinc-600"></i>
               </div>
               <p class="text-xs font-bold text-slate-500">No Data Displayed</p>
               <p class="text-[10px]">Select conditions on the left and click Analyze.</p>
             </div>
+            
             <EChart v-else :option="chartOption" class="w-full h-full" @chartCreated="onChartCreated" @zr:mousemove="onChartMouseOver" />
+            
             <transition name="fade">
               <button v-if="isZoomed" @click="resetZoom" class="absolute top-3 right-3 bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5 transition-all z-10 cursor-pointer">
                 <i class="pi pi-refresh text-[9px]"></i> Reset Zoom
@@ -165,7 +182,7 @@
           </div>
         </div>
 
-        <div v-if="hasSearched" class="flex-[2] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col animate-fade-in">
+        <div v-if="hasSearched || isLoading" class="flex-[2] min-h-0 bg-white border shadow-sm rounded-xl dark:bg-[#111111] border-slate-200 dark:border-zinc-800 flex flex-col relative animate-fade-in">
           <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-zinc-800 shrink-0 bg-slate-50/50 dark:bg-zinc-900/30">
             <div class="flex items-center gap-2">
               <i class="pi pi-table text-indigo-500 text-xs"></i>
@@ -227,6 +244,7 @@ const filterStore = useFilterStore();
 const authStore = useAuthStore();
 const isLoading = ref(false);
 const isPointsLoading = ref(false);
+const isWafersLoading = ref(false);
 const isEqpLoading = ref(false);
 const hasSearched = ref(false);
 const isExporting = ref(false); 
@@ -328,7 +346,6 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
     if (authStore.user?.site) {
       targetSite = authStore.user.site;
@@ -460,17 +477,26 @@ const onCassetteChange = async () => {
 
 const onStageGroupChange = async () => {
   if (filters.stageGroup) {
-    const wafers = await waferApi.getDistinctValues("waferids", {
-      eqpId: filters.eqpId,
-      lotId: filters.lotId,
-      cassetteRcp: filters.cassetteRcp,
-      stageGroup: filters.stageGroup,
-      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
-      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
-    });
-    waferList.value = wafers.sort((a, b) => Number(a) - Number(b));
-    selectedWafers.value = wafers.slice(0, 5);
+    waferList.value = [];
+    selectedWafers.value = [];
     await loadPoints();
+    isWafersLoading.value = true;
+    try {
+      const wafers = await waferApi.getDistinctValues("waferids", {
+        eqpId: filters.eqpId,
+        lotId: filters.lotId,
+        cassetteRcp: filters.cassetteRcp,
+        stageGroup: filters.stageGroup,
+        startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+        endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
+      });
+      waferList.value = wafers.sort((a, b) => Number(a) - Number(b));
+      selectedWafers.value = wafers.slice(0, 5);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      isWafersLoading.value = false;
+    }
   } else {
     resetFrom(5);
   }
@@ -547,8 +573,9 @@ const toggleAllWafers = () => {
 
 const searchData = async () => {
   if (!isReadyToSearch.value) return;
+  
   isLoading.value = true;
-  hasSearched.value = true;
+  hasSearched.value = true; 
   isZoomed.value = false;
   clearModelFit();
 
@@ -619,6 +646,7 @@ const searchData = async () => {
     }
 
     if (showGoldenRef.value) await fetchGoldenRef();
+    
   } catch (e) {
     console.error(e);
     chartSeries.value = [];
