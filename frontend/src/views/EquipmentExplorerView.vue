@@ -364,7 +364,18 @@
                 }}</span>
               </template>
             </Column>
-            <Column field="systemModel"></Column>
+
+            <Column field="systemModel">
+              <template #body="{ data }">
+                <span 
+                  class="font-bold text-slate-700 dark:text-slate-200"
+                  :class="{'text-indigo-600 dark:text-indigo-400': formatSystemModel(data.systemModel, data.version) === 'IMPULSE+'}"
+                >
+                  {{ formatSystemModel(data.systemModel, data.version) }}
+                </span>
+              </template>
+            </Column>
+
             <Column field="application">
               <template #body="{ data }">
                 <span class="font-bold text-slate-700 dark:text-slate-200">{{
@@ -762,8 +773,26 @@ const lastPage = () => {
     rowsPerPage.value;
 };
 
-// Utilities
-const formatOS = (os: string, sys: string) => {
+// ============================================================================
+// Utilities (타입 에러 방지를 위해 매개변수에 undefined | null 허용)
+// ============================================================================
+
+const formatSystemModel = (model?: string | null, version?: string | null) => {
+  if (!model) return "-";
+  
+  if (model.toUpperCase() === "IMPULSE" && version) {
+    // TypeScript의 noUncheckedIndexedAccess 환경을 고려하여
+    // 배열 접근 시 undefined가 반환될 가능성을 || "0" 으로 방어합니다.
+    const majorVersion = parseInt(version.split('.')[0] || "0", 10);
+    if (!isNaN(majorVersion) && majorVersion >= 11) {
+      return "IMPULSE+";
+    }
+  }
+  
+  return model;
+};
+
+const formatOS = (os?: string | null, sys?: string | null) => {
   return `${
     os
       ?.replace("Microsoft Windows", "Win")
@@ -772,7 +801,7 @@ const formatOS = (os: string, sys: string) => {
   } ${sys?.replace("-bit", "") || ""}`.trim();
 };
 
-const getOsIconClass = (os: string | null) => {
+const getOsIconClass = (os?: string | null) => {
   const lowerOs = (os || "").toLowerCase();
   if (lowerOs.includes("11")) return "text-indigo-500";
   if (lowerOs.includes("10")) return "text-blue-500";
@@ -781,17 +810,17 @@ const getOsIconClass = (os: string | null) => {
   return "text-slate-400";
 };
 
-const formatSimpleCpu = (cpu: string) => {
+const formatSimpleCpu = (cpu?: string | null) => {
   if (!cpu) return "-";
   return cpu.replace("Intel(R) Core(TM)", "").replace("CPU @", "").trim();
 };
 
-const formatDate = (d: string | null) => {
+const formatDate = (d?: string | null) => {
   if (!d) return "-";
   return dayjs(d).format('YY-MM-DD');
 };
 
-const formatTimezone = (tz: string) => {
+const formatTimezone = (tz?: string | null) => {
   if (!tz) return "";
   switch (tz) {
     case "Korea Standard Time":
@@ -809,14 +838,14 @@ const formatTimezone = (tz: string) => {
   }
 };
 
-const formatMacAddress = (mac: string | null) => {
+const formatMacAddress = (mac?: string | null) => {
   if (!mac) return "-";
   const cleanMac = mac.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   const formatted = cleanMac.match(/.{1,2}/g)?.join("-");
   return formatted || mac;
 };
 
-const copyToClipboard = async (text: string) => {
+const copyToClipboard = async (text?: string | null) => {
   if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
