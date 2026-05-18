@@ -196,6 +196,12 @@ const routes: Array<RouteRecordRaw> = [
         component: UsageAnalyticsView,
         meta: { title: "Usage Analytics", roles: ["ADMIN", "MANAGER"] },
       },
+      {
+        path: '/equipment-summary',
+        name: 'equipment-summary',
+        component: () => import('@/views/EquipmentStatusSummaryView.vue'),
+        meta: { requiresAuth: true }
+      },
 
       {
         path: "/admin",
