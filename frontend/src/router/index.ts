@@ -35,7 +35,6 @@ import UserManagementView from "../views/admin/UserManagementView.vue";
 import InfraManagementView from "../views/admin/InfraManagementView.vue";
 import SystemConfigView from "../views/admin/SystemConfigView.vue";
 import StorageUsageView from "../views/admin/StorageUsageView.vue";
-// [신규 추가] Server Monitoring View 컴포넌트 임포트
 import ServerMonitoringView from "../views/admin/ServerMonitoringView.vue";
 
 const QnaLayout = () => import("../views/support/QnaLayout.vue");
@@ -197,10 +196,10 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "Usage Analytics", roles: ["ADMIN", "MANAGER"] },
       },
       {
-        path: '/equipment-summary',
-        name: 'equipment-summary',
-        component: () => import('@/views/EquipmentStatusSummaryView.vue'),
-        meta: { requiresAuth: true }
+        path: '/equipment-agent-status',
+        name: 'equipment-agent-status',
+        component: () => import('@/views/EquipmentAgentStatusView.vue'),
+        meta: { title: "Equipment Agent Status", requiresAuth: true }
       },
 
       {
@@ -243,7 +242,6 @@ const routes: Array<RouteRecordRaw> = [
             component: StorageUsageView,
             meta: { title: "Storage Analytics", roles: ["ADMIN", "MANAGER"] },
           },
-          // [신규 추가] Server Monitoring View 라우트 등록
           {
             path: "monitoring",
             name: "admin-monitoring",
@@ -332,21 +330,28 @@ import { adminApi } from "@/api/admin";
 
 router.afterEach((to) => {
   const authStore = useAuthStore();
+  
+  // [오류 수정] TS2345 타입 에러 해결을 위해 userRole 변수 추출 및 기본값('GUEST') 바인딩
   if (authStore.isAuthenticated && authStore.user?.userId) {
-    const ignoreList = ["login", "not-found"];
+    const userRole = authStore.user?.role || 'GUEST';
+    
+    // admin, manager 계정은 접근 로그 저장 제외
+    if (!['ADMIN', 'MANAGER'].includes(userRole)) {
+      const ignoreList = ["login", "not-found"];
 
-    if (!ignoreList.includes(to.name as string)) {
-      const menuName =
-        (to.meta.title as string) || (to.name as string) || to.path;
-      adminApi
-        .logAccess({
-          loginId: authStore.user.userId,
-          menuName: menuName,
-          accessUrl: to.fullPath,
-        })
-        .catch((e) => {
-          console.error("Usage Analytics Logging Failed:", e);
-        });
+      if (!ignoreList.includes(to.name as string)) {
+        const menuName =
+          (to.meta.title as string) || (to.name as string) || to.path;
+        adminApi
+          .logAccess({
+            loginId: authStore.user.userId,
+            menuName: menuName,
+            accessUrl: to.fullPath,
+          })
+          .catch((e) => {
+            console.error("Usage Analytics Logging Failed:", e);
+          });
+      }
     }
   }
 });
