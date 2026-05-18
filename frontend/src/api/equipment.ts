@@ -28,10 +28,11 @@ export interface EquipmentDto {
   systemModel: string;
   serialNum: string;
   application: string;
-  version: string;
+  version: string;          // [유지] ITM 장비(설비) 자체 App Ver (ItmInfo 테이블)
   dbVersion: string;
-  useProxy?: string | null; // [추가] 내부망 프록시 사용 여부
-  proxyIp?: string | null;  // [추가] 내부망 프록시 IP
+  appVer?: string | null;   // [추가] 실제 ITM Agent 프로그램 버전 (AgentInfo 테이블)
+  useProxy?: string | null; // 내부망 프록시 사용 여부
+  proxyIp?: string | null;  // 내부망 프록시 IP
 }
 
 /**
