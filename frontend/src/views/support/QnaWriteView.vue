@@ -127,6 +127,13 @@
                   </span>
                   
                   <span class="ql-formats">
+                    <button type="button" class="ql-align" value=""></button>
+                    <button type="button" class="ql-align" value="center"></button>
+                    <button type="button" class="ql-align" value="right"></button>
+                    <button type="button" class="ql-align" value="justify"></button>
+                  </span>
+                  
+                  <span class="ql-formats">
                     <select class="ql-color"></select>
                     <select class="ql-background"></select>
                   </span>
@@ -217,6 +224,10 @@ import { QuillEditor, Quill } from '@vueup/vue-quill';
 const SizeStyle = Quill.import('attributors/style/size');
 SizeStyle.canAdd = function() { return true; };
 Quill.register(SizeStyle, true);
+
+// 정렬 속성을 클래스(class)가 아닌 인라인 스타일(style)로 저장하도록 속성 변경
+const AlignStyle = Quill.import('attributors/style/align');
+Quill.register(AlignStyle, true);
 
 const router = useRouter();
 const route = useRoute();
