@@ -16,21 +16,29 @@
 
       <div class="flex items-center gap-3">
         
-        <div class="flex items-center gap-1 mr-1">
+        <div class="flex items-center gap-1.5 mr-1">
           <button 
             @click="router.push('/support/qna')"
-            class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none"
-            v-tooltip.bottom="'Q&A Board'"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none"
           >
             <i class="pi pi-question-circle text-lg"></i>
+            <span class="text-xs font-bold tracking-wide">Q&A</span>
           </button>
           
           <button 
             @click="router.push('/support/manual')"
-            class="p-2 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-none"
-            v-tooltip.bottom="'User Manual & Downloads'"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-none"
           >
             <i class="pi pi-book text-lg"></i>
+            <span class="text-xs font-bold tracking-wide">Manual</span>
+          </button>
+
+          <button 
+            @click="router.push('/support/agent-download')"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 transition-all rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 focus:outline-none"
+          >
+            <i class="pi pi-download text-lg"></i>
+            <span class="text-xs font-bold tracking-wide">Downloads</span>
           </button>
         </div>
 
@@ -517,7 +525,6 @@ const saveProfileSettings = async () => {
   } finally { isSaving.value = false; }
 };
 
-// [수정 포인트] 알림 타입에 따른 동적 UI 매핑 함수
 const getAlertUI = (type: string) => {
   switch(type) {
     case 'NOTICE_POST':
@@ -530,7 +537,6 @@ const getAlertUI = (type: string) => {
   }
 };
 
-// 통합 알림 조회 함수
 const fetchNotifications = async () => {
   if (authStore.user?.role === 'ADMIN') {
     try {
@@ -541,9 +547,7 @@ const fetchNotifications = async () => {
 
   if (authStore.isAuthenticated) {
     try {
-      // [수정 포인트] 명시적 userId 파라미터 전달 및 데이터 방어 로직 추가
       const res = await httpData.get('/alert', { params: { userId: authStore.user?.userId } }); 
-      // 데이터가 객체 형태로 랩핑되어 올 경우를 대비한 안전망 추가
       const alertsData = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       qnaAlerts.value = alertsData;
     } catch (e) {
