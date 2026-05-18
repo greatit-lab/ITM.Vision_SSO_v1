@@ -380,22 +380,31 @@ onMounted(() => {
 
 /* 본문 내 링크 스타일 적용 추가 */
 :deep(.prose a) {
-  color: #4f46e5; /* 텍스트 파란색(indigo-600) 강조 */
-  text-decoration: underline; /* 밑줄 추가 */
+  color: #4f46e5;
+  text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
   transition: color 0.2s;
 }
 
 :deep(.prose a:hover) {
-  color: #4338ca; /* 호버 시 더 짙은 파란색 */
+  color: #4338ca;
 }
 
 .dark :deep(.prose a) {
-  color: #818cf8; /* 다크 모드용 링크 색상 */
+  color: #818cf8;
 }
 
 .dark :deep(.prose a:hover) {
   color: #a5b4fc;
+}
+
+/* 에디터에서 가운데/우측 정렬된 이미지가 prose 설정에 의해 틀어지는 것을 방지 */
+:deep(.prose p) {
+  width: 100%;
+}
+:deep(.prose img) {
+  display: inline-block;
+  margin: 0;
 }
 </style>
