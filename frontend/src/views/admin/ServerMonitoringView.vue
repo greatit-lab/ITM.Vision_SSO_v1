@@ -38,7 +38,7 @@
       <span class="mr-2 font-bold">Error:</span><span>{{ errorMessage }}</span>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
       <div
         v-for="server in servers"
         :key="server.id"
@@ -270,9 +270,9 @@ let diskChartInstance: echarts.ECharts | null = null;
 let resizeObserver: ResizeObserver | null = null;
 
 /* =========================
-   ✅ 서버 순서 고정 추가
+   👨‍💻 [핵심 수정] 서버 순서 배열에 신규 DBaaS 서버 ID 추가
 ========================= */
-const SERVER_ORDER = ["web-server", "api-server", "db-storage-server"];
+const SERVER_ORDER = ["web-server", "api-server", "db-storage-server", "dbaas-db-server"];
 
 const sortServers = (list: ServerMetrics[]) => {
   return [...list].sort(
@@ -366,10 +366,12 @@ const renderCharts = async () => {
           confine: true,
           formatter: (params: any) => {
             const date = new Date(params[0].value[0]);
+            const MM = String(date.getUTCMonth() + 1).padStart(2, "0");
+            const DD = String(date.getUTCDate()).padStart(2, "0");
             const hours = String(date.getUTCHours()).padStart(2, "0");
             const minutes = String(date.getUTCMinutes()).padStart(2, "0");
 
-            let html = `<div style="font-weight:bold;margin-bottom:4px;">${hours}:${minutes}</div>`;
+            let html = `<div style="font-weight:bold;margin-bottom:4px;">${MM}/${DD} ${hours}:${minutes}</div>`;
             params.forEach((p: any) => {
               html += `<div>${p.marker} ${p.seriesName}: ${p.value[1]}%</div>`;
             });
@@ -383,22 +385,13 @@ const renderCharts = async () => {
           top: "10%",
           containLabel: true,
         },
-
-        /* =========================
-           ✅ X축 수정 (효과 유지)
-        ========================= */
         xAxis: {
           type: "time",
           boundaryGap: false,
-
-          // ❌ 기존 제거
-          // minInterval: 24 * 60 * 60 * 1000,
-
           axisLabel: {
             color: textColor,
             fontSize: 10,
-            hideOverlap: true, // ⭐ 겹침 방지
-
+            hideOverlap: true,
             formatter: (value: number) => {
               const date = new Date(value);
               const MM = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -408,11 +401,9 @@ const renderCharts = async () => {
               return `${MM}/${DD} ${HH}:${mm}`;
             },
           },
-
           axisLine: { lineStyle: { color: splitLineColor } },
           splitLine: { show: false },
         },
-
         yAxis: {
           type: "value",
           max: 100,
@@ -425,7 +416,6 @@ const renderCharts = async () => {
             lineStyle: { color: splitLineColor, type: "dashed" },
           },
         },
-
         series: [
           {
             name: title,
@@ -484,7 +474,6 @@ const fetchData = async () => {
     const res = await getServerMetrics();
     const raw = (res as any).data || res;
 
-    // ⭐ 서버 순서 적용
     servers.value = sortServers(raw);
 
     if (
