@@ -309,25 +309,45 @@
                 scrollHeight="flex"
                 emptyMessage="No log data found for this period."
               >
-                <Column field="time" header="Timestamp" style="width: 25%">
+                <!-- 👨‍💻 접속일시 -->
+                <Column field="time" header="접속일시" style="width: 25%">
                   <template #body="slotProps">
-                    <span class="font-mono text-slate-500 text-[11px]">
-                      {{ slotProps.data.time }}
-                    </span>
+                    <div class="flex items-center gap-1.5">
+                      <i class="pi pi-clock text-[9px] text-slate-400"></i>
+                      <span class="font-mono text-slate-400 dark:text-slate-500 text-[10px]">
+                        {{ slotProps.data.time.split(' ')[0] }}
+                      </span>
+                      <span class="font-mono font-bold text-slate-700 dark:text-slate-200 text-[11px]">
+                        {{ slotProps.data.time.split(' ')[1] }}
+                      </span>
+                    </div>
                   </template>
                 </Column>
-                <Column field="loginId" header="Login ID" style="width: 25%">
+
+                <!-- 👨‍💻 [수정] Login ID 클릭 시 mysingleim:// 실행 메신저 연결로 변경 -->
+                <Column field="loginId" header="User ID" style="width: 25%">
                   <template #body="slotProps">
-                    <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">
-                      {{ slotProps.data.loginId }}
-                    </span>
+                    <div
+                      class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors group"
+                      @click="openMessenger(slotProps.data.loginId)"
+                      v-tooltip.top="'Click to send message'"
+                    >
+                      <div class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                        <i class="pi pi-user text-[8px] text-indigo-500"></i>
+                      </div>
+                      <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">
+                        {{ slotProps.data.loginId }}
+                      </span>
+                      <!-- 복사 아이콘 대신 메신저(대화창) 아이콘 사용 -->
+                      <i class="pi pi-comment text-[9px] text-slate-300 dark:text-zinc-600 group-hover:text-indigo-500 transition-colors opacity-0 group-hover:opacity-100"></i>
+                    </div>
                   </template>
                 </Column>
+
+                <!-- 👨‍💻 [수정] Accessed Page 원래의 기본 텍스트 스타일로 복구 -->
                 <Column field="menu" header="Accessed Page" style="width: 50%">
                   <template #body="slotProps">
-                    <span
-                      class="px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded font-medium text-[10px] text-slate-700 dark:text-slate-300"
-                    >
+                    <span class="font-bold text-slate-600 dark:text-slate-300">
                       {{ formatMenuName(slotProps.data.menu) }}
                     </span>
                   </template>
@@ -424,6 +444,13 @@ const formatMenuName = (name: string) => {
   };
 
   return customNames[name] || name;
+};
+
+// 👨‍💻 [추가] 사내 메신저 호출 함수
+const openMessenger = (userId: string) => {
+  if (userId) {
+    window.location.href = `mysingleim://${userId}`;
+  }
 };
 
 const exportCSV = () => {
@@ -566,7 +593,6 @@ const trendChartOption = computed(() => {
         nameTextStyle: { color: textColor, fontSize: 10, align: 'right', padding: [0, 0, 5, 0] },
         minInterval: 1,
         splitLine: { show: false }, 
-        // 👨‍💻 [수정] Users의 우측 축 레이블을 숨겨서 군더더기를 없앱니다
         axisLabel: { show: false },
         max: (value: any) => Math.max(5, Math.ceil(value.max * 1.2))
       }
@@ -583,7 +609,6 @@ const trendChartOption = computed(() => {
           position: "top",
           color: textColor,
           fontSize: 10,
-          // 👨‍💻 [수정] Bold 제거하여 일반 굵기로 세련되게 변경
           fontWeight: "normal",
         }
       },
@@ -603,7 +628,6 @@ const trendChartOption = computed(() => {
           position: "top",
           color: "#6366f1", 
           fontSize: 11,
-          // 👨‍💻 [수정] Bold 제거하여 일반 굵기로 세련되게 변경
           fontWeight: "normal",
           distance: 5
         }
@@ -723,7 +747,6 @@ const rankingChartOption = computed(() => {
           },
           borderRadius: [0, 4, 4, 0],
         },
-        // 값 레이블도 폰트 두께 normal 적용 (안정성)
         label: { show: true, position: "right", color: textColor, fontSize: 10, fontWeight: "normal" },
       },
     ],
