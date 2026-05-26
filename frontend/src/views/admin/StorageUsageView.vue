@@ -98,9 +98,14 @@
 
     <div class="grid grid-cols-12 gap-3 h-[240px] shrink-0">
       <div class="flex flex-col col-span-4 p-3 bg-white border shadow-sm dark:bg-[#111111] rounded-xl border-slate-200 dark:border-zinc-800">
-        <h3 class="flex items-center gap-2 mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">
-          <i class="text-indigo-500 pi pi-calendar"></i> Monthly Growth Trend
-        </h3>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+            <i class="text-indigo-500 pi pi-calendar"></i> Monthly Growth Trend
+          </h3>
+          <span class="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400" title="데이터가 존재하는 월부터 최대 최근 12개월 데이터를 보여줍니다.">
+            <i class="pi pi-info-circle text-[10px]"></i> 최대 12개월
+          </span>
+        </div>
         <div class="flex-1 w-full min-h-0">
           <EChart v-if="!isLoading && monthlyTrendData.length > 0" :option="monthlyChartOption" />
           <div v-else-if="!isLoading" class="flex flex-col items-center justify-center h-full text-xs text-slate-400">
@@ -227,7 +232,6 @@ lastMonth.setMonth(today.getMonth() - 1);
 const startDate = ref(lastMonth);
 const endDate = ref(today);
 
-// 서버 전체 용량을 저장할 반응형 변수 (기본값 4TB 설정, API 응답으로 덮어씌워짐)
 const serverCapacityMB = ref(4194304);
 const summaryData = ref({ totalDbUsageMB: 0, totalObjectStorageMB: 0 });
 const tableData = ref<any[]>([]);
@@ -236,21 +240,15 @@ const monthlyTrendData = ref<any[]>([]);
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 
-// ==========================================
-// 총 사용량 및 서버 용량 퍼센트 계산
-// ==========================================
-// DB와 오브젝트 스토리지 통합 사용량
 const totalUsedMB = computed(() => {
   return (summaryData.value.totalDbUsageMB || 0) + (summaryData.value.totalObjectStorageMB || 0);
 });
 
-// 백엔드에서 받아온 전체 디스크 대비 사용률 동적 계산 (서버 전체 카드에만 사용)
 const usagePercentage = computed(() => {
   if (serverCapacityMB.value === 0) return '0.0';
   const pct = (totalUsedMB.value / serverCapacityMB.value) * 100;
   return pct > 100 ? '100.0' : pct.toFixed(1);
 });
-// ==========================================
 
 const formatSize = (mb: number) => {
   if (!mb || isNaN(mb) || mb === 0) return { value: "0.00", unit: "MB" };
