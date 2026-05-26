@@ -121,7 +121,7 @@
         <p class="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">데이터를 불러오는 중입니다...</p>
       </div>
 
-      <div v-else class="flex-1 px-1 pb-2 overflow-hidden">
+      <div v-else class="flex-1 px-1 pb-2 overflow-hidden overflow-y-auto custom-scrollbar">
         <div v-if="globalData.length === 0" class="flex flex-col items-center justify-center min-h-[320px] rounded-3xl border border-dashed border-slate-300 dark:border-zinc-700 bg-white/50 dark:bg-black/20">
           <div class="flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-zinc-800">
             <i class="text-xl pi pi-inbox text-slate-400 dark:text-slate-500"></i>
@@ -129,8 +129,10 @@
           <p class="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">표시할 데이터가 없습니다.</p>
         </div>
 
-        <div v-else class="flex flex-wrap items-start gap-4">
-          <div v-for="site in globalData" :key="site.siteName" class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] shadow-sm flex flex-col w-full sm:w-fit min-w-[100%] sm:min-w-[230px] max-w-full">
+        <div v-else class="grid gap-4 w-full grid-flow-dense items-start" style="grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));">
+          <div v-for="site in globalData" :key="site.siteName" 
+               class="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#111111] shadow-sm flex flex-col w-full transition-all"
+               :class="getGridSpanClass(site.sdwts.length)">
             <div class="absolute right-[-32px] top-[-24px] w-28 h-28 rounded-full blur-3xl opacity-60 pointer-events-none" :class="getSiteGlowClass(site)"></div>
             <div class="relative">
               <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-black/20">
@@ -418,8 +420,20 @@ const getStabilityScore = (sdwt: SdwtData): number => {
 };
 
 // ============================================================================
-// [기능 수정] 장비의 실제 가동 상태를 기반으로 한 텍스트 출력 로직
+// [핵심 추가] 동적으로 그리드 가로폭(span)을 결정하여 불필요한 공백을 제거하는 함수
 // ============================================================================
+const getGridSpanClass = (count: number) => {
+  const c = count || 1;
+  // SDWT가 1개 이하일 경우 기본 1칸 배정
+  if (c === 1) return 'col-span-1';
+  // SDWT가 2개일 경우 화면 크기에 맞춰 최대 2칸 배정
+  if (c === 2) return 'col-span-1 sm:col-span-2';
+  // SDWT가 3개일 경우 최대 3칸 배정
+  if (c === 3) return 'col-span-1 sm:col-span-2 lg:col-span-3';
+  // SDWT가 4개 이상일 경우 최대 4칸 배정
+  return 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4';
+};
+
 const getSdwtStatusText = (sdwt: SdwtData) => {
   if (isMoneyMode.value) return 'Rich & Stable';
   if (sdwt.totalCount === 0) return 'No registered agent';
@@ -528,6 +542,11 @@ const getSdwtMiniBadgeDotClass = (sdwt: SdwtData) => {
 <style scoped>
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
 
 @keyframes halo-pulse {
   0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
