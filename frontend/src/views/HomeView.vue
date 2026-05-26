@@ -1,7 +1,8 @@
 <!-- frontend/src/views/HomeView.vue -->
 <template>
   <div
-    class="min-h-full transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
+    class="min-h-full transition-all duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
+    :class="isFullscreen ? 'px-6 py-4 lg:px-10 lg:py-8' : ''"
   >
     <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0">
       <div class="flex items-center gap-2">
@@ -25,27 +26,39 @@
         </div>
       </div>
 
-      <div
-        v-if="hasSearched && !isSummaryLoading"
-        class="flex items-center gap-2 px-3 py-1 transition-all border rounded-full"
-        :class="isRefreshing ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/50' : 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/50 animate-pulse'"
-      >
-        <span class="relative flex w-1.5 h-1.5">
+      <div class="flex items-center gap-3">
+        <div
+          v-if="isFullscreen"
+          class="flex items-center gap-2 px-3 py-1 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-full fade-in"
+        >
+          <i class="text-xs pi pi-clock text-slate-400 dark:text-zinc-500"></i>
+          <span class="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 tracking-wider">
+            {{ currentTime }}
+          </span>
+        </div>
+
+        <div
+          v-if="hasSearched && !isSummaryLoading"
+          class="flex items-center gap-2 px-3 py-1 transition-all border rounded-full"
+          :class="isRefreshing ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/50' : 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/50 animate-pulse'"
+        >
+          <span class="relative flex w-1.5 h-1.5">
+            <span
+              class="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping"
+              :class="isRefreshing ? 'bg-indigo-400' : 'bg-rose-400'"
+            ></span>
+            <span
+              class="relative inline-flex rounded-full h-1.5 w-1.5"
+              :class="isRefreshing ? 'bg-indigo-500' : 'bg-rose-500'"
+            ></span>
+          </span>
           <span
-            class="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping"
-            :class="isRefreshing ? 'bg-indigo-400' : 'bg-rose-400'"
-          ></span>
-          <span
-            class="relative inline-flex rounded-full h-1.5 w-1.5"
-            :class="isRefreshing ? 'bg-indigo-500' : 'bg-rose-500'"
-          ></span>
-        </span>
-        <span
-          class="text-[10px] font-bold uppercase tracking-wider"
-          :class="isRefreshing ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'"
-          >
-          {{ isRefreshing ? 'SYNCING' : 'LIVE' }}
-        </span>
+            class="text-[10px] font-bold uppercase tracking-wider"
+            :class="isRefreshing ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'"
+            >
+            {{ isRefreshing ? 'SYNCING' : 'LIVE' }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -83,8 +96,20 @@
         </div>
       </div>
 
+      <div class="flex items-center px-2" v-tooltip.top="'단축키: Ctrl + i'">
+        <Button
+          :icon="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+          :label="isFullscreen ? 'Exit Full' : 'Full Mode'"
+          rounded
+          text
+          severity="secondary"
+          @click="toggleFullscreen"
+          class="!py-1.5 !px-3 !text-[11px] font-bold transition-all !text-slate-600 hover:!text-slate-800 dark:!text-zinc-400 dark:hover:!text-zinc-200 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm"
+        />
+      </div>
+
       <div
-        class="flex items-center gap-1 pl-2 pr-1 border-l border-slate-100 dark:border-zinc-800"
+        class="flex items-center gap-1 pl-2 pr-1 border-l border-slate-200 dark:border-zinc-700"
       >
         <div v-if="hasSearched && !isSummaryLoading" class="flex items-center justify-center w-8">
           <span
@@ -826,7 +851,6 @@ import {
 import { performanceApi } from "@/api/performance";
 import { getErrorLogs, type ErrorLogItem } from "@/api/error";
 
-// 👨‍💻 [수정] 명확한 날짜 제어 및 타임존 KST 동기화를 위해 dayjs 임포트
 import dayjs from "dayjs";
 
 import EChart from "@/components/common/EChart.vue";
@@ -843,6 +867,11 @@ const isTableLoading = ref(false);
 const isChartLoading = ref(false);
 const isRefreshing = ref(false);
 const hasSearched = ref(false);
+
+const isFullscreen = ref(false);
+
+const currentTime = ref("");
+let clockTimer: number | null = null;
 
 const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">("All");
 
@@ -892,13 +921,48 @@ let refreshTimer: number | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-// 👨‍💻 [수정] 문자열 자르기가 아닌 dayjs로 확실하게 시간 파싱 (KST 매칭)
+const updateClock = () => {
+  currentTime.value = dayjs().format("YYYY-MM-DD HH:mm:ss");
+};
+
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement;
+};
+
+const toggleFullscreen = async () => {
+  if (!document.fullscreenElement) {
+    await document.documentElement.requestFullscreen().catch(err => {
+      console.error(`현황판 모드 진입 실패: ${err.message}`);
+    });
+  } else {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+  }
+};
+
+// [신규] Ctrl + I 단축키 감지 전역 핸들러
+const handleGlobalKeydown = (e: KeyboardEvent) => {
+  if (e.ctrlKey && e.key.toLowerCase() === 'i') {
+    e.preventDefault(); // 브라우저 고유 단축키 동작을 방지
+    toggleFullscreen();
+  }
+};
+
 const formatLastContact = (dateStr: string | null | undefined) => {
   if (!dateStr) return "-";
   return dayjs(dateStr).format("YY-MM-DD HH:mm:ss");
 };
 
 onMounted(async () => {
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  
+  // [신규] 단축키 이벤트 리스너 등록
+  document.addEventListener("keydown", handleGlobalKeydown);
+
+  updateClock();
+  clockTimer = window.setInterval(updateClock, 1000);
+
   try {
     sites.value = await dashboardApi.getSites();
 
@@ -948,6 +1012,12 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  
+  // [신규] 단축키 이벤트 리스너 해제 (메모리 릭 방지)
+  document.removeEventListener("keydown", handleGlobalKeydown);
+  
+  if (clockTimer) clearInterval(clockTimer);
   stopAutoRefresh();
   if (themeObserver) themeObserver.disconnect();
   if (copyTimeout) clearTimeout(copyTimeout);
@@ -1077,12 +1147,10 @@ const openChart = async (agent: AgentStatusDto) => {
   chartData.value = [];
   isChartLoading.value = true;
 
-  // 👨‍💻 [수정] 9시간 타임존 오차 방지를 위해 dayjs로 정확한 Date 객체 생성
   const endDate = dayjs().toDate();
   const startDate = dayjs().subtract(24, 'hour').toDate();
 
   try {
-    // 👨‍💻 [수정] 임의의 포맷 함수 대신 명확한 .toISOString() (UTC 표준)을 API로 전달
     const data = await performanceApi.getHistory(
       startDate.toISOString(),
       endDate.toISOString(),
@@ -1109,7 +1177,6 @@ const openErrorPopup = async (agent: AgentStatusDto) => {
   errorLogs.value = [];
 
   try {
-    // 👨‍💻 [수정] 에러 팝업 역시 dayjs와 .toISOString()을 사용하여 날짜 파싱 오차 제거
     const startDateStr = dayjs().startOf('day').toISOString();
     const endDateStr = dayjs().endOf('day').toISOString();
 
@@ -1189,7 +1256,6 @@ const chartOption = computed(() => {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      // 👨‍💻 [수정] X축 렌더링 시에도 문자열 컷팅을 버리고 dayjs로 안전하게 KST 매칭
       data: timestamps.map((t: string) => {
         if (!t) return "";
         return dayjs(t).format("YY-MM-DD HH:mm");
