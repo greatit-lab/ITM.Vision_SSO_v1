@@ -1,10 +1,11 @@
 <!-- frontend/src/views/HomeView.vue -->
 <template>
   <div
-    class="min-h-full transition-all duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
-    :class="isFullscreen ? 'px-6 py-4 lg:px-10 lg:py-8' : ''"
+    ref="siteOverviewWrapper"
+    class="absolute inset-0 flex flex-col overflow-hidden transition-colors duration-500 ease-in-out bg-[#F8FAFC] dark:bg-[#09090B] font-sans"
+    :class="{ 'p-4': isFullscreen }"
   >
-    <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0">
+    <div class="flex items-center justify-between gap-3 px-1 mb-2 shrink-0 pt-2">
       <div class="flex items-center gap-2">
         <div
           class="flex items-center justify-center w-8 h-8 bg-white border rounded-lg shadow-sm dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
@@ -26,44 +27,40 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div
-          v-if="isFullscreen"
-          class="flex items-center gap-2 px-3 py-1 bg-white border shadow-sm dark:bg-[#111111] border-slate-200 dark:border-zinc-800 rounded-full fade-in"
+      <div class="flex items-center gap-2 shrink-0">
+        <div 
+          v-if="isFullscreen" 
+          class="flex items-center gap-2 px-3 py-1 bg-white dark:bg-[#111111] rounded-full border border-slate-200 dark:border-zinc-800 shadow-sm transition-all animate-fade-in"
         >
-          <i class="text-xs pi pi-clock text-slate-400 dark:text-zinc-500"></i>
-          <span class="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 tracking-wider">
+          <i class="text-[11px] text-indigo-500 dark:text-indigo-400 pi pi-clock animate-pulse"></i>
+          <span class="text-[11px] font-mono font-bold text-slate-600 dark:text-zinc-300">
             {{ currentTime }}
           </span>
         </div>
 
         <div
           v-if="hasSearched && !isSummaryLoading"
-          class="flex items-center gap-2 px-3 py-1 transition-all border rounded-full"
-          :class="isRefreshing ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/50' : 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/50 animate-pulse'"
+          class="flex items-center gap-2 px-3 py-1 transition-all border rounded-full bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/50 animate-pulse"
         >
           <span class="relative flex w-1.5 h-1.5">
             <span
-              class="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping"
-              :class="isRefreshing ? 'bg-indigo-400' : 'bg-rose-400'"
+              class="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-rose-400"
             ></span>
             <span
-              class="relative inline-flex rounded-full h-1.5 w-1.5"
-              :class="isRefreshing ? 'bg-indigo-500' : 'bg-rose-500'"
+              class="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"
             ></span>
           </span>
           <span
-            class="text-[10px] font-bold uppercase tracking-wider"
-            :class="isRefreshing ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'"
-            >
-            {{ isRefreshing ? 'SYNCING' : 'LIVE' }}
+            class="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400"
+          >
+            LIVE
           </span>
         </div>
       </div>
     </div>
 
     <div
-      class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm transition-colors duration-300"
+      class="mb-4 shrink-0 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-sm transition-colors duration-300"
     >
       <div
         class="flex items-center flex-1 gap-2 px-1 py-1 overflow-x-auto scrollbar-hide"
@@ -79,7 +76,7 @@
             showClear
             @change="onSiteChanged"
             :disabled="isSummaryLoading || isRefreshing"
-          />
+          ></Select>
         </div>
         <div class="min-w-[160px] shrink-0">
           <Select
@@ -92,49 +89,47 @@
             :disabled="!filterStore.selectedSite || isSummaryLoading || isRefreshing"
             showClear
             @change="onSdwtChange"
-          />
+          ></Select>
         </div>
       </div>
 
-      <div class="flex items-center px-2" v-tooltip.top="'단축키: Ctrl + i'">
-        <Button
-          :icon="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
-          :label="isFullscreen ? 'Exit Full' : 'Full Mode'"
-          rounded
-          text
-          severity="secondary"
-          @click="toggleFullscreen"
-          class="!py-1.5 !px-3 !text-[11px] font-bold transition-all !text-slate-600 hover:!text-slate-800 dark:!text-zinc-400 dark:hover:!text-zinc-200 bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm"
-        />
-      </div>
+      <div class="flex items-center">
+        <button 
+          @click="toggleFullscreen" 
+          class="flex items-center gap-1.5 px-2.5 py-1.5 mr-2 bg-slate-50 dark:bg-zinc-800/80 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm text-[11px] font-bold text-slate-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 transition-all z-20"
+          title="현황판 모드 (단축키: Ctrl + I)"
+        >
+          <i :class="isFullscreen ? 'pi pi-window-minimize text-rose-500' : 'pi pi-window-maximize text-indigo-500'"></i>
+          <span class="hidden md:inline">{{ isFullscreen ? '현황판 종료' : '현황판 모드' }}</span>
+        </button>
 
-      <div
-        class="flex items-center gap-1 pl-2 pr-1 border-l border-slate-200 dark:border-zinc-700"
-      >
-        <div v-if="hasSearched && !isSummaryLoading" class="flex items-center justify-center w-8">
-          <span
-            class="text-[10px] font-bold font-mono text-center inline-block w-full transition-colors"
-            :class="isRefreshing ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'"
-            >{{ isRefreshing ? '...' : refreshCount + 's' }}</span
-          >
+        <div
+          class="flex items-center gap-1 pl-2 pr-1 border-l border-slate-100 dark:border-zinc-800"
+        >
+          <div v-if="hasSearched && !isSummaryLoading" class="flex items-center justify-center w-8">
+            <span
+              class="text-[10px] font-bold font-mono text-center inline-block w-full transition-colors"
+              :class="isRefreshing ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'"
+              >{{ isRefreshing ? '...' : refreshCount + 's' }}</span>
+          </div>
+          <Button
+            icon="pi pi-sync"
+            rounded
+            text
+            severity="secondary"
+            @click="manualRefresh"
+            :disabled="!hasSearched || isSummaryLoading || isRefreshing"
+            v-tooltip.left="'Refresh Now'"
+            class="!w-7 !h-7 transition-colors"
+            :class="isRefreshing ? '!text-indigo-500 dark:!text-indigo-400 animate-spin' : '!text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300'"
+          ></Button>
         </div>
-        <Button
-          icon="pi pi-sync"
-          rounded
-          text
-          severity="secondary"
-          @click="manualRefresh"
-          :disabled="!hasSearched || isSummaryLoading || isRefreshing"
-          v-tooltip.left="'Refresh Now'"
-          class="!w-7 !h-7 transition-colors"
-          :class="isRefreshing ? '!text-indigo-500 dark:!text-indigo-400 animate-spin' : '!text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300'"
-        />
       </div>
     </div>
 
     <div
       v-if="!hasSearched"
-      class="flex flex-col items-center justify-center border-2 border-dashed h-72 fade-in border-slate-200 dark:border-zinc-800 rounded-3xl"
+      class="flex flex-col items-center justify-center flex-1 border-2 border-dashed fade-in border-slate-200 dark:border-zinc-800 rounded-3xl min-h-[300px] mb-4 mx-1"
     >
       <div
         class="flex items-center justify-center w-12 h-12 mb-3 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500"
@@ -149,10 +144,10 @@
       </p>
     </div>
 
-    <div v-else-if="isSummaryLoading" class="w-full relative fade-in min-h-[500px]">
+    <div v-else-if="isSummaryLoading" class="flex flex-col flex-1 relative fade-in overflow-hidden">
       <div class="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
         <div class="flex flex-col items-center justify-center p-6 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-3xl shadow-2xl border border-indigo-100 dark:border-indigo-900/30 mb-20 transform scale-105 transition-all">
-          <ProgressSpinner style="width: 45px; height: 45px" strokeWidth="4" animationDuration="1s" />
+          <ProgressSpinner style="width: 45px; height: 45px" strokeWidth="4" animationDuration="1s"></ProgressSpinner>
           <h3 class="mt-5 text-[15px] font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
             데이터를 조회하는 중입니다
           </h3>
@@ -162,8 +157,8 @@
         </div>
       </div>
 
-      <div class="space-y-5 opacity-40 pointer-events-none select-none transition-opacity duration-300">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+      <div class="flex flex-col flex-1 opacity-40 pointer-events-none select-none transition-opacity duration-300 overflow-hidden">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5 shrink-0 mb-4 p-1">
           <div v-for="i in 5" :key="i" class="h-20 rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 p-3 flex justify-between items-center relative overflow-hidden shadow-sm">
              <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-800/50 to-transparent"></div>
              <div class="space-y-2 z-10">
@@ -174,7 +169,7 @@
           </div>
         </div>
         
-        <div class="flex flex-col items-center justify-between px-2 md:flex-row gap-3">
+        <div class="flex flex-col items-center justify-between px-2 md:flex-row gap-3 shrink-0 mb-3">
           <div class="w-48 h-5 rounded bg-slate-200 dark:bg-zinc-800/80 relative overflow-hidden">
              <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-700/30 to-transparent"></div>
           </div>
@@ -183,26 +178,28 @@
           </div>
         </div>
         
-        <div class="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
-          <div v-for="i in rowsPerPage" :key="i" class="h-[148px] rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 p-2 relative overflow-hidden flex flex-col shadow-sm">
-              <div class="absolute top-0 left-0 w-full h-2 bg-slate-200 dark:bg-zinc-700"></div>
-              <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-800/50 to-transparent"></div>
-              
-              <div class="flex justify-between items-start mt-2.5 px-1 z-10">
-                <div class="w-16 h-4 rounded bg-slate-200 dark:bg-zinc-700/80"></div>
-                <div class="w-12 h-4 rounded-full bg-slate-200 dark:bg-zinc-700/80"></div>
-              </div>
-              <div class="w-24 h-2 rounded bg-slate-100 dark:bg-zinc-800 mt-2 mx-1 z-10"></div>
-              <div class="w-full h-[38px] rounded bg-slate-50 dark:bg-zinc-800/50 mt-2 z-10 border border-slate-100 dark:border-zinc-800"></div>
-              <div class="w-full h-2 rounded bg-slate-200 dark:bg-zinc-700/80 mt-auto mx-1 z-10 max-w-[80%]"></div>
-              <div class="w-full h-2 rounded bg-slate-200 dark:bg-zinc-700/80 mt-2 mb-1 mx-1 z-10 max-w-[60%]"></div>
+        <div class="flex-1 overflow-hidden pl-1 pr-2 pt-1 pb-4">
+          <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(210px,1fr))]">
+            <div v-for="i in rowsPerPage" :key="i" class="h-[148px] rounded-xl bg-white dark:bg-[#111111] border border-slate-200 dark:border-zinc-800 p-2 relative overflow-hidden flex flex-col shadow-sm">
+                <div class="absolute top-0 left-0 w-full h-2 bg-slate-200 dark:bg-zinc-700"></div>
+                <div class="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-100/50 dark:via-zinc-800/50 to-transparent"></div>
+                
+                <div class="flex justify-between items-start mt-2.5 px-1 z-10">
+                  <div class="w-16 h-4 rounded bg-slate-200 dark:bg-zinc-700/80"></div>
+                  <div class="w-12 h-4 rounded-full bg-slate-200 dark:bg-zinc-700/80"></div>
+                </div>
+                <div class="w-24 h-2 rounded bg-slate-100 dark:bg-zinc-800 mt-2 mx-1 z-10"></div>
+                <div class="w-full h-[38px] rounded bg-slate-50 dark:bg-zinc-800/50 mt-2 z-10 border border-slate-100 dark:border-zinc-800"></div>
+                <div class="w-full h-2 rounded bg-slate-200 dark:bg-zinc-700/80 mt-auto mx-1 z-10 max-w-[80%]"></div>
+                <div class="w-full h-2 rounded bg-slate-200 dark:bg-zinc-700/80 mt-2 mb-1 mx-1 z-10 max-w-[60%]"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-else class="space-y-5 fade-in">
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+    <div v-else class="flex flex-col flex-1 overflow-hidden fade-in">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5 shrink-0 mb-4 p-1">
         <div
           @click="setActiveFilter('All')"
           class="relative h-20 p-3 overflow-hidden transition-all duration-300 border cursor-pointer rounded-xl hover:-translate-y-1"
@@ -456,79 +453,75 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-4">
-        <div
-          class="flex flex-col items-center justify-between px-2 md:flex-row"
-        >
-          <div class="flex items-center gap-2 mb-2 md:mb-0">
-            <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
-            <h3 class="text-base font-bold text-slate-800 dark:text-white">
-              Agent Status Monitoring
-            </h3>
-            <span
-              class="ml-1 text-xs font-medium text-slate-400 dark:text-slate-500"
-            >
-              ({{ totalRecords }} Machines)
-            </span>
-          </div>
-
-          <div
-            class="flex items-center gap-3 px-3 py-1.5 text-xs text-slate-500 bg-white border rounded-lg shadow-sm dark:text-slate-400 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800"
+      <div class="flex flex-col items-center justify-between px-2 md:flex-row shrink-0 mb-3">
+        <div class="flex items-center gap-2 mb-2 md:mb-0">
+          <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">
+            Agent Status Monitoring
+          </h3>
+          <span
+            class="ml-1 text-xs font-medium text-slate-400 dark:text-slate-500"
           >
-            <div class="flex items-center gap-2">
-              <span class="font-medium">Rows:</span>
-              <select
-                v-model="rowsPerPage"
-                class="px-1 py-0.5 font-medium border rounded cursor-pointer bg-slate-50 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                @change="first = 0"
-              >
-                <option :value="30">30</option>
-                <option :value="60">60</option>
-                <option :value="90">90</option>
-                <option :value="120">120</option>
-              </select>
-            </div>
-            <div class="w-px h-3 mx-1 bg-slate-200 dark:bg-zinc-700"></div>
-            <span class="font-medium min-w-[60px] text-right">
-              {{ totalRecords === 0 ? 0 : first + 1 }} -
-              {{ Math.min(first + rowsPerPage, totalRecords) }}
-            </span>
-            <div class="flex items-center gap-1 ml-1">
-              <button
-                @click="first = 0"
-                :disabled="first === 0"
-                class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
-              >
-                <i class="pi pi-angle-double-left"></i>
-              </button>
-              <button
-                @click="prevPage"
-                :disabled="first === 0"
-                class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
-              >
-                <i class="pi pi-angle-left"></i>
-              </button>
-              <button
-                @click="nextPage"
-                :disabled="first + rowsPerPage >= totalRecords"
-                class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
-              >
-                <i class="pi pi-angle-right"></i>
-              </button>
-              <button
-                @click="lastPage"
-                :disabled="first + rowsPerPage >= totalRecords"
-                class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
-              >
-                <i class="pi pi-angle-double-right"></i>
-              </button>
-            </div>
-          </div>
+            ({{ totalRecords }} Machines)
+          </span>
         </div>
 
         <div
-          class="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7"
+          class="flex items-center gap-3 px-3 py-1.5 text-xs text-slate-500 bg-white border rounded-lg shadow-sm dark:text-slate-400 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800"
         >
+          <div class="flex items-center gap-2">
+            <span class="font-medium">Rows:</span>
+            <select
+              v-model="rowsPerPage"
+              class="px-1 py-0.5 font-medium border rounded cursor-pointer bg-slate-50 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              @change="first = 0"
+            >
+              <option :value="30">30</option>
+              <option :value="60">60</option>
+              <option :value="90">90</option>
+              <option :value="120">120</option>
+            </select>
+          </div>
+          <div class="w-px h-3 mx-1 bg-slate-200 dark:bg-zinc-700"></div>
+          <span class="font-medium min-w-[60px] text-right">
+            {{ totalRecords === 0 ? 0 : first + 1 }} -
+            {{ Math.min(first + rowsPerPage, totalRecords) }}
+          </span>
+          <div class="flex items-center gap-1 ml-1">
+            <button
+              @click="first = 0"
+              :disabled="first === 0"
+              class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
+            >
+              <i class="pi pi-angle-double-left"></i>
+            </button>
+            <button
+              @click="prevPage"
+              :disabled="first === 0"
+              class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
+            >
+              <i class="pi pi-angle-left"></i>
+            </button>
+            <button
+              @click="nextPage"
+              :disabled="first + rowsPerPage >= totalRecords"
+              class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
+            >
+              <i class="pi pi-angle-right"></i>
+            </button>
+            <button
+              @click="lastPage"
+              :disabled="first + rowsPerPage >= totalRecords"
+              class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30"
+            >
+              <i class="pi pi-angle-double-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4 pl-1 pt-1">
+        <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(210px,1fr))] content-start">
           <div
             v-for="agent in displayedAgents"
             :key="agent.eqpId"
@@ -729,9 +722,7 @@
     <Dialog
       v-model:visible="showChart"
       modal
-      :header="
-        (selectedAgentId || '') + ' 호기 Performance Trend (Last 24 Hours)'
-      "
+      :header="(selectedAgentId || '') + ' 호기 Performance Trend (Last 24 Hours)'"
       :style="{ width: '80vw' }"
       class="backdrop-blur-xl"
       :dismissableMask="true"
@@ -743,7 +734,7 @@
           v-if="isChartLoading"
           class="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-950/80"
         >
-          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
+          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4"></ProgressSpinner>
           <p class="mt-4 text-sm font-medium text-slate-500 animate-pulse">
             데이터를 불러오는 중입니다...
           </p>
@@ -752,7 +743,7 @@
         <EChart
           v-if="!isChartLoading && chartData && chartData.length > 0"
           :option="chartOption"
-        />
+        ></EChart>
 
         <div
           v-else-if="!isChartLoading && (!chartData || chartData.length === 0)"
@@ -797,7 +788,7 @@
 
       <div class="w-full bg-white dark:bg-zinc-950 rounded-xl p-4 border border-slate-100 dark:border-zinc-800 relative min-h-[300px] max-h-[60vh] overflow-y-auto">
         <div v-if="isErrorLogLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-white/80 dark:bg-zinc-950/80">
-          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
+          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4"></ProgressSpinner>
           <p class="mt-4 text-sm font-medium text-slate-500 animate-pulse">
             에러 데이터를 불러오는 중입니다...
           </p>
@@ -851,6 +842,7 @@ import {
 import { performanceApi } from "@/api/performance";
 import { getErrorLogs, type ErrorLogItem } from "@/api/error";
 
+// 명확한 날짜 제어 및 타임존 동기화를 위해 dayjs 임포트
 import dayjs from "dayjs";
 
 import EChart from "@/components/common/EChart.vue";
@@ -862,16 +854,62 @@ import ProgressSpinner from "primevue/progressspinner";
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
 
+// ============================================================================
+// 현황판 모드(전체화면) 및 실시간 디지털 시계, 키보드 단축키 제어 로직
+// ============================================================================
+const siteOverviewWrapper = ref<HTMLElement | null>(null);
+const isFullscreen = ref(false);
+const currentTime = ref("");
+let clockTimer: number | null = null;
+
+const updateClock = () => {
+  currentTime.value = dayjs().format("YYYY-MM-DD HH:mm:ss");
+};
+
+const toggleFullscreen = async () => {
+  if (!siteOverviewWrapper.value) return;
+  if (!document.fullscreenElement) {
+    try {
+      await siteOverviewWrapper.value.requestFullscreen();
+    } catch (err) {
+      console.error("현황판 모드 진입 오류:", err);
+    }
+  } else {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+  }
+};
+
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement;
+  if (isFullscreen.value) {
+    updateClock();
+    if (!clockTimer) {
+      clockTimer = window.setInterval(updateClock, 1000);
+    }
+  } else {
+    if (clockTimer) {
+      clearInterval(clockTimer);
+      clockTimer = null;
+    }
+  }
+};
+
+// 키보드 단축키(Ctrl+I / Cmd+I) 이벤트 핸들러
+const handleKeydown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+    e.preventDefault(); // 브라우저 기본 동작 방지
+    toggleFullscreen();
+  }
+};
+// ============================================================================
+
 const isSummaryLoading = ref(false); 
 const isTableLoading = ref(false);
 const isChartLoading = ref(false);
 const isRefreshing = ref(false);
 const hasSearched = ref(false);
-
-const isFullscreen = ref(false);
-
-const currentTime = ref("");
-let clockTimer: number | null = null;
 
 const activeFilter = ref<"All" | "Online" | "Offline" | "Alarm" | "TimeSync">("All");
 
@@ -921,47 +959,15 @@ let refreshTimer: number | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-const updateClock = () => {
-  currentTime.value = dayjs().format("YYYY-MM-DD HH:mm:ss");
-};
-
-const handleFullscreenChange = () => {
-  isFullscreen.value = !!document.fullscreenElement;
-};
-
-const toggleFullscreen = async () => {
-  if (!document.fullscreenElement) {
-    await document.documentElement.requestFullscreen().catch(err => {
-      console.error(`현황판 모드 진입 실패: ${err.message}`);
-    });
-  } else {
-    if (document.exitFullscreen) {
-      await document.exitFullscreen();
-    }
-  }
-};
-
-// [신규] Ctrl + I 단축키 감지 전역 핸들러
-const handleGlobalKeydown = (e: KeyboardEvent) => {
-  if (e.ctrlKey && e.key.toLowerCase() === 'i') {
-    e.preventDefault(); // 브라우저 고유 단축키 동작을 방지
-    toggleFullscreen();
-  }
-};
-
 const formatLastContact = (dateStr: string | null | undefined) => {
   if (!dateStr) return "-";
   return dayjs(dateStr).format("YY-MM-DD HH:mm:ss");
 };
 
 onMounted(async () => {
+  // 현황판 모드(전체화면) 관련 이벤트 리스너 등록
   document.addEventListener("fullscreenchange", handleFullscreenChange);
-  
-  // [신규] 단축키 이벤트 리스너 등록
-  document.addEventListener("keydown", handleGlobalKeydown);
-
-  updateClock();
-  clockTimer = window.setInterval(updateClock, 1000);
+  window.addEventListener("keydown", handleKeydown);
 
   try {
     sites.value = await dashboardApi.getSites();
@@ -1012,12 +1018,11 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  // 현황판 모드(전체화면) 이벤트 리스너 해제
   document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  
-  // [신규] 단축키 이벤트 리스너 해제 (메모리 릭 방지)
-  document.removeEventListener("keydown", handleGlobalKeydown);
-  
+  window.removeEventListener("keydown", handleKeydown);
   if (clockTimer) clearInterval(clockTimer);
+  
   stopAutoRefresh();
   if (themeObserver) themeObserver.disconnect();
   if (copyTimeout) clearTimeout(copyTimeout);
@@ -1534,6 +1539,7 @@ const getClockDriftColor = (s: number | null | undefined) => {
 .fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -1549,6 +1555,18 @@ const getClockDriftColor = (s: number | null | undefined) => {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* 스크롤바 등 공통 스타일 복구 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-zinc-700 rounded-full;
 }
 </style>
 
