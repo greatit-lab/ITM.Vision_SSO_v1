@@ -48,7 +48,7 @@
 
       <div class="flex items-center gap-2 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800">
         <Button
-          v-if="hasSearched && mockLogs.length > 0"
+          v-if="hasSearched && filteredLogs.length > 0"
           icon="pi pi-file-excel"
           rounded
           outlined
@@ -214,11 +214,12 @@
             <i class="pi pi-users text-indigo-500"></i>
             Daily User & Visit Trend
           </h3>
-          <div class="flex-1 w-full relative min-h-0">
+          <div class="flex-1 w-full relative min-h-0 cursor-pointer" v-tooltip.top="'Click a date point to filter logs'">
             <EChart
               v-if="trendChartOption"
               :option="trendChartOption"
               class="absolute inset-0 w-full h-full"
+              @chartCreated="onTrendChartCreated"
             />
           </div>
         </div>
@@ -243,6 +244,97 @@
       </div>
 
       <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-0">
+        <div
+          class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col min-h-0"
+        >
+          <div
+            class="flex items-center justify-between px-3 h-8 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0"
+          >
+            <div class="flex items-center gap-2">
+              <i class="text-xs text-indigo-500 pi pi-list"></i>
+              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                Recent Access Logs ({{ filteredLogs.length }})
+                
+                <transition name="fade">
+                  <button 
+                    v-if="selectedDateFilter" 
+                    @click="clearDateFilter"
+                    class="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                    v-tooltip.top="'Clear date filter'"
+                  >
+                    <i class="pi pi-filter-slash text-[9px]"></i> {{ selectedDateFilter }}
+                  </button>
+                </transition>
+              </h3>
+            </div>
+
+            <Paginator
+              v-if="filteredLogs.length > 0"
+              v-model:first="firstRow"
+              v-model:rows="rowsPerPage"
+              :totalRecords="filteredLogs.length"
+              :rowsPerPageOptions="[5, 10, 20, 50]"
+              template="RowsPerPageDropdown PrevPageLink CurrentPageReport NextPageLink"
+              currentPageReportTemplate="{currentPage} / {totalPages}"
+              class="custom-top-paginator"
+            />
+          </div>
+
+          <div class="flex-1 relative min-h-0">
+            <div class="absolute inset-0 p-1">
+              <DataTable
+                :value="paginatedLogs"
+                :paginator="false"
+                class="p-datatable-sm w-full h-full text-xs"
+                stripedRows
+                scrollable
+                scrollHeight="flex"
+                emptyMessage="No log data found for this period."
+              >
+                <Column field="time" header="접속일시" style="width: 25%">
+                  <template #body="slotProps">
+                    <div class="flex items-center gap-1.5">
+                      <i class="pi pi-clock text-[9px] text-slate-400"></i>
+                      <span class="font-mono text-slate-400 dark:text-slate-500 text-[10px]">
+                        {{ slotProps.data.time.split(' ')[0] }}
+                      </span>
+                      <span class="font-mono font-bold text-slate-700 dark:text-slate-200 text-[11px]">
+                        {{ slotProps.data.time.split(' ')[1] }}
+                      </span>
+                    </div>
+                  </template>
+                </Column>
+
+                <Column field="loginId" header="User ID" style="width: 25%">
+                  <template #body="slotProps">
+                    <div
+                      class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors group"
+                      @click="openMessenger(slotProps.data.loginId)"
+                      v-tooltip.top="'Click to send message'"
+                    >
+                      <div class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                        <i class="pi pi-user text-[8px] text-indigo-500"></i>
+                      </div>
+                      <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">
+                        {{ slotProps.data.loginId }}
+                      </span>
+                      <i class="pi pi-comment text-[9px] text-slate-300 dark:text-zinc-600 group-hover:text-indigo-500 transition-colors opacity-0 group-hover:opacity-100"></i>
+                    </div>
+                  </template>
+                </Column>
+
+                <Column field="menu" header="Accessed Page" style="width: 50%">
+                  <template #body="slotProps">
+                    <span class="font-bold text-slate-600 dark:text-slate-300">
+                      {{ formatMenuName(slotProps.data.menu) }}
+                    </span>
+                  </template>
+                </Column>
+              </DataTable>
+            </div>
+          </div>
+        </div>
+
         <div
           class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm p-2.5 flex flex-col relative min-h-0"
         >
@@ -270,90 +362,6 @@
               class="absolute inset-0 w-full h-full"
               @chartCreated="onRankingChartCreated"
             />
-          </div>
-        </div>
-
-        <div
-          class="bg-white dark:bg-[#111111] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col min-h-0"
-        >
-          <div
-            class="flex items-center justify-between px-3 h-8 border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800 shrink-0"
-          >
-            <div class="flex items-center gap-2">
-              <i class="text-xs text-indigo-500 pi pi-list"></i>
-              <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">
-                Recent Access Logs ({{ mockLogs.length }})
-              </h3>
-            </div>
-
-            <Paginator
-              v-if="mockLogs.length > 0"
-              v-model:first="firstRow"
-              v-model:rows="rowsPerPage"
-              :totalRecords="mockLogs.length"
-              :rowsPerPageOptions="[5, 10, 20, 50]"
-              template="RowsPerPageDropdown PrevPageLink CurrentPageReport NextPageLink"
-              currentPageReportTemplate="{currentPage} / {totalPages}"
-              class="custom-top-paginator"
-            />
-          </div>
-
-          <div class="flex-1 relative min-h-0">
-            <div class="absolute inset-0 p-1">
-              <DataTable
-                :value="paginatedLogs"
-                :paginator="false"
-                class="p-datatable-sm w-full h-full text-xs"
-                stripedRows
-                scrollable
-                scrollHeight="flex"
-                emptyMessage="No log data found for this period."
-              >
-                <!-- 👨‍💻 접속일시 -->
-                <Column field="time" header="접속일시" style="width: 25%">
-                  <template #body="slotProps">
-                    <div class="flex items-center gap-1.5">
-                      <i class="pi pi-clock text-[9px] text-slate-400"></i>
-                      <span class="font-mono text-slate-400 dark:text-slate-500 text-[10px]">
-                        {{ slotProps.data.time.split(' ')[0] }}
-                      </span>
-                      <span class="font-mono font-bold text-slate-700 dark:text-slate-200 text-[11px]">
-                        {{ slotProps.data.time.split(' ')[1] }}
-                      </span>
-                    </div>
-                  </template>
-                </Column>
-
-                <!-- 👨‍💻 [수정] Login ID 클릭 시 mysingleim:// 실행 메신저 연결로 변경 -->
-                <Column field="loginId" header="User ID" style="width: 25%">
-                  <template #body="slotProps">
-                    <div
-                      class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors group"
-                      @click="openMessenger(slotProps.data.loginId)"
-                      v-tooltip.top="'Click to send message'"
-                    >
-                      <div class="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                        <i class="pi pi-user text-[8px] text-indigo-500"></i>
-                      </div>
-                      <span class="font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">
-                        {{ slotProps.data.loginId }}
-                      </span>
-                      <!-- 복사 아이콘 대신 메신저(대화창) 아이콘 사용 -->
-                      <i class="pi pi-comment text-[9px] text-slate-300 dark:text-zinc-600 group-hover:text-indigo-500 transition-colors opacity-0 group-hover:opacity-100"></i>
-                    </div>
-                  </template>
-                </Column>
-
-                <!-- 👨‍💻 [수정] Accessed Page 원래의 기본 텍스트 스타일로 복구 -->
-                <Column field="menu" header="Accessed Page" style="width: 50%">
-                  <template #body="slotProps">
-                    <span class="font-bold text-slate-600 dark:text-slate-300">
-                      {{ formatMenuName(slotProps.data.menu) }}
-                    </span>
-                  </template>
-                </Column>
-              </DataTable>
-            </div>
           </div>
         </div>
       </div>
@@ -418,9 +426,32 @@ const rowsPerPage = ref(5);
 
 const hiddenRankingMenus = ref<string[]>([]);
 let rankingChartInst: ECharts | null = null;
+let trendChartInst: ECharts | null = null;
 
+// 👨‍💻 [추가] 차트에서 클릭한 날짜를 저장하는 필터 변수
+const selectedDateFilter = ref<string | null>(null);
+
+// 👨‍💻 [추가] 필터 초기화 함수
+const clearDateFilter = () => {
+  selectedDateFilter.value = null;
+  firstRow.value = 0;
+};
+
+// 👨‍💻 [수정] 원본 mockLogs 데이터를 selectedDateFilter 조건에 맞춰 필터링
+const filteredLogs = computed(() => {
+  if (!selectedDateFilter.value) {
+    return mockLogs.value;
+  }
+  return mockLogs.value.filter((log) => {
+    // log.time 포맷: 'YYYY-MM-DD HH:mm:ss' -> substring(5,10)을 통해 'MM-DD' 추출
+    const logDate = log.time.substring(5, 10);
+    return logDate === selectedDateFilter.value;
+  });
+});
+
+// 👨‍💻 [수정] 필터링된 데이터를 페이징 처리
 const paginatedLogs = computed(() => {
-  return mockLogs.value.slice(firstRow.value, firstRow.value + rowsPerPage.value);
+  return filteredLogs.value.slice(firstRow.value, firstRow.value + rowsPerPage.value);
 });
 
 const formatMenuName = (name: string) => {
@@ -446,7 +477,6 @@ const formatMenuName = (name: string) => {
   return customNames[name] || name;
 };
 
-// 👨‍💻 [추가] 사내 메신저 호출 함수
 const openMessenger = (userId: string) => {
   if (userId) {
     window.location.href = `mysingleim://${userId}`;
@@ -454,12 +484,13 @@ const openMessenger = (userId: string) => {
 };
 
 const exportCSV = () => {
-  if (!mockLogs.value.length) return;
+  if (!filteredLogs.value.length) return; // 필터링된 데이터 기준
 
   let csvContent = "\uFEFF";
   csvContent += "Timestamp,Login ID,Accessed Page\n";
 
-  mockLogs.value.forEach((row: any) => {
+  // 필터링된 데이터(filteredLogs)를 다운로드
+  filteredLogs.value.forEach((row: any) => {
     const safeMenu = formatMenuName(row.menu).replace(/"/g, '""');
     csvContent += `"${row.time}","${row.loginId}","${safeMenu}"\n`;
   });
@@ -511,9 +542,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (themeObserver) themeObserver.disconnect();
-  if (rankingChartInst) {
-    rankingChartInst.off('click');
-  }
+  if (rankingChartInst) rankingChartInst.off('click');
+  if (trendChartInst) trendChartInst.off('click');
 });
 
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
@@ -533,6 +563,7 @@ const searchData = async () => {
   hasSearched.value = true;
   firstRow.value = 0;
   hiddenRankingMenus.value = [];
+  selectedDateFilter.value = null; // 검색 시 날짜 필터 초기화
 
   try {
     const startStr = toLocalISOString(startDate.value);
@@ -558,6 +589,20 @@ const searchData = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+// 👨‍💻 [추가] 트렌드 차트 클릭 시 발생하는 이벤트 핸들러
+const onTrendChartCreated = (instance: ECharts) => {
+  trendChartInst = instance;
+  
+  trendChartInst.off('click');
+  trendChartInst.on('click', (params: any) => {
+    // params.name 에는 'MM-DD' 형식의 X축 값이 들어옵니다.
+    if (params.name) {
+      selectedDateFilter.value = params.name;
+      firstRow.value = 0; // 날짜 필터 적용 시 페이지를 처음으로 되돌림
+    }
+  });
 };
 
 const trendChartOption = computed(() => {
