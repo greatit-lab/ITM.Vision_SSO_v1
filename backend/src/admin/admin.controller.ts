@@ -63,9 +63,6 @@ export class AdminController {
     return this.adminService.deleteAccessCode(deptid);
   }
 
-  // ==========================================
-  // [신규 추가] 예외 접근 허용 관리 엔드포인트
-  // ==========================================
   @Get('exceptions') async getExceptionUsers() {
     return this.adminService.getExceptionUsers();
   }
@@ -83,7 +80,6 @@ export class AdminController {
   ) {
     return this.adminService.deleteExceptionUser(loginId);
   }
-  // ==========================================
 
   @Get('guests') async getGuests() {
     return this.adminService.getAllGuests();
