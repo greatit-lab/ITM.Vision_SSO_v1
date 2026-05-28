@@ -201,4 +201,17 @@ export class AdminController {
   async syncStorageNow() {
     return this.adminService.syncStorageNow();
   }
+
+  // ==========================================
+  // [신규 추가] 시스템 점검 모드 컨트롤러 (SSO 백엔드 용)
+  // ==========================================
+  @Get('maintenance')
+  async getMaintenanceStatus() {
+    return this.adminService.getMaintenanceStatus();
+  }
+
+  @Post('maintenance')
+  async updateMaintenanceStatus(@Body() body: { status: boolean; expectedTime?: string }) {
+    return this.adminService.updateMaintenanceStatus(body.status, body.expectedTime);
+  }
 }
