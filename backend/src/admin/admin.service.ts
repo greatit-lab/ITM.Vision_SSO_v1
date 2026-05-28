@@ -318,4 +318,15 @@ export class AdminService {
   async syncStorageNow(): Promise<GenericResult | null> {
     return this.api.request<GenericResult>(this.DOMAIN, 'post', 'storage-sync');
   }
+
+  // ==========================================
+  // [신규 추가] 시스템 점검 모드 프록시 로직
+  // ==========================================
+  async getMaintenanceStatus(): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'get', 'maintenance');
+  }
+
+  async updateMaintenanceStatus(status: boolean, expectedTime?: string): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'maintenance', { status, expectedTime });
+  }
 }
