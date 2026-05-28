@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { useMenuStore } from "@/stores/menu";
 import type { MenuNode } from "@/api/menu";
+import { adminApi } from "@/api/admin";
 
 import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
@@ -45,11 +46,19 @@ const ManualView = () => import("../views/support/ManualView.vue");
 const AgentDownloadView = () =>
   import("../views/support/AgentDownloadView.vue");
 
+const MaintenanceView = () => import("../views/MaintenanceView.vue");
+
 const routes: Array<RouteRecordRaw> = [
   {
     path: "/login",
     name: "login",
     component: LoginView,
+    meta: { requiresAuth: false },
+  },
+  {
+    path: "/maintenance",
+    name: "Maintenance",
+    component: MaintenanceView,
     meta: { requiresAuth: false },
   },
   {
@@ -289,13 +298,54 @@ function checkRoutePermission(targetPath: string, menus: MenuNode[]): boolean {
 
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
+  const isAdmin = authStore.user?.role === "ADMIN";
+
+  // 1. 서비스 점검 모드(Maintenance Mode) 전역 체크
+  let isMaintenance = false;
+  try {
+    const statusObj = await adminApi.getMaintenanceStatus();
+    isMaintenance = statusObj?.isMaintenance || false;
+
+    if (isMaintenance) {
+      if (isAdmin) {
+        if (to.name === 'Maintenance') {
+          return next({ path: '/' });
+        }
+      } else {
+        if (to.name !== 'Maintenance' && to.name !== 'login') {
+          return next({ name: 'Maintenance' });
+        }
+      }
+    } else {
+      if (to.name === 'Maintenance') {
+        return next({ path: '/' });
+      }
+    }
+  } catch (error) {
+    // API 장애 방지용
+  }
+
+  // 2. 인증 및 권한 체크
   const menuStore = useMenuStore();
   const isAuthenticated = authStore.isAuthenticated;
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
 
   if (requiresAuth && !isAuthenticated)
     return next({ name: "login", query: { redirect: to.fullPath } });
-  if (to.path === "/login" && isAuthenticated) return next({ name: "home" });
+
+  if (to.path === "/login" && isAuthenticated) {
+    // 👨‍💻 [핵심 수정] URL 백도어: 점검 중인데 권한이 없는 유저가 직접 '/login'을 주소창에 쳤을 때
+    if (isMaintenance && !isAdmin) {
+      // 강제 세션 파기 및 로그아웃 처리 후 로그인 페이지 노출
+      if (typeof authStore.logout === 'function') {
+        authStore.logout();
+      }
+      localStorage.clear();
+      sessionStorage.clear();
+      return next(); // 튕겨내지 않고 로그인 화면으로 허용
+    }
+    return next({ name: "home" });
+  }
 
   if (isAuthenticated) {
     if (to.meta.roles) {
@@ -316,28 +366,25 @@ router.beforeEach(async (to, _from, next) => {
       to.path === "/global-dashboard" ||
       to.path.startsWith("/admin") ||
       to.path.startsWith("/support") ||
-      to.name === "not-found";
+      to.name === "not-found" ||
+      to.name === "Maintenance";
+      
     if (!isExceptionPath) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
-      const isAdmin = authStore.user?.role === "ADMIN";
       if (!hasPermission && !isAdmin) return next({ name: "home" });
     }
   }
   next();
 });
 
-import { adminApi } from "@/api/admin";
-
 router.afterEach((to) => {
   const authStore = useAuthStore();
   
-  // [오류 수정] TS2345 타입 에러 해결을 위해 userRole 변수 추출 및 기본값('GUEST') 바인딩
   if (authStore.isAuthenticated && authStore.user?.userId) {
     const userRole = authStore.user?.role || 'GUEST';
     
-    // admin, manager 계정은 접근 로그 저장 제외
     if (!['ADMIN', 'MANAGER'].includes(userRole)) {
-      const ignoreList = ["login", "not-found"];
+      const ignoreList = ["login", "not-found", "Maintenance"];
 
       if (!ignoreList.includes(to.name as string)) {
         const menuName =
