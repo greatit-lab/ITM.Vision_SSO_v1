@@ -35,65 +35,109 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div class="flex flex-col gap-6">
-            <div class="flex flex-col gap-3">
+          <div class="flex flex-col gap-5">
+
+            <div class="p-3 bg-rose-50 border border-rose-200 dark:bg-rose-900/20 dark:border-rose-800 rounded-xl flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-rose-800 dark:text-rose-400 flex items-center gap-2 mb-1">
+                    <i class="pi pi-exclamation-triangle"></i> 긴급 서비스 점검 모드
+                  </h3>
+                  <p class="text-[10px] text-rose-600 dark:text-rose-500 leading-tight">
+                    활성화 시 일반 사용자의 접근이 즉시 차단됩니다.
+                  </p>
+                </div>
+                <div class="shrink-0 pl-3">
+                  <ToggleSwitch v-model="isMaintenanceMode" @change="toggleMaintenanceMode" />
+                </div>
+              </div>
+              
+              <div class="flex flex-col gap-1 border-t border-rose-200 dark:border-rose-800/50 pt-2.5">
+                <label class="text-[10px] font-bold text-rose-700 dark:text-rose-400">예상 완료 시간 표시 문구</label>
+                <div class="flex items-center gap-2">
+                  <InputText 
+                    v-model="expectedTime" 
+                    placeholder="예: 2026-05-28 18:00 또는 별도 공지 시까지" 
+                    class="!text-xs !font-sans flex-1" 
+                  />
+                  <Button 
+                    v-if="isMaintenanceMode" 
+                    label="변경 적용" 
+                    size="small" 
+                    severity="danger" 
+                    outlined 
+                    class="!text-xs !py-1" 
+                    @click="updateExpectedTimeOnly" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
                <div class="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-zinc-800">
                  <i class="pi pi-database text-blue-500 text-xs"></i>
                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200">New Database Connection</span>
                </div>
-               <div class="grid grid-cols-1 gap-3">
-                  <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase">Host IP</label>
-                    <InputText v-model="globalConfig.newDbHost" class="!text-xs" placeholder="e.g. 10.10.10.10" />
+               
+               <div class="flex flex-col gap-3 mt-1">
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2 flex flex-col gap-1">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">Host IP</label>
+                      <InputText v-model="globalConfig.newDbHost" class="!text-xs !font-sans w-full" placeholder="10.10.10.10" />
+                    </div>
+                    <div class="col-span-1 flex flex-col gap-1">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">Port</label>
+                      <InputNumber v-model="globalConfig.newDbPort" class="w-full" inputClass="!text-xs !font-sans w-full" :useGrouping="false" placeholder="5432" />
+                    </div>
                   </div>
                   <div class="grid grid-cols-2 gap-3">
                     <div class="flex flex-col gap-1">
-                      <label class="text-[10px] font-bold text-slate-500 uppercase">Port</label>
-                      <InputNumber v-model="globalConfig.newDbPort" class="!text-xs" :useGrouping="false" placeholder="5432" />
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">User</label>
+                      <InputText v-model="globalConfig.newDbUser" class="!text-xs !font-sans w-full" placeholder="postgres" />
                     </div>
                     <div class="flex flex-col gap-1">
-                      <label class="text-[10px] font-bold text-slate-500 uppercase">User</label>
-                      <InputText v-model="globalConfig.newDbUser" class="!text-xs" placeholder="postgres" />
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">Password</label>
+                      <Password v-model="globalConfig.newDbPw" toggleMask class="w-full" inputClass="!text-xs !font-sans !w-full" :feedback="false" />
                     </div>
-                  </div>
-                  <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase">Password</label>
-                    <Password v-model="globalConfig.newDbPw" toggleMask class="!text-xs w-full" inputClass="!text-xs !w-full" :feedback="false" />
                   </div>
                </div>
             </div>
 
-            <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-2 mt-1">
                <div class="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-zinc-800">
                  <i class="pi pi-cloud-upload text-orange-500 text-xs"></i>
                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200">New FTP Connection</span>
                </div>
-               <div class="grid grid-cols-1 gap-3">
-                  <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase">Host IP</label>
-                    <InputText v-model="globalConfig.newFtpHost" class="!text-xs" placeholder="FTP Server IP" />
+
+               <div class="flex flex-col gap-3 mt-1">
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2 flex flex-col gap-1">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">Host IP</label>
+                      <InputText v-model="globalConfig.newFtpHost" class="!text-xs !font-sans w-full" placeholder="FTP IP" />
+                    </div>
+                    <div class="col-span-1 flex flex-col gap-1">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">Port</label>
+                      <InputNumber v-model="globalConfig.newFtpPort" class="w-full" inputClass="!text-xs !font-sans w-full" :useGrouping="false" placeholder="21" />
+                    </div>
                   </div>
                   <div class="grid grid-cols-2 gap-3">
                     <div class="flex flex-col gap-1">
-                      <label class="text-[10px] font-bold text-slate-500 uppercase">Port</label>
-                      <InputNumber v-model="globalConfig.newFtpPort" class="!text-xs" :useGrouping="false" placeholder="21" />
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">User</label>
+                      <InputText v-model="globalConfig.newFtpUser" class="!text-xs !font-sans w-full" placeholder="ftpuser" />
                     </div>
                     <div class="flex flex-col gap-1">
-                      <label class="text-[10px] font-bold text-slate-500 uppercase">User</label>
-                      <InputText v-model="globalConfig.newFtpUser" class="!text-xs" placeholder="ftpuser" />
+                      <label class="text-[10px] font-bold text-slate-500 uppercase">Password</label>
+                      <Password v-model="globalConfig.newFtpPw" toggleMask class="w-full" inputClass="!text-xs !font-sans !w-full" :feedback="false" />
                     </div>
-                  </div>
-                  <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase">Password</label>
-                    <Password v-model="globalConfig.newFtpPw" toggleMask class="!text-xs w-full" inputClass="!text-xs !w-full" :feedback="false" />
                   </div>
                </div>
             </div>
 
-            <div class="flex flex-col gap-1">
-               <label class="text-[10px] font-bold text-slate-500 uppercase">Description</label>
-               <Textarea v-model="globalConfig.description" rows="2" class="!text-xs" placeholder="Configuration notes..." />
+            <div class="flex flex-col gap-1 mt-1">
+               <label class="text-[10px] font-bold text-slate-500 uppercase">Notes</label>
+               <Textarea v-model="globalConfig.description" rows="2" class="!text-xs !font-sans w-full" placeholder="Configuration notes..." />
             </div>
+
           </div>
         </div>
 
@@ -193,7 +237,7 @@
                         <ToggleSwitch 
                             v-model="slotProps.data.updateFlagBoolean" 
                             class="scale-75" 
-                            @change="toggleUpdateFlag(slotProps.data)"
+                            @change="toggleAgentUpdateFlag(slotProps.data)"
                         />
                         <span class="text-[9px] font-bold w-6 text-center" :class="slotProps.data.updateFlag === 'yes' ? 'text-green-600' : 'text-slate-400'">
                             {{ slotProps.data.updateFlag === 'yes' ? 'YES' : 'NO' }}
@@ -218,15 +262,15 @@
       <div class="flex flex-col gap-4 py-2">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold">EQP ID</label>
-          <InputText v-model="form.eqpid" class="!text-sm" placeholder="EQP-001" />
+          <InputText v-model="form.eqpid" class="!text-sm !font-sans" placeholder="EQP-001" />
         </div>
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold">Agent DB Host</label>
-          <InputText v-model="form.agentDbHost" class="!text-sm" />
+          <InputText v-model="form.agentDbHost" class="!text-sm !font-sans" />
         </div>
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold">Agent FTP Host</label>
-          <InputText v-model="form.agentFtpHost" class="!text-sm" />
+          <InputText v-model="form.agentFtpHost" class="!text-sm !font-sans" />
         </div>
         <div class="flex items-center gap-2 mt-2">
           <Checkbox v-model="formUpdateFlagBool" binary inputId="uFlag" />
@@ -244,13 +288,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { 
+  adminApi,
   getNewServerConfig, updateNewServerConfig,
   getAgentServers, createAgentServer, updateAgentServer,
   type NewServerConfig, type AgentServerConfig
 } from '@/api/admin';
 import { useToast } from "primevue/usetoast";
 
-// Components
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
@@ -266,7 +310,54 @@ import ToggleSwitch from 'primevue/toggleswitch';
 
 const toast = useToast();
 
-// --- State: Global Config ---
+const isMaintenanceMode = ref(false);
+const expectedTime = ref('별도 공지 시까지');
+
+const loadMaintenanceStatus = async () => {
+  try {
+    const res = await adminApi.getMaintenanceStatus();
+    isMaintenanceMode.value = res.isMaintenance;
+    if (res.expectedTime) {
+      expectedTime.value = res.expectedTime;
+    }
+  } catch (e) {
+    console.error("Failed to load maintenance status", e);
+  }
+};
+
+const toggleMaintenanceMode = async () => {
+  const newStatus = isMaintenanceMode.value;
+  const timeToSet = expectedTime.value || '별도 공지 시까지';
+  if(confirm(`정말로 시스템 점검 모드를 ${newStatus ? '활성화' : '해제'} 하시겠습니까?`)) {
+    try {
+      const res = await adminApi.updateMaintenanceStatus(newStatus, timeToSet);
+      if(res.success) {
+        toast.add({ severity: 'success', summary: 'Success', detail: `시스템 점검 모드가 ${newStatus ? '활성화' : '해제'} 되었습니다.`, life: 3000 });
+      } else {
+        toast.add({ severity: 'error', summary: 'Error', detail: '설정 변경에 실패했습니다.', life: 3000 });
+        isMaintenanceMode.value = !newStatus; 
+      }
+    } catch (e) {
+      toast.add({ severity: 'error', summary: 'Error', detail: '설정 변경 중 서버 통신 오류가 발생했습니다.', life: 3000 });
+      isMaintenanceMode.value = !newStatus; 
+    }
+  } else {
+    isMaintenanceMode.value = !newStatus; 
+  }
+};
+
+const updateExpectedTimeOnly = async () => {
+  const timeToSet = expectedTime.value || '별도 공지 시까지';
+  try {
+    const res = await adminApi.updateMaintenanceStatus(true, timeToSet);
+    if(res.success) {
+      toast.add({ severity: 'success', summary: 'Success', detail: '예상 완료 시간이 업데이트 되었습니다.', life: 3000 });
+    }
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Error', detail: '업데이트 중 서버 통신 오류가 발생했습니다.', life: 3000 });
+  }
+};
+
 const globalConfig = reactive<NewServerConfig>({
   id: 1,
   newDbHost: '', newDbPort: 5432, newDbUser: '', newDbPw: '',
@@ -275,7 +366,6 @@ const globalConfig = reactive<NewServerConfig>({
 });
 const isSaving = ref(false);
 
-// --- State: Agent Servers & Filters ---
 interface AgentServerUI extends AgentServerConfig {
     updateFlagBoolean: boolean;
 }
@@ -283,90 +373,46 @@ interface AgentServerUI extends AgentServerConfig {
 const agentServers = ref<AgentServerUI[]>([]);
 const isLoading = ref(false);
 
-// Filters
 const selectedSite = ref<string | null>(null);
 const selectedSdwt = ref<string | null>(null);
 const selectedEqp = ref<string | null>(null);
 
-// Options (Cascading)
-const siteOptions = computed(() => {
-    const sites = new Set(agentServers.value.map(s => s.site || '-'));
-    return Array.from(sites).sort();
-});
-
+const siteOptions = computed(() => Array.from(new Set(agentServers.value.map(s => s.site || '-'))).sort());
 const sdwtOptions = computed(() => {
     let source = agentServers.value;
-    if (selectedSite.value) {
-        source = source.filter(s => s.site === selectedSite.value);
-    }
-    const sdwts = new Set(source.map(s => s.sdwt || '-'));
-    return Array.from(sdwts).sort();
+    if (selectedSite.value) source = source.filter(s => s.site === selectedSite.value);
+    return Array.from(new Set(source.map(s => s.sdwt || '-'))).sort();
 });
-
 const eqpOptions = computed(() => {
     let source = agentServers.value;
-    if (selectedSite.value) {
-        source = source.filter(s => s.site === selectedSite.value);
-    }
-    if (selectedSdwt.value) {
-        source = source.filter(s => s.sdwt === selectedSdwt.value);
-    }
-    const eqps = new Set(source.map(s => s.eqpid));
-    return Array.from(eqps).sort();
+    if (selectedSite.value) source = source.filter(s => s.site === selectedSite.value);
+    if (selectedSdwt.value) source = source.filter(s => s.sdwt === selectedSdwt.value);
+    return Array.from(new Set(source.map(s => s.eqpid))).sort();
 });
 
-// Filter Handlers
-const onSiteChange = () => {
-    selectedSdwt.value = null;
-    selectedEqp.value = null;
-};
+const onSiteChange = () => { selectedSdwt.value = null; selectedEqp.value = null; };
+const onSdwtChange = () => { selectedEqp.value = null; };
 
-const onSdwtChange = () => {
-    selectedEqp.value = null;
-};
-
-// Filtered Data
 const filteredAgentServers = computed(() => {
     return agentServers.value.filter(s => {
         const matchSite = !selectedSite.value || s.site === selectedSite.value;
-        const matchSdwt = !selectedSdwt.value || !selectedSdwt.value || s.sdwt === selectedSdwt.value; // Allow null for all
+        const matchSdwt = !selectedSdwt.value || !selectedSdwt.value || s.sdwt === selectedSdwt.value; 
         const matchEqp = !selectedEqp.value || s.eqpid === selectedEqp.value;
         return matchSite && matchSdwt && matchEqp;
     });
 });
 
-// --- State: Dialog (Add Only) ---
 const dialogVisible = ref(false);
-const form = reactive<AgentServerConfig>({
-  eqpid: '',
-  agentDbHost: '',
-  agentFtpHost: '',
-  updateFlag: 'no'
-});
+const form = reactive<AgentServerConfig>({ eqpid: '', agentDbHost: '', agentFtpHost: '', updateFlag: 'no' });
+const formUpdateFlagBool = computed({ get: () => form.updateFlag === 'yes', set: (val) => { form.updateFlag = val ? 'yes' : 'no'; } });
 
-const formUpdateFlagBool = computed({
-  get: () => form.updateFlag === 'yes',
-  set: (val) => { form.updateFlag = val ? 'yes' : 'no'; }
-});
-
-// --- Actions ---
 const loadAllData = async () => {
   isLoading.value = true;
   try {
-    const [globalData, agentsData] = await Promise.all([
-      getNewServerConfig(),
-      getAgentServers()
-    ]);
-    
+    const [globalData, agentsData] = await Promise.all([getNewServerConfig(), getAgentServers()]);
     if (globalData) Object.assign(globalConfig, globalData);
-    
-    // 데이터 매핑 시 Boolean 플래그 초기화
-    agentServers.value = (agentsData || []).map(s => ({
-        ...s,
-        updateFlagBoolean: s.updateFlag === 'yes'
-    }));
+    agentServers.value = (agentsData || []).map(s => ({ ...s, updateFlagBoolean: s.updateFlag === 'yes' }));
   } catch (e) {
-    console.error("Failed to load system config:", e);
     toast.add({ severity: 'error', summary: 'Load Error', detail: '데이터 로드 실패', life: 3000 });
   } finally {
     isLoading.value = false;
@@ -379,30 +425,25 @@ const saveGlobalConfig = async () => {
     await updateNewServerConfig(globalConfig);
     toast.add({ severity: 'success', summary: 'Saved', detail: '공통 설정이 저장되었습니다.', life: 2000 });
   } catch (e) {
-    console.error(e);
     toast.add({ severity: 'error', summary: 'Error', detail: '저장 실패', life: 3000 });
   } finally {
     isSaving.value = false;
   }
 };
 
-// Toggle Action (즉시 반영)
-const toggleUpdateFlag = async (row: AgentServerUI) => {
+const toggleAgentUpdateFlag = async (row: AgentServerUI) => {
     const newValue = row.updateFlagBoolean ? 'yes' : 'no';
     row.updateFlag = newValue;
-    
     try {
         await updateAgentServer(row.eqpid, { ...row, updateFlag: newValue });
         toast.add({ severity: 'success', summary: 'Updated', detail: `[${row.eqpid}] Flag changed to ${newValue.toUpperCase()}`, life: 1500 });
     } catch (e) {
-        // 실패 시 롤백
         row.updateFlagBoolean = !row.updateFlagBoolean;
         row.updateFlag = row.updateFlagBoolean ? 'yes' : 'no';
         toast.add({ severity: 'error', summary: 'Error', detail: '상태 변경 실패', life: 3000 });
     }
 };
 
-// Dialog Actions
 const openDialog = () => {
   dialogVisible.value = true;
   form.eqpid = '';
@@ -419,12 +460,10 @@ const saveAgentServer = async () => {
     toast.add({ severity: 'success', summary: 'Created', detail: '새 에이전트가 추가되었습니다.', life: 2000 });
     loadAllData();
   } catch (e) {
-    console.error(e);
     toast.add({ severity: 'error', summary: 'Error', detail: '추가 실패', life: 3000 });
   }
 };
 
-// Date Format: YY-MM-DD HH:mm
 const formatCustomDate = (dateStr?: string) => {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -437,18 +476,17 @@ const formatCustomDate = (dateStr?: string) => {
 };
 
 onMounted(() => {
+  loadMaintenanceStatus();
   loadAllData();
 });
 </script>
 
 <style scoped>
-/* Scrollbar Styling */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; }
 
-/* Filter Dropdown Styling (Copied from WaferFlatDataView) */
 :deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
 :deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
 :deep(.p-select-clear-icon) { @apply text-[9px] text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300; }
@@ -457,7 +495,6 @@ onMounted(() => {
 :deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
 :deep(.p-select-dropdown svg) { @apply w-3 h-3; }
 
-/* Table Header Style Override */
 :deep(.p-datatable-sm .p-datatable-thead > tr > th) {
   @apply bg-white dark:bg-[#111111] text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase border-b border-slate-100 dark:border-zinc-800;
 }
