@@ -106,7 +106,7 @@
             <div class="flex flex-col gap-2 mt-1">
                <div class="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-zinc-800">
                  <i class="pi pi-cloud-upload text-orange-500 text-xs"></i>
-                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200">New FTP Connection</span>
+                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200">New Object Storage(HTTP) Connection</span>
                </div>
 
                <div class="flex flex-col gap-3 mt-1">
@@ -225,7 +225,7 @@
                   </template>
                </Column>
 
-               <Column field="agentFtpHost" header="Agent FTP Host" sortable style="width: 20%">
+               <Column field="agentFtpHost" header="Agent HTTP Host" sortable style="width: 20%">
                   <template #body="slotProps">
                       <span class="text-slate-600 dark:text-slate-300 font-mono">{{ slotProps.data.agentFtpHost }}</span>
                   </template>
