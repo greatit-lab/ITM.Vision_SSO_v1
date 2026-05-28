@@ -113,4 +113,16 @@ export const adminApi = {
     const { data } = await http.get("/admin/storage-usage", { params: { startDate, endDate, interval }, });
     return data;
   },
+
+  // ==========================================
+  // [신규 추가] 시스템 점검 모드 API 통신부
+  // ==========================================
+  getMaintenanceStatus: async () => {
+    const { data } = await http.get("/admin/maintenance");
+    return data;
+  },
+  updateMaintenanceStatus: async (status: boolean, expectedTime?: string) => {
+    const { data } = await http.post("/admin/maintenance", { status, expectedTime });
+    return data;
+  },
 };
