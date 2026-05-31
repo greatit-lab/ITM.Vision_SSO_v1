@@ -52,7 +52,7 @@
                       Latest Agent Release
                     </span>
                     <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      {{ latestVersion.version }}
+                      ({{ latestVersion.version }})
                     </span>
                   </div>
 
