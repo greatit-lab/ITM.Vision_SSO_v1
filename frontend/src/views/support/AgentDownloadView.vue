@@ -52,7 +52,7 @@
                       Latest Agent Release
                     </span>
                     <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      ({{ latestVersion.version }})
+                      {{ latestVersion.version }}
                     </span>
                   </div>
 
@@ -200,7 +200,7 @@
                       v-if="latestVersion?.fileSizeProxy"
                       class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
                     >
-                      {{ latestVersion.fileSizeProxy }}
+                      ({{ latestVersion.fileSizeProxy }})
                     </span>
                   </span>
                 </button>
