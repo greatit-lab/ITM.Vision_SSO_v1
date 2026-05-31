@@ -169,9 +169,17 @@
                 </div>
 
                 <div>
-                  <h3 class="text-sm font-bold text-slate-800 dark:text-white">
-                    Main 장비 Proxy 전용 유틸리티
-                  </h3>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-white">
+                      Main 장비 Proxy 전용 유틸리티
+                    </h3>
+                    <span
+                      v-if="latestVersion?.proxyVersion"
+                      class="text-[10px] text-slate-500 font-mono tracking-wider bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded shrink-0"
+                    >
+                      v{{ latestVersion.proxyVersion }}
+                    </span>
+                  </div>
                   <p class="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                     Main 장비를 통해 Proxy 방식으로 연결되는 환경에서 사용하는 전용 실행 파일입니다.
                   </p>
@@ -190,9 +198,10 @@
                     Download ITM_XP_Proxy
                     <span
                       v-if="latestVersion?.fileSizeProxy"
-                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
                     >
                       {{ latestVersion.fileSizeProxy }}
+                    </span>
                   </span>
                 </button>
               </div>
