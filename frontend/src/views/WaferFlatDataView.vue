@@ -9,6 +9,15 @@
         <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Wafer Flat Data</h1>
         <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">Detailed metrology data analysis.</span>
       </div>
+      
+      <span 
+        v-if="isArchiveMode" 
+        class="flex items-center gap-1.5 px-2.5 py-1 ml-3 text-[11px] font-bold text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-zinc-800 rounded border border-slate-200 dark:border-zinc-700 transition-all animate-fade-in"
+        title="과거 시스템 데이터가 최적화된 모드로 제공됩니다."
+      >
+        <i class="pi pi-database text-[10px] text-slate-400 dark:text-zinc-500"></i>
+        Archive Data
+      </span>
     </div>
 
     <div class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-sm transition-colors duration-300">
@@ -31,10 +40,10 @@
           </div>
           
           <div class="min-w-[130px] shrink-0" v-tooltip.bottom="filters.lotId ? 'Date is ignored when searching by Lot ID' : null">
-            <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId || !!filters.lotId" />
+            <DatePicker v-model="filters.startDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="Start" class="w-full custom-dropdown small date-picker" :maxDate="startDateMax" :disabled="!filters.eqpId || !!filters.lotId" />
           </div>
           <div class="min-w-[130px] shrink-0" v-tooltip.bottom="filters.lotId ? 'Date is ignored when searching by Lot ID' : null">
-            <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :disabled="!filters.eqpId || !!filters.lotId" />
+            <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :minDate="endDateMin" :maxDate="endDateMax" :disabled="!filters.eqpId || !!filters.lotId" />
           </div>
         </div>
         <div class="flex items-center gap-1 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800">
@@ -309,6 +318,54 @@ const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
 // ============================================================================
+// [추가됨] Archive 동적 달력 및 뱃지 제어 로직
+// ============================================================================
+const ARCHIVE_MONTHS_THRESHOLD = 2; // 서버와 동일한 기준 정책 유지
+const MAX_ARCHIVE_DAYS = 31;
+
+const boundaryDate = computed(() => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - ARCHIVE_MONTHS_THRESHOLD);
+  d.setHours(0, 0, 0, 0);
+  return d;
+});
+
+const isArchiveMode = computed(() => {
+  if (!filters.startDate) return false;
+  return filters.startDate.getTime() < boundaryDate.value.getTime();
+});
+
+const endDateMin = computed(() => {
+  if (!filters.startDate) return undefined;
+  const start = filters.startDate;
+  // 시작일이 Archive 구간인 경우, 최소값은 시작일 본인
+  // 시작일이 Live 구간인 경우, 최소값도 시작일 본인 (교차 방지됨)
+  return start;
+});
+
+const endDateMax = computed(() => {
+  if (!filters.startDate) return new Date();
+  const start = filters.startDate;
+  if (start.getTime() < boundaryDate.value.getTime()) {
+    // Archive 구간: 최대 MAX_ARCHIVE_DAYS 일, 단 Live 구간(boundaryDate)을 넘을 수 없음
+    const maxArchive = new Date(start.getTime() + MAX_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
+    return maxArchive.getTime() < boundaryDate.value.getTime() ? maxArchive : new Date(boundaryDate.value.getTime() - 1);
+  } else {
+    // Live 구간: 오늘까지
+    return new Date();
+  }
+});
+
+const startDateMax = computed(() => {
+  if (filters.endDate) {
+    const end = filters.endDate;
+    return end;
+  }
+  return new Date();
+});
+// ============================================================================
+
+// ============================================================================
 // Bug Easter Egg State & Logic
 // ============================================================================
 const isBugMode = ref(false);
@@ -468,12 +525,24 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
+// [수정됨] 달력 교차 방지 실시간 동기화
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
     if (newStart && newEnd) {
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
+      const boundMs = boundaryDate.value.getTime();
+
+      // 교차 영역(Zone C) 강제 보정 로직
+      if (startMs < boundMs && endMs >= boundMs) {
+        filters.endDate = new Date(boundMs - 1);
+        return;
+      }
+      if (startMs >= boundMs && endMs < boundMs) {
+        filters.startDate = new Date(boundMs);
+        return;
+      }
 
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
