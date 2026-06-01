@@ -54,7 +54,9 @@
             </Column>
             <Column field="role" header="권한" sortable align="center" style="width: 15%">
               <template #body="slotProps">
-                <Tag :value="slotProps.data.role" :severity="getRoleSeverity(slotProps.data.role)" class="!text-[9px] !px-1" />
+                <span :class="['inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[9px] font-bold leading-none uppercase', getRoleTagClass(slotProps.data.role)]">
+                  {{ slotProps.data.role }}
+                </span>
               </template>
             </Column>
             <Column header="즐겨찾기(소속)" style="width: 25%">
@@ -113,8 +115,15 @@
           <DataTable :value="guests" scrollable scrollHeight="flex" class="absolute inset-0 w-full h-full text-xs border-none p-datatable-sm" stripedRows>
             <template #empty><div class="p-4 text-center text-slate-400">등록된 게스트가 없습니다.</div></template>
             <Column field="loginId" header="Guest ID" style="width: 15%; font-weight: bold"></Column>
-            <Column field="deptName" header="부서명" style="width: 30%"></Column>
-            <Column field="reason" header="사유" style="width: 30%"></Column>
+            <Column field="grantedRole" header="부여 권한" style="width: 15%">
+              <template #body="slotProps">
+                <span :class="['inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[9px] font-bold leading-none uppercase', getRoleTagClass(slotProps.data.grantedRole)]">
+                  {{ slotProps.data.grantedRole }}
+                </span>
+              </template>
+            </Column>
+            <Column field="deptName" header="부서명" style="width: 20%"></Column>
+            <Column field="reason" header="사유" style="width: 25%"></Column>
             <Column field="validUntil" header="유효 기간" sortable style="width: 15%">
               <template #body="slotProps">
                 <span :class="isExpired(slotProps.data.validUntil) ? 'text-red-500 line-through' : 'text-green-600 font-medium'">
@@ -215,12 +224,27 @@
       </div>
     </div>
 
-    <Dialog v-model:visible="approveDialogVisible" modal header="게스트 승인" :style="{ width: '20rem' }">
+    <Dialog v-model:visible="approveDialogVisible" modal header="계정 승인 설정" :style="{ width: '22rem' }">
       <div class="flex flex-col gap-4 pt-2">
         <div class="p-2 text-xs border rounded bg-slate-50 dark:bg-zinc-900 text-slate-600 dark:text-slate-400">
           <p><b>ID:</b> {{ selectedRequest?.loginId }}</p>
           <p><b>Reason:</b> {{ selectedRequest?.reason }}</p>
         </div>
+        
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-bold text-slate-500">부여할 권한</label>
+          <div class="flex gap-4 p-2 border rounded bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="approveGrantedRole" value="VIEWER" class="accent-indigo-500" />
+              <span class="text-xs font-medium text-slate-700 dark:text-slate-300" v-tooltip.top="'대시보드 열람 가능, 데이터 수정 불가'">제한 권한 (VIEWER)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="approveGrantedRole" value="GUEST" class="accent-indigo-500" />
+              <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Guest 권한</span>
+            </label>
+          </div>
+        </div>
+
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold text-slate-500">유효 기간 설정</label>
           <DatePicker v-model="approveValidUntil" dateFormat="yy-mm-dd" class="!text-sm" showIcon fluid />
@@ -235,7 +259,7 @@
     <Dialog v-model:visible="manualDialogVisible" modal header="게스트 수동 등록" :style="{ width: '25rem' }">
       <div class="flex flex-col gap-4 pt-2">
         <div class="flex flex-col gap-1">
-          <label class="text-xs font-bold text-slate-500">Guest ID</label>
+          <label class="text-xs font-bold text-slate-500">User ID</label>
           <InputText v-model="newManualGuest.loginId" class="!text-sm" />
         </div>
         <div class="grid grid-cols-2 gap-2">
@@ -248,6 +272,21 @@
             <InputText v-model="newManualGuest.deptName" class="!text-sm" placeholder="Name" />
           </div>
         </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-bold text-slate-500">부여할 권한</label>
+          <div class="flex gap-4 p-2 border rounded bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="newManualGuest.grantedRole" value="VIEWER" class="accent-indigo-500" />
+              <span class="text-xs font-medium text-slate-700 dark:text-slate-300">제한 권한 (VIEWER)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="newManualGuest.grantedRole" value="GUEST" class="accent-indigo-500" />
+              <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Guest 권한</span>
+            </label>
+          </div>
+        </div>
+
         <div class="flex flex-col gap-1">
           <label class="text-xs font-bold text-slate-500">유효 기간</label>
           <DatePicker v-model="newManualGuest.validUntil" dateFormat="yy-mm-dd" class="!text-sm" showIcon fluid />
@@ -364,12 +403,20 @@ const pendingCount = computed(
   () => requests.value.filter((r) => r.status === "PENDING").length
 );
 
-// 🌟 [신규 추가] 권한 뱃지 색상 매핑 함수
-const getRoleSeverity = (role: string) => {
-  if (role === 'ADMIN' || role === 'MANAGER') return 'danger';   // 빨간색
-  if (role === 'USER') return 'info';                            // 파란색
-  if (role === 'GUEST') return 'warn';                           // 노란색
-  return 'secondary';                                            // 회색
+// 🌟 [수정된 부분] 권한별 시각적 가중치(Solid vs Soft)를 다르게 부여하여 절대 헷갈리지 않도록 디자인
+const getRoleTagClass = (role: string) => {
+  const r = role?.toUpperCase();
+  
+  // 1. 관리자 그룹 (Solid Background + White Text + Shadow)
+  if (r === 'ADMIN') return 'bg-red-500 text-white border border-transparent shadow-sm dark:bg-red-600';
+  if (r === 'MANAGER') return 'bg-purple-500 text-white border border-transparent shadow-sm dark:bg-purple-600';
+  
+  // 2. 일반/제한 그룹 (Soft Background + Colored Text + Border)
+  if (r === 'USER') return 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30';
+  if (r === 'VIEWER') return 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
+  if (r === 'GUEST') return 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
+  
+  return 'bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/30';
 };
 
 // API 호출 통합
@@ -415,16 +462,12 @@ const newException = ref({ loginId: "", deptCode: "", deptName: "" });
 const saveExceptionUser = async () => {
   if (!newException.value.loginId) return alert("User ID는 필수입니다.");
   try {
-    // 1. 유저 ID 가져오기
     const userId = authStore.user?.loginId || authStore.user?.userId || "Admin";
-    
-    // 2. 권한명 가져와서 보기 좋게 변환 (예: ADMIN -> Admin, MANAGER -> Manager)
     const rawRole = authStore.user?.role || "ADMIN";
     const roleName = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
 
     await AdminApi.addExceptionUser({
       ...newException.value,
-      // 3. Role (UserID) 형태로 문자열 조합 -> 결과: "Admin (user123)", "Manager (user456)"
       registeredBy: `${roleName} (${userId})`
     });
     
@@ -440,10 +483,10 @@ const toggleExceptionStatus = async (user: any) => {
   const newStatus = user.isActive === 'Y' ? 'N' : 'Y';
   try {
     await AdminApi.updateExceptionUserStatus(user.loginId, newStatus);
-    user.isActive = newStatus; // 옵티미스틱 UI 업데이트
+    user.isActive = newStatus; 
   } catch(e) {
     alert("상태 변경 중 오류가 발생했습니다.");
-    fetchAllData(); // 실패 시 롤백
+    fetchAllData(); 
   }
 };
 
@@ -455,16 +498,17 @@ const removeExceptionUser = async (id: string) => {
 };
 // ------------------------------------------------------------------
 
-// 기존 Actions & Dialog Logic
 const approveDialogVisible = ref(false);
 const selectedRequest = ref<any>(null);
 const approveValidUntil = ref<Date | null>(null);
+const approveGrantedRole = ref("VIEWER"); 
 
 const openApproveDialog = (req: any) => {
   selectedRequest.value = req;
   const d = new Date();
   d.setDate(d.getDate() + 30);
   approveValidUntil.value = d;
+  approveGrantedRole.value = "VIEWER";
   approveDialogVisible.value = true;
 };
 
@@ -477,6 +521,7 @@ const confirmApprove = async () => {
       reqId: selectedRequest.value.reqId,
       validUntil: validDate,
       approverId: authStore.user?.userId || "Admin",
+      grantedRole: approveGrantedRole.value, 
     });
     approveDialogVisible.value = false;
     fetchAllData();
@@ -505,12 +550,14 @@ const newManualGuest = ref<{
   deptCode: string;
   validUntil: Date | null;
   reason: string;
+  grantedRole: string;
 }>({
   loginId: "",
   deptName: "",
   deptCode: "",
   validUntil: null,
   reason: "",
+  grantedRole: "VIEWER", 
 });
 
 const openManualGuestDialog = () => {
@@ -520,6 +567,7 @@ const openManualGuestDialog = () => {
     deptCode: "",
     validUntil: null,
     reason: "",
+    grantedRole: "VIEWER",
   };
   manualDialogVisible.value = true;
 };
