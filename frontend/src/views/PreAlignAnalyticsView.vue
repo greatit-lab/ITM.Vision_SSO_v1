@@ -149,9 +149,10 @@
             </div>
             
             <button 
-              v-if="chartData.length > 0 && !isLoading" 
+              v-if="chartData.length > 0 && !isLoading && !isExportDisabled" 
               @click="exportRawData" 
               :disabled="isExporting" 
+              title="CSV Export"
               class="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
             >
               <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
@@ -353,6 +354,12 @@ const LS_KEYS = {
   EQPID: "prealign-view-eqpid",
 };
 
+// 🌟 Export 권한 체크 로직
+const isExportDisabled = computed(() => {
+  const role = authStore.user?.role?.toUpperCase();
+  return role === 'VIEWER' || role === 'GUEST';
+});
+
 // --- State ---
 const now = new Date();
 const todayStart = new Date(now);
@@ -398,7 +405,6 @@ const themeObserver = new MutationObserver((mutations) => {
   });
 });
 
-// 안전한 날짜 파싱 (YY-MM-DD -> 20YY-MM-DD 보정)
 const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
   let str = String(ts || "");
   if (str.includes("Z")) str = str.replace("Z", ""); 
@@ -450,7 +456,6 @@ const handleResize = () => {
   }
 };
 
-// [Helper] Statistics Calculation
 const calculateStats = (values: number[]) => {
   if (values.length === 0) return { avg: '-', std: '-', min: '-', max: '-' };
   
@@ -482,7 +487,6 @@ const currentStats = computed(() => {
   return calculateStats(values);
 });
 
-// [Helper] Histogram Binning
 const getHistogramData = (values: number[], bins: number = 20) => {
    if (values.length === 0) return { category: [], data: [] };
 
@@ -512,7 +516,6 @@ const getHistogramData = (values: number[], bins: number = 20) => {
 };
 
 
-// 통합 날짜 보정 로직
 watch(
   [() => filter.startDate, () => filter.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -527,7 +530,6 @@ watch(
   }
 );
 
-// 로컬 시간 ISO 문자열 변환 함수
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return "";
   const d = new Date(date);
@@ -537,7 +539,6 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   return new Date(d.getTime() - offset).toISOString().slice(0, 19).replace('T', ' '); 
 };
 
-// --- Lifecycle ---
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
   
@@ -584,12 +585,10 @@ onUnmounted(() => {
   resizeObserver = null;
 });
 
-// Watchers
 watch(() => filter.site, (v) => v ? localStorage.setItem(LS_KEYS.SITE, v) : localStorage.removeItem(LS_KEYS.SITE));
 watch(() => filter.sdwt, (v) => v ? localStorage.setItem(LS_KEYS.SDWT, v) : localStorage.removeItem(LS_KEYS.SDWT));
 watch(() => filter.eqpId, (v) => v ? localStorage.setItem(LS_KEYS.EQPID, v) : localStorage.removeItem(LS_KEYS.EQPID));
 
-// Handlers
 const onSiteChange = async () => {
   filter.site ? (sdwts.value = await dashboardApi.getSdwts(filter.site)) : (sdwts.value = []);
   filter.sdwt = ""; filter.eqpId = ""; eqpIds.value = []; resetView();
@@ -608,10 +607,8 @@ const onSdwtChange = async () => {
 
 const onEqpIdChange = () => {
   if (filter.eqpId) {
-    // EQP ID 선택 시 자동 조회 실행
     search();
   } else {
-    // 선택 해제 시에만 화면 초기화
     resetView();
   }
 };
@@ -665,6 +662,7 @@ const reset = () => {
 };
 
 const exportRawData = async () => {
+  if (isExportDisabled.value) return; // 🌟 함수 방어
   if (chartData.value.length === 0) return;
   
   isExporting.value = true;
@@ -674,7 +672,6 @@ const exportRawData = async () => {
   try {
     const headers = ['Timestamp', 'EQP ID', 'X (mm)', 'Y (mm)', 'Notch'];
     const rows = chartData.value.map(d => [
-      // [핵심] 엑셀에서 열 때 날짜 형식을 강제 변환하여 초 단위가 잘리는 현상을 방지하는 수식 포맷팅
       `="${d.timestamp}"`, 
       d.eqpId,
       d.xmm,
@@ -708,7 +705,6 @@ const exportRawData = async () => {
   }
 };
 
-// --- Chart Options ---
 const commonChartConfig = computed(() => {
    const isDark = isDarkMode.value;
    return {
@@ -720,7 +716,6 @@ const commonChartConfig = computed(() => {
    }
 });
 
-// 1. Trend Chart
 const trendOption = computed(() => {
   const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
   return {
@@ -766,7 +761,6 @@ const trendOption = computed(() => {
   };
 });
 
-// 2. Scatter Plot (Wafer Centering) - Bottom Left
 const scatterOption = computed(() => {
   const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
   const data = chartData.value.map(d => [d.xmm, d.ymm]);
@@ -822,7 +816,6 @@ const scatterOption = computed(() => {
   };
 });
 
-// 3. Distribution & Stats Chart - Bottom Middle
 const histogramOption = computed(() => {
    const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
    
@@ -866,7 +859,6 @@ const histogramOption = computed(() => {
    };
 });
 
-// 4. Notch Analysis Chart - Bottom Right
 const notchChartOption = computed(() => {
    const { textColor, gridColor, tooltipBg, tooltipBorder, tooltipText } = commonChartConfig.value;
    
@@ -914,7 +906,6 @@ const notchChartOption = computed(() => {
 </script>
 
 <style scoped>
-/* 기존 스타일 유지 */
 :deep(.p-select), :deep(.custom-dropdown) {
   @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
 }
@@ -928,23 +919,9 @@ const notchChartOption = computed(() => {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Transition for fade effect */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+.animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
-
