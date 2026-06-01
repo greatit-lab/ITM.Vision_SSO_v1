@@ -42,11 +42,13 @@ export const updateExceptionUserStatus = (loginId: string, isActive: string) => 
 export const deleteExceptionUser = (loginId: string) => http.delete(`/admin/exceptions/${loginId}`);
 
 export const getGuests = () => http.get("/admin/guests");
-export const addGuest = (data: { loginId: string; deptCode?: string; deptName?: string; reason?: string; validUntil: string | Date; }) => http.post("/admin/guests", data);
+// [수정됨] grantedRole 속성 추가
+export const addGuest = (data: { loginId: string; deptCode?: string; deptName?: string; reason?: string; validUntil: string | Date; grantedRole?: string; }) => http.post("/admin/guests", data);
 export const deleteGuest = (loginId: string) => http.delete(`/admin/guests/${loginId}`);
 
 export const getGuestRequests = () => http.get("/admin/requests");
-export const approveGuestRequest = (data: { reqId: number; validUntil: string | Date; approverId: string; }) => http.post("/admin/requests/approve", data);
+// [수정됨] grantedRole 속성 추가
+export const approveGuestRequest = (data: { reqId: number; validUntil: string | Date; approverId: string; grantedRole?: string; }) => http.post("/admin/requests/approve", data);
 export const rejectGuestRequest = (data: { reqId: number; approverId: string; }) => http.post("/admin/requests/reject", data);
 
 export const getSeverities = () => http.get("/admin/severity");
