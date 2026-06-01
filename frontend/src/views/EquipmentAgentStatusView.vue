@@ -43,12 +43,14 @@
           
           <div class="flex items-center gap-2">
             <button 
+              v-if="!isExportDisabled"
               @click="exportToExcel"
-              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors shadow-sm focus:outline-none"
               title="본 요약 테이블 데이터를 엑셀 형식으로 내려받습니다"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors shadow-sm focus:outline-none"
             >
               <i class="pi pi-file-excel text-emerald-600 dark:text-emerald-400 text-xs"></i> XLS Export
             </button>
+            
             <button 
               @click="loadData" 
               class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shadow-sm focus:outline-none"
@@ -168,12 +170,14 @@
             
             <div class="flex items-center gap-2">
               <button 
+                v-if="!isExportDisabled"
                 @click="exportDetailToCsv"
-                class="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 transition-colors shadow-sm focus:outline-none"
                 title="상세 내역 테이블을 CSV로 내려받습니다"
+                class="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 transition-colors shadow-sm focus:outline-none"
               >
                 <i class="pi pi-file text-[10px]"></i> CSV Export
               </button>
+
               <button @click="selectedSelection = null" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors focus:outline-none">
                 <i class="pi pi-times text-xs"></i>
               </button>
@@ -267,6 +271,7 @@
 import { ref, onMounted, computed } from "vue";
 import { dashboardApi } from "@/api/dashboard";
 import { getEquipmentDetails, type EquipmentDto } from "@/api/equipment";
+import { useAuthStore } from "@/stores/auth";
 
 // ==========================================
 // Types & State
@@ -293,6 +298,7 @@ interface PivotRow {
   total: number;
 }
 
+const authStore = useAuthStore();
 const isLoading = ref(false);
 const rawEquipmentList = ref<EnrichedEquipment[]>([]);
 
@@ -303,6 +309,12 @@ const pivotRows = ref<PivotRow[]>([]);
 const selectedSelection = ref<string | null>(null);
 const detailTitle = ref("");
 const detailData = ref<EnrichedEquipment[]>([]);
+
+// 🌟 Export 권한 체크 로직 (VIEWER와 GUEST는 Export 차단)
+const isExportDisabled = computed(() => {
+  const role = authStore.user?.role?.toUpperCase();
+  return role === 'VIEWER' || role === 'GUEST';
+});
 
 // ==========================================
 // Lifecycle
@@ -487,8 +499,10 @@ const latestAgentVersion = computed(() => {
   return versions.sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }))[0] || "";
 });
 
-// 메인 매트릭스 엑셀 다운로드 컨트롤러 엔진
+// 🌟 메인 매트릭스 엑셀 다운로드 컨트롤러 엔진
 const exportToExcel = () => {
+  if (isExportDisabled.value) return; // 🌟 권한 방어 이중 체크
+
   let html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
@@ -563,8 +577,9 @@ const exportToExcel = () => {
   document.body.removeChild(link);
 };
 
-// [수정] 상세 리스트용 CSV 데이터 전사 로직으로 전면 교체 적용
+// 🌟 상세 리스트용 CSV 데이터 전사 로직
 const exportDetailToCsv = () => {
+  if (isExportDisabled.value) return; // 🌟 권한 방어 이중 체크
   if (!detailData.value || detailData.value.length === 0) return;
 
   const headers = ['No.', 'EQP ID', 'Maker', 'Model', 'Agent Version', 'Status'];
@@ -593,7 +608,7 @@ const exportDetailToCsv = () => {
   const link = document.createElement('a');
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-  // 4. 특수문자 제거 후 파일명 생성 (OS 파일시스템 오류 방지)
+  // 4. 특수문자 제거 후 파일명 생성
   const safeTitle = detailTitle.value.replace(/[^a-zA-Z0-9가-힣]/g, '_').replace(/_+/g, '_').replace(/_$/, '');
 
   link.setAttribute('href', url);
