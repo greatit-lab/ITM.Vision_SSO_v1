@@ -1,6 +1,6 @@
 <!-- frontend/src/views/admin/MenuManagementView.vue -->
 <template>
-  <div class="absolute inset-0 flex flex-col w-full font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B] overflow-hidden p-2">
+  <div class="absolute inset-0 flex flex-col w-full p-2 overflow-hidden font-sans transition-colors duration-500 bg-[#F8FAFC] dark:bg-[#09090B]">
     
     <div class="flex items-center justify-between px-1 mb-2 shrink-0">
       <div class="flex items-center gap-2">
@@ -8,7 +8,7 @@
           <i class="text-lg text-indigo-600 pi pi-verified dark:text-indigo-400"></i>
         </div>
         <div>
-          <h1 class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+          <h1 class="text-xl font-extrabold tracking-tight leading-tight text-slate-900 dark:text-white">
             Menu & Access Control
           </h1>
           <p class="text-slate-400 dark:text-slate-500 font-medium text-[10px]">
@@ -28,14 +28,14 @@
       </div>
     </div>
 
-    <div class="flex flex-1 gap-3 min-h-0 overflow-hidden">
+    <div class="flex flex-1 min-h-0 gap-3 overflow-hidden">
       
       <div class="flex flex-col w-1/2 min-w-[500px] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden h-full">
         
-        <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30 shrink-0">
+        <div class="flex items-center justify-between px-3 py-2 border-b shrink-0 border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30">
           <div class="flex items-center gap-2">
-            <i class="pi pi-sitemap text-slate-500 text-xs"></i>
-            <span class="font-bold text-xs text-slate-700 dark:text-slate-200">Menu Structure</span>
+            <i class="text-xs text-slate-500 pi pi-sitemap"></i>
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Menu Structure</span>
             <Tag :value="totalMenus" severity="secondary" class="!h-4 !text-[9px] !px-1" />
           </div>
           <div class="flex gap-1">
@@ -58,13 +58,13 @@
           </div>
         </div>
 
-        <div class="flex-1 min-h-0 relative w-full overflow-hidden">
+        <div class="relative flex-1 w-full min-h-0 overflow-hidden">
           <TreeTable
             :value="menuNodes"
             :loading="isLoadingMenu"
             scrollable
             scrollHeight="flex"
-            class="w-full h-full text-xs p-treetable-sm custom-treetable absolute inset-0"
+            class="absolute inset-0 w-full h-full text-xs p-treetable-sm custom-treetable"
             :rowHover="true"
             v-model:selectionKeys="selectedKeys"
             selectionMode="checkbox"
@@ -72,7 +72,7 @@
             columnResizeMode="fit"
           >
             <template #empty>
-              <div class="flex flex-col items-center justify-center h-40 text-slate-400 opacity-60">
+              <div class="flex flex-col items-center justify-center h-40 opacity-60 text-slate-400">
                 <p>No menu items found.</p>
               </div>
             </template>
@@ -81,7 +81,7 @@
               <template #body="slotProps">
                 <div class="flex items-center gap-2 py-0.5" :class="{ 'opacity-50': !slotProps.node.data.isVisible }">
                   <i v-if="slotProps.node.data.icon" :class="slotProps.node.data.icon" class="text-slate-400 text-[11px]"></i>
-                  <span class="font-bold text-slate-700 dark:text-slate-200 truncate">{{ slotProps.node.data.label }}</span>
+                  <span class="font-bold truncate text-slate-700 dark:text-slate-200">{{ slotProps.node.data.label }}</span>
                 </div>
               </template>
             </Column>
@@ -95,17 +95,17 @@
 
             <Column field="sortOrder" header="Order" style="width: 10%; text-align: center;">
               <template #body="slotProps">
-                <span class="font-mono text-slate-400 font-bold">{{ slotProps.node.data.sortOrder }}</span>
+                <span class="font-mono font-bold text-slate-400">{{ slotProps.node.data.sortOrder }}</span>
               </template>
             </Column>
 
             <Column field="roles" header="Access Roles" style="width: 25%">
               <template #body="slotProps">
-                <div class="flex items-center -space-x-1.5 hover:space-x-1 transition-all">
+                <div class="flex items-center transition-all hover:space-x-1 -space-x-1.5">
                   <span 
                     v-for="role in getSortedRoles(slotProps.node.data.roles)" 
                     :key="role"
-                    class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white border-2 border-white dark:border-zinc-900 shadow-sm cursor-help transition-transform hover:scale-110 hover:z-10"
+                    class="flex items-center justify-center w-6 h-6 font-bold text-white transition-transform border-2 border-white rounded-full shadow-sm cursor-help text-[10px] dark:border-zinc-900 hover:scale-110 hover:z-10"
                     :class="getRoleColorClass(role)"
                     v-tooltip.top="role"
                   >
@@ -136,24 +136,24 @@
         </div>
       </div>
 
-      <div class="flex flex-col w-1/2 gap-3 overflow-hidden h-full">
+      <div class="flex flex-col w-1/2 h-full gap-3 overflow-hidden">
         
         <div class="flex flex-col h-[40%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-           <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/30 shrink-0">
+           <div class="flex items-center justify-between px-3 py-2 border-b shrink-0 border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30">
              <div class="flex items-center gap-2">
-               <i class="pi pi-lock text-slate-500 text-xs"></i>
-               <span class="font-bold text-xs text-slate-700 dark:text-slate-200">접근 허용 (Whitelist)</span>
+               <i class="text-xs text-slate-500 pi pi-lock"></i>
+               <span class="text-xs font-bold text-slate-700 dark:text-slate-200">접근 허용 (Whitelist)</span>
              </div>
              <Button label="Add IP/Code" icon="pi pi-plus" size="small" class="!text-[10px] !h-6 !px-2 !bg-emerald-600 !border-emerald-600" @click="openAccessDialog" />
            </div>
 
-           <div class="flex-1 min-h-0 relative w-full overflow-hidden">
+           <div class="relative flex-1 w-full min-h-0 overflow-hidden">
                <DataTable
                  :value="accessCodes"
                  :loading="isLoadingSecurity"
                  scrollable
                  scrollHeight="flex"
-                 class="h-full w-full text-xs p-datatable-sm border-none absolute inset-0"
+                 class="absolute inset-0 w-full h-full text-xs border-none p-datatable-sm"
                  stripedRows
                >
                  <template #empty>
@@ -184,11 +184,11 @@
         </div>
 
         <div class="flex flex-col h-[60%] bg-white dark:bg-[#111111] rounded-lg border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-           <div class="px-3 py-2 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-[#111111] shrink-0">
+           <div class="flex items-center justify-between px-3 py-2 bg-white border-b shrink-0 border-slate-100 dark:border-zinc-800 dark:bg-[#111111]">
              <div class="flex items-center gap-3">
                <div class="flex items-center gap-2">
-                 <i class="pi pi-id-card text-slate-500 text-xs"></i>
-                 <span class="font-bold text-xs text-slate-700 dark:text-slate-200">운영 권한 (Managers)</span>
+                 <i class="text-xs text-slate-500 pi pi-id-card"></i>
+                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200">운영 권한 (Managers)</span>
                </div>
                <div class="flex items-center gap-2 px-2 py-0.5 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-100 dark:border-zinc-800">
                   <span class="text-[9px] text-slate-400 font-bold uppercase">MY SESSION:</span>
@@ -198,13 +198,13 @@
              <Button label="Add Manager" icon="pi pi-user-plus" size="small" outlined class="!text-[10px] !h-6 !px-2" @click="openAdminDialog" />
            </div>
 
-           <div class="flex-1 min-h-0 relative w-full overflow-hidden">
+           <div class="relative flex-1 w-full min-h-0 overflow-hidden">
                <DataTable
                  :value="filteredAdmins"
                  :loading="isLoadingSecurity"
                  scrollable
                  scrollHeight="flex"
-                 class="h-full w-full text-xs p-datatable-sm border-none absolute inset-0"
+                 class="absolute inset-0 w-full h-full text-xs border-none p-datatable-sm"
                  stripedRows
                >
                  <template #empty>
@@ -224,7 +224,7 @@
                    <template #body="slotProps">
                        <div class="flex items-center">
                          <span 
-                           class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white border-2 border-white dark:border-zinc-900 shadow-sm cursor-help"
+                           class="flex items-center justify-center w-6 h-6 font-bold text-white border-2 border-white rounded-full shadow-sm cursor-help text-[10px] dark:border-zinc-900"
                            :class="getRoleColorClass(slotProps.data.role)"
                            v-tooltip.top="slotProps.data.role"
                          >
@@ -266,7 +266,7 @@
         <div class="grid grid-cols-2 gap-4">
            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-slate-500">Router Path</label>
-              <InputText v-model="menuForm.routerPath" class="!text-sm font-mono" placeholder="/path" />
+              <InputText v-model="menuForm.routerPath" class="font-mono !text-sm" placeholder="/path" />
            </div>
            <div class="flex flex-col gap-1">
               <label class="text-xs font-bold text-slate-500">Parent Menu</label>
@@ -290,7 +290,7 @@
                   optionLabel="label" 
                   optionValue="value" 
                   placeholder="Select" 
-                  class="!text-sm w-full"
+                  class="w-full !text-sm"
                   filter
                   showClear
                   appendTo="body"
@@ -305,24 +305,24 @@
                   </template>
                   <template #option="slotProps">
                       <div class="flex items-center gap-2">
-                          <i :class="slotProps.option.value" class="text-slate-500 w-5 text-center"></i>
+                          <i :class="slotProps.option.value" class="w-5 text-center text-slate-500"></i>
                           <span class="text-sm">{{ slotProps.option.label }}</span>
                       </div>
                   </template>
               </Select>
            </div>
            <div class="flex flex-row gap-4">
-              <div class="flex-1 flex flex-col gap-1">
+              <div class="flex flex-col flex-1 gap-1">
                   <label class="text-xs font-bold text-slate-500">Order</label>
                   <InputNumber v-model="menuForm.sortOrder" class="!text-sm" showButtons :min="0" />
               </div>
-              <div class="flex-1 flex flex-col gap-1">
+              <div class="flex flex-col flex-1 gap-1">
                   <label class="text-xs font-bold text-slate-500">Tag</label>
                   <Select 
                       v-model="menuForm.statusTag" 
                       :options="statusTagOptions" 
                       placeholder="None" 
-                      class="!text-sm w-full"
+                      class="w-full !text-sm"
                       showClear
                       appendTo="body"
                   >
@@ -333,7 +333,7 @@
               </div>
            </div>
         </div>
-        <div class="p-4 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex flex-col gap-3">
+        <div class="flex flex-col gap-3 p-4 border rounded-lg bg-slate-50 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700">
             <div class="flex items-center justify-between">
                 <div class="flex flex-col">
                     <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Menu Visibility</span>
@@ -346,7 +346,7 @@
                     <ToggleSwitch v-model="menuForm.isVisible" class="scale-75" />
                 </div>
             </div>
-            <div class="h-px bg-slate-200 dark:bg-zinc-700 w-full"></div>
+            <div class="w-full h-px bg-slate-200 dark:bg-zinc-700"></div>
             <div class="flex flex-col gap-2">
                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Access Permissions</span>
                 <div class="flex gap-3">
@@ -359,7 +359,7 @@
         </div>
       </div>
       <template #footer>
-        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800 mt-2">
+        <div class="flex justify-end gap-2 pt-2 mt-2 border-t border-slate-100 dark:border-zinc-800">
            <Button label="Cancel" text severity="secondary" @click="isMenuModalOpen = false" class="!w-20 !text-xs" />
            <Button label="Save Changes" @click="saveMenu" :loading="isSaving" severity="primary" class="!w-28 !text-xs" icon="pi pi-check" />
         </div>
@@ -369,12 +369,12 @@
     <Dialog v-model:visible="adminDialogVisible" header="Add Manager" modal class="w-full max-w-sm">
       <div class="flex flex-col gap-3 pt-2">
         <div>
-          <label class="font-bold text-xs text-slate-500">User ID</label>
+          <label class="text-xs font-bold text-slate-500">User ID</label>
           <InputText v-model="newAdmin.loginId" class="w-full mt-1" placeholder="Enter User ID" />
         </div>
         <div>
-          <label class="font-bold text-xs text-slate-500">Role</label>
-          <div class="p-2 bg-slate-100 rounded text-sm font-bold mt-1 text-slate-600">MANAGER</div>
+          <label class="text-xs font-bold text-slate-500">Role</label>
+          <div class="p-2 mt-1 text-sm font-bold rounded bg-slate-100 text-slate-600">MANAGER</div>
         </div>
       </div>
       <template #footer>
@@ -386,15 +386,15 @@
     <Dialog v-model:visible="accessDialogVisible" :header="isAccessEditMode ? 'Edit Whitelist' : 'Add Whitelist'" modal class="w-full max-w-sm">
       <div class="flex flex-col gap-3 pt-2">
          <div>
-            <label class="font-bold text-xs text-slate-500">Company Code</label>
+            <label class="text-xs font-bold text-slate-500">Company Code</label>
             <InputText v-model="newAccess.compid" class="w-full mt-1" />
          </div>
          <div>
-            <label class="font-bold text-xs text-slate-500">Dept Code (PK)</label>
+            <label class="text-xs font-bold text-slate-500">Dept Code (PK)</label>
             <InputText v-model="newAccess.deptid" class="w-full mt-1" :disabled="isAccessEditMode" placeholder="Unique Key" />
          </div>
          <div>
-            <label class="font-bold text-xs text-slate-500">Description</label>
+            <label class="text-xs font-bold text-slate-500">Description</label>
             <InputText v-model="newAccess.description" class="w-full mt-1" />
          </div>
          <div class="flex items-center gap-2 mt-2">
@@ -411,7 +411,7 @@
     <Dialog v-model:visible="isBulkModalOpen" header="Bulk Permissions" modal class="w-full max-w-sm">
       <div class="flex flex-col gap-3 pt-2">
          <p class="text-sm text-slate-600">Apply roles to <span class="font-bold text-indigo-600">{{ selectedCount }}</span> selected menus:</p>
-         <div class="flex flex-col gap-2 p-3 bg-slate-50 rounded border">
+         <div class="flex flex-col gap-2 p-3 border rounded bg-slate-50">
             <div v-for="role in availableRoles" :key="role" class="flex items-center">
               <Checkbox v-model="bulkRoles" :inputId="'b_'+role" :name="role" :value="role" />
               <label :for="'b_'+role" class="ml-2 text-sm">{{ role }}</label>
@@ -479,7 +479,7 @@ const menuForm = reactive({
   roles: [] as string[]
 });
 
-const availableRoles = ['MANAGER', 'USER', 'GUEST'];
+const availableRoles = ['MANAGER', 'USER', 'VIEWER', 'GUEST'];
 const statusTagOptions = ['NEW', 'BETA', 'UPD', 'HOT', 'DEPRECATED'];
 
 const iconOptions = [
@@ -586,16 +586,20 @@ const getBadgeSeverity = (tag: string) => {
     }
 }
 
+// 🌟 [수정된 부분] 권한별 뱃지 색상을 사이드바와 완벽히 동일하게 일치시킴
 const getRoleColorClass = (role: string) => {
-  if (role === 'MANAGER') return 'bg-emerald-500 border-emerald-600';
-  if (role === 'USER') return 'bg-indigo-500 border-indigo-600';
-  if (role === 'GUEST') return 'bg-slate-500 border-slate-600';
-  return 'bg-gray-400';
+  if (role === 'ADMIN') return 'bg-red-500 border-red-600';          // 최고 관리자
+  if (role === 'MANAGER') return 'bg-violet-500 border-violet-600';  // 운영자 (보라색으로 구분)
+  if (role === 'USER') return 'bg-indigo-500 border-indigo-600';     // 일반 사용자
+  if (role === 'VIEWER') return 'bg-emerald-500 border-emerald-600'; // 제한 권한
+  if (role === 'GUEST') return 'bg-amber-500 border-amber-600';      // 게스트
+  return 'bg-gray-400 border-gray-500';
 };
 
+// 정렬 기준에 ADMIN 포함
 const getSortedRoles = (roles: string[]) => {
   if (!roles) return [];
-  const order: Record<string, number> = { 'MANAGER': 1, 'USER': 2, 'GUEST': 3 };
+  const order: Record<string, number> = { 'ADMIN': 1, 'MANAGER': 2, 'USER': 3, 'VIEWER': 4, 'GUEST': 5 };
   return [...roles].sort((a, b) => (order[a] || 99) - (order[b] || 99));
 };
 
@@ -796,7 +800,6 @@ const editAccessCode = (data: any) => {
 };
 
 const saveAccessCode = async () => {
-  // [수정됨] 저장 시 검증 기준을 PK인 deptid로 변경
   if (!newAccess.value.deptid) {
     toast.add({ severity: 'warn', summary: 'Validation', detail: 'DeptId is required.', life: 3000 });
     return;
@@ -816,7 +819,6 @@ const saveAccessCode = async () => {
   }
 };
 
-// [수정됨] 삭제 요청 시 삭제 대상을 파라미터로 받음 (deptid)
 const removeAccessCode = async (id: string) => {
   confirm.require({
     message: `Delete access code ${id}?`,
