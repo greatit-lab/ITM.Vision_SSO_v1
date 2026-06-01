@@ -99,7 +99,7 @@
           :class="roleAvatarClass"
         >
           <span v-if="userRole === 'ADMIN'"
-                class="absolute -inset-1.5 rounded-xl bg-rose-500/40 blur-md animate-pulse"></span>
+                class="absolute -inset-1.5 rounded-xl bg-red-500/40 blur-md animate-pulse"></span>
           <span class="relative z-10 drop-shadow-sm">{{ roleInitial }}</span>
         </div>
 
@@ -140,6 +140,7 @@ const roleInitial = computed(() => {
   const role = userRole.value.toUpperCase();
   if (role === 'ADMIN') return 'A';
   if (role === 'MANAGER') return 'M';
+  if (role === 'VIEWER') return 'V';
   if (role === 'GUEST') return 'G';
   return 'U';
 });
@@ -155,22 +156,26 @@ const displayInfo = computed(() => {
   return "No Site / No Sdwt";
 });
 
-// [유지] 권한별 아바타 색상 매핑
+// 🌟 [수정된 부분] Menu & Access Control 화면과 완벽히 동일한 테마 색상 적용
 const roleAvatarClass = computed(() => {
   const r = userRole.value.toUpperCase();
-  if (r === 'ADMIN') return 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/30';
-  if (r === 'MANAGER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30';
-  if (r === 'USER') return 'bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30';
-  if (r === 'GUEST') return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
+  if (r === 'ADMIN') return 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/30';          // 최고 관리자
+  if (r === 'MANAGER') return 'bg-gradient-to-br from-violet-500 to-violet-600 shadow-violet-500/30'; // 운영자
+  if (r === 'USER') return 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30';   // 일반 사용자
+  if (r === 'VIEWER') return 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/30'; // 제한 권한
+  if (r === 'GUEST') return 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30';     // 게스트
   
   return 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30';
 });
 
+// 🌟 [수정된 부분] 텍스트 색상도 아바타 테마와 일치하도록 적용
 const getRoleTextColor = (role?: string) => {
   const r = role?.toUpperCase();
-  if (r === 'ADMIN') return 'text-rose-500 dark:text-rose-400';
-  if (r === 'MANAGER') return 'text-emerald-500 dark:text-emerald-400';
-  if (r === 'USER') return 'text-violet-500 dark:text-violet-400';
+  if (r === 'ADMIN') return 'text-red-500 dark:text-red-400';
+  if (r === 'MANAGER') return 'text-violet-500 dark:text-violet-400';
+  if (r === 'USER') return 'text-indigo-500 dark:text-indigo-400';
+  if (r === 'VIEWER') return 'text-emerald-500 dark:text-emerald-400';
+  if (r === 'GUEST') return 'text-amber-500 dark:text-amber-400';
   return 'text-slate-500';
 };
 
