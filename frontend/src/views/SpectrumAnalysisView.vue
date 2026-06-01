@@ -123,7 +123,6 @@
       </div>
 
       <div class="flex flex-col flex-1 gap-3 overflow-hidden h-full relative">
-        
         <div v-if="isLoading" class="absolute inset-0 z-30 flex items-center justify-center bg-slate-50/60 dark:bg-[#09090B]/60 backdrop-blur-sm rounded-xl transition-all duration-300">
             <div class="bg-white dark:bg-zinc-900 p-6 px-10 rounded-2xl shadow-xl flex flex-col items-center border border-slate-200 dark:border-zinc-800">
                 <i class="pi pi-spin pi-spinner text-4xl text-indigo-500 mb-3 drop-shadow-sm"></i>
@@ -154,7 +153,8 @@
               <button 
                 v-if="hasSearched" 
                 @click="exportRawData" 
-                :disabled="isExporting" 
+                :disabled="isExporting || isExportDisabled" 
+                v-tooltip.top="isExportDisabled ? '제한 권한(VIEWER/GUEST)은 다운로드할 수 없습니다.' : 'CSV Export'"
                 class="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
               >
                 <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
@@ -171,9 +171,7 @@
               <p class="text-xs font-bold text-slate-500">No Data Displayed</p>
               <p class="text-[10px]">Select conditions on the left and click Analyze.</p>
             </div>
-            
             <EChart v-else :option="chartOption" class="w-full h-full" @chartCreated="onChartCreated" @zr:mousemove="onChartMouseOver" />
-            
             <transition name="fade">
               <button v-if="isZoomed" @click="resetZoom" class="absolute top-3 right-3 bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-md flex items-center gap-1.5 transition-all z-10 cursor-pointer">
                 <i class="pi pi-refresh text-[9px]"></i> Reset Zoom
@@ -280,6 +278,12 @@ let chartInstance: ECharts | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver;
 
+// 🌟 Export 권한 체크 로직
+const isExportDisabled = computed(() => {
+  const role = authStore.user?.role?.toUpperCase();
+  return role === 'VIEWER' || role === 'GUEST';
+});
+
 const isReadyToSearch = computed(
   () =>
     filters.lotId &&
@@ -308,7 +312,6 @@ watch(
     if (newStart && newEnd) {
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
-
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
            filters.endDate = new Date(newStart);
@@ -318,23 +321,15 @@ watch(
         return; 
       }
     }
-
-    if (filters.eqpId) {
-        loadLotIds();
-    }
+    if (filters.eqpId) loadLotIds();
   }
 );
 
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
-  
-  if (isEndDate) {
-    d.setHours(23, 59, 59, 999);
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-
+  if (isEndDate) d.setHours(23, 59, 59, 999);
+  else d.setHours(0, 0, 0, 0);
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
   return localDate.toISOString().slice(0, 19).replace('T', ' '); 
@@ -342,7 +337,6 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
 
 onMounted(async () => {
   sites.value = await dashboardApi.getSites();
-
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
@@ -359,19 +353,11 @@ onMounted(async () => {
   if (targetSite && sites.value.includes(targetSite)) {
     filterStore.selectedSite = targetSite;
     sdwts.value = await dashboardApi.getSdwts(targetSite);
-
     if (targetSdwt && sdwts.value.includes(targetSdwt)) {
       filterStore.selectedSdwt = targetSdwt;
       isEqpLoading.value = true;
-      try {
-        eqpIds.value = await equipmentApi.getEqpIds({
-          sdwt: targetSdwt,
-          type: "agent"
-        });
-      } finally {
-        isEqpLoading.value = false;
-      }
-
+      try { eqpIds.value = await equipmentApi.getEqpIds({ sdwt: targetSdwt, type: "agent" }); }
+      finally { isEqpLoading.value = false; }
       const savedEqp = localStorage.getItem("spec_eqp");
       if (savedEqp && eqpIds.value.includes(savedEqp)) {
         filters.eqpId = savedEqp;
@@ -392,10 +378,7 @@ onMounted(async () => {
         isDarkMode.value = document.documentElement.classList.contains("dark");
     });
   });
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 });
 
 onUnmounted(() => {
@@ -418,14 +401,8 @@ const onSdwtChange = async () => {
   if (filterStore.selectedSdwt) {
     localStorage.setItem("spec_sdwt", filterStore.selectedSdwt);
     isEqpLoading.value = true;
-    try {
-        eqpIds.value = await equipmentApi.getEqpIds({
-        sdwt: filterStore.selectedSdwt,
-        type: "agent"
-        });
-    } finally {
-        isEqpLoading.value = false;
-    }
+    try { eqpIds.value = await equipmentApi.getEqpIds({ sdwt: filterStore.selectedSdwt, type: "agent" }); }
+    finally { isEqpLoading.value = false; }
   } else {
     localStorage.removeItem("spec_sdwt");
     eqpIds.value = [];
@@ -437,9 +414,7 @@ const onEqpChange = () => {
   if (filters.eqpId) {
     localStorage.setItem("spec_eqp", filters.eqpId);
     loadLotIds();
-  } else {
-    localStorage.removeItem("spec_eqp");
-  }
+  } else { localStorage.removeItem("spec_eqp"); }
 };
 
 const loadLotIds = async () => {
@@ -454,8 +429,7 @@ const onLotChange = async () => {
   resetFrom(3);
   if (filters.lotId) {
     cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
-      eqpId: filters.eqpId,
-      lotId: filters.lotId,
+      eqpId: filters.eqpId, lotId: filters.lotId,
       startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
       endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
@@ -466,9 +440,7 @@ const onCassetteChange = async () => {
   resetFrom(4);
   if (filters.cassetteRcp) {
     stageGroups.value = await waferApi.getDistinctValues("stagegroups", {
-      eqpId: filters.eqpId,
-      lotId: filters.lotId,
-      cassetteRcp: filters.cassetteRcp,
+      eqpId: filters.eqpId, lotId: filters.lotId, cassetteRcp: filters.cassetteRcp,
       startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
       endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
@@ -477,266 +449,125 @@ const onCassetteChange = async () => {
 
 const onStageGroupChange = async () => {
   if (filters.stageGroup) {
-    waferList.value = [];
-    selectedWafers.value = [];
+    waferList.value = []; selectedWafers.value = [];
     await loadPoints();
     isWafersLoading.value = true;
     try {
       const wafers = await waferApi.getDistinctValues("waferids", {
-        eqpId: filters.eqpId,
-        lotId: filters.lotId,
-        cassetteRcp: filters.cassetteRcp,
-        stageGroup: filters.stageGroup,
+        eqpId: filters.eqpId, lotId: filters.lotId, cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup,
         startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
         endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
       });
       waferList.value = wafers.sort((a, b) => Number(a) - Number(b));
       selectedWafers.value = wafers.slice(0, 5);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      isWafersLoading.value = false;
-    }
-  } else {
-    resetFrom(5);
-  }
+    } catch (e) { console.error(e); } 
+    finally { isWafersLoading.value = false; }
+  } else { resetFrom(5); }
 };
 
 const loadPoints = async () => {
-  isPointsLoading.value = true;
-  pointIds.value = [];
-  filters.pointId = "";
+  isPointsLoading.value = true; pointIds.value = []; filters.pointId = "";
   try {
     const points = await waferApi.getDistinctPoints({
-      eqpId: filters.eqpId,
-      lotId: filters.lotId,
-      cassetteRcp: filters.cassetteRcp,
-      stageGroup: filters.stageGroup,
+      eqpId: filters.eqpId, lotId: filters.lotId, cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup,
       startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
       endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
     pointIds.value = points;
     if (points.length > 0) filters.pointId = points[0] ?? "";
-  } catch (e) {
-    console.error(e);
-  } finally {
-    isPointsLoading.value = false;
-  }
+  } catch (e) { console.error(e); } 
+  finally { isPointsLoading.value = false; }
 };
 
 const resetFrom = (level: number) => {
-  if (level <= 0) {
-    filterStore.selectedSdwt = "";
-    localStorage.removeItem("spec_sdwt");
-    eqpIds.value = [];
-  }
-  if (level <= 1) {
-    filters.eqpId = "";
-    localStorage.removeItem("spec_eqp");
-  }
-  if (level <= 2) {
-    filters.lotId = "";
-    lotIds.value = [];
-  }
-  if (level <= 3) {
-    filters.cassetteRcp = "";
-    cassetteRcps.value = [];
-  }
-  if (level <= 4) {
-    filters.stageGroup = "";
-    stageGroups.value = [];
-  }
+  if (level <= 0) { filterStore.selectedSdwt = ""; localStorage.removeItem("spec_sdwt"); eqpIds.value = []; }
+  if (level <= 1) { filters.eqpId = ""; localStorage.removeItem("spec_eqp"); }
+  if (level <= 2) { filters.lotId = ""; lotIds.value = []; }
+  if (level <= 3) { filters.cassetteRcp = ""; cassetteRcps.value = []; }
+  if (level <= 4) { filters.stageGroup = ""; stageGroups.value = []; }
   if (level <= 5) {
-    waferList.value = [];
-    selectedWafers.value = [];
-    pointIds.value = [];
-    filters.pointId = "";
-    chartSeries.value = [];
-    tableData.value = [];
-    tableColumns.value = [];
-    goldenSeries.value = null;
-    genSeries.value = null;
-    hasSearched.value = false;
+    waferList.value = []; selectedWafers.value = []; pointIds.value = []; filters.pointId = "";
+    chartSeries.value = []; tableData.value = []; tableColumns.value = [];
+    goldenSeries.value = null; genSeries.value = null; hasSearched.value = false;
   }
 };
 
 const toggleWafer = (w: string) => {
-  if (selectedWafers.value.includes(w))
-    selectedWafers.value = selectedWafers.value.filter((item) => item !== w);
+  if (selectedWafers.value.includes(w)) selectedWafers.value = selectedWafers.value.filter((item) => item !== w);
   else selectedWafers.value.push(w);
 };
 const toggleAllWafers = () => {
-  if (selectedWafers.value.length === waferList.value.length)
-    selectedWafers.value = [];
+  if (selectedWafers.value.length === waferList.value.length) selectedWafers.value = [];
   else selectedWafers.value = [...waferList.value];
 };
 
 const searchData = async () => {
   if (!isReadyToSearch.value) return;
-  
-  isLoading.value = true;
-  hasSearched.value = true; 
-  isZoomed.value = false;
-  clearModelFit();
-
+  isLoading.value = true; hasSearched.value = true; isZoomed.value = false; clearModelFit();
   try {
     const data = await waferApi.getSpectrumTrend({
-      eqpId: filters.eqpId,
-      lotId: filters.lotId,
-      pointId: filters.pointId,
-      waferIds: selectedWafers.value.join(","),
-      cassetteRcp: filters.cassetteRcp,
-      stageGroup: filters.stageGroup,
+      eqpId: filters.eqpId, lotId: filters.lotId, pointId: filters.pointId, waferIds: selectedWafers.value.join(","),
+      cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup,
       startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
       endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
-
-    const mappedData = data
-      ? data.map((d: any) => ({
-          ...d,
-          name: `Slot #${d.waferId}`,
-        }))
-      : [];
-
+    const mappedData = data ? data.map((d: any) => ({ ...d, name: `Slot #${d.waferId}`, })) : [];
     mappedData.sort((a: any, b: any) => a.waferId - b.waferId);
-
     chartSeries.value = mappedData;
 
     if (data && data.length > 0) {
       const firstMeta = data[0]?.meta || {};
-      const allKeys = Object.keys(firstMeta).filter(
-        (k) =>
-          ![
-            "timestamp",
-            "lotId",
-            "gof",
-            "scanTs",
-            "eqpId",
-            "rawWaferId",
-            "pointId",
-          ].includes(k)
-      );
-
+      const allKeys = Object.keys(firstMeta).filter((k) => !["timestamp", "lotId", "gof", "scanTs", "eqpId", "rawWaferId", "pointId"].includes(k));
       tableColumns.value = allKeys.filter((col) => {
-        return data.some((d: any) => {
-          const val = d.meta[col];
-          return (
-            val !== null &&
-            val !== undefined &&
-            val !== "" &&
-            String(val).toLowerCase() !== "n/a"
-          );
-        });
+        return data.some((d: any) => { const val = d.meta[col]; return (val !== null && val !== undefined && val !== "" && String(val).toLowerCase() !== "n/a"); });
       });
-
-      tableData.value = data
-        .map((d: any) => ({
-          waferId: d.waferId,
-          lotId: d.meta?.lotId || filters.lotId,
-          scanTs: d.meta?.scanTs,
-          eqpId: d.meta?.eqpId,
-          rawWaferId: d.meta?.rawWaferId,
-          pointId: d.pointId,
-          ...d.meta,
-        }))
-        .sort((a: any, b: any) => Number(a.waferId) - Number(b.waferId));
-    } else {
-      tableColumns.value = [];
-      tableData.value = [];
-    }
-
+      tableData.value = data.map((d: any) => ({ waferId: d.waferId, lotId: d.meta?.lotId || filters.lotId, scanTs: d.meta?.scanTs, eqpId: d.meta?.eqpId, rawWaferId: d.meta?.rawWaferId, pointId: d.pointId, ...d.meta, })).sort((a: any, b: any) => Number(a.waferId) - Number(b.waferId));
+    } else { tableColumns.value = []; tableData.value = []; }
     if (showGoldenRef.value) await fetchGoldenRef();
-    
   } catch (e) {
-    console.error(e);
-    chartSeries.value = [];
-    tableData.value = [];
-  } finally {
-    isLoading.value = false;
-  }
+    console.error(e); chartSeries.value = []; tableData.value = [];
+  } finally { isLoading.value = false; }
 };
 
 const toggleGoldenRef = async () => {
-  if (showGoldenRef.value) {
-    await fetchGoldenRef();
-  } else {
-    goldenSeries.value = null;
-  }
+  if (showGoldenRef.value) await fetchGoldenRef();
+  else goldenSeries.value = null;
 };
 
 const fetchGoldenRef = async () => {
   try {
     const golden = await waferApi.getGoldenSpectrum({
-      eqpId: filters.eqpId,
-      cassetteRcp: filters.cassetteRcp,
-      stageGroup: filters.stageGroup,
-      pointId: filters.pointId,
-      lotId: filters.lotId, 
+      eqpId: filters.eqpId, cassetteRcp: filters.cassetteRcp, stageGroup: filters.stageGroup, pointId: filters.pointId, lotId: filters.lotId, 
     });
-
     if (golden && golden.wavelengths && golden.values && golden.wavelengths.length > 0) {
-      const dataPoints = golden.wavelengths.map((w: number, i: number) => [
-        w,
-        (golden.values[i] ?? 0) * 100,
-      ]);
-
+      const dataPoints = golden.wavelengths.map((w: number, i: number) => [w, (golden.values[i] ?? 0) * 100]);
       goldenSeries.value = {
-        name: "Golden Ref (Best GOF)",
-        type: "line",
-        data: dataPoints,
-        showSymbol: false,
-        smooth: false,
-        lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 1 },
-        itemStyle: { color: "#FFD700" },
-        color: "#FFD700", 
-        areaStyle: { color: "rgba(255, 215, 0, 0.1)" },
-        z: 999,
+        name: "Golden Ref (Best GOF)", type: "line", data: dataPoints, showSymbol: false, smooth: false,
+        lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 1 }, itemStyle: { color: "#FFD700" }, color: "#FFD700", areaStyle: { color: "rgba(255, 215, 0, 0.1)" }, z: 999,
       };
-    } else {
-      goldenSeries.value = null;
-    }
-  } catch (e) {
-    console.error("Golden Ref Error:", e);
-    goldenSeries.value = null;
-  }
+    } else { goldenSeries.value = null; }
+  } catch (e) { goldenSeries.value = null; }
 };
 
 const exportRawData = async () => {
+  if (isExportDisabled.value) return; // 🌟 함수 방어
   if (!hasSearched.value || chartSeries.value.length === 0) return;
   isExporting.value = true;
-  
   try {
     const wavelengthMap = new Map<number, any>();
-    
-    const genDataPromises = tableData.value.map(row => 
-      waferApi.getSpectrumGen({
-        lotId: row.lotId,
-        waferId: row.rawWaferId,
-        pointId: row.pointId,
-        eqpId: row.eqpId,
-        ts: row.scanTs
-      }).catch(() => null) 
-    );
+    const genDataPromises = tableData.value.map(row => waferApi.getSpectrumGen({ lotId: row.lotId, waferId: row.rawWaferId, pointId: row.pointId, eqpId: row.eqpId, ts: row.scanTs }).catch(() => null));
     const genResults = await Promise.all(genDataPromises);
 
     chartSeries.value.forEach((series) => {
       const wid = series.waferId;
-      if(series.data) {
-        series.data.forEach(([w, i]: [number, number]) => {
-          if (!wavelengthMap.has(w)) wavelengthMap.set(w, {});
-          wavelengthMap.get(w)[`Slot_${wid}_EXP`] = i;
-        });
-      }
+      if(series.data) { series.data.forEach(([w, i]: [number, number]) => { if (!wavelengthMap.has(w)) wavelengthMap.set(w, {}); wavelengthMap.get(w)[`Slot_${wid}_EXP`] = i; }); }
     });
 
     tableData.value.forEach((row, idx) => {
       const wid = row.waferId;
       const genSeriesObj = genResults[idx];
       if (genSeriesObj && genSeriesObj.data) {
-        genSeriesObj.data.forEach(([w, i]: [number, number]) => {
-          if (!wavelengthMap.has(w)) wavelengthMap.set(w, {});
-          wavelengthMap.get(w)[`Slot_${wid}_GEN`] = i;
-        });
+        genSeriesObj.data.forEach(([w, i]: [number, number]) => { if (!wavelengthMap.has(w)) wavelengthMap.set(w, {}); wavelengthMap.get(w)[`Slot_${wid}_GEN`] = i; });
       }
     });
 
@@ -769,66 +600,29 @@ const exportRawData = async () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-
   } catch (error) {
     console.error("Failed to export raw data:", error);
-    alert("데이터 다운로드 중 오류가 발생했습니다.");
   } finally {
     isExporting.value = false;
   }
 };
 
 const onRowSelect = async (event: any) => {
-  const wid = event.data.waferId;
-  const rawWid = event.data.rawWaferId;
-  const ts = event.data.scanTs;
-  const eqp = event.data.eqpId;
-  const pid = event.data.pointId;
-
+  const wid = event.data.waferId; const rawWid = event.data.rawWaferId; const ts = event.data.scanTs; const eqp = event.data.eqpId; const pid = event.data.pointId;
   selectedModelWafer.value = wid;
-
   try {
-    const genData = await waferApi.getSpectrumGen({
-      lotId: filters.lotId,
-      waferId: rawWid,
-      pointId: pid,
-      eqpId: eqp,
-      ts: ts,
-    });
-
-    if (genData) {
-      genSeries.value = {
-        ...genData,
-        name: `Model (Slot #${wid})`,
-        id: "model-gen",
-        color: "#ef4444",
-        itemStyle: { color: "#ef4444" },
-        smooth: true,
-        z: 50,
-      };
-    } else {
-      genSeries.value = null;
-    }
-  } catch (e) {
-    console.error("Failed to fetch GEN Spectrum:", e);
-    genSeries.value = null;
-  }
+    const genData = await waferApi.getSpectrumGen({ lotId: filters.lotId, waferId: rawWid, pointId: pid, eqpId: eqp, ts: ts, });
+    if (genData) { genSeries.value = { ...genData, name: `Model (Slot #${wid})`, id: "model-gen", color: "#ef4444", itemStyle: { color: "#ef4444" }, smooth: true, z: 50, }; } 
+    else { genSeries.value = null; }
+  } catch (e) { genSeries.value = null; }
 };
 
-const clearModelFit = () => {
-  selectedModelWafer.value = null;
-  genSeries.value = null;
-  selectedTableRow.value = null;
-};
+const clearModelFit = () => { selectedModelWafer.value = null; genSeries.value = null; selectedTableRow.value = null; };
 
 const resetFilters = () => {
   filterStore.reset();
-  localStorage.removeItem("spec_site");
-  localStorage.removeItem("spec_sdwt");
-  localStorage.removeItem("spec_eqp");
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0); 
+  localStorage.removeItem("spec_site"); localStorage.removeItem("spec_sdwt"); localStorage.removeItem("spec_eqp");
+  const now = new Date(); const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0); 
   filters.startDate = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
   filters.endDate = new Date();
   resetFrom(0);
@@ -843,8 +637,7 @@ const onChartMouseOver = (params: any) => {
     }
   }
 };
-const onRowMouseEnter = (event: any) =>
-  (hoveredWaferId.value = event.data.waferId);
+const onRowMouseEnter = (event: any) => (hoveredWaferId.value = event.data.waferId);
 const onRowMouseLeave = () => (hoveredWaferId.value = null);
 
 const onChartCreated = (instance: any) => {
@@ -852,290 +645,75 @@ const onChartCreated = (instance: any) => {
   instance.on("dataZoom", () => {
     const opt = instance.getOption();
     const zoom = Array.isArray(opt.dataZoom) ? opt.dataZoom[0] : opt.dataZoom;
-    if (zoom && zoom.start !== undefined && zoom.end !== undefined) {
-      isZoomed.value = zoom.start > 0 || zoom.end < 100;
-    }
+    if (zoom && zoom.start !== undefined && zoom.end !== undefined) { isZoomed.value = zoom.start > 0 || zoom.end < 100; }
   });
 };
 const resetZoom = () => {
-  if (chartInstance) {
-    chartInstance.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
-    isZoomed.value = false;
-  }
+  if (chartInstance) { chartInstance.dispatchAction({ type: "dataZoom", start: 0, end: 100 }); isZoomed.value = false; }
 };
 
 const chartOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
-  const gridColor = isDarkMode.value
-    ? "rgba(255, 255, 255, 0.1)"
-    : "rgba(0, 0, 0, 0.1)";
-
+  const gridColor = isDarkMode.value ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
   const series: any[] = [];
-
-  if (showGoldenRef.value && goldenSeries.value) {
-    series.push({
-      ...goldenSeries.value,
-      id: "golden-ref",
-      name: goldenSeries.value.name,
-      type: "line",
-      symbol: "none",
-      smooth: false,
-      lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 1 },
-      color: "#FFD700",
-      itemStyle: { color: "#FFD700" },
-      z: 999,
-    });
-  } else {
-    series.push({
-      id: "golden-ref",
-      name: "Golden Ref (Best GOF)",
-      type: "line",
-      data: [],
-      showSymbol: false,
-      lineStyle: { opacity: 0 },
-      itemStyle: { color: "#FFD700" },
-      color: "#FFD700",
-      smooth: false,
-      z: 0,
-    });
-  }
-
+  if (showGoldenRef.value && goldenSeries.value) { series.push({ ...goldenSeries.value, id: "golden-ref", name: goldenSeries.value.name, type: "line", symbol: "none", smooth: false, lineStyle: { width: 3, color: "#FFD700", type: "solid", opacity: 1 }, color: "#FFD700", itemStyle: { color: "#FFD700" }, z: 999, }); } 
+  else { series.push({ id: "golden-ref", name: "Golden Ref (Best GOF)", type: "line", data: [], showSymbol: false, lineStyle: { opacity: 0 }, itemStyle: { color: "#FFD700" }, color: "#FFD700", smooth: false, z: 0, }); }
   chartSeries.value.forEach((s, idx) => {
     const isHovered = hoveredWaferId.value === s.waferId;
     const isSelected = selectedModelWafer.value === s.waferId;
-    const isFocus =
-      (hoveredWaferId.value === null && selectedModelWafer.value === null) ||
-      isHovered ||
-      isSelected;
-
+    const isFocus = (hoveredWaferId.value === null && selectedModelWafer.value === null) || isHovered || isSelected;
     const assignedColor = slotColors[idx % slotColors.length];
-
-    series.push({
-      id: `wafer-${s.waferId}`,
-      name: s.name,
-      type: "line",
-      symbol: "none",
-      smooth: false,
-      lineStyle: {
-        width: isHovered || isSelected ? 3 : 1,
-        opacity: isFocus ? 1 : 0.15,
-        color: assignedColor,
-      },
-      itemStyle: { color: assignedColor },
-      color: assignedColor,
-      data: s.data,
-      z: 5 + idx,
-    });
+    series.push({ id: `wafer-${s.waferId}`, name: s.name, type: "line", symbol: "none", smooth: false, lineStyle: { width: isHovered || isSelected ? 3 : 1, opacity: isFocus ? 1 : 0.15, color: assignedColor, }, itemStyle: { color: assignedColor }, color: assignedColor, data: s.data, z: 5 + idx, });
   });
-
-  if (genSeries.value && genSeries.value.data?.length > 0) {
-    series.push({
-      ...genSeries.value,
-      id: "model-gen",
-      name: genSeries.value.name,
-      z: 50,
-      lineStyle: {
-        width: 2,
-        type: "dashed",
-        color: "#ef4444",
-        opacity: 1,
-      },
-      itemStyle: {
-        color: "#ef4444",
-        opacity: 1,
-      },
-    });
-  } else {
-    series.push({
-      id: "model-gen",
-      name: "Model",
-      type: "line",
-      data: [],
-      showSymbol: false,
-      lineStyle: { opacity: 0 },
-      smooth: false,
-      z: 0,
-    });
-  }
-
+  if (genSeries.value && genSeries.value.data?.length > 0) { series.push({ ...genSeries.value, id: "model-gen", name: genSeries.value.name, z: 50, lineStyle: { width: 2, type: "dashed", color: "#ef4444", opacity: 1, }, itemStyle: { color: "#ef4444", opacity: 1, }, }); } 
+  else { series.push({ id: "model-gen", name: "Model", type: "line", data: [], showSymbol: false, lineStyle: { opacity: 0 }, smooth: false, z: 0, }); }
   return {
     backgroundColor: "transparent",
     tooltip: {
-      trigger: "axis",
-      backgroundColor: isDarkMode.value
-        ? "rgba(24, 24, 27, 0.9)"
-        : "rgba(255, 255, 255, 0.95)",
-      borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0",
-      textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b", fontSize: 11 },
+      trigger: "axis", backgroundColor: isDarkMode.value ? "rgba(24, 24, 27, 0.9)" : "rgba(255, 255, 255, 0.95)", borderColor: isDarkMode.value ? "#3f3f46" : "#e2e8f0", textStyle: { color: isDarkMode.value ? "#fff" : "#1e293b", fontSize: 11 },
       formatter: (params: any[]) => {
         if (!params || params.length === 0) return "";
-
         let html = `<div class="font-bold mb-1 border-b border-slate-500/30 pb-1">Wavelength: ${params[0].axisValue} nm</div>`;
-
         params.forEach((p) => {
-          if (p.seriesName.includes("Golden Ref")) {
-            if (!p.value || p.value.length === 0) return;
-            html += `<div style="color:#FFD700" class="text-[10px]">● ${p.seriesName}</div>`;
-            return;
-          }
-          if (p.seriesName.startsWith("Model")) {
-            html += `<div style="color:${p.color}" class="text-[10px]">● ${p.seriesName}</div>`;
-            return;
-          }
-
+          if (p.seriesName.includes("Golden Ref")) { if (!p.value || p.value.length === 0) return; html += `<div style="color:#FFD700" class="text-[10px]">● ${p.seriesName}</div>`; return; }
+          if (p.seriesName.startsWith("Model")) { html += `<div style="color:${p.color}" class="text-[10px]">● ${p.seriesName}</div>`; return; }
           const wid = p.seriesName.replace("Slot #", "");
-          const intensity =
-            p.value[1] !== undefined ? p.value[1].toFixed(2) : "-";
-
-          html += `
-            <div class="flex items-center justify-between gap-4 text-[11px]">
-              <span style="color:${p.color}">● Slot #${wid}</span>
-              <span class="font-mono font-bold">Int: ${intensity}</span>
-            </div>
-          `;
-        });
-        return html;
+          const intensity = p.value[1] !== undefined ? p.value[1].toFixed(2) : "-";
+          html += `<div class="flex items-center justify-between gap-4 text-[11px]"><span style="color:${p.color}">● Slot #${wid}</span><span class="font-mono font-bold">Int: ${intensity}</span></div>`;
+        }); return html;
       },
     },
-    legend: {
-      data: series
-        .filter((s) => {
-          if (s.id === "golden-ref" && !showGoldenRef.value) return false;
-          if (s.id === "model-gen" && (!s.data || s.data.length === 0))
-            return false;
-          return true;
-        })
-        .map((s: any) => s.name),
-      textStyle: { color: textColor, fontSize: 11 },
-      type: "scroll",
-      top: 0,
-      icon: "circle",
-    },
+    legend: { data: series.filter((s) => { if (s.id === "golden-ref" && !showGoldenRef.value) return false; if (s.id === "model-gen" && (!s.data || s.data.length === 0)) return false; return true; }).map((s: any) => s.name), textStyle: { color: textColor, fontSize: 11 }, type: "scroll", top: 0, icon: "circle", },
     grid: { left: 50, right: 30, top: 40, bottom: 40, containLabel: false },
-    dataZoom: [
-      { type: "inside", xAxisIndex: 0 },
-      {
-        type: "slider",
-        xAxisIndex: 0,
-        bottom: 0,
-        height: 16,
-        borderColor: "transparent",
-        fillerColor: "rgba(99, 102, 241, 0.1)",
-      },
-    ],
-    xAxis: {
-      type: "value",
-      name: "Wavelength (nm)",
-      nameLocation: "middle",
-      nameGap: 25,
-      nameTextStyle: { color: textColor, fontWeight: "bold", fontSize: 11 },
-      min: (v: any) => Math.floor(v.min),
-      max: (v: any) => Math.ceil(v.max),
-      axisLabel: { color: textColor, fontSize: 10 },
-      splitLine: {
-        show: true,
-        lineStyle: { color: gridColor, type: "dashed" },
-      },
-      axisLine: { lineStyle: { color: gridColor } },
-    },
-    yAxis: {
-      type: "value",
-      name: "Intensity",
-      scale: true,
-      nameTextStyle: { color: textColor, fontSize: 11, padding: [0, 20, 0, 0] },
-      axisLabel: { color: textColor, fontSize: 10 },
-      splitLine: { lineStyle: { color: gridColor } },
-    },
-    series: series,
-    animationDuration: 1000,
-    animationEasing: "cubicOut",
+    dataZoom: [ { type: "inside", xAxisIndex: 0 }, { type: "slider", xAxisIndex: 0, bottom: 0, height: 16, borderColor: "transparent", fillerColor: "rgba(99, 102, 241, 0.1)", }, ],
+    xAxis: { type: "value", name: "Wavelength (nm)", nameLocation: "middle", nameGap: 25, nameTextStyle: { color: textColor, fontWeight: "bold", fontSize: 11 }, min: (v: any) => Math.floor(v.min), max: (v: any) => Math.ceil(v.max), axisLabel: { color: textColor, fontSize: 10 }, splitLine: { show: true, lineStyle: { color: gridColor, type: "dashed" }, }, axisLine: { lineStyle: { color: gridColor } }, },
+    yAxis: { type: "value", name: "Intensity", scale: true, nameTextStyle: { color: textColor, fontSize: 11, padding: [0, 20, 0, 0] }, axisLabel: { color: textColor, fontSize: 10 }, splitLine: { lineStyle: { color: gridColor } }, },
+    series: series, animationDuration: 1000, animationEasing: "cubicOut",
   };
 });
 
-const formatHeader = (key: string) => {
-  return key.replace(/_/g, " ").toUpperCase();
-};
-
-const formatValue = (val: any) => {
-  if (typeof val === "number") {
-    if (Math.abs(val) < 10) return val.toFixed(4);
-    return val.toFixed(2);
-  }
-  return val;
-};
-
-const getCellClass = (col: string, val: any) => {
-  if (col.toLowerCase() === "gof") {
-    return val < 0.9 ? "text-rose-500 font-bold" : "text-emerald-600 font-bold";
-  }
-  return "";
-};
+const formatHeader = (key: string) => { return key.replace(/_/g, " ").toUpperCase(); };
+const formatValue = (val: any) => { if (typeof val === "number") { if (Math.abs(val) < 10) return val.toFixed(4); return val.toFixed(2); } return val; };
+const getCellClass = (col: string, val: any) => { if (col.toLowerCase() === "gof") { return val < 0.9 ? "text-rose-500 font-bold" : "text-emerald-600 font-bold"; } return ""; };
 </script>
 
 <style scoped>
-:deep(.p-select),
-:deep(.custom-dropdown) {
-  @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors;
-}
-:deep(.custom-dropdown .p-select-label) {
-  @apply text-[13px] py-[5px] px-3;
-}
-:deep(.custom-dropdown.small) {
-  @apply h-7;
-}
-:deep(.custom-dropdown:hover) {
-  @apply !bg-slate-200 dark:!bg-zinc-800;
-}
-:deep(.date-picker .p-inputtext) {
-  @apply !text-[13px] !py-1 !px-2 !h-7;
-}
-:deep(.p-select-dropdown) {
-  @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none;
-}
-:deep(.p-select-dropdown svg) {
-  @apply w-3 h-3;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* PrimeVue DataTable Custom */
-:deep(.p-datatable-thead > tr > th) {
-  @apply bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-slate-400 !py-2 !text-[11px] font-extrabold uppercase;
-}
-:deep(.p-datatable-tbody > tr > td) {
-  @apply !py-1.5 !text-[11px] text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800;
-}
-:deep(.p-datatable-tbody > tr:hover) {
-  @apply bg-indigo-50/50 dark:bg-indigo-900/20 cursor-pointer;
-}
-:deep(.p-datatable-tbody > tr.p-highlight) {
-  @apply bg-amber-50 dark:bg-amber-900/20 !text-slate-900 dark:!text-white;
-}
+:deep(.p-select), :deep(.custom-dropdown) { @apply !bg-slate-100 dark:!bg-zinc-800/50 !border-0 text-slate-700 dark:text-slate-200 rounded-lg font-bold shadow-none transition-colors; }
+:deep(.custom-dropdown .p-select-label) { @apply text-[13px] py-[5px] px-3; }
+:deep(.custom-dropdown.small) { @apply h-7; }
+:deep(.custom-dropdown:hover) { @apply !bg-slate-200 dark:!bg-zinc-800; }
+:deep(.date-picker .p-inputtext) { @apply !text-[13px] !py-1 !px-2 !h-7; }
+:deep(.p-select-dropdown) { @apply text-slate-400 dark:text-zinc-500 w-6 !bg-transparent !border-0 !shadow-none; }
+:deep(.p-select-dropdown svg) { @apply w-3 h-3; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+:deep(.p-datatable-thead > tr > th) { @apply bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-slate-400 !py-2 !text-[11px] font-extrabold uppercase; }
+:deep(.p-datatable-tbody > tr > td) { @apply !py-1.5 !text-[11px] text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-zinc-800; }
+:deep(.p-datatable-tbody > tr:hover) { @apply bg-indigo-50/50 dark:bg-indigo-900/20 cursor-pointer; }
+:deep(.p-datatable-tbody > tr.p-highlight) { @apply bg-amber-50 dark:bg-amber-900/20 !text-slate-900 dark:!text-white; }
 </style>
