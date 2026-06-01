@@ -118,7 +118,9 @@ export class AdminService {
   async getAllGuests(): Promise<GuestAccessResult[] | null> {
     return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guests');
   }
-  async addGuest(data: CreateGuestDto): Promise<GuestAccessResult | null> {
+  
+  // 수정: 제한 권한(grantedRole) 등 유동적인 속성이 안전하게 전달되도록 타입 확장
+  async addGuest(data: CreateGuestDto & { grantedRole?: string }): Promise<GuestAccessResult | null> {
     return this.api.request<GuestAccessResult>(
       this.DOMAIN,
       'post',
@@ -141,14 +143,20 @@ export class AdminService {
       'guest/request',
     );
   }
+  
+  // 수정: 승인 시 권한 선택(grantedRole)과 기한(validUntil) 데이터 포워딩 추가
   async approveGuestRequest(
-    data: ApproveGuestRequestDto,
+    data: ApproveGuestRequestDto & { validUntil?: Date | string; grantedRole?: string },
   ): Promise<GuestAccessResult | null> {
     return this.api.request<GuestAccessResult>(
       this.DOMAIN,
       'put',
       `guest/request/${data.reqId}/approve`,
-      { approverId: data.approverId },
+      { 
+        approverId: data.approverId,
+        validUntil: data.validUntil,
+        grantedRole: data.grantedRole,
+      },
     );
   }
   async rejectGuestRequest(
