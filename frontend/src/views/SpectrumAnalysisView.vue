@@ -151,10 +151,10 @@
               <span v-if="hasSearched" class="text-[10px] text-slate-400 font-mono bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Hover to highlight</span>
               
               <button 
-                v-if="hasSearched" 
+                v-if="hasSearched && !isExportDisabled" 
                 @click="exportRawData" 
-                :disabled="isExporting || isExportDisabled" 
-                v-tooltip.top="isExportDisabled ? '제한 권한(VIEWER/GUEST)은 다운로드할 수 없습니다.' : 'CSV Export'"
+                :disabled="isExporting" 
+                v-tooltip.top="'CSV Export'"
                 class="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
               >
                 <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
@@ -278,7 +278,7 @@ let chartInstance: ECharts | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver;
 
-// 🌟 Export 권한 체크 로직
+// 🌟 Export 권한 체크 로직 (VIEWER와 GUEST는 Export 차단)
 const isExportDisabled = computed(() => {
   const role = authStore.user?.role?.toUpperCase();
   return role === 'VIEWER' || role === 'GUEST';
