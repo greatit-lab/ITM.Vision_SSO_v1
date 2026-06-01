@@ -205,10 +205,10 @@
           </div>
           <div class="flex items-center gap-3">
             <button 
-              v-if="filteredLamps.length > 0" 
+              v-if="filteredLamps.length > 0 && !isExportDisabled" 
               @click="exportCSV" 
-              :disabled="isExporting || isExportDisabled" 
-              v-tooltip.top="isExportDisabled ? '제한 권한(VIEWER/GUEST)은 다운로드할 수 없습니다.' : 'CSV Export'"
+              :disabled="isExporting" 
+              title="CSV Export"
               class="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
             >
               <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
@@ -510,7 +510,7 @@ const formatDate = (dateString: string | null | undefined) => {
 };
 
 const exportCSV = async () => {
-  if (isExportDisabled.value) return; // 🌟 함수 방어
+  if (isExportDisabled.value) return; // 🌟 함수 이중 방어
   if (sortedData.value.length === 0) return;
 
   isExporting.value = true;
