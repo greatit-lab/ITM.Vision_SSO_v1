@@ -204,11 +204,11 @@
             <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Lamp Status Details</h3>
           </div>
           <div class="flex items-center gap-3">
-            <!-- 👨‍💻 [수정] CSV Export 버튼을 records 좌측으로 이동하여 액션 시인성을 높임 -->
             <button 
               v-if="filteredLamps.length > 0" 
               @click="exportCSV" 
-              :disabled="isExporting" 
+              :disabled="isExporting || isExportDisabled" 
+              v-tooltip.top="isExportDisabled ? '제한 권한(VIEWER/GUEST)은 다운로드할 수 없습니다.' : 'CSV Export'"
               class="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
             >
               <i v-if="isExporting" class="pi pi-spin pi-spinner"></i>
@@ -348,6 +348,12 @@ const isExporting = ref(false);
 
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
+
+// 🌟 Export 권한 체크 로직
+const isExportDisabled = computed(() => {
+  const role = authStore.user?.role?.toUpperCase();
+  return role === 'VIEWER' || role === 'GUEST';
+});
 
 const parseSafeDate = (ts: string | Date | undefined | null): dayjs.Dayjs => {
   let str = String(ts || "");
@@ -504,6 +510,7 @@ const formatDate = (dateString: string | null | undefined) => {
 };
 
 const exportCSV = async () => {
+  if (isExportDisabled.value) return; // 🌟 함수 방어
   if (sortedData.value.length === 0) return;
 
   isExporting.value = true;
