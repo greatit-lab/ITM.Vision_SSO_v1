@@ -1134,13 +1134,17 @@ const onDateChange = () => {
 
 const loadLotOptions = async () => {
   if (!filters.eqpId) return;
-  const params = { 
-    eqpId: filters.eqpId, 
+  const params = {
+    eqpId: filters.eqpId,
+    startDate: toLocalISOString(createYesterdayStart()),
+    endDate: toLocalISOString(createTodayEnd(), true),
   };
   try {
     const lots = await waferApi.getDistinctValues("lotids", params);
     lotIds.value = lots.sort();
-  } catch (error) { console.error("Failed to load lot options:", error); }
+  } catch (error) {
+    console.error("Failed to load lot options:", error);
+  }
 };
 
 const loadCassetteOptions = async () => {
@@ -1205,18 +1209,40 @@ const loadFilmOptions = async () => {
 const searchData = async () => { first.value = 0; await loadDataGrid(); };
 
 const loadDataGrid = async () => {
-  isLoading.value = true; hasSearched.value = true; selectedRow.value = null;
+  isLoading.value = true;
+  hasSearched.value = true;
+  selectedRow.value = null;
+  resetDetails();
+
   try {
     const res = await waferApi.getFlatData({
-      eqpId: filters.eqpId, lotId: filters.lotId, waferId: filters.waferId,
-      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined, 
-      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
-      cassetteRcp: filters.cassetteRcp, stageRcp: filters.stageRcp, stageGroup: filters.stageGroup, film: filters.film,
-      page: first.value / rowsPerPage.value, pageSize: rowsPerPage.value,
+      eqpId: filters.eqpId,
+      lotId: filters.lotId,
+      waferId: filters.waferId,
+      startDate: filters.startDate
+        ? toLocalISOString(filters.startDate)
+        : undefined,
+      endDate: filters.endDate
+        ? toLocalISOString(filters.endDate, true)
+        : undefined,
+      cassetteRcp: filters.cassetteRcp,
+      stageRcp: filters.stageRcp,
+      stageGroup: filters.stageGroup,
+      film: filters.film,
+      page: first.value / rowsPerPage.value,
+      pageSize: rowsPerPage.value,
     });
+
     flatData.value = res?.items || [];
     totalRecords.value = res?.totalItems || 0;
-  } finally { isLoading.value = false; }
+    isArchiveMode.value = Boolean((res as any)?.isArchiveMode);
+  } catch (error) {
+    console.error("Failed to load wafer flat data:", error);
+    flatData.value = [];
+    totalRecords.value = 0;
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const onRowsChange = () => { first.value = 0; loadDataGrid(); };
@@ -1250,39 +1276,34 @@ const resetDetails = () => {
 };
 
 const onRowSelect = async (event: any) => {
-  const row = event.data; selectedRow.value = row;
-  resetDetails(); 
-  
+  const row = event.data;
+  selectedRow.value = row;
+  resetDetails();
+
   pdfExists.value = !!row.hasWaferMap;
 
-  isStatsLoading.value = true; isPointsLoading.value = true; 
-  
+  isStatsLoading.value = true;
+  isPointsLoading.value = true;
+
   try {
-    const params = { 
-      eqpId: row.eqpId, 
-      lotId: row.lotId, 
-      waferId: row.waferId, 
-      cassetteRcp: row.cassetteRcp,
-      stageRcp: row.stageRcp,
-      stageGroup: row.stageGroup,
-      film: row.film,
-    };
+    const params = buildSelectedRowParams();
+
+    if (!params) return;
 
     statistics.value = await waferApi.getStatistics(params);
     pointData.value = await waferApi.getPointData(params);
     calculateColumnPrecisions();
 
     if (!pdfExists.value) {
-       const pdfRes = await waferApi.checkPdf({
-           eqpId: row.eqpId,
-           lotId: row.lotId,
-           waferId: row.waferId,
-           dateTime: row.dateTime,
-       });
-       pdfExists.value = pdfRes.exists;
+      const pdfRes = await waferApi.checkPdf(params);
+      pdfExists.value = pdfRes.exists;
     }
-
-  } catch (error) { console.error("Failed to load details:", error); } finally { isStatsLoading.value = false; isPointsLoading.value = false; }
+  } catch (error) {
+    console.error("Failed to load details:", error);
+  } finally {
+    isStatsLoading.value = false;
+    isPointsLoading.value = false;
+  }
 };
 
 const onRowUnselect = () => {
@@ -1297,15 +1318,17 @@ watch(selectedRow, (newVal) => {
 
 const loadPointImage = async (pointValue: number) => {
   if (!pdfExists.value || !selectedRow.value) return;
-  
-  isImageLoading.value = true; pdfImageUrl.value = null;
+
+  const params = buildSelectedRowParams();
+  if (!params) return;
+
+  isImageLoading.value = true;
+  pdfImageUrl.value = null;
+
   try {
     const res = await waferApi.getPdfImage({
-        eqpId: selectedRow.value.eqpId,
-        lotId: selectedRow.value.lotId,
-        waferId: selectedRow.value.waferId,
-        dateTime: selectedRow.value.dateTime,
-        pointNumber: pointValue
+      ...params,
+      pointNumber: pointValue,
     });
     
     let base64Image = "";
@@ -1329,27 +1352,45 @@ const loadPointImage = async (pointValue: number) => {
 
 const loadSpectrumData = async (pointValue: number) => {
   if (!selectedRow.value) return;
-  
-  spectrumData.value = []; isSpectrumLoading.value = true;
+
+  const params = buildSelectedRowParams();
+  if (!params) return;
+
+  spectrumData.value = [];
+  isSpectrumLoading.value = true;
+
   try {
-    const params = { 
-        eqpId: selectedRow.value.eqpId, 
-        lotId: selectedRow.value.lotId, 
-        waferId: String(selectedRow.value.waferId), 
-        dateTime: selectedRow.value.dateTime,
-        pointNumber: pointValue 
-    };
-    
-    const rawData = await waferApi.getSpectrum(params);
-    if (!rawData || rawData.length === 0) return;
-    const expData = rawData.find((d: any) => d.class && d.class.toUpperCase() === "EXP");
-    const genData = rawData.find((d: any) => d.class && d.class.toUpperCase() === "GEN");
-    const base = expData?.wavelengths || genData?.wavelengths || [];
-    spectrumData.value = base.map((wl: number, i: number) => {
-      const expVal = expData?.values?.[i]; const genVal = genData?.values?.[i];
-      return { wavelength: wl, exp: expVal !== null && expVal !== undefined ? expVal * 100 : null, gen: genVal !== null && genVal !== undefined ? genVal * 100 : null };
+    const rawData = await waferApi.getSpectrum({
+      ...params,
+      waferId: String(params.waferId),
+      ts: params.dateTime,
+      pointNumber: pointValue,
     });
-  } catch (err) { console.error("Failed to load spectrum data:", err); } finally { isSpectrumLoading.value = false; }
+
+    if (!rawData || rawData.length === 0) return;
+
+    const expData = rawData.find(
+      (d: any) => d.class && d.class.toUpperCase() === "EXP",
+    );
+    const genData = rawData.find(
+      (d: any) => d.class && d.class.toUpperCase() === "GEN",
+    );
+    const base = expData?.wavelengths || genData?.wavelengths || [];
+
+    spectrumData.value = base.map((wl: number, i: number) => {
+      const expVal = expData?.values?.[i];
+      const genVal = genData?.values?.[i];
+      return {
+        wavelength: wl,
+        exp: expVal !== null && expVal !== undefined ? expVal * 100 : null,
+        gen: genVal !== null && genVal !== undefined ? genVal * 100 : null,
+      };
+    });
+  } catch (err) {
+    console.error("Failed to load spectrum data:", err);
+  } finally {
+    isSpectrumLoading.value = false;
+  }
 };
 
 const onPointClick = async (idx: number) => {
@@ -1387,14 +1428,29 @@ const onPointClick = async (idx: number) => {
 };
 
 const resetFilters = () => {
-  filterStore.selectedSite = ""; filterStore.selectedSdwt = ""; localStorage.removeItem("wafer_site"); localStorage.removeItem("wafer_sdwt"); localStorage.removeItem("wafer_eqpid");
-  sdwts.value = []; eqpIds.value = []; filters.eqpId = ""; filters.lotId = ""; filters.waferId = ""; filters.cassetteRcp = ""; filters.stageGroup = ""; filters.film = "";
-  flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; 
-  resetDetails(); 
-  
-  // [디자인 개선] 리셋 시에도 가장 빠르고 가벼운 "오늘/어제" 로 초기화
-  filters.startDate = dayjs().subtract(1, 'day').startOf('day').toDate();
-  filters.endDate = dayjs().toDate();
+  filterStore.selectedSite = "";
+  filterStore.selectedSdwt = "";
+  localStorage.removeItem("wafer_site");
+  localStorage.removeItem("wafer_sdwt");
+  localStorage.removeItem("wafer_eqpid");
+
+  sdwts.value = [];
+  eqpIds.value = [];
+  filters.eqpId = "";
+  filters.lotId = "";
+  filters.waferId = "";
+  filters.cassetteRcp = "";
+  filters.stageGroup = "";
+  filters.film = "";
+
+  flatData.value = [];
+  selectedRow.value = null;
+  hasSearched.value = false;
+  first.value = 0;
+  isArchiveMode.value = false;
+
+  resetDetails();
+  setRecentTwoDaysFilter();
 };
 
 const fmt = (num: number | null | undefined, prec: number = 3) => num === null || num === undefined ? "0.".padEnd(prec + 2, "0") : num.toFixed(prec);
