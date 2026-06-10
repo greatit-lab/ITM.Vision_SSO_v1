@@ -12,11 +12,11 @@
       
       <span 
         v-if="isArchiveMode" 
-        class="flex items-center gap-1.5 px-2.5 py-1 ml-3 text-[11px] font-bold text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-zinc-800 rounded border border-slate-200 dark:border-zinc-700 transition-all animate-fade-in"
-        title="과거 시스템 데이터가 최적화된 모드로 제공됩니다."
+        class="flex items-center gap-1.5 px-3 py-1 ml-3 text-xs font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 rounded-full transition-all animate-fade-in"
+        title="과거 아카이브 데이터 조회 모드입니다."
       >
-        <i class="pi pi-database text-[10px] text-slate-400 dark:text-zinc-500"></i>
-        Archive Data
+        <i class="pi pi-database text-[11px]"></i>
+        Archive Mode
       </span>
     </div>
 
@@ -47,6 +47,14 @@
           </div>
         </div>
         <div class="flex items-center gap-1 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800">
+          <Button 
+            v-if="isArchiveMode"
+            label="Live 복귀" 
+            icon="pi pi-bolt" 
+            class="!bg-amber-500 !border-amber-500 hover:!bg-amber-600 !h-8 !px-3 !text-xs !font-bold mr-1 animate-fade-in"
+            v-tooltip.bottom="'최신 라이브 데이터(오늘/어제)로 즉시 복귀합니다.'"
+            @click="returnToLive" 
+          />
           <Button icon="pi pi-search" rounded class="!bg-teal-600 !border-teal-600 hover:!bg-teal-700 !w-8 !h-8 !text-xs" @click="searchData" :loading="isLoading" :disabled="!filters.eqpId" />
           <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300" @click="resetFilters" />
           <Button :icon="showAdvanced ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" text rounded severity="secondary" v-tooltip.bottom="'Advanced Filters'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300" @click="showAdvanced = !showAdvanced" />
@@ -259,6 +267,7 @@ import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import ProgressSpinner from "primevue/progressspinner";
+import dayjs from "dayjs";
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
@@ -269,15 +278,11 @@ const hasSearched = ref(false);
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-const now = new Date();
-const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); 
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
-
+// [디자인 개선] 초기 진입 시 날짜를 가장 가벼운 "오늘/어제"로 기본 설정
 const filters = reactive({
   eqpId: "", lotId: "", waferId: "", 
-  startDate: sevenDaysAgo,
-  endDate: new Date(),
+  startDate: dayjs().subtract(1, 'day').startOf('day').toDate(),
+  endDate: dayjs().toDate(),
   cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
 });
 
@@ -318,16 +323,13 @@ const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
 // ============================================================================
-// [추가됨] Archive 동적 달력 및 뱃지 제어 로직
+// Archive 동적 달력 및 뱃지 제어 로직
 // ============================================================================
-const ARCHIVE_MONTHS_THRESHOLD = 2; // 서버와 동일한 기준 정책 유지
 const MAX_ARCHIVE_DAYS = 31;
 
 const boundaryDate = computed(() => {
-  const d = new Date();
-  d.setMonth(d.getMonth() - ARCHIVE_MONTHS_THRESHOLD);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  // 오늘과 전일을 제외한 이전 데이터 기준 (어제 자정 00:00:00)
+  return dayjs().subtract(1, 'day').startOf('day').toDate();
 });
 
 const isArchiveMode = computed(() => {
@@ -337,10 +339,7 @@ const isArchiveMode = computed(() => {
 
 const endDateMin = computed(() => {
   if (!filters.startDate) return undefined;
-  const start = filters.startDate;
-  // 시작일이 Archive 구간인 경우, 최소값은 시작일 본인
-  // 시작일이 Live 구간인 경우, 최소값도 시작일 본인 (교차 방지됨)
-  return start;
+  return filters.startDate;
 });
 
 const endDateMax = computed(() => {
@@ -358,11 +357,19 @@ const endDateMax = computed(() => {
 
 const startDateMax = computed(() => {
   if (filters.endDate) {
-    const end = filters.endDate;
-    return end;
+    return filters.endDate;
   }
   return new Date();
 });
+
+// [기능 추가] Live 데이터 복귀 핸들러
+const returnToLive = () => {
+  filters.startDate = dayjs().subtract(1, 'day').startOf('day').toDate();
+  filters.endDate = dayjs().toDate();
+  if (filters.eqpId) {
+    searchData();
+  }
+};
 // ============================================================================
 
 // ============================================================================
@@ -525,7 +532,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
-// [수정됨] 달력 교차 방지 실시간 동기화
+// 달력 교차 방지 실시간 동기화
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -1164,10 +1171,9 @@ const resetFilters = () => {
   flatData.value = []; selectedRow.value = null; hasSearched.value = false; first.value = 0; 
   resetDetails(); 
   
-  const now = new Date();
-  now.setHours(0,0,0,0);
-  filters.startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  filters.endDate = new Date();
+  // [디자인 개선] 리셋 시에도 가장 빠르고 가벼운 "오늘/어제" 로 초기화
+  filters.startDate = dayjs().subtract(1, 'day').startOf('day').toDate();
+  filters.endDate = dayjs().toDate();
 };
 
 const fmt = (num: number | null | undefined, prec: number = 3) => num === null || num === undefined ? "0.".padEnd(prec + 2, "0") : num.toFixed(prec);
