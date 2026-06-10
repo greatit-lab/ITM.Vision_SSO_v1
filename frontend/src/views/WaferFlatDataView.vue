@@ -573,11 +573,15 @@ const startBugCrawling = () => {
       bug.x = nextX;
       bug.y = nextY;
 
-      const now = Date.now();
-      if (now - bug.lastEatTime > 300) {
-        eatenPaths.push({ x: bug.x, y: bug.y, r: bug.size * 0.25 + Math.random() * 1.0 });
-        if (eatenPaths.length > 1000) eatenPaths.shift(); 
-        bug.lastEatTime = now;
+      const currentTime = Date.now();
+      if (currentTime - bug.lastEatTime > 300) {
+        eatenPaths.push({
+          x: bug.x,
+          y: bug.y,
+          r: bug.size * 0.25 + Math.random() * 1.0,
+        });
+        if (eatenPaths.length > 1000) eatenPaths.shift();
+        bug.lastEatTime = currentTime;
       }
 
       ctx.save();
@@ -640,45 +644,137 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 const statKeys: (keyof StatisticItem)[] = ['max', 'min', 'range', 'mean', 'stdDev', 'percentStdDev', 'percentNonU'];
 
-// 달력 교차 방지 실시간 동기화
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
-    if (newStart && newEnd) {
-      const startMs = newStart.getTime();
-      const endMs = newEnd.getTime();
-      const boundMs = boundaryDate.value.getTime();
-
-      // 교차 영역(Zone C) 강제 보정 로직
-      if (startMs < boundMs && endMs >= boundMs) {
-        filters.endDate = new Date(boundMs - 1);
-        return;
+    if (!newStart || !newEnd) {
+      if (filters.eqpId) {
+        onDateChange();
       }
-      if (startMs >= boundMs && endMs < boundMs) {
-        filters.startDate = new Date(boundMs);
-        return;
+      return;
+    }
+
+    const startMs = newStart.getTime();
+    const endMs = newEnd.getTime();
+    const liveMs = liveCutoffDate.value.getTime();
+
+    const isStartChanged = startMs !== oldStart?.getTime();
+    const isEndChanged = endMs !== oldEnd?.getTime();
+
+    /*
+      Archive 시작일을 사용자가 선택한 경우:
+      endDate가 아직 Live 영역에 있거나 startDate보다 앞서 있으면,
+      즉시 startDate 기준 1개월 범위로 자동 보정합니다.
+
+      단, Archive 조회는 Live 경계일을 넘으면 안 되므로
+      최대 endDate는 liveCutoffDate - 1ms 입니다.
+    */
+    if (isStartChanged && startMs < liveMs) {
+      const archiveLimitEnd = new Date(liveMs - 1);
+
+      const autoEnd = new Date(newStart);
+      autoEnd.setMonth(autoEnd.getMonth() + 1);
+      autoEnd.setHours(23, 59, 59, 999);
+
+      filters.endDate =
+        autoEnd.getTime() < archiveLimitEnd.getTime()
+          ? autoEnd
+          : archiveLimitEnd;
+
+      if (filters.eqpId) {
+        onDateChange();
       }
 
-      if (startMs > endMs) {
-        if (startMs !== oldStart?.getTime()) {
-           filters.endDate = new Date(newStart);
-        } else if (endMs !== oldEnd?.getTime()) {
-           filters.startDate = new Date(newEnd);
+      return;
+    }
+
+    /*
+      Live 시작일을 사용자가 선택했는데 endDate가 Archive 영역이면
+      endDate를 오늘로 자동 보정합니다.
+    */
+    if (isStartChanged && startMs >= liveMs && endMs < liveMs) {
+      filters.endDate = createTodayEnd();
+
+      if (filters.eqpId) {
+        onDateChange();
+      }
+
+      return;
+    }
+
+    /*
+      사용자가 endDate를 Archive 영역으로 직접 선택했는데
+      startDate가 Live 영역이면, startDate를 endDate와 같은 날짜로 맞춥니다.
+    */
+    if (isEndChanged && startMs >= liveMs && endMs < liveMs) {
+      const adjustedStart = new Date(newEnd);
+      adjustedStart.setHours(0, 0, 0, 0);
+      filters.startDate = adjustedStart;
+
+      if (filters.eqpId) {
+        onDateChange();
+      }
+
+      return;
+    }
+
+    /*
+      Archive start/end가 둘 다 Archive 영역인 경우에도
+      최대 조회 범위는 31일로 제한합니다.
+    */
+    if (startMs < liveMs && endMs < liveMs) {
+      const maxArchiveEnd = new Date(newStart);
+      maxArchiveEnd.setDate(maxArchiveEnd.getDate() + MAX_ARCHIVE_DAYS);
+      maxArchiveEnd.setHours(23, 59, 59, 999);
+
+      const archiveLimitEnd = new Date(liveMs - 1);
+      const allowedMaxEnd =
+        maxArchiveEnd.getTime() < archiveLimitEnd.getTime()
+          ? maxArchiveEnd
+          : archiveLimitEnd;
+
+      if (endMs > allowedMaxEnd.getTime()) {
+        filters.endDate = allowedMaxEnd;
+
+        if (filters.eqpId) {
+          onDateChange();
         }
-        return; 
+
+        return;
       }
+    }
+
+    /*
+      일반적인 start/end 역전 방지
+    */
+    if (startMs > endMs) {
+      if (isStartChanged) {
+        const adjustedEnd = new Date(newStart);
+        adjustedEnd.setHours(23, 59, 59, 999);
+        filters.endDate = adjustedEnd;
+      } else if (isEndChanged) {
+        const adjustedStart = new Date(newEnd);
+        adjustedStart.setHours(0, 0, 0, 0);
+        filters.startDate = adjustedStart;
+      }
+
+      if (filters.eqpId) {
+        onDateChange();
+      }
+
+      return;
     }
 
     if (filters.eqpId) {
-        onDateChange(); 
+      onDateChange();
     }
-  }
+  },
 );
 
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
-  
+
   if (isEndDate) {
     d.setHours(23, 59, 59, 999);
   } else {
@@ -687,7 +783,25 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
 
   const offset = d.getTimezoneOffset() * 60000;
   const localDate = new Date(d.getTime() - offset);
-  return localDate.toISOString().slice(0, 19).replace('T', ' '); 
+  return localDate.toISOString().slice(0, 19).replace("T", " ");
+};
+
+const buildSelectedRowParams = () => {
+  if (!selectedRow.value) return null;
+
+  return {
+    eqpId: selectedRow.value.eqpId,
+    lotId: selectedRow.value.lotId,
+    waferId: selectedRow.value.waferId,
+    cassetteRcp: selectedRow.value.cassetteRcp,
+    stageRcp: selectedRow.value.stageRcp,
+    stageGroup: selectedRow.value.stageGroup,
+    film: selectedRow.value.film,
+    dateTime: selectedRow.value.dateTime,
+    servTs: selectedRow.value.servTs,
+    startDate: selectedRow.value.servTs,
+    endDate: selectedRow.value.servTs,
+  };
 };
 
 const formatDate = (dateVal: string | Date | null | undefined) => {
@@ -705,10 +819,9 @@ const formatDate = (dateVal: string | Date | null | undefined) => {
 
       return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
     }
-  } catch (e) {
-  }
+  } catch (e) {}
 
-  let str = String(dateVal);
+  const str = String(dateVal);
   if (str.startsWith("20") && str.length >= 19) {
     return str.substring(2, 19).replace("T", " ");
   }
