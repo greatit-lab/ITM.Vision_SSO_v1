@@ -14,7 +14,7 @@ const getBaseUrl = () => {
 
 const instance = axios.create({
   baseURL: getBaseUrl(),
-  // [★핵심 개선] PDF 변환 대기 시간을 고려하여 10초 -> 100초로 변경
+  // [★핵심 개선] 대용량 데이터 및 PDF 변환 대기 시간을 고려하여 100초로 설정
   timeout: 100000, 
   headers: {
     'Content-Type': 'application/json',
@@ -39,8 +39,21 @@ instance.interceptors.response.use(
   (error) => {
     if (error.response) {
       const status = error.response.status;
+      const errorData = error.response.data;
 
-      // [핵심 수정 1] 401 Unauthorized (토큰 만료 또는 유효하지 않은 인증)
+      // [신규 핵심 추가] 400 Bad Request 전역 예외 처리 (조회 제한 등)
+      if (status === 400) {
+        console.warn('[API] 400 Bad Request:', errorData);
+        // NestJS의 BadRequestException 객체 내의 message 속성을 추출하여 화면에 경고창 출력
+        const errMsg = errorData?.message || errorData || '잘못된 요청입니다. (조회 기간 등을 확인해주세요)';
+        
+        // 에러 메시지가 배열일 경우(Validation 에러 등) 텍스트로 변환, 아닐 경우 그대로 출력
+        alert(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
+        
+        return Promise.reject(error);
+      }
+
+      // 401 Unauthorized (토큰 만료 또는 유효하지 않은 인증)
       if (status === 401) {
         console.warn('[API] 인증 실패: 토큰이 만료되었거나 유효하지 않습니다. 자동 로그아웃 처리합니다.');
         
@@ -48,7 +61,7 @@ instance.interceptors.response.use(
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('user_info');
         
-        // 2. 에러 파라미터 없이 순수한 로그인 페이지로 리다이렉트 (Access Denied 창 방지)
+        // 2. 에러 파라미터 없이 순수한 로그인 페이지로 리다이렉트
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
@@ -56,7 +69,7 @@ instance.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // [핵심 수정 2] 403 Forbidden (정상 로그인했으나 해당 메뉴/기능에 권한이 없는 경우)
+      // 403 Forbidden (정상 로그인했으나 해당 메뉴/기능에 권한이 없는 경우)
       if (status === 403) {
         console.warn('[API] 권한 부족: 접근이 거부되었습니다.');
         
@@ -72,8 +85,10 @@ instance.interceptors.response.use(
     // 기타 네트워크 및 타임아웃 에러 로깅
     if (error.code === 'ERR_NETWORK') {
       console.error('[API Error] 네트워크 연결 실패. 백엔드 서버 상태를 확인하세요.');
+      alert('서버와의 네트워크 연결에 실패했습니다.');
     } else if (error.code === 'ECONNABORTED') {
       console.error('[API Error] 요청 시간이 초과되었습니다.');
+      alert('데이터 요청 시간이 초과되었습니다. 조회 기간을 줄여서 다시 시도해주세요.');
     } else if (error.response) {
       console.error(
         `[API Error] ${error.response.status} ${error.response.config.url}`,
