@@ -15,6 +15,12 @@ export interface WaferFlatDataDto {
   hasSpectrum?: boolean;
 }
 
+export interface WaferFlatDataResponseDto {
+  totalItems: number;
+  items: WaferFlatDataDto[];
+  isArchiveMode?: boolean;
+}
+
 export interface StatisticItem {
   max: number;
   min: number;
@@ -26,10 +32,11 @@ export interface StatisticItem {
 }
 
 export interface StatisticsDto {
-  t1: StatisticItem;
-  gof: StatisticItem;
-  z: StatisticItem;
-  srvisz: StatisticItem;
+  t1?: StatisticItem;
+  gof?: StatisticItem;
+  z?: StatisticItem;
+  srvisz?: StatisticItem;
+  [key: string]: StatisticItem | undefined;
 }
 
 export interface PointDataResponseDto {
@@ -92,6 +99,20 @@ export interface WaferQueryParams {
   targetEqps?: string;
 }
 
+const buildRowIdentityParams = (params: WaferQueryParams) => ({
+  eqpId: params.eqpId,
+  lotId: params.lotId,
+  waferId: params.waferId,
+  cassetteRcp: params.cassetteRcp,
+  stageRcp: params.stageRcp,
+  stageGroup: params.stageGroup,
+  film: params.film,
+  dateTime: params.dateTime,
+  servTs: params.servTs,
+  startDate: params.startDate,
+  endDate: params.endDate,
+});
+
 export const waferApi = {
   getDistinctValues: async (field: string, params: WaferQueryParams) => {
     const { data } = await http.get<string[]>("/wafer/distinct-values", {
@@ -108,29 +129,52 @@ export const waferApi = {
   },
 
   getSpectrumTrend: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/spectrum-trend", { params });
+    const { data } = await http.get("/wafer/spectrum-trend", {
+      params,
+    });
     return data;
   },
 
   getSpectrumGen: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/spectrum-gen", { params });
+    const cleanParams = {
+      eqpId: params.eqpId,
+      lotId: params.lotId,
+      waferId: params.waferId,
+      pointId: params.pointId,
+      pointNumber: params.pointNumber,
+      ts: params.ts || params.dateTime,
+      dateTime: params.dateTime,
+      servTs: params.servTs,
+      startDate: params.startDate,
+      endDate: params.endDate,
+    };
+
+    const { data } = await http.get("/wafer/spectrum-gen", {
+      params: cleanParams,
+    });
     return data;
   },
 
   getFlatData: async (params: WaferQueryParams) => {
-    const { data } = await http.get<{ totalItems: number; items: WaferFlatDataDto[] }>("/wafer/flat-data", { params });
+    const { data } = await http.get<WaferFlatDataResponseDto>(
+      "/wafer/flat-data",
+      {
+        params,
+      },
+    );
     return data;
   },
 
-  // frontend/src/api/wafer.ts 내의 함수 교체
   getPdfImage: async (params: WaferQueryParams) => {
     const cleanParams = {
-        eqpId: params.eqpId,
-        lotId: params.lotId,  // PDF 파일명 식별용
-        waferId: params.waferId,  // PDF 파일명 식별용
-        dateTime: params.dateTime,
-        pointNumber: params.pointNumber
+      eqpId: params.eqpId,
+      lotId: params.lotId,
+      waferId: params.waferId,
+      dateTime: params.dateTime,
+      servTs: params.servTs,
+      pointNumber: params.pointNumber,
     };
+
     const { data } = await http.get<{ image: string }>("/wafer/pdf-image", {
       params: cleanParams,
     });
@@ -143,10 +187,12 @@ export const waferApi = {
       lotId: params.lotId,
       waferId: params.waferId,
       dateTime: params.dateTime,
+      servTs: params.servTs,
     };
+
     const { data } = await http.get<{ exists: boolean; url: string | null }>(
       "/wafer/check-pdf",
-      { params: cleanParams }
+      { params: cleanParams },
     );
     return data;
   },
@@ -154,11 +200,16 @@ export const waferApi = {
   getSpectrum: async (params: WaferQueryParams) => {
     const cleanParams = {
       eqpId: params.eqpId,
-      ts: params.dateTime,  // 백엔드의 ts 쿼리 조건
+      ts: params.ts || params.dateTime,
+      dateTime: params.dateTime,
+      servTs: params.servTs,
       lotId: params.lotId,
       waferId: params.waferId,
       pointNumber: params.pointNumber,
+      startDate: params.startDate,
+      endDate: params.endDate,
     };
+
     const { data } = await http.get<SpectrumDataDto[]>("/wafer/spectrum", {
       params: cleanParams,
     });
@@ -166,15 +217,8 @@ export const waferApi = {
   },
 
   getStatistics: async (params: WaferQueryParams) => {
-    const cleanParams = {
-      eqpId: params.eqpId,
-      lotId: params.lotId,
-      waferId: params.waferId,
-      cassetteRcp: params.cassetteRcp,
-      stageRcp: params.stageRcp,
-      stageGroup: params.stageGroup,
-      film: params.film,
-    };
+    const cleanParams = buildRowIdentityParams(params);
+
     const { data } = await http.get<StatisticsDto>("/wafer/statistics", {
       params: cleanParams,
     });
@@ -182,15 +226,8 @@ export const waferApi = {
   },
 
   getPointData: async (params: WaferQueryParams) => {
-    const cleanParams = {
-      eqpId: params.eqpId,
-      lotId: params.lotId,
-      waferId: params.waferId,
-      cassetteRcp: params.cassetteRcp,
-      stageRcp: params.stageRcp,
-      stageGroup: params.stageGroup,
-      film: params.film,
-    };
+    const cleanParams = buildRowIdentityParams(params);
+
     const { data } = await http.get<PointDataResponseDto>("/wafer/point-data", {
       params: cleanParams,
     });
@@ -198,26 +235,52 @@ export const waferApi = {
   },
 
   getResidualMap: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/residual-map", { params });
+    const cleanParams = {
+      ...buildRowIdentityParams(params),
+      metric: params.metric,
+    };
+
+    const { data } = await http.get("/wafer/residual-map", {
+      params: cleanParams,
+    });
     return data;
   },
 
   getGoldenSpectrum: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/golden-spectrum", { params });
+    const cleanParams = {
+      ...buildRowIdentityParams(params),
+      pointId: params.pointId,
+      pointNumber: params.pointNumber,
+      ts: params.ts || params.dateTime,
+    };
+
+    const { data } = await http.get("/wafer/golden-spectrum", {
+      params: cleanParams,
+    });
     return data;
   },
 
   getAvailableMetrics: async (params: WaferQueryParams) => {
+    const cleanParams = buildRowIdentityParams(params);
+
     const { data } = await http.get<string[]>("/wafer/available-metrics", {
-      params,
+      params: cleanParams,
     });
     return data;
   },
 
   getLotUniformityTrend: async (params: WaferQueryParams) => {
-    const { data } = await http.get<LotUniformitySeriesDto[]>("/wafer/lot-uniformity-trend", {
-      params,
-    });
+    const cleanParams = {
+      ...buildRowIdentityParams(params),
+      metric: params.metric,
+    };
+
+    const { data } = await http.get<LotUniformitySeriesDto[]>(
+      "/wafer/lot-uniformity-trend",
+      {
+        params: cleanParams,
+      },
+    );
     return data;
   },
 
@@ -229,14 +292,16 @@ export const waferApi = {
   },
 
   getComparisonData: async (params: WaferQueryParams) => {
-    const { data } = await http.get("/wafer/comparison-data", { params });
+    const { data } = await http.get("/wafer/comparison-data", {
+      params,
+    });
     return data;
   },
 
   getOpticalTrend: async (params: WaferQueryParams) => {
-    const { data } = await http.get<OpticalTrendDto[]>("/wafer/optical-trend", { params });
+    const { data } = await http.get<OpticalTrendDto[]>("/wafer/optical-trend", {
+      params,
+    });
     return data;
   },
 };
-
-
