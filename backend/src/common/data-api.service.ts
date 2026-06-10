@@ -2,6 +2,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  HttpException,
   Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -11,11 +12,10 @@ import axios, { AxiosError, AxiosResponse } from 'axios';
 import * as http from 'http';
 import * as https from 'https';
 
-// [수정] RequestOptions에 token 및 timeout 추가
 export interface RequestOptions {
   returnNullOn404?: boolean;
-  token?: string; // 인증 토큰 전달용 (옵션)
-  timeout?: number; // [추가] 개별 API 타임아웃 설정용 (옵션)
+  token?: string;
+  timeout?: number;
 }
 
 @Injectable()
@@ -85,8 +85,6 @@ export class DataApiService {
           httpAgent: this.httpAgent,
           httpsAgent: this.httpsAgent,
           proxy: false,
-          // [핵심 수정] 기본값을 100,000ms(100초)에서 300,000ms(300초/5분)으로 연장
-          // 필요시 호출부에서 options.timeout 으로 덮어씌울 수 있습니다.
           timeout: options?.timeout || 300000, 
         }),
       );
@@ -136,7 +134,6 @@ export class DataApiService {
         errorMessage = axiosError.message;
       }
 
-      // [추가] 타임아웃 발생 시 로그를 좀 더 명확하게 찍어줍니다.
       if (axiosError.code === 'ECONNABORTED') {
         errorMessage = `Request Timeout (${axiosError.message})`;
       }
@@ -144,15 +141,20 @@ export class DataApiService {
       this.logger.error(
         `[Data API Error] ${statusCode} ${url} | ${errorMessage}`,
       );
+
+      // [핵심 변경] 무조건 500 InternalServerErrorException으로 변환하지 않고,
+      // Data-API가 반환한 에러 객체와 상태 코드(예: 400)를 프론트엔드로 그대로 전달(Pass-through)합니다.
+      throw new HttpException(
+        errorData || `Data API Proxy Error: ${errorMessage}`,
+        statusCode,
+      );
     } else {
       const sysMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`[System Error] ${url} | ${sysMessage}`);
-      errorMessage = sysMessage;
+      throw new InternalServerErrorException(
+        `System Error: ${sysMessage}`,
+      );
     }
-
-    throw new InternalServerErrorException(
-      `Data API Proxy Error: ${errorMessage}`,
-    );
   }
 }
