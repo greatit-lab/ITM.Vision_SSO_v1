@@ -276,7 +276,6 @@ import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import ProgressSpinner from "primevue/progressspinner";
-import dayjs from "dayjs";
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
@@ -287,12 +286,34 @@ const hasSearched = ref(false);
 const sites = ref<string[]>([]);
 const sdwts = ref<string[]>([]);
 
-// [디자인 개선] 초기 진입 시 날짜를 가장 가벼운 "오늘/어제"로 기본 설정
+const createTodayStart = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const createYesterdayStart = () => {
+  const d = createTodayStart();
+  d.setDate(d.getDate() - 1);
+  return d;
+};
+
+const createTodayEnd = () => {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
 const filters = reactive({
-  eqpId: "", lotId: "", waferId: "", 
-  startDate: dayjs().subtract(1, 'day').startOf('day').toDate(),
-  endDate: dayjs().toDate(),
-  cassetteRcp: "", stageRcp: "", stageGroup: "", film: "",
+  eqpId: "",
+  lotId: "",
+  waferId: "",
+  startDate: createYesterdayStart(),
+  endDate: createTodayEnd(),
+  cassetteRcp: "",
+  stageRcp: "",
+  stageGroup: "",
+  film: "",
 });
 
 const eqpIds = ref<string[]>([]);
@@ -331,19 +352,79 @@ let spectrumChartInstance: ECharts | null = null;
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
+const isArchiveMode = ref(false);
+
 // ============================================================================
-// Archive 동적 달력 및 뱃지 제어 로직
+// Wafer Flat Data 날짜 구간 제어
+// - 오늘 + 전일: Live 최근2일 데이터
+// - 전전일 이전: Archive Data
 // ============================================================================
 const MAX_ARCHIVE_DAYS = 31;
 
-const boundaryDate = computed(() => {
-  // 오늘과 전일을 제외한 이전 데이터 기준 (어제 자정 00:00:00)
-  return dayjs().subtract(1, 'day').startOf('day').toDate();
+const liveCutoffDate = computed(() => {
+  const d = createTodayStart();
+  d.setDate(d.getDate() - 1);
+  return d;
 });
 
-const isArchiveMode = computed(() => {
-  if (!filters.startDate) return false;
-  return filters.startDate.getTime() < boundaryDate.value.getTime();
+const todayEndDate = computed(() => createTodayEnd());
+
+const isDateInArchiveRange = (date: Date | null | undefined) => {
+  if (!date) return false;
+  return date.getTime() < liveCutoffDate.value.getTime();
+};
+
+const isCurrentFilterRecentTwoDays = computed(() => {
+  if (!filters.startDate || !filters.endDate) return false;
+
+  const start = new Date(filters.startDate);
+  start.setHours(0, 0, 0, 0);
+
+  const yesterday = createYesterdayStart();
+
+  const end = new Date(filters.endDate);
+  end.setHours(23, 59, 59, 999);
+
+  const todayEnd = createTodayEnd();
+
+  return (
+    start.getTime() === yesterday.getTime() &&
+    end.toDateString() === todayEnd.toDateString()
+  );
+});
+
+const isCurrentFilterArchive = computed(() => {
+  if (!filters.startDate || !filters.endDate) return false;
+  return (
+    isDateInArchiveRange(filters.startDate) &&
+    isDateInArchiveRange(filters.endDate)
+  );
+});
+
+const showReturnToRecentButton = computed(() => isCurrentFilterArchive.value);
+
+const dataRangeBadgeLabel = computed(() => {
+  if (isCurrentFilterArchive.value) return "Archive Data";
+  if (isCurrentFilterRecentTwoDays.value) return "최근2일 데이터";
+  return "";
+});
+
+const dataRangeBadgeIcon = computed(() => {
+  if (isCurrentFilterArchive.value) return "pi pi-database text-[10px]";
+  if (isCurrentFilterRecentTwoDays.value) return "pi pi-clock text-[10px]";
+  return "";
+});
+
+const dataRangeBadgeClass = computed(() => {
+  if (isCurrentFilterArchive.value) {
+    return "text-slate-600 bg-white border-slate-200 shadow-sm dark:text-slate-300 dark:bg-zinc-900 dark:border-zinc-700";
+  }
+
+  if (isCurrentFilterRecentTwoDays.value) {
+    return "text-teal-700 bg-teal-50 border-teal-200 shadow-sm dark:text-teal-300 dark:bg-teal-900/20 dark:border-teal-800/70";
+  }
+
+  return "";
 });
 
 const endDateMin = computed(() => {
@@ -352,31 +433,49 @@ const endDateMin = computed(() => {
 });
 
 const endDateMax = computed(() => {
-  if (!filters.startDate) return new Date();
+  if (!filters.startDate) return todayEndDate.value;
+
   const start = filters.startDate;
-  if (start.getTime() < boundaryDate.value.getTime()) {
-    // Archive 구간: 최대 MAX_ARCHIVE_DAYS 일, 단 Live 구간(boundaryDate)을 넘을 수 없음
-    const maxArchive = new Date(start.getTime() + MAX_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
-    return maxArchive.getTime() < boundaryDate.value.getTime() ? maxArchive : new Date(boundaryDate.value.getTime() - 1);
-  } else {
-    // Live 구간: 오늘까지
-    return new Date();
+
+  if (isDateInArchiveRange(start)) {
+    const maxArchive = new Date(start);
+    maxArchive.setMonth(maxArchive.getMonth() + 1);
+    maxArchive.setHours(23, 59, 59, 999);
+
+    const archiveLimit = new Date(liveCutoffDate.value.getTime() - 1);
+
+    return maxArchive.getTime() < archiveLimit.getTime()
+      ? maxArchive
+      : archiveLimit;
   }
+
+  return todayEndDate.value;
 });
 
 const startDateMax = computed(() => {
   if (filters.endDate) {
     return filters.endDate;
   }
-  return new Date();
+  return todayEndDate.value;
 });
 
-// [기능 추가] Live 데이터 복귀 핸들러
-const returnToLive = () => {
-  filters.startDate = dayjs().subtract(1, 'day').startOf('day').toDate();
-  filters.endDate = dayjs().toDate();
+const setRecentTwoDaysFilter = () => {
+  filters.startDate = createYesterdayStart();
+  filters.endDate = createTodayEnd();
+  isArchiveMode.value = false;
+};
+
+const returnToRecentTwoDays = async () => {
+  setRecentTwoDaysFilter();
+  first.value = 0;
+  selectedRow.value = null;
+  resetDetails();
+
+  await nextTick();
+
   if (filters.eqpId) {
-    searchData();
+    await loadCassetteOptions();
+    await loadDataGrid();
   }
 };
 // ============================================================================
