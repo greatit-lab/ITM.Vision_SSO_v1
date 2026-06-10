@@ -9,15 +9,6 @@
         <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Wafer Flat Data</h1>
         <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px]">Detailed metrology data analysis.</span>
       </div>
-      
-      <span 
-        v-if="isArchiveMode" 
-        class="flex items-center gap-1.5 px-3 py-1 ml-3 text-xs font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 rounded-full transition-all animate-fade-in"
-        title="과거 아카이브 데이터 조회 모드입니다."
-      >
-        <i class="pi pi-database text-[11px]"></i>
-        Archive Mode
-      </span>
     </div>
 
     <div class="mb-5 bg-white dark:bg-[#111111] p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-col gap-2 shadow-sm transition-colors duration-300">
@@ -45,21 +36,39 @@
           <div class="min-w-[130px] shrink-0" v-tooltip.bottom="filters.lotId ? 'Date is ignored when searching by Lot ID' : null">
             <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :minDate="endDateMin" :maxDate="endDateMax" :disabled="!filters.eqpId || !!filters.lotId" />
           </div>
+
+          
+          <span
+            v-if="dataRangeBadgeLabel"
+            class="inline-flex items-center justify-center gap-1.5 h-7 px-2.5 shrink-0 whitespace-nowrap text-[11px] font-extrabold rounded-lg border transition-all animate-fade-in leading-none"
+            :class="dataRangeBadgeClass"
+          >
+            <i :class="dataRangeBadgeIcon"></i>
+            <span class="leading-none whitespace-nowrap">{{
+              dataRangeBadgeLabel
+            }}</span>
+          </span>
         </div>
-        <div class="flex items-center gap-1 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800">
-          <Button 
-            v-if="isArchiveMode"
-            label="Live 복귀" 
-            icon="pi pi-bolt" 
-            class="!bg-amber-500 !border-amber-500 hover:!bg-amber-600 !h-8 !px-3 !text-xs !font-bold mr-1 animate-fade-in"
-            v-tooltip.bottom="'최신 라이브 데이터(오늘/어제)로 즉시 복귀합니다.'"
-            @click="returnToLive" 
-          />
+
+        <div
+          class="flex items-center gap-1 pl-2 border-l shrink-0 border-slate-100 dark:border-zinc-800"
+        >
+          <button
+            v-if="showReturnToRecentButton"
+            type="button"
+            v-tooltip.bottom="'오늘/전일 기본 조회로 돌아가기'"
+            class="inline-flex items-center justify-center gap-1.5 h-8 px-3.5 shrink-0 whitespace-nowrap rounded-lg border border-teal-200 bg-white text-[11px] font-extrabold text-teal-700 shadow-sm transition-all hover:bg-teal-50 hover:border-teal-300 hover:shadow dark:border-teal-800/70 dark:bg-zinc-900 dark:text-teal-300 dark:hover:bg-teal-900/20"
+            @click="returnToRecentTwoDays"
+          >
+            <i class="pi pi-history text-[10px]"></i>
+            <span class="leading-none whitespace-nowrap">최근2일</span>
+          </button>
           <Button icon="pi pi-search" rounded class="!bg-teal-600 !border-teal-600 hover:!bg-teal-700 !w-8 !h-8 !text-xs" @click="searchData" :loading="isLoading" :disabled="!filters.eqpId" />
           <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300" @click="resetFilters" />
           <Button :icon="showAdvanced ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" text rounded severity="secondary" v-tooltip.bottom="'Advanced Filters'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300" @click="showAdvanced = !showAdvanced" />
         </div>
       </div>
+
       <div v-show="showAdvanced" class="grid grid-cols-4 gap-2 px-1 pt-2 border-t border-dashed border-slate-200 dark:border-zinc-800 animate-fade-in">
         <Select v-model="filters.cassetteRcp" :options="cassetteRcps" placeholder="Cassette RCP" showClear class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" @change="onCassetteRcpChange" />
         <Select v-model="filters.stageGroup" :options="stageGroups" placeholder="Stage Group" showClear :disabled="!filters.cassetteRcp" class="w-full custom-dropdown small" overlayClass="custom-dropdown-panel small" :class="{ '!text-slate-400': !filters.cassetteRcp }" @change="onStageGroupChange" />
