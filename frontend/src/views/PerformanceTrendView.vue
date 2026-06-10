@@ -411,7 +411,6 @@ const chartColors = [
   "#84cc16",
 ];
 
-// 👨‍💻 [수정 1] 현재시간 기준 24시간 전을 기본 startDate로 설정 (dayjs 활용)
 const startDate = ref<Date>(dayjs().subtract(24, 'hour').toDate());
 const endDate = ref<Date>(dayjs().toDate());
 
@@ -452,7 +451,6 @@ watch([startDate, endDate], ([newStart, newEnd], [oldStart]) => {
   }
 });
 
-// 👨‍💻 [수정 2] 9시간 파싱 오차를 막기 위해 타임존 정보를 포함한 표준 ISO 포맷 사용
 const getISODateString = (date: Date | null | undefined): string => {
   if (!date) return "";
   return date.toISOString();
@@ -566,7 +564,6 @@ const resetFilters = () => {
   summaryData.value = [];
   hasSearched.value = false;
   intervalSeconds.value = 0;
-  // 👨‍💻 [수정 3] 리셋 시에도 24시간 전으로 초기화
   startDate.value = dayjs().subtract(24, 'hour').toDate();
   endDate.value = dayjs().toDate();
 };
@@ -599,7 +596,6 @@ const searchData = async (silent = false) => {
       .filter((d) => d.timestamp)
       .map((d) => ({
         ...d,
-        // 👨‍💻 [수정 4] replace("Z", "")를 제거하여 dayjs가 올바르게 KST로 렌더링하도록 보장
         timestamp: dayjs(d.timestamp).format("YYYY-MM-DD HH:mm:ss"),
         cpuUsage: Number(d.cpuUsage ?? 0),
         memoryUsage: Number(d.memoryUsage ?? 0),
@@ -608,9 +604,15 @@ const searchData = async (silent = false) => {
         fanSpeed: Number(d.fanSpeed ?? 0),
       }));
     calculateSummary(chartData.value);
-  } catch (e) {
+  } catch (e: any) {
     chartData.value = [];
     summaryData.value = [];
+    
+    // [수정] http.ts 글로벌 인터셉터에서 이미 에러 알림(alert)을 띄우므로 
+    // 여기서는 중복 알림을 방지하기 위해 로컬 alert 로직을 완전히 제거했습니다.
+    if (!silent && (!e.response || e.response.status !== 400)) {
+      console.error('Performance Data Fetch Error:', e);
+    }
   } finally {
     if (!silent) isLoading.value = false;
   }
