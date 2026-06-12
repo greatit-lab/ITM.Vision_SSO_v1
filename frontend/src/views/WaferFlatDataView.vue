@@ -37,7 +37,6 @@
             <DatePicker v-model="filters.endDate" showIcon showClear dateFormat="yy-mm-dd" placeholder="End" class="w-full custom-dropdown small date-picker" :minDate="endDateMin" :maxDate="endDateMax" :disabled="!filters.eqpId || !!filters.lotId" />
           </div>
 
-          
           <span
             v-if="dataRangeBadgeLabel"
             class="inline-flex items-center justify-center gap-1.5 h-7 px-2.5 shrink-0 whitespace-nowrap text-[11px] font-extrabold rounded-lg border transition-all animate-fade-in leading-none"
@@ -427,6 +426,23 @@ const dataRangeBadgeClass = computed(() => {
   return "";
 });
 
+// ============================================================================
+// 시작일 기준 목표 종료일 계산 (1일 선택 시 말일 보정)
+// ============================================================================
+const calculateTargetEndDate = (start: Date) => {
+  const targetEnd = new Date(start);
+  if (start.getDate() === 1) {
+    // 1일인 경우, 한 달 뒤의 0일(즉, 해당 월의 마지막 날)로 설정
+    targetEnd.setMonth(targetEnd.getMonth() + 1);
+    targetEnd.setDate(0); 
+  } else {
+    // 그 외의 경우 기존처럼 1개월 뒤로 설정
+    targetEnd.setMonth(targetEnd.getMonth() + 1);
+  }
+  targetEnd.setHours(23, 59, 59, 999);
+  return targetEnd;
+};
+
 const endDateMin = computed(() => {
   if (!filters.startDate) return undefined;
   return filters.startDate;
@@ -438,10 +454,8 @@ const endDateMax = computed(() => {
   const start = filters.startDate;
 
   if (isDateInArchiveRange(start)) {
-    const maxArchive = new Date(start);
-    maxArchive.setMonth(maxArchive.getMonth() + 1);
-    maxArchive.setHours(23, 59, 59, 999);
-
+    // 개선된 방식 적용
+    const maxArchive = calculateTargetEndDate(start);
     const archiveLimit = new Date(liveCutoffDate.value.getTime() - 1);
 
     return maxArchive.getTime() < archiveLimit.getTime()
@@ -664,17 +678,12 @@ watch(
     /*
       Archive 시작일을 사용자가 선택한 경우:
       endDate가 아직 Live 영역에 있거나 startDate보다 앞서 있으면,
-      즉시 startDate 기준 1개월 범위로 자동 보정합니다.
-
-      단, Archive 조회는 Live 경계일을 넘으면 안 되므로
-      최대 endDate는 liveCutoffDate - 1ms 입니다.
+      즉시 startDate 기준 보정 로직(1일인 경우 월말, 그 외 1개월)을 적용합니다.
     */
     if (isStartChanged && startMs < liveMs) {
       const archiveLimitEnd = new Date(liveMs - 1);
-
-      const autoEnd = new Date(newStart);
-      autoEnd.setMonth(autoEnd.getMonth() + 1);
-      autoEnd.setHours(23, 59, 59, 999);
+      
+      const autoEnd = calculateTargetEndDate(newStart);
 
       filters.endDate =
         autoEnd.getTime() < archiveLimitEnd.getTime()
@@ -720,14 +729,12 @@ watch(
 
     /*
       Archive start/end가 둘 다 Archive 영역인 경우에도
-      최대 조회 범위는 31일로 제한합니다.
+      최대 조회 범위(1일인 경우 월말, 그 외 1개월)로 제한합니다.
     */
     if (startMs < liveMs && endMs < liveMs) {
-      const maxArchiveEnd = new Date(newStart);
-      maxArchiveEnd.setDate(maxArchiveEnd.getDate() + MAX_ARCHIVE_DAYS);
-      maxArchiveEnd.setHours(23, 59, 59, 999);
-
+      const maxArchiveEnd = calculateTargetEndDate(newStart);
       const archiveLimitEnd = new Date(liveMs - 1);
+      
       const allowedMaxEnd =
         maxArchiveEnd.getTime() < archiveLimitEnd.getTime()
           ? maxArchiveEnd
