@@ -358,7 +358,6 @@ const isArchiveMode = ref(false);
 // - 오늘 + 전일: Live 최근2일 데이터
 // - 전전일 이전: Archive Data
 // ============================================================================
-const MAX_ARCHIVE_DAYS = 31;
 
 const liveCutoffDate = computed(() => {
   const d = createTodayStart();
