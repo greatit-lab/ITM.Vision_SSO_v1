@@ -91,6 +91,7 @@
             dateFormat="yy-mm-dd"
             placeholder="Start"
             class="w-full custom-dropdown small date-picker"
+            :maxDate="startDateMax"
             :disabled="!filters.eqpId"
           />
         </div>
@@ -101,14 +102,37 @@
             dateFormat="yy-mm-dd"
             placeholder="End"
             class="w-full custom-dropdown small date-picker"
+            :minDate="endDateMin"
+            :maxDate="endDateMax"
             :disabled="!filters.eqpId"
           />
         </div>
+
+        <span
+          v-if="dataRangeBadgeLabel"
+          class="inline-flex items-center justify-center gap-1.5 h-7 px-2.5 shrink-0 whitespace-nowrap text-[11px] font-extrabold rounded-lg border transition-all animate-fade-in leading-none"
+          :class="dataRangeBadgeClass"
+        >
+          <i :class="dataRangeBadgeIcon"></i>
+          <span class="leading-none whitespace-nowrap">{{
+            dataRangeBadgeLabel
+          }}</span>
+        </span>
       </div>
 
       <div
         class="flex items-center gap-2 pl-3 border-l shrink-0 border-slate-100 dark:border-zinc-800"
       >
+        <button
+          v-if="showReturnToRecentButton"
+          type="button"
+          v-tooltip.bottom="'오늘/전일 기본 조회로 돌아가기'"
+          class="inline-flex items-center justify-center gap-1.5 h-8 px-3.5 shrink-0 whitespace-nowrap rounded-lg border border-teal-200 bg-white text-[11px] font-extrabold text-teal-700 shadow-sm transition-all hover:bg-teal-50 hover:border-teal-300 hover:shadow dark:border-teal-800/70 dark:bg-zinc-900 dark:text-teal-300 dark:hover:bg-teal-900/20"
+          @click="returnToRecentTwoDays"
+        >
+          <i class="pi pi-history text-[10px]"></i>
+          <span class="leading-none whitespace-nowrap">최근2일</span>
+        </button>
         <Button
           icon="pi pi-search"
           rounded
@@ -478,7 +502,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted, watch } from "vue";
+import { ref, reactive, onMounted, computed, onUnmounted, watch, nextTick } from "vue";
 import { useFilterStore } from "@/stores/filter";
 import { useAuthStore } from "@/stores/auth";
 import { dashboardApi } from "@/api/dashboard";
@@ -514,27 +538,170 @@ const metrics = ref<string[]>([]);
 
 const isMetricLoading = ref(false);
 
-const now = new Date();
-const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); 
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
+const createTodayStart = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const createYesterdayStart = () => {
+  const d = createTodayStart();
+  d.setDate(d.getDate() - 1);
+  return d;
+};
+
+const createTodayEnd = () => {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
 
 const filters = reactive({
   eqpId: "",
   lotId: "",
-  startDate: sevenDaysAgo, 
-  endDate: new Date(),     
+  startDate: createYesterdayStart(), 
+  endDate: createTodayEnd(),     
   cassetteRcp: "",
   stageGroup: "",
   film: "",
   metric: "",
 });
 
+const isArchiveMode = ref(false);
+
+// ============================================================================
+// Live / Archive Date Range Logic
+// ============================================================================
+const liveCutoffDate = computed(() => {
+  const d = createTodayStart();
+  d.setDate(d.getDate() - 1);
+  return d;
+});
+
+const todayEndDate = computed(() => createTodayEnd());
+
+const isDateInArchiveRange = (date: Date | null | undefined) => {
+  if (!date) return false;
+  return date.getTime() < liveCutoffDate.value.getTime();
+};
+
+const isCurrentFilterRecentTwoDays = computed(() => {
+  if (!filters.startDate || !filters.endDate) return false;
+
+  const start = new Date(filters.startDate);
+  start.setHours(0, 0, 0, 0);
+
+  const yesterday = createYesterdayStart();
+
+  const end = new Date(filters.endDate);
+  end.setHours(23, 59, 59, 999);
+
+  const todayEnd = createTodayEnd();
+
+  return (
+    start.getTime() === yesterday.getTime() &&
+    end.toDateString() === todayEnd.toDateString()
+  );
+});
+
+const isCurrentFilterArchive = computed(() => {
+  if (!filters.startDate || !filters.endDate) return false;
+  return (
+    isDateInArchiveRange(filters.startDate) &&
+    isDateInArchiveRange(filters.endDate)
+  );
+});
+
+const showReturnToRecentButton = computed(() => isCurrentFilterArchive.value);
+
+const dataRangeBadgeLabel = computed(() => {
+  if (isCurrentFilterArchive.value) return "Archive Data";
+  if (isCurrentFilterRecentTwoDays.value) return "최근2일 데이터";
+  return "";
+});
+
+const dataRangeBadgeIcon = computed(() => {
+  if (isCurrentFilterArchive.value) return "pi pi-database text-[10px]";
+  if (isCurrentFilterRecentTwoDays.value) return "pi pi-clock text-[10px]";
+  return "";
+});
+
+const dataRangeBadgeClass = computed(() => {
+  if (isCurrentFilterArchive.value) {
+    return "text-slate-600 bg-white border-slate-200 shadow-sm dark:text-slate-300 dark:bg-zinc-900 dark:border-zinc-700";
+  }
+
+  if (isCurrentFilterRecentTwoDays.value) {
+    return "text-teal-700 bg-teal-50 border-teal-200 shadow-sm dark:text-teal-300 dark:bg-teal-900/20 dark:border-teal-800/70";
+  }
+
+  return "";
+});
+
+const calculateTargetEndDate = (start: Date) => {
+  const targetEnd = new Date(start);
+  if (start.getDate() === 1) {
+    targetEnd.setMonth(targetEnd.getMonth() + 1);
+    targetEnd.setDate(0); 
+  } else {
+    targetEnd.setMonth(targetEnd.getMonth() + 1);
+  }
+  targetEnd.setHours(23, 59, 59, 999);
+  return targetEnd;
+};
+
+const endDateMin = computed(() => {
+  if (!filters.startDate) return undefined;
+  return filters.startDate;
+});
+
+const endDateMax = computed(() => {
+  if (!filters.startDate) return todayEndDate.value;
+
+  const start = filters.startDate;
+
+  if (isDateInArchiveRange(start)) {
+    const maxArchive = calculateTargetEndDate(start);
+    const archiveLimit = new Date(liveCutoffDate.value.getTime() - 1);
+
+    return maxArchive.getTime() < archiveLimit.getTime()
+      ? maxArchive
+      : archiveLimit;
+  }
+
+  return todayEndDate.value;
+});
+
+const startDateMax = computed(() => {
+  if (filters.endDate) {
+    return filters.endDate;
+  }
+  return todayEndDate.value;
+});
+
+const setRecentTwoDaysFilter = () => {
+  filters.startDate = createYesterdayStart();
+  filters.endDate = createTodayEnd();
+  isArchiveMode.value = false;
+};
+
+const returnToRecentTwoDays = async () => {
+  setRecentTwoDaysFilter();
+  
+  await nextTick();
+
+  if (filters.eqpId) {
+    await loadLotIds();
+  }
+};
+// ============================================================================
+
+
 const chartSeries = ref<LotUniformitySeriesDto[]>([]);
 const isDarkMode = ref(document.documentElement.classList.contains("dark"));
 let themeObserver: MutationObserver | null = null;
 
-const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
+const toLocalISOString = (date: Date | null, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
   
@@ -552,22 +719,93 @@ const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
-    if (newStart && newEnd) {
-      const startMs = newStart.getTime();
-      const endMs = newEnd.getTime();
+    if (!newStart || !newEnd) {
+      if (filters.eqpId) {
+        loadLotIds();
+      }
+      return;
+    }
 
-      if (startMs > endMs) {
-        if (startMs !== oldStart?.getTime()) {
-           filters.endDate = new Date(newStart);
-        } else if (endMs !== oldEnd?.getTime()) {
-           filters.startDate = new Date(newEnd);
+    const startMs = newStart.getTime();
+    const endMs = newEnd.getTime();
+    const liveMs = liveCutoffDate.value.getTime();
+
+    const isStartChanged = startMs !== oldStart?.getTime();
+    const isEndChanged = endMs !== oldEnd?.getTime();
+
+    if (isStartChanged && startMs < liveMs) {
+      const archiveLimitEnd = new Date(liveMs - 1);
+      const autoEnd = calculateTargetEndDate(newStart);
+
+      filters.endDate =
+        autoEnd.getTime() < archiveLimitEnd.getTime()
+          ? autoEnd
+          : archiveLimitEnd;
+
+      if (filters.eqpId) {
+        loadLotIds();
+      }
+      return;
+    }
+
+    if (isStartChanged && startMs >= liveMs && endMs < liveMs) {
+      filters.endDate = createTodayEnd();
+
+      if (filters.eqpId) {
+        loadLotIds();
+      }
+      return;
+    }
+
+    if (isEndChanged && startMs >= liveMs && endMs < liveMs) {
+      const adjustedStart = new Date(newEnd);
+      adjustedStart.setHours(0, 0, 0, 0);
+      filters.startDate = adjustedStart;
+
+      if (filters.eqpId) {
+        loadLotIds();
+      }
+      return;
+    }
+
+    if (startMs < liveMs && endMs < liveMs) {
+      const maxArchiveEnd = calculateTargetEndDate(newStart);
+      const archiveLimitEnd = new Date(liveMs - 1);
+      
+      const allowedMaxEnd =
+        maxArchiveEnd.getTime() < archiveLimitEnd.getTime()
+          ? maxArchiveEnd
+          : archiveLimitEnd;
+
+      if (endMs > allowedMaxEnd.getTime()) {
+        filters.endDate = allowedMaxEnd;
+
+        if (filters.eqpId) {
+          loadLotIds();
         }
-        return; 
+        return;
       }
     }
 
-    if (filters.eqpId) {
+    if (startMs > endMs) {
+      if (isStartChanged) {
+        const adjustedEnd = new Date(newStart);
+        adjustedEnd.setHours(23, 59, 59, 999);
+        filters.endDate = adjustedEnd;
+      } else if (isEndChanged) {
+        const adjustedStart = new Date(newEnd);
+        adjustedStart.setHours(0, 0, 0, 0);
+        filters.startDate = adjustedStart;
+      }
+
+      if (filters.eqpId) {
         loadLotIds();
+      }
+      return;
+    }
+
+    if (filters.eqpId) {
+      loadLotIds();
     }
   }
 );
@@ -650,7 +888,6 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
-  // [핵심 변경] 프로필 설정을 최우선으로, 없을 때만 localStorage(이전 선택 이력) 참조
   if (!targetSite) {
     if (authStore.user?.site) {
       targetSite = authStore.user.site;
@@ -798,13 +1035,17 @@ const loadLotIds = async () => {
   lotIds.value = await waferApi.getDistinctValues("lotids", params);
 };
 
+// [수정됨] startDate, endDate 파라미터 전달
 const loadCassettes = async () => {
   cassetteRcps.value = await waferApi.getDistinctValues("cassettercps", {
     eqpId: filters.eqpId,
     lotId: filters.lotId,
+    startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
   });
 };
 
+// [수정됨] startDate, endDate 파라미터 전달
 const selectCassette = async (val: string) => {
   filters.cassetteRcp = val;
   filters.stageGroup = "";
@@ -818,9 +1059,12 @@ const selectCassette = async (val: string) => {
     eqpId: filters.eqpId,
     lotId: filters.lotId,
     cassetteRcp: val,
+    startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
   });
 };
 
+// [수정됨] startDate, endDate 파라미터 전달
 const selectStageGroup = async (val: string) => {
   filters.stageGroup = val;
   filters.film = "";
@@ -833,9 +1077,12 @@ const selectStageGroup = async (val: string) => {
     lotId: filters.lotId,
     cassetteRcp: filters.cassetteRcp,
     stageGroup: val,
+    startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+    endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
   });
 };
 
+// [수정됨] startDate, endDate 파라미터 전달
 const selectFilm = async (val: string) => {
   filters.film = val;
   filters.metric = "";
@@ -848,6 +1095,8 @@ const selectFilm = async (val: string) => {
       cassetteRcp: filters.cassetteRcp,
       stageGroup: filters.stageGroup,
       film: val,
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     };
     const m = await waferApi.getAvailableMetrics(p);
     metrics.value = m.sort((a, b) => {
@@ -863,6 +1112,7 @@ const selectFilm = async (val: string) => {
   }
 };
 
+// [수정됨] startDate, endDate 파라미터 전달
 const searchData = async () => {
   if (!isReadyToSearch.value) return;
   
@@ -880,6 +1130,8 @@ const searchData = async () => {
       stageGroup: filters.stageGroup,
       film: filters.film,
       metric: filters.metric,
+      startDate: filters.startDate ? toLocalISOString(filters.startDate) : undefined,
+      endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : undefined,
     });
   } finally {
     isLoading.value = false;
@@ -893,11 +1145,8 @@ const resetFilters = () => {
   localStorage.removeItem("lot_eqpid");
   filters.eqpId = "";
 
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0); 
-  filters.startDate = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
-  filters.endDate = new Date();
+  setRecentTwoDaysFilter();
+
   sdwts.value = [];
   eqpIds.value = [];
   clearStepsFrom(0);
