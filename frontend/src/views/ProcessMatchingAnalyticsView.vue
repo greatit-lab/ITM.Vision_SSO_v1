@@ -37,8 +37,25 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-1 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800">
-        <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors" @click="resetFilters" />
+      <div class="flex items-center gap-1.5 pl-2 ml-auto border-l border-slate-100 dark:border-zinc-800">
+        <button
+          type="button"
+          v-tooltip.bottom="'최근 7일 데이터 조회'"
+          class="inline-flex items-center justify-center h-7 px-3 shrink-0 whitespace-nowrap rounded-lg border border-emerald-200 bg-white text-[11px] font-extrabold text-emerald-700 shadow-sm transition-all hover:bg-emerald-50 hover:border-emerald-300 dark:border-emerald-800/70 dark:bg-zinc-900 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+          @click="setPreset(7)"
+        >
+          <span class="leading-none">1 Week</span>
+        </button>
+        <button
+          type="button"
+          v-tooltip.bottom="'최근 30일 데이터 조회'"
+          class="inline-flex items-center justify-center h-7 px-3 shrink-0 whitespace-nowrap rounded-lg border border-emerald-200 bg-white text-[11px] font-extrabold text-emerald-700 shadow-sm transition-all hover:bg-emerald-50 hover:border-emerald-300 dark:border-emerald-800/70 dark:bg-zinc-900 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+          @click="setPreset(30)"
+        >
+          <span class="leading-none">1 Month</span>
+        </button>
+        
+        <Button icon="pi pi-refresh" text rounded severity="secondary" v-tooltip.bottom="'Reset'" class="!w-7 !h-7 !text-slate-400 hover:!text-slate-600 dark:!text-zinc-500 dark:hover:!text-zinc-300 transition-colors ml-1" @click="resetFilters" />
       </div>
     </div>
 
@@ -252,15 +269,20 @@ const sdwts = ref<string[]>([]);
 const refEqpId = ref<string>("");
 const refEqpList = ref<string[]>([]);
 
-// [수정] 날짜 초기화 로직 강화: '오늘 00:00:00' ~ '오늘 현재'
-const now = new Date();
-const todayStart = new Date(now);
-todayStart.setHours(0, 0, 0, 0); // 오늘 00:00:00
-const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); // 7일 전 00:00:00
+// [수정됨] 제한 없는 순수 날짜 설정
+const createTodayStart = () => {
+  const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+};
+const createTodayEnd = () => {
+  const d = new Date(); d.setHours(23, 59, 59, 999); return d;
+};
+
+// 기본값을 최근 7일로 변경하여 모수 충분히 확보
+const sevenDaysAgo = new Date(createTodayStart().getTime() - 7 * 24 * 60 * 60 * 1000); 
 
 const filters = reactive<FilterState>({
-  startDate: sevenDaysAgo, // [변경] 명확한 00:00:00 기준 날짜 할당
-  endDate: new Date(),
+  startDate: sevenDaysAgo,
+  endDate: createTodayEnd(),
   cassetteRcp: undefined,
   stageGroup: undefined,
   film: undefined,
@@ -295,7 +317,18 @@ const isListVisible = computed(() => {
   return true;
 });
 
-// [추가] 통합 날짜 보정 및 로딩 로직 (Start > End 시 자동 보정)
+// [수정됨] 퀵 프리셋 설정 함수
+const setPreset = async (days: number) => {
+  filters.startDate = new Date(createTodayStart().getTime() - days * 24 * 60 * 60 * 1000);
+  filters.endDate = createTodayEnd();
+  
+  if (refEqpId.value) {
+    resetConditions();
+    await loadOptions();
+  }
+};
+
+// [수정됨] 경계값 차단 로직(Zone C 에러 방지용 UX)을 모두 제거하고 역전만 방지
 watch(
   [() => filters.startDate, () => filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -303,20 +336,17 @@ watch(
       const startMs = newStart.getTime();
       const endMs = newEnd.getTime();
 
-      // 보정 로직
+      // 시작/종료일 역전 방지
       if (startMs > endMs) {
         if (startMs !== oldStart?.getTime()) {
-           // 시작일이 변경되어 종료일보다 커진 경우 -> 종료일을 시작일로
            filters.endDate = new Date(newStart);
         } else if (endMs !== oldEnd?.getTime()) {
-           // 종료일이 변경되어 시작일보다 작아진 경우 -> 시작일을 종료일로
            filters.startDate = new Date(newEnd);
         }
-        return; // 보정 발생 시 로딩 중단
+        return; 
       }
     }
 
-    // 유효한 날짜 범위일 때만 데이터 로드
     if (refEqpId.value) {
       resetConditions();
       loadOptions();
@@ -324,8 +354,6 @@ watch(
   }
 );
 
-// [핵심] 로컬 시간 ISO 문자열 변환 함수 (UTC 시차 -9시간 해결 + Full Day)
-// isEndDate = true 이면 23:59:59.999 로 설정
 const toLocalISOString = (date: Date, isEndDate: boolean = false) => {
   if (!date) return undefined;
   const d = new Date(date);
@@ -347,7 +375,6 @@ onMounted(async () => {
   let targetSite = filterStore.selectedSite;
   let targetSdwt = filterStore.selectedSdwt;
 
-  // [수정 핵심] 사용자 프로파일 설정을 최우선으로, 없을 때만 localStorage 참조
   if (!targetSite) {
     if (authStore.user?.site) {
       targetSite = authStore.user.site;
@@ -454,13 +481,14 @@ const resetConditions = () => {
   hasSearched.value = false;
 };
 
-// [수정] getBaseParams에 toLocalISOString 적용
+// [수정됨] 백엔드에서 Data Federation을 가동하도록 crossDb 플래그 추가
 const getBaseParams = () => ({
   site: filterStore.selectedSite || "",
   sdwt: filterStore.selectedSdwt || "",
   eqpId: refEqpId.value || "",
   startDate: filters.startDate ? toLocalISOString(filters.startDate) : "",
   endDate: filters.endDate ? toLocalISOString(filters.endDate, true) : "",
+  crossDb: true // 백엔드 자동 통합 조회 활성화 플래그
 });
 
 const loadOptions = async () => {
@@ -641,12 +669,8 @@ const resetFilters = () => {
   localStorage.removeItem("match_sdwt");
   localStorage.removeItem("match_eqp");
   
-  // [수정] 초기화 시에도 날짜 시간 00:00:00 보정 로직 적용
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0); 
-  filters.startDate = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000); 
-  filters.endDate = new Date();
+  filters.startDate = new Date(createTodayStart().getTime() - 7 * 24 * 60 * 60 * 1000); 
+  filters.endDate = createTodayEnd();
 };
 
 const getBasicStats = (points: number[][]) => {
@@ -838,7 +862,6 @@ const scatterOption = computed(() => {
   const textColor = isDarkMode.value ? "#cbd5e1" : "#475569";
   const gridColor = isDarkMode.value ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
 
-  // Check Analytics State
   const showCentroid = selectedAnalytics.value.includes('centroid');
   const showEllipse = selectedAnalytics.value.includes('ellipse');
   const showRegression = selectedAnalytics.value.includes('regression');
@@ -862,7 +885,6 @@ const scatterOption = computed(() => {
         r.waferid,
       ]);
 
-    // Main Scatter Series
     series.push({
       name: eqp,
       type: "scatter",
