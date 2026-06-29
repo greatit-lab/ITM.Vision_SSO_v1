@@ -33,7 +33,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     httpsOptions,
-    bodyParser: false, 
+    bodyParser: false,
   });
 
   app.use(json({ limit: '50mb' }));
