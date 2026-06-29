@@ -16,7 +16,7 @@ export default defineConfig(() => {
     },
     server: {
       // 1. 외부 접속 허용 (개발 PC에서 타 기기 접속 테스트 시 필요)
-      host: "0.0.0.0",
+      host: "[개발 PC IP]",
 
       // 2. 개발 PC 프론트엔드 구동 포트
       port: 8080,
@@ -25,7 +25,7 @@ export default defineConfig(() => {
       // 3. HTTPS 설정 (AD 인증 테스트를 위한 로컬 인증서 사용)
       https: {
         pfx: fs.readFileSync(path.resolve(__dirname, "cert/10.135.77.222.pfx")),
-        passphrase: "password", // 인증서 비밀번호
+        passphrase: "[Password]", // 인증서 비밀번호
       },
 
       // 4. 프록시 설정 (.env.development의 VITE_API_URL=/api 요청을 백엔드로 전달)
