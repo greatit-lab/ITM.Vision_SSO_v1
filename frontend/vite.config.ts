@@ -32,7 +32,7 @@ export default defineConfig(() => {
       proxy: {
         // 1. 파일 다운로드 요청만 가로채서 DB 리눅스 서버(8082)로 토스
         "/api/FileUpload": {
-          target: "http://10.172.111.93:8082", 
+          target: "http://10.172.111.93:8082",
           changeOrigin: true,
           secure: false,
         },
