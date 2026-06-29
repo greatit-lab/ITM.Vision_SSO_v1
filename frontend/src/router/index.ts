@@ -37,6 +37,7 @@ import InfraManagementView from "../views/admin/InfraManagementView.vue";
 import SystemConfigView from "../views/admin/SystemConfigView.vue";
 import StorageUsageView from "../views/admin/StorageUsageView.vue";
 import ServerMonitoringView from "../views/admin/ServerMonitoringView.vue";
+import MailRecipientPage from "../views/admin/MailRecipientPage.vue";
 
 const QnaLayout = () => import("../views/support/QnaLayout.vue");
 const QnaBoardView = () => import("../views/support/QnaBoardView.vue");
@@ -205,10 +206,10 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "Usage Analytics", roles: ["ADMIN", "MANAGER"] },
       },
       {
-        path: '/equipment-agent-status',
-        name: 'equipment-agent-status',
-        component: () => import('@/views/EquipmentAgentStatusView.vue'),
-        meta: { title: "Equipment Agent Status", requiresAuth: true }
+        path: "/equipment-agent-status",
+        name: "equipment-agent-status",
+        component: () => import("@/views/EquipmentAgentStatusView.vue"),
+        meta: { title: "Equipment Agent Status", requiresAuth: true },
       },
 
       {
@@ -255,13 +256,22 @@ const routes: Array<RouteRecordRaw> = [
             path: "monitoring",
             name: "admin-monitoring",
             component: ServerMonitoringView,
-            meta: { title: "Server Monitoring", roles: ["ADMIN", "MANAGER", "ENGINEER"] },
+            meta: {
+              title: "Server Monitoring",
+              roles: ["ADMIN", "MANAGER", "ENGINEER"],
+            },
           },
           {
             path: "system",
             name: "admin-system",
             component: SystemConfigView,
             meta: { title: "System Config", roles: ["ADMIN"] },
+          },
+          {
+            path: "mail-recipients",
+            name: "admin-mail-recipients",
+            component: MailRecipientPage,
+            meta: { title: "Mail Recipients", roles: ["ADMIN", "MANAGER"] },
           },
         ],
       },
@@ -308,17 +318,17 @@ router.beforeEach(async (to, _from, next) => {
 
     if (isMaintenance) {
       if (isAdmin) {
-        if (to.name === 'Maintenance') {
-          return next({ path: '/' });
+        if (to.name === "Maintenance") {
+          return next({ path: "/" });
         }
       } else {
-        if (to.name !== 'Maintenance' && to.name !== 'login') {
-          return next({ name: 'Maintenance' });
+        if (to.name !== "Maintenance" && to.name !== "login") {
+          return next({ name: "Maintenance" });
         }
       }
     } else {
-      if (to.name === 'Maintenance') {
-        return next({ path: '/' });
+      if (to.name === "Maintenance") {
+        return next({ path: "/" });
       }
     }
   } catch (error) {
@@ -337,7 +347,7 @@ router.beforeEach(async (to, _from, next) => {
     // 👨‍💻 [핵심 수정] URL 백도어: 점검 중인데 권한이 없는 유저가 직접 '/login'을 주소창에 쳤을 때
     if (isMaintenance && !isAdmin) {
       // 강제 세션 파기 및 로그아웃 처리 후 로그인 페이지 노출
-      if (typeof authStore.logout === 'function') {
+      if (typeof authStore.logout === "function") {
         authStore.logout();
       }
       localStorage.clear();
@@ -368,7 +378,7 @@ router.beforeEach(async (to, _from, next) => {
       to.path.startsWith("/support") ||
       to.name === "not-found" ||
       to.name === "Maintenance";
-      
+
     if (!isExceptionPath) {
       const hasPermission = checkRoutePermission(to.path, menuStore.menus);
       if (!hasPermission && !isAdmin) return next({ name: "home" });
@@ -379,11 +389,11 @@ router.beforeEach(async (to, _from, next) => {
 
 router.afterEach((to) => {
   const authStore = useAuthStore();
-  
+
   if (authStore.isAuthenticated && authStore.user?.userId) {
-    const userRole = authStore.user?.role || 'GUEST';
-    
-    if (!['ADMIN', 'MANAGER'].includes(userRole)) {
+    const userRole = authStore.user?.role || "GUEST";
+
+    if (!["ADMIN", "MANAGER"].includes(userRole)) {
       const ignoreList = ["login", "not-found", "Maintenance"];
 
       if (!ignoreList.includes(to.name as string)) {
