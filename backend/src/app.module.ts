@@ -1,4 +1,5 @@
 // backend/src/app.module.ts
+import * as path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CommonModule } from './common/common.module';
@@ -18,27 +19,28 @@ import { PreAlignModule } from './prealign/prealign.module';
 import { WaferModule } from './wafer/wafer.module';
 import { InfraModule } from './infra/infra.module';
 import { BoardModule } from './board/board.module';
-// [추가] 새로 생성한 모듈 Import
 import { ManualModule } from './manual/manual.module';
 import { AlertModule } from './alert/alert.module';
 import { AgentModule } from './agent/agent.module';
+// [신규] Knox Portal 메일 연동 모듈
+import { KnoxModule } from './knox/knox.module';
+import { MailRecipientModule } from './mail-recipient/mail-recipient.module';
 
 @Module({
   imports: [
-    // 1. 환경 변수 설정 (런타임 환경에 맞춘 명시적 스위칭)
     ConfigModule.forRoot({
       isGlobal: true,
-      // PM2(운영)에서 NODE_ENV=production을 쏘면 운영 파일을, 아니면 개발 파일을 읽음
-      envFilePath:
+      envFilePath path.join(
+        __dirname,
+        '..',
         process.env.NODE_ENV === 'production'
           ? '.env.production'
           : '.env.development',
+      ),
     }),
 
-    // 2. 공통 모듈
     CommonModule,
 
-    // 3. 비즈니스 모듈
     AdminModule,
     AuthModule,
     DashboardModule,
@@ -53,9 +55,12 @@ import { AgentModule } from './agent/agent.module';
     WaferModule,
     InfraModule,
     BoardModule,
-    ManualModule, // [필수] 매뉴얼 기능 활성화
-    AlertModule,  // [필수] 알림 기능 활성화 (404 해결)
+    ManualModule,
+    AlertModule,
     AgentModule,
+    // [신규] Knox Portal 메일 연동 모듈 추가
+    KnoxModule,
+    MailRecipientModule,
   ],
   controllers: [],
   providers: [],
