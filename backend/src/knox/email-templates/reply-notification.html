@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- /backend/src/knox/email-templates/reply-notification.html -->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      background-color: #f5f5f5;
+    "
+  >
+    <table role="presentation" style="width: 100%; border-collapse: collapse">
+      <tr>
+        <td style="padding: 40px 0">
+          <table
+            role="presentation"
+            style="
+              max-width: 600px;
+              margin: 0 auto;
+              background-color: #ffffff;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <!-- Header -->
+            <tr>
+              <td
+                style="
+                  background: linear-gradient(135deg, #0f9d58, #0b7a43);
+                  padding: 30px;
+                  text-align: center;
+                "
+              >
+                <h1
+                  style="
+                    margin: 0;
+                    color: #ffffff;
+                    font-size: 24px;
+                    font-weight: 600;
+                  "
+                >
+                  I:Vision
+                </h1>
+                <p
+                  style="
+                    margin: 8px 0 0;
+                    color: rgba(255, 255, 255, 0.8);
+                    font-size: 14px;
+                  "
+                >
+                  문의 답변 알림
+                </p>
+              </td>
+            </tr>
+            <!-- Body -->
+            <tr>
+              <td style="padding: 30px">
+                <p style="margin: 0 0 20px; font-size: 16px; color: #333333">
+                  "{postTitle}" 게시글에 답변이 달렸습니다.
+                </p>
+                <div
+                  style="
+                    background-color: #f8f9fa;
+                    border-left: 4px solid #0f9d58;
+                    padding: 16px;
+                    margin-bottom: 20px;
+                    border-redius: 0 6px 6px 0;
+                  "
+                >
+                  <p style="margin: 0 0 8px; font-size: 12pxp; color: #666">
+                    답변 내용
+                  </p>
+                  <p
+                    style="
+                      margin: 0;
+                      font-size: 14px;
+                      color: #333;
+                    white-space: pre-wrap;
+                  "
+                  >
+                    {replyContent}  
+                  </p>
+                </div>
+                <table
+                  style="
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 24px;
+                    background-color: #f8f9fa;
+                    border-radius: 6px;
+                    overflow: hidden;
+                  "
+                >
+                  <tr>
+                    <td
+                      style="
+                        padding: 12px 16px;
+                        font-size: 14px;
+                        color: #666;
+                        width: 100px;
+                        font-weight: 600;
+                        border-bottom: 1px solid #e9ecef;
+                      "
+                    >
+                      답변자
+                    </td>
+                    <td
+                      style="
+                        padding: 12px 16px;
+                        font-size: 14px;
+                        color: #333;
+                        border-bottom: 1px solid #e9ecef;
+                      "
+                    >
+                      {replyAuthorName}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        padding: 12px 16px;
+                        font-size: 14px;
+                        color: #666;
+                        font-weight: 600;
+                      "
+                    >
+                      작성일
+                    </td>
+                    <td
+                      style="padding: 12px 16px; font-size: 14px; color: #333"
+                    >
+                      {createdAt}
+                    </td>
+                  </tr>
+                </table>
+                <table style="width: 100%; text-align: center">
+                  <tr>
+                    <td>
+                      <a
+                        href="{link}"
+                        style="
+                          display: inline-block;
+                          padding: 12px 32px;
+                          background-color: #0f9d58;
+                          color: #ffffff;
+                          text-decoration: none;
+                          border-radius: 6px;
+                          font-size: 14px;
+                          font-weight: 500;
+                        "
+                        >답변 보기</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  background-color: #f8f9fa;
+                  padding: 20px 30px;
+                  text-align: center;
+                  border-top: 1px solid #e9ecef;
+                "
+              >
+                <p style="margin: 0; font-size: 12px; color: #999999">
+                  I:Vision 시스템에서 자동 발송된 메일입니다.<br />
+                  문의사항은 관리자에게 연락해 주세요.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
