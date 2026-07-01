@@ -403,9 +403,9 @@ export class AdminService {
   ): Promise<void> {
     const recipients: string[] = [guest.loginId];
     const systemRecipients =
-      await this.mailRecipientService.getActiveREcipientEmails('SYSTEM');
+      await this.mailRecipientService.getActiveRecipientEmails('SYSTEM');
     if (systemRecipients) {
-      recipients.push(...systemREcipients);
+      recipients.push(...systemRecipients);
     }
 
     const html = this.renderTemplate('guest-approval.html', {
