@@ -17,11 +17,11 @@ export class BoardService {
     'knox',
     'email-templates',
   );
-  
+
   constructor(
     private readonly dataApi: DataApiService,
     private readonly knoxMailService: KnoxMailService,
-    private readonly mailrecipientService: MailRecipientService,
+    private readonly mailRecipientService: MailRecipientService,
   ) {}
 
   // 1. 팝업 공지 조회
@@ -41,7 +41,7 @@ export class BoardService {
 
   // 4. 게시글 작성 (메일 발송 연동)
   async createPost(data: CreatePostDto): Promise<any> {
-    const post = await this.dateApi.request<any>(this.DOMAIN, 'post', '', data);
+    const post = await this.dataApi.request<any>(this.DOMAIN, 'post', '', data);
 
     this.sendPostNotificationMail(post, data).catch((err) => {
       console.error(
@@ -72,21 +72,7 @@ export class BoardService {
 
   // 8. 댓글 작성 (메일 발송 연동)
   async createComment(data: CreateCommentDto): Promise<any> {
-    const comment = await this.dateApi.request<any>(
-      this.DOMAIN,
-      'post',
-      '',
-      data,
-    );
-
-    this.sendPostNotificationMail(comment, data).catch((err) => {
-      console.error(
-        '[BoardService] Failed to send reply notification email:',
-        err,
-      );
-    });
-
-    return comment;
+    return this.dataApi.request<any>('board', 'post', 'comment', data);
   }
 
   // 9. 댓글 수정
@@ -110,13 +96,13 @@ export class BoardService {
   ): Promise<void> {
     const recipients =
       await this.mailRecipientService.getActiveRecipientEmails();
-    if (!recipients || recipients.length ===0) return;
+    if (!recipients || recipients.length === 0) return;
 
     const html = this.renderTemplate('post-notification.html', {
       category: data.category || 'QNA',
       title: data.title,
       authorName: data.authorId,
-      createdAt: new Data().toLocaleString('ko-KR'),
+      createdAt: new Date().toLocaleString('ko-KR'),
       link: `https://localhost:8080/board/${post.postId || post.id}`,
     });
 
@@ -144,11 +130,12 @@ export class BoardService {
     if (systemRecipients) {
       recipients.push(...systemRecipients);
     }
+
     const html = this.renderTemplate('reply-notification.html', {
       postTitle: post.title,
-      replyContent: data. content,
+      replyContent: data.content,
       replyAuthorName: data.authorId,
-      createdAt: new Data().toLocaleString('ko-KR'),
+      createdAt: new Date().toLocaleString('ko-KR'),
       link: `https://localhost:8080/board/${post.postId || post.id}`,
     });
 
