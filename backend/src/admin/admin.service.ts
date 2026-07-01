@@ -149,7 +149,7 @@ export class AdminService {
   async getAllGuests(): Promise<GuestAccessResult[] | null> {
     return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guests');
   }
-  
+
   async addGuest(
     data: CreateGuestDto & { grantedRole?: string },
   ): Promise<GuestAccessResult | null> {
@@ -208,16 +208,15 @@ export class AdminService {
   async rejectGuestRequest(
     data: RejectGuestRequestDto,
   ): Promise<GuestRequestResult | null> {
-    const retuest = await this.api.request<GuestRequestResult>(
+    const request = await this.api.request<GuestRequestResult>(
       this.DOMAIN,
       'put',
       `guest/request/${data.reqId}/reject`,
       { rejectorId: data.rejectorId },
     );
-  }
 
-  if (request) {
-      this.sendGuestREjectMail(request, data.rejectorId).catch((err) => {
+    if (request) {
+      this.sendGuestRejectMail(request, data.rejectorId).catch((err) => {
         console.error(
           '[AdminService] Failed to send guest rejection email:',
           err,
@@ -227,7 +226,7 @@ export class AdminService {
 
     return request;
   }
-  
+
   async getSeverities(): Promise<GenericResult[] | null> {
     return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'severity');
   }
@@ -433,11 +432,11 @@ export class AdminService {
     request: GuestRequestResult,
     rejectorId: string,
   ): Promise<void> {
-    const recipients: string{} = [request.loginId];
-    const systemREcipients =
+    const recipients: string[] = [request.loginId];
+    const systemRecipients =
       await this.mailRecipientService.getActiveRecipientEmails('SYSTEM');
     if (systemRecipients) {
-      recipients.push(...systemREcipients);
+      recipients.push(...systemRecipients);
     }
 
     const html = this.renderTemplate('guest-rejection.html', {
@@ -448,7 +447,7 @@ export class AdminService {
 
     await this.knoxMailService.sendMail({
       recipients,
-      subject: `[I:Vision] 게스트 접근이 거절되었습니다 (${request.loginID})`,
+      subject: `[I:Vision] 게스트 접근이 거절되었습니다 (${request.loginId})`,
       content: html,
     });
   }
@@ -470,11 +469,11 @@ export class AdminService {
 
       return html;
     } catch (error) {
-      console.error;
+      console.error(
         `[AdminService] Failed to render template ${templateName}:`,
         error,
       );
-      return `<p>알림이 있습니다. I:Vision헤엇 확인해 주세요.</p>`;
+      return `<p>알림이 있습니다. I:Vision에서 확인해 주세요.</p>`;
     }
   }
 }
