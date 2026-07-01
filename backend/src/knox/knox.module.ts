@@ -11,6 +11,6 @@ import { KnoxMailService } from './knox-mail.service';
     }),
   ],
   providers: [KnoxMailService],
-  exports: {KnoxMailService],
-           })
-  export class KnoxModule {}
+  exports: [KnoxMailService],
+})
+export class KnoxModule {}
