@@ -8,8 +8,8 @@ export interface MailRecipient {
   recipientName?: string;
   recipientType: string; // SYSTEM | USER
   isActive: boolean;
-  createdAt string;
-  updateAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const mailRecipientApi = {
@@ -30,9 +30,9 @@ export const mailRecipientApi = {
 
   // 수신자 추가
   create: (data: {
-    recipientEmail: stiring;
-    recipientName?: stiring;
-    recipientType?: stiring;
+    recipientEmail: string;
+    recipientName?: string;
+    recipientType?: string;
   }) => {
     return http.post("/mail-recipient", data);
   },
@@ -41,8 +41,8 @@ export const mailRecipientApi = {
   update: (
     id: number,
     data: {
-      recipientEmail?: stiring;
-      recipientName?: stiring;
+      recipientEmail?: string;
+      recipientName?: string;
       isActive?: boolean;
     },
   ) => {
@@ -51,6 +51,6 @@ export const mailRecipientApi = {
 
   // 수신자 삭제
   remove: (id: number) => {
-    return http.dalete(`/mail-recipient/${id}`);
+    return http.delete(`/mail-recipient/${id}`);
   },
 };
