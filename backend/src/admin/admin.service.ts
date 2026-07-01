@@ -1,6 +1,8 @@
 // backend/src/admin/admin.service.ts
 import { Injectable } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
+import { KnoxMailService } from '../knox/knox-mail.service';
+import { MailRecipientService } from '../mail-recipient/mail-recipient.service';
 
 import {
   CreateAdminDto,
@@ -17,6 +19,8 @@ import {
   CreateCfgServerDto,
   UpdateCfgServerDto,
 } from './dto/admin.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface AdminUserResult {
   loginId: string;
@@ -41,8 +45,18 @@ export type GenericResult = Record<string, any>;
 @Injectable()
 export class AdminService {
   private readonly DOMAIN = 'admin';
+  private readonly templatesDir = path.join(
+    __dirname,
+    '..',
+    'knox',
+    'email-templates',
+  );
 
-  constructor(private readonly api: DataApiService) {}
+  constructor(
+    private readonly api: DataApiService,
+    private readonly knoxMailService: KnoxMailService,
+    private readonly mailRecipientService: MailRecipientService,
+  ) {}
 
   async getAllUsers(): Promise<AdminUserResult[] | null> {
     return this.api.request<AdminUserResult[]>(this.DOMAIN, 'get', 'users');
@@ -106,21 +120,39 @@ export class AdminService {
     return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'exceptions');
   }
   async addExceptionUser(data: any): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'exceptions', data);
+    return this.api.request<GenericResult>(
+      this.DOMAIN,
+      'post',
+      'exceptions',
+      data,
+    );
   }
-  async updateExceptionUserStatus(loginId: string, isActive: string): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'put', `exceptions/${loginId}/status`, { isActive });
+  async updateExceptionUserStatus(
+    loginId: string,
+    isActive: string,
+  ): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(
+      this.DOMAIN,
+      'put',
+      `exceptions/${loginId}/status`,
+      { isActive },
+    );
   }
   async deleteExceptionUser(loginId: string): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'delete', `exceptions/${loginId}`);
+    return this.api.request<GenericResult>(
+      this.DOMAIN,
+      'delete',
+      `exceptions/${loginId}`,
+    );
   }
 
   async getAllGuests(): Promise<GuestAccessResult[] | null> {
     return this.api.request<GuestAccessResult[]>(this.DOMAIN, 'get', 'guests');
   }
   
-  // 수정: 제한 권한(grantedRole) 등 유동적인 속성이 안전하게 전달되도록 타입 확장
-  async addGuest(data: CreateGuestDto & { grantedRole?: string }): Promise<GuestAccessResult | null> {
+  async addGuest(
+    data: CreateGuestDto & { grantedRole?: string },
+  ): Promise<GuestAccessResult | null> {
     return this.api.request<GuestAccessResult>(
       this.DOMAIN,
       'post',
@@ -143,26 +175,40 @@ export class AdminService {
       'guest/request',
     );
   }
-  
-  // 수정: 승인 시 권한 선택(grantedRole)과 기한(validUntil) 데이터 포워딩 추가
+
   async approveGuestRequest(
-    data: ApproveGuestRequestDto & { validUntil?: Date | string; grantedRole?: string },
+    data: ApproveGuestRequestDto & {
+      validUntil?: Date | string;
+      grantedRole?: string;
+    },
   ): Promise<GuestAccessResult | null> {
-    return this.api.request<GuestAccessResult>(
+    const guest = await this.api.request<GuestAccessResult>(
       this.DOMAIN,
       'put',
       `guest/request/${data.reqId}/approve`,
-      { 
+      {
         approverId: data.approverId,
         validUntil: data.validUntil,
         grantedRole: data.grantedRole,
       },
     );
+
+    if (guest) {
+      this.sendGuestApprovalMail(guest, data.approverId).catch((err) => {
+        console.error(
+          '[AdminService] Failed to send guest approval email:',
+          err,
+        );
+      });
+    }
+
+    return guest;
   }
+
   async rejectGuestRequest(
     data: RejectGuestRequestDto,
   ): Promise<GuestRequestResult | null> {
-    return this.api.request<GuestRequestResult>(
+    const retuest = await this.api.request<GuestRequestResult>(
       this.DOMAIN,
       'put',
       `guest/request/${data.reqId}/reject`,
@@ -170,6 +216,18 @@ export class AdminService {
     );
   }
 
+  if (request) {
+      this.sendGuestREjectMail(request, data.rejectorId).catch((err) => {
+        console.error(
+          '[AdminService] Failed to send guest rejection email:',
+          err,
+        );
+      });
+    }
+
+    return request;
+  }
+  
   async getSeverities(): Promise<GenericResult[] | null> {
     return this.api.request<GenericResult[]>(this.DOMAIN, 'get', 'severity');
   }
@@ -323,14 +381,100 @@ export class AdminService {
     return this.api.request<GenericResult>(this.DOMAIN, 'post', 'storage-sync');
   }
 
-  // ==========================================
-  // [신규 추가] 시스템 점검 모드 프록시 로직
-  // ==========================================
   async getMaintenanceStatus(): Promise<GenericResult | null> {
     return this.api.request<GenericResult>(this.DOMAIN, 'get', 'maintenance');
   }
 
-  async updateMaintenanceStatus(status: boolean, expectedTime?: string): Promise<GenericResult | null> {
-    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'maintenance', { status, expectedTime });
+  async updateMaintenanceStatus(
+    status: boolean,
+    expectedTime?: string,
+  ): Promise<GenericResult | null> {
+    return this.api.request<GenericResult>(this.DOMAIN, 'post', 'maintenance', {
+      status,
+      expectedTime,
+    });
+  }
+
+  // ==========================================
+  // [메일 발송] 게스트 승인 알림
+  // ==========================================
+  private async sendGuestApprovalMail(
+    guest: GuestAccessResult,
+    approverId: string,
+  ): Promise<void> {
+    const recipients: string[] = [guest.loginId];
+    const systemRecipients =
+      await this.mailRecipientService.getActiveREcipientEmails('SYSTEM');
+    if (systemRecipients) {
+      recipients.push(...systemREcipients);
+    }
+
+    const html = this.renderTemplate('guest-approval.html', {
+      loginId: guest.loginId,
+      grantedRole: guest.grantedRole || 'GUEST',
+      validUntil: guest.validUntil
+        ? new Date(guest.validUntil as string).toLocaleString('ko-KR')
+        : '설정 없음',
+      approverName: approverId,
+      link: 'https://localhost:8080',
+    });
+
+    await this.knoxMailService.sendMail({
+      recipients,
+      subject: `[I:Vision] 게스트 접근이 승인되었습니다 (${guest.loginId})`,
+      content: html,
+    });
+  }
+
+  // ==========================================
+  // [메일 발송] 게스트 거절 알림
+  // ==========================================
+  private async sendGuestRejectMail(
+    request: GuestRequestResult,
+    rejectorId: string,
+  ): Promise<void> {
+    const recipients: string{} = [request.loginId];
+    const systemREcipients =
+      await this.mailRecipientService.getActiveRecipientEmails('SYSTEM');
+    if (systemRecipients) {
+      recipients.push(...systemREcipients);
+    }
+
+    const html = this.renderTemplate('guest-rejection.html', {
+      loginId: request.loginId,
+      reason: request.reason || '등록되지 않음',
+      rejectorName: rejectorId,
+    });
+
+    await this.knoxMailService.sendMail({
+      recipients,
+      subject: `[I:Vision] 게스트 접근이 거절되었습니다 (${request.loginID})`,
+      content: html,
+    });
+  }
+
+  // ==========================================
+  // [공통] 이메일 템플릿 렌더링
+  // ==========================================
+  private renderTemplate(
+    templateName: string,
+    variables: Record<string, string>,
+  ): string {
+    try {
+      const templatePath = path.join(this.templatesDir, templateName);
+      let html = fs.readFileSync(templatePath, 'utf-8');
+
+      for (const [key, value] of Object.entries(variables)) {
+        html = html.replace(new RegExp(`{${key}}`, 'g'), value);
+      }
+
+      return html;
+    } catch (error) {
+      console.error;
+        `[AdminService] Failed to render template ${templateName}:`,
+        error,
+      );
+      return `<p>알림이 있습니다. I:Vision헤엇 확인해 주세요.</p>`;
+    }
   }
 }
