@@ -30,7 +30,7 @@ import { MailRecipientModule } from './mail-recipient/mail-recipient.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath path.join(
+      envFilePath: path.join(
         __dirname,
         '..',
         process.env.NODE_ENV === 'production'
