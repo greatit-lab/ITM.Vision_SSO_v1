@@ -2,9 +2,9 @@
 import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
-import { CommonModuel } from '../common/common.module';
+import { CommonModule } from '../common/common.module';
 // [추가] KnoxModule, MailRecipientModule import
-import { KnoxModuel } from '../knox/knox.module';
+import { KnoxModule } from '../knox/knox.module';
 import { MailRecipientModule } from '../mail-recipient/mail-recipient.module';
 
 @Module({
