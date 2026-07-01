@@ -24,7 +24,7 @@ interface RequestWithUser extends Request {
   };
 }
 
-@UseGueard(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('mail-recipient')
 export class MailRecipientController {
   constructor(private readonly mailRecipientService: MailRecipientService) {}
@@ -39,13 +39,13 @@ export class MailRecipientController {
   async getSystemRecipients(): Promise<any> {
     return this.mailRecipientService.getSystemRecipients();
   }
-  
+
   @Get('my')
   async getMyRecipients(@Req() req: RequestWithUser): Promise<any> {
     const token = this.extractToken(req);
     return this.mailRecipientService.getMyRecipients(token);
   }
-  
+
   @Post()
   async createRecipient(
     @Req() req: RequestWithUser,
@@ -64,7 +64,7 @@ export class MailRecipientController {
     const token = this.extractToken(req);
     return this.mailRecipientService.updateRecipient(Number(id), token, dto);
   }
-  
+
   @Delete(':id')
   async deleteRecipient(
     @Param('id') id: string,
