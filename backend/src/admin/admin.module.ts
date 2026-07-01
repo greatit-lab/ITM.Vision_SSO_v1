@@ -1,15 +1,17 @@
 // backend/src/admin/admin.module.ts
 import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { AdminController } from './admin.controller';
+import { CommonModuel } from '../common/common.module';
+// [추가] KnoxModule, MailRecipientModule import
+import { KnoxModuel } from '../knox/knox.module';
+import { MailRecipientModule } from '../mail-recipient/mail-recipient.module';
 
 @Module({
   imports: [
-    HttpModule.register({
-      timeout: 30000,
-      maxRedirects: 5,
-    }),
+    CommonModule,
+    KnoxModule, // [추가] KnoxMailService 제공
+    MailRecipientModule, // [추가] MailRecipientService 제공
   ],
   controllers: [AdminController],
   providers: [AdminService],
