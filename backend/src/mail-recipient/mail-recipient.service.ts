@@ -10,7 +10,7 @@ export class MailRecipientService {
   constructor(private readonly dataApiService: DataApiService) {}
 
   async getAllRecipients(token: string): Promise<any[]> {
-    const result = awit this.dataApiService.request<any[]>(
+    const result = await this.dataApiService.request<any[]>(
       this.DOMAIN,
       'get',
       '',
@@ -20,7 +20,7 @@ export class MailRecipientService {
     );
     return result || [];
   }
-  
+
   async getSystemRecipients(): Promise<any[]> {
     const result = await this.dataApiService.request<any[]>(
       this.DOMAIN,
@@ -29,7 +29,7 @@ export class MailRecipientService {
     );
     return result || [];
   }
-  
+
   async getMyRecipients(token: string): Promise<any[]> {
     const result = await this.dataApiService.request<any[]>(
       this.DOMAIN,
@@ -41,7 +41,7 @@ export class MailRecipientService {
     );
     return result || [];
   }
-  
+
   async createRecipient(
     token: string,
     data: {
@@ -59,7 +59,7 @@ export class MailRecipientService {
       { token },
     );
   }
-  
+
   async updateRecipient(
     id: number,
     token: string,
@@ -78,7 +78,7 @@ export class MailRecipientService {
       { token },
     );
   }
-  
+
   async deleteRecipient(id: number, token: string): Promise<any> {
     return this.dataApiService.request<any>(
       this.DOMAIN,
@@ -89,7 +89,7 @@ export class MailRecipientService {
       { token },
     );
   }
-  
+
   /**
    * 활성 수신자 이메일 목록 조회 (메일 발송용)
    * @param type - 'SYSTEM' 또는 undefined(전체)
@@ -103,12 +103,12 @@ export class MailRecipientService {
       undefined,
       // token 불필요 (내부 메일 발송용)
     );
-  
+
     // SYSTEM 또는 USER 모두 포함 (메일 발송용)
     const filtered = type
       ? result?.filter((r: any) => r.recipientType === type) || []
       : result || []; // type 없으면 전체 조회
-  
-    return filtered.map((r: any) => r.recipientEmail) as stringp[];
+
+    return filtered.map((r: any) => r.recipientEmail) as string[];
   }
 }
