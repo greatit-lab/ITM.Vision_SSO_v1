@@ -63,40 +63,40 @@ export class KnoxMailService {
       // 상세 로그 출력
       this.logger.log(`[KnoxMailService] === Detailed Request Info ===`);
       this.logger.log(`  URL: ${targetUrl}`);
-      this.logger.log(`  Source IP: ${this.getLocal IP()`);
+      this.logger.log(`  Source IP: ${this.getLocalIP()}`);
 
       // 목적지 IP 확인 (비동기)
-      const paresedUrl = new URL(targetUrl);
-      dns.lookup(presedUrl.hostname, (err, address) => {
+      const parsedUrl = new URL(targetUrl);
+      dns.lookup(parsedUrl.hostname, (err, address) => {
         if (!err) {
-          this.logger.log(`   Destination IP: ${address}`);
+          this.logger.log(`  Destination IP: ${address}`);
         }
       });
 
-      this.logger.log(`   Destination Port: 443 (HTTPS)`);
-      this.logger.log(`   Headers:`);
+      this.logger.log(`  Destination Port: 443 (HTTPS)`);
+      this.logger.log(`  Headers:`);
       this.logger.log(
         `    Authorization: Bearer ${this.accessToken.substring(0, 10)}...`,
       );
-      this.logger.log(`     System-ID: ${this.accountId}`);
+      this.logger.log(`    System-ID: ${this.accountId}`);
       this.logger.log(
-        `     Content-Type: ${formData.getHeaders()['content-type']}`,
+        `    Content-Type: ${formData.getHeaders()['content-type']}`,
       );
-      this.logger.log(`   User-Agent: I:Vision/1.0`);
+      this.logger.log(`    User-Agent: I:Vision/1.0`);
       this.logger.log(`  Body Size: ${formData.getLengthSync()} bytes`);
       this.logger.log(
         `  Body Preview: ${JSON.stringify(mailPayload).substring(0, 200)}...`,
       );
-      this.logger.log((`=======================================`);
+      this.logger.log(`========================================`);
 
       // node-fetch 로 요청 (form-data 올바르게 직렬화)
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           ...formData.getHeaders(),
-          Aufhorization: `Bearre ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessToken}`,
           'System-ID': this.accountId,
-          'User-Agent': 'I:vision/1.0',
+          'User-Agent': 'I:Vision/1.0',
         },
         body: formData,
       });
@@ -114,7 +114,7 @@ export class KnoxMailService {
         `[KnoxMailService] Mail sent successfully | mailId: ${result.mailId}`,
       );
       return result;
-    } cathc (error) {
+    } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`[KnoxMailService] Knox API Error | ${errorMessage}`);
@@ -128,7 +128,7 @@ export class KnoxMailService {
     }
 
     // 개발모드: @stage.samsung.com, 운영모드: @samsung.com
-    const domail =
+    const domain =
       process.env.NODE_ENV === 'production'
         ? 'samsung.com'
         : 'stage.samsung.com';
@@ -136,7 +136,7 @@ export class KnoxMailService {
     return `${emailOrId}@${domain}`;
   }
 
-  private getLocalIP(); string {
+  private getLocalIP(): string {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name]!) {
