@@ -72,7 +72,21 @@ export class BoardService {
 
   // 8. 댓글 작성 (메일 발송 연동)
   async createComment(data: CreateCommentDto): Promise<any> {
-    return this.dataApi.request<any>('board', 'post', 'comment', data);
+    const comment = await this.dataApi.request<any>(
+      this.DOMAIN,
+      'post',
+      'comment',
+      data,
+    );
+
+    this.sendReplyNotificationMail(comment, data).catch((err) => {
+      console.error(
+        '[BoardService] Failed to send reply notification email:',
+        err,
+      );
+    });
+
+    return comment;
   }
 
   // 9. 댓글 수정
