@@ -117,6 +117,7 @@ export class BoardService {
     data: CreatePostDto,
   ): Promise<void> {
     const postId = this.resolvePostId(post);
+
     const recipients =
       await this.mailRecipientService.getBoardAdminManagerRecipientEmails();
 
@@ -131,8 +132,8 @@ export class BoardService {
     const postTitle = this.readObjectValue(post, 'title');
     const postAuthorId = this.readObjectValue(post, 'authorId');
     const postCreatedAt = this.readObjectValue(post, 'createdAt');
-    
-    const Category = this.toText(data.category || postCategory || 'QNA');
+
+    const category = this.toText(data.category || postCategory || 'QNA');
     const title = this.toText(data.title || postTitle || '');
     const authorName = this.toText(data.authorId || postAuthorId || '');
     const createdAt = this.formatDateTime(postCreatedAt);
@@ -204,7 +205,7 @@ export class BoardService {
     const postTitle = this.toText(this.readObjectValue(post, 'title'));
     const commentContent = this.readObjectValue(comment, 'content');
     const commentCreatedAt = this.readObjectValue(comment, 'createdAt');
-    
+
     const html = this.renderTemplate('reply-notification.html', {
       postTitle,
       replyContent: this.toText(data.content || commentContent),
@@ -215,7 +216,7 @@ export class BoardService {
 
     await this.knoxMailService.sendMail({
       recipients,
-      subject: `[I:Vision] "${postTitle)}" 게시글에 답변이 달렸습니다`,
+      subject: `[I:Vision] "${postTitle}" 게시글에 답변이 달렸습니다`,
       content: html,
     });
 
@@ -339,7 +340,7 @@ export class BoardService {
       return value;
     }
 
-    if (typeof value === 'string' && valuetrim().length > 0) {
+    if (typeof value === 'string' && value.trim().length > 0) {
       const parsed = Number(value);
 
       if (Number.isFinite(parsed)) {
@@ -373,10 +374,10 @@ export class BoardService {
     return undefined;
   }
 
-  private isRecord(value: unknows): value is Record<string, unknown> {
+  private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
-  
+
   private escapeHtml(value: string): string {
     return value
       .replace(/&/g, '&amp;')
@@ -403,10 +404,10 @@ export class BoardService {
       return String(error);
     }
 
-    if (this.IsRecord(error)) {
+    if (this.isRecord(error)) {
       try {
         return JSON.stringify(error);
-      } cathc {
+      } catch {
         return 'Unknown object error';
       }
     }
