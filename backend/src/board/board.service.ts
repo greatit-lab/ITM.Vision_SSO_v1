@@ -1,6 +1,7 @@
 // backend/src/board/board.service.ts
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataApiService } from '../common/data-api.service';
 import { KnoxMailService } from '../knox/knox-mail.service';
 import { MailRecipientService } from '../mail-recipient/mail-recipient.service';
@@ -10,7 +11,9 @@ import * as path from 'path';
 
 @Injectable()
 export class BoardService {
+  private readonly logger = new Logger(BoardService.name);
   private readonly DOMAIN = 'board';
+
   private readonly templatesDir = path.join(
     __dirname,
     '..',
@@ -22,6 +25,7 @@ export class BoardService {
     private readonly dataApi: DataApiService,
     private readonly knoxMailService: KnoxMailService,
     private readonly mailRecipientService: MailRecipientService,
+    private readonly configService: ConfigService,
   ) {}
 
   // 1. 팝업 공지 조회
@@ -39,14 +43,15 @@ export class BoardService {
     return this.dataApi.request<any>(this.DOMAIN, 'get', String(id));
   }
 
-  // 4. 게시글 작성 (메일 발송 연동)
+  // 4. 게시글 작성
   async createPost(data: CreatePostDto): Promise<any> {
     const post = await this.dataApi.request<any>(this.DOMAIN, 'post', '', data);
 
-    this.sendPostNotificationMail(post, data).catch((err) => {
-      console.error(
-        '[BoardService] Failed to send post notification email:',
-        err,
+    this.sendPostNotificationMail(post, data).catch((error) => {
+      this.logger.error(
+        `[Board Mail] Failed to send new post notification mail: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     });
 
@@ -70,7 +75,7 @@ export class BoardService {
     return this.dataApi.request<any>(this.DOMAIN, 'delete', String(id));
   }
 
-  // 8. 댓글 작성 (메일 발송 연동)
+  // 8. 댓글 작성
   async createComment(data: CreateCommentDto): Promise<any> {
     const comment = await this.dataApi.request<any>(
       this.DOMAIN,
@@ -79,10 +84,11 @@ export class BoardService {
       data,
     );
 
-    this.sendReplyNotificationMail(comment, data).catch((err) => {
-      console.error(
-        '[BoardService] Failed to send reply notification email:',
-        err,
+    this.sendReplyNotificationMail(comment, data).catch((error) => {
+      this.logger.error(
+        `[Board Mail] Failed to send reply notification mail: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     });
 
@@ -103,61 +109,104 @@ export class BoardService {
 
   // ==========================================
   // [메일 발송] 게시글 등록 알림
+  // - 모든 카테고리 대상
+  // - Admin / Manager 권한자 대상
   // ==========================================
   private async sendPostNotificationMail(
     post: any,
     data: CreatePostDto,
   ): Promise<void> {
+    const postId = this.resolvePostId(post);
     const recipients =
-      await this.mailRecipientService.getActiveRecipientEmails();
-    if (!recipients || recipients.length === 0) return;
+      await this.mailRecipientService.getBoardAdminManagerRecipientEmails();
+
+    if (!recipients || recipients.length === 0) {
+      this.logger.warn(
+        `[Board Mail] Skip new post notification. No Admin/Manager recipients. postId=${postId}`,
+      );
+      return;
+    }
+
+    const category = this.toText(data.category || post?.category || 'QNA');
+    const title = this.toText(data.title || post?.title || '');
+    const authorName = this.toText(data.authorId || post?.authorId || '');
+    const createdAt = this.formatDateTime(post?.createdAt);
+    const link = this.buildBoardLink(postId);
 
     const html = this.renderTemplate('post-notification.html', {
-      category: data.category || 'QNA',
-      title: data.title,
-      authorName: data.authorId,
-      createdAt: new Date().toLocaleString('ko-KR'),
-      link: `https://localhost:8080/board/${post.postId || post.id}`,
+      category,
+      title,
+      authorName,
+      createdAt,
+      link,
     });
 
     await this.knoxMailService.sendMail({
       recipients,
-      subject: `[I:Vision] 새로운 게시글이 등록되었습니다 (${data.category || 'QNA'})`,
+      subject: `[I:Vision] 새로운 게시글이 등록되었습니다 (${category})`,
       content: html,
     });
+
+    this.logger.log(
+      `[Board Mail] New post notification sent. postId=${postId}, recipients=${recipients.length}`,
+    );
   }
 
   // ==========================================
-  // [메일 발송] 답변 알림
+  // [메일 발송] 답변 / 댓글 알림
+  // - 원 게시글 작성자에게 발송
+  // - 작성자가 본인 글에 댓글을 단 경우는 제외
   // ==========================================
   private async sendReplyNotificationMail(
     comment: any,
     data: CreateCommentDto,
   ): Promise<void> {
-    const post = await this.getPost(data.postId);
-    if (!post || post.authorId === data.authorId) return;
+    const postId = Number(data.postId);
+    const post = await this.getPost(postId);
 
-    const recipients: string[] = [post.authorId];
-
-    const systemRecipients =
-      await this.mailRecipientService.getActiveRecipientEmails('SYSTEM');
-    if (systemRecipients) {
-      recipients.push(...systemRecipients);
+    if (!post) {
+      this.logger.warn(
+        `[Board Mail] Skip reply notification. Post not found. postId=${postId}`,
+      );
+      return;
     }
 
+    const postAuthorId = this.toText(post.authorId || post.author?.loginId);
+    const replyAuthorId = this.toText(data.authorId || comment?.authorId);
+
+    if (!postAuthorId) {
+      this.logger.warn(
+        `[Board Mail] Skip reply notification. Post author is empty. postId=${postId}`,
+      );
+      return;
+    }
+
+    if (postAuthorId === replyAuthorId) {
+      this.logger.log(
+        `[Board Mail] Skip reply notification. Reply author is same as post author. postId=${postId}`,
+      );
+      return;
+    }
+
+    const recipients = this.unique([postAuthorId]);
+
     const html = this.renderTemplate('reply-notification.html', {
-      postTitle: post.title,
-      replyContent: data.content,
-      replyAuthorName: data.authorId,
-      createdAt: new Date().toLocaleString('ko-KR'),
-      link: `https://localhost:8080/board/${post.postId || post.id}`,
+      postTitle: this.toText(post.title),
+      replyContent: this.toText(data.content || comment?.content),
+      replyAuthorName: replyAuthorId,
+      createdAt: this.formatDateTime(comment?.createdAt),
+      link: this.buildBoardLink(postId),
     });
 
     await this.knoxMailService.sendMail({
       recipients,
-      subject: `[I:Vision] "${post.title}" 게시글에 답변이 달렸습니다`,
+      subject: `[I:Vision] "${this.toText(post.title)}" 게시글에 답변이 달렸습니다`,
       content: html,
     });
+
+    this.logger.log(
+      `[Board Mail] Reply notification sent. postId=${postId}, recipient=${postAuthorId}`,
+    );
   }
 
   // ==========================================
@@ -172,16 +221,74 @@ export class BoardService {
       let html = fs.readFileSync(templatePath, 'utf-8');
 
       for (const [key, value] of Object.entries(variables)) {
-        html = html.replace(new RegExp(`{${key}}`, 'g'), value);
+        html = html.replace(new RegExp(`{${key}}`, 'g'), this.escapeHtml(value));
       }
 
       return html;
     } catch (error) {
-      console.error(
-        `[BoardService] Failed to render template ${templateName}:`,
-        error,
+      this.logger.error(
+        `[Board Mail] Failed to render template ${templateName}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
+
       return `<p>새로운 알림이 있습니다. I:Vision에서 확인해 주세요.</p>`;
     }
+  }
+
+  private resolvePostId(post: any): number {
+    const value = post?.postId ?? post?.id ?? post?.data?.postId ?? post?.data?.id;
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private buildBoardLink(postId: number): string {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:8080';
+
+    try {
+      const url = new URL(frontendUrl);
+      return `${url.origin}/support/qna/${postId}`;
+    } catch {
+      return `/support/qna/${postId}`;
+    }
+  }
+
+  private formatDateTime(value?: string | Date): string {
+    const date = value ? new Date(value) : new Date();
+
+    if (Number.isNaN(date.getTime())) {
+      return new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+    }
+
+    return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  }
+
+  private toText(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    return String(value);
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private unique(values: string[]): string[] {
+    return Array.from(
+      new Set(
+        values
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0),
+      ),
+    );
   }
 }
