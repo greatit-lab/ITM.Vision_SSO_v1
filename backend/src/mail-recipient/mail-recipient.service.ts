@@ -1,5 +1,4 @@
 // backend/src/mail-recipient/mail-recipient.service.ts
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { Injectable, Logger } from '@nestjs/common';
 import { DataApiService } from '../common/data-api.service';
 
@@ -182,9 +181,7 @@ export class MailRecipientService {
   private unique(values: string[]): string[] {
     return Array.from(
       new Set(
-        values
-          .map((value) => value.trim())
-          .filter((value) => value.length > 0),
+        values.map((value) => value.trim()).filter((value) => value.length > 0),
       ),
     );
   }
