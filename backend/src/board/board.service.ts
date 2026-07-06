@@ -1,5 +1,5 @@
 // backend/src/board/board.service.ts
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataApiService } from '../common/data-api.service';
@@ -47,11 +47,11 @@ export class BoardService {
   async createPost(data: CreatePostDto): Promise<any> {
     const post = await this.dataApi.request<any>(this.DOMAIN, 'post', '', data);
 
-    this.sendPostNotificationMail(post, data).catch((error) => {
+    this.sendPostNotificationMail(post, data).catch((error: unknown) => {
       this.logger.error(
-        `[Board Mail] Failed to send new post notification mail: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `[Board Mail] Failed to send new post notification mail: ${this.getErrorMessage(
+          error,
+        )}`,
       );
     });
 
@@ -84,11 +84,11 @@ export class BoardService {
       data,
     );
 
-    this.sendReplyNotificationMail(comment, data).catch((error) => {
+    this.sendReplyNotificationMail(comment, data).catch((error: unknown) => {
       this.logger.error(
-        `[Board Mail] Failed to send reply notification mail: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `[Board Mail] Failed to send reply notification mail: ${this.getErrorMessage(
+          error,
+        )}`,
       );
     });
 
@@ -113,7 +113,7 @@ export class BoardService {
   // - Admin / Manager 권한자 대상
   // ==========================================
   private async sendPostNotificationMail(
-    post: any,
+    post: unknown,
     data: CreatePostDto,
   ): Promise<void> {
     const postId = this.resolvePostId(post);
@@ -127,10 +127,15 @@ export class BoardService {
       return;
     }
 
-    const category = this.toText(data.category || post?.category || 'QNA');
-    const title = this.toText(data.title || post?.title || '');
-    const authorName = this.toText(data.authorId || post?.authorId || '');
-    const createdAt = this.formatDateTime(post?.createdAt);
+    const postCategory = this.readObjectValue(post, 'category');
+    const postTitle = this.readObjectValue(post, 'title');
+    const postAuthorId = this.readObjectValue(post, 'authorId');
+    const postCreatedAt = this.readObjectValue(post, 'createdAt');
+    
+    const Category = this.toText(data.category || postCategory || 'QNA');
+    const title = this.toText(data.title || postTitle || '');
+    const authorName = this.toText(data.authorId || postAuthorId || '');
+    const createdAt = this.formatDateTime(postCreatedAt);
     const link = this.buildBoardLink(postId);
 
     const html = this.renderTemplate('post-notification.html', {
@@ -158,7 +163,7 @@ export class BoardService {
   // - 작성자가 본인 글에 댓글을 단 경우는 제외
   // ==========================================
   private async sendReplyNotificationMail(
-    comment: any,
+    comment: unknown,
     data: CreateCommentDto,
   ): Promise<void> {
     const postId = Number(data.postId);
@@ -171,8 +176,14 @@ export class BoardService {
       return;
     }
 
-    const postAuthorId = this.toText(post.authorId || post.author?.loginId);
-    const replyAuthorId = this.toText(data.authorId || comment?.authorId);
+    const postAuthor = this.readObjectValue(post, 'author');
+    const postAuthorId = this.toText(
+      this.readObjectValue(post, 'authorId') ||
+        this.readObjectValue(postAuthor, 'loginId'),
+    );
+
+    const commentAuthorId = this.readObjectValue(comment, 'authorId');
+    const replyAuthorId = this.toText(data.authorId || commentAuthorId);
 
     if (!postAuthorId) {
       this.logger.warn(
@@ -190,17 +201,21 @@ export class BoardService {
 
     const recipients = this.unique([postAuthorId]);
 
+    const postTitle = this.toText(this.readObjectValue(post, 'title'));
+    const commentContent = this.readObjectValue(comment, 'content');
+    const commentCreatedAt = this.readObjectValue(comment, 'createdAt');
+    
     const html = this.renderTemplate('reply-notification.html', {
-      postTitle: this.toText(post.title),
-      replyContent: this.toText(data.content || comment?.content),
+      postTitle,
+      replyContent: this.toText(data.content || commentContent),
       replyAuthorName: replyAuthorId,
-      createdAt: this.formatDateTime(comment?.createdAt),
+      createdAt: this.formatDateTime(commentCreatedAt),
       link: this.buildBoardLink(postId),
     });
 
     await this.knoxMailService.sendMail({
       recipients,
-      subject: `[I:Vision] "${this.toText(post.title)}" 게시글에 답변이 달렸습니다`,
+      subject: `[I:Vision] "${postTitle)}" 게시글에 답변이 달렸습니다`,
       content: html,
     });
 
@@ -221,26 +236,36 @@ export class BoardService {
       let html = fs.readFileSync(templatePath, 'utf-8');
 
       for (const [key, value] of Object.entries(variables)) {
-        html = html.replace(new RegExp(`{${key}}`, 'g'), this.escapeHtml(value));
+        html = html.replace(
+          new RegExp(`{${key}}`, 'g'),
+          this.escapeHtml(value),
+        );
       }
 
       return html;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(
-        `[Board Mail] Failed to render template ${templateName}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `[Board Mail] Failed to render template ${templateName}: ${this.getErrorMessage(
+          error,
+        )}`,
       );
 
-      return `<p>새로운 알림이 있습니다. I:Vision에서 확인해 주세요.</p>`;
+      return '<p>새로운 알림이 있습니다. I:Vision에서 확인해 주세요.</p>';
     }
   }
 
-  private resolvePostId(post: any): number {
-    const value = post?.postId ?? post?.id ?? post?.data?.postId ?? post?.data?.id;
-    const parsed = Number(value);
+  private resolvePostId(post: unknown): number {
+    const directPostId = this.readObjectValue(post, 'postId');
+    const directId = this.readObjectValue(post, 'id');
 
-    return Number.isFinite(parsed) ? parsed : 0;
+    const data = this.readObjectValue(post, 'data');
+    const nestedPostId = this.readObjectValue(data, 'postId');
+    const nestedId = this.readObjectValue(data, 'id');
+
+    const value = directPostId ?? directId ?? nestedPostId ?? nestedId;
+    const parsed = this.toNumber(value);
+
+    return parsed ?? 0;
   }
 
   private buildBoardLink(postId: number): string {
@@ -255,11 +280,19 @@ export class BoardService {
     }
   }
 
-  private formatDateTime(value?: string | Date): string {
-    const date = value ? new Date(value) : new Date();
+  private formatDateTime(value?: unknown): string {
+    let date: Date;
+
+    if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === 'string' || typeof value === 'number') {
+      date = new Date(value);
+    } else {
+      date = new Date();
+    }
 
     if (Number.isNaN(date.getTime())) {
-      return new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+      date = new Date();
     }
 
     return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -270,9 +303,80 @@ export class BoardService {
       return '';
     }
 
-    return String(value);
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint'
+    ) {
+      return String(value);
+    }
+
+    if (value instanceof Date) {
+      return this.formatDateTime(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => this.toText(item)).join(', ');
+    }
+
+    if (this.isRecord(value)) {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '';
+      }
+    }
+
+    return '';
   }
 
+  private toNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string' && valuetrim().length > 0) {
+      const parsed = Number(value);
+
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return undefined;
+  }
+
+  private readObjectValue(
+    source: unknown,
+    key: string,
+  ): string | number | boolean | Date | Record<string, unknown> | undefined {
+    if (!this.isRecord(source)) {
+      return undefined;
+    }
+
+    const value = source[key];
+
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      value instanceof Date ||
+      this.isRecord(value)
+    ) {
+      return value;
+    }
+
+    return undefined;
+  }
+
+  private isRecord(value: unknows): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+  
   private escapeHtml(value: string): string {
     return value
       .replace(/&/g, '&amp;')
@@ -282,12 +386,38 @@ export class BoardService {
       .replace(/'/g, '&#39;');
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    if (
+      typeof error === 'number' ||
+      typeof error === 'boolean' ||
+      typeof error === 'bigint'
+    ) {
+      return String(error);
+    }
+
+    if (this.IsRecord(error)) {
+      try {
+        return JSON.stringify(error);
+      } cathc {
+        return 'Unknown object error';
+      }
+    }
+
+    return 'Unknown error';
+  }
+
   private unique(values: string[]): string[] {
     return Array.from(
       new Set(
-        values
-          .map((value) => value.trim())
-          .filter((value) => value.length > 0),
+        values.map((value) => value.trim()).filter((value) => value.length > 0),
       ),
     );
   }
