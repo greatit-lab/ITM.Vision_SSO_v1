@@ -203,9 +203,7 @@ export class KnoxMailService {
 
       dns.lookup(parsedUrl.hostname, (err, address) => {
         if (err) {
-          this.logger.warn(
-            `  Destination DNS Lookup Failed: ${err.message}`,
-          );
+          this.logger.warn(`  Destination DNS Lookup Failed: ${err.message}`,);
           return;
         }
 
@@ -224,7 +222,9 @@ export class KnoxMailService {
     this.logger.log('========================================');
   }
 
-  private parseKnoxMailResponse(responseData: unknown): KnoxMailResponse | null {
+  private parseKnoxMailResponse(
+    responseData: unknown,
+  ): KnoxMailResponse | null {
     const parsed = this.parseResponseData(responseData);
 
     if (!this.isRecord(parsed)) {
@@ -398,9 +398,7 @@ export class KnoxMailService {
   private unique(values: string[]): string[] {
     return Array.from(
       new Set(
-        values
-          .map((value) => value.trim())
-          .filter((value) => value.length > 0),
+        values.map((value) => value.trim()).filter((value) => value.length > 0),
       ),
     );
   }
