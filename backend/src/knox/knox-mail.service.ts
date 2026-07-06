@@ -203,7 +203,7 @@ export class KnoxMailService {
 
       dns.lookup(parsedUrl.hostname, (err, address) => {
         if (err) {
-          this.logger.warn(`  Destination DNS Lookup Failed: ${err.message}`,);
+          this.logger.warn(`  Destination DNS Lookup Failed: ${err.message}`);
           return;
         }
 
