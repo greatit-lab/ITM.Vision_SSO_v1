@@ -127,7 +127,7 @@ export class BoardService {
     post: unknown,
     data: CreatePostDto,
   ): Promise<void> {
-    const postId = this.resolvePostId(post)
+    const postId = this.resolvePostId(post);
 
     const postCategoryRaw = this.readObjectValue(post, 'category');
     const category = this.toText(
@@ -140,7 +140,7 @@ export class BoardService {
       );
       return;
     }
-    
+
     const recipients =
       await this.mailRecipientService.getBoardAdminManagerRecipientEmails();
 
@@ -170,7 +170,7 @@ export class BoardService {
     );
 
     const categoryBadgeColors = this.getCategoryBadgeColors(category);
-    
+
     const html = this.renderTemplate('post-notification.html', {
       category,
       __categoryBadgeTextColor__: categoryBadgeColors.text,
@@ -242,25 +242,62 @@ export class BoardService {
     const recipients = this.unique([postAuthorId]);
 
     const postTitle = this.toText(this.readObjectValue(post, 'title'));
+    const postCategoryRaw = this.readObjectValue(post, 'category');
+    const category = this.toText(postCategoryRaw || 'QNA').toUpperCase();
+    const categoryBadgeColors = this.getCategoryBadgeColors(category);
     const commentContent = this.readObjectValue(comment, 'content');
     const commentCreatedAt = this.readObjectValue(comment, 'createdAt');
+    const isAnswered = data.status === 'ANSWERED';
+    const frontendOrigin = this.getFrontendOrigin();
+    const contentHtml = this.plainTextToHtml(
+      this.toText(data.content || commentContent || ''),
+    );
+
+    const replyAuthorRole = this.toText(data.authorRole || '').toUpperCase();
+    const isAdmin = replyAuthorRole === 'ADMIN';
+    const isManager = replyAuthorRole === 'MANAGER';
+    const authorName = isAdmin || isManager ? replyAuthorRole : replyAuthorId;
+    const authorInitial = isAdmin
+      ? 'A'
+      : isManager
+        ? 'M'
+        : replyAuthorId.charAt(0).toUpperCase() || '?';
+    const authorAvatarColor = isAdmin
+      ? '#dc2626'
+      : isManager
+        ? '#7c3aed'
+        : '#0f9d58'
 
     const html = this.renderTemplate('reply-notification.html', {
+      category,
+      __categoryBadgeTextColor__: categoryBadgeColors.text,
+      __categoryBadgeBgColor__: categoryBadgeColors.bg,
+      __categoryBadgeBorderColor__: categoryBadgeColors.border,
+      statusBadgeText: isAnswered ? '답변 완료' : '새 답변',
+      __statusBadgeColor__: isAnswered ? '#0f9d58' : '#f4b400',
       postTitle,
+      contentHtml,
+      authorName,
+      authorInitial,
+      __authorAvatarColor__: authorAvatarColor,
       replyContent: this.toText(data.content || commentContent),
       replyAuthorName: replyAuthorId,
       createdAt: this.formatDateTime(commentCreatedAt),
       link: this.buildBoardLink(postId),
+      logoIconUrl: `${frontendOrigin}/mail/logo-icon.png`,
+      logoTextUrl: `${frontendOrigin}/mail/logo-text.png`,
     });
 
     await this.knoxMailService.sendMail({
       recipients,
-      subject: `[I:Vision] "${postTitle}" 게시글에 답변이 달렸습니다`,
+      subject: isAnswered
+        ? `[I:Vision] "${postTitle}" 게시글이 답변 완료 처리되었습니다`
+        : `[I:Vision] "${postTitle}" 게시글에 답변이 달렸습니다`,
       content: html,
     });
 
     this.logger.log(
-      `[Board Mail] Reply notification sent. postId=${postId}, recipient=${postAuthorId}`,
+      `[Board Mail] Reply notification sent. postId=${postId}, recipient=${postAuthorId}, status=${data.status || 'OPEN'}`,
     );
   }
 
