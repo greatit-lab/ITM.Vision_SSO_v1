@@ -389,7 +389,7 @@ export class BoardService {
         return { text: '#4f46e5', bg: '#eef2ff', border: '#e0e7ff' };
     }
   }
-  
+
   private formatDateTime(value?: unknown): string {
     let date: Date;
 
@@ -429,7 +429,7 @@ export class BoardService {
 
     return this.escapeHtml(trimmed).replace(/\n/g, '<br>');
   }
-  
+
   private toText(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
