@@ -45,7 +45,15 @@ export class BoardService {
 
   // 4. 게시글 작성
   async createPost(data: CreatePostDto): Promise<any> {
-    const post = await this.dataApi.request<any>(this.DOMAIN, 'post', '', data);
+    // authorName은 알림 메일 표시용일 뿐이므로 itm-data-api에는 전달하지 않음
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { authorName, ...dataApiPayload } = data;
+    const post = await this.dataApi.request<any>(
+      this.DOMAIN,
+      'post',
+      '',
+      dataApiPayload,
+    );
 
     this.sendPostNotificationMail(post, data).catch((error: unknown) => {
       this.logger.error(
@@ -77,11 +85,14 @@ export class BoardService {
 
   // 8. 댓글 작성
   async createComment(data: CreateCommentDto): Promise<any> {
+    // authorRole은 알림 메일 표시용일 뿐이므로 itm-data-api에는 전달하지 않음
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { authorRole, ...dataApiPayload } = data;
     const comment = await this.dataApi.request<any>(
       this.DOMAIN,
       'post',
       'comment',
-      data,
+      dataApiPayload,
     );
 
     this.sendReplyNotificationMail(comment, data).catch((error: unknown) => {
@@ -109,15 +120,27 @@ export class BoardService {
 
   // ==========================================
   // [메일 발송] 게시글 등록 알림
-  // - 모든 카테고리 대상
+  // - NOTICE 카테고리는 공지용이므로 제외
   // - Admin / Manager 권한자 대상
   // ==========================================
   private async sendPostNotificationMail(
     post: unknown,
     data: CreatePostDto,
   ): Promise<void> {
-    const postId = this.resolvePostId(post);
+    const postId = this.resolvePostId(post)
 
+    const postCategoryRaw = this.readObjectValue(post, 'category');
+    const category = this.toText(
+      data.category || postCategoryRaw || 'QNA',
+    ).toUpperCase();
+
+    if (category === 'NOTICE') {
+      this.logger.log(
+        `[Board Mail] Skip new post notification. NOTICE category. postId=${postId}`,
+      );
+      return;
+    }
+    
     const recipients =
       await this.mailRecipientService.getBoardAdminManagerRecipientEmails();
 
@@ -128,23 +151,39 @@ export class BoardService {
       return;
     }
 
-    const postCategory = this.readObjectValue(post, 'category');
     const postTitle = this.readObjectValue(post, 'title');
     const postAuthorId = this.readObjectValue(post, 'authorId');
     const postCreatedAt = this.readObjectValue(post, 'createdAt');
+    const postContent = this.readObjectValue(post, 'content');
 
-    const category = this.toText(data.category || postCategory || 'QNA');
     const title = this.toText(data.title || postTitle || '');
-    const authorName = this.toText(data.authorId || postAuthorId || '');
+    const authorId = this.toText(data.authorId || postAuthorId || '');
+    const authorDisplayName = this.toText(data.authorName || '');
+    const authorName = authorDisplayName
+      ? `${authorDisplayName}(${authorId})`
+      : authorId;
     const createdAt = this.formatDateTime(postCreatedAt);
     const link = this.buildBoardLink(postId);
+    const frontendOrigin = this.getFrontendOrigin();
+    const contentHtml = this.sanitizeContentHtml(
+      this.toText(data.content || postContent || ''),
+    );
 
+    const categoryBadgeColors = this.getCategoryBadgeColors(category);
+    
     const html = this.renderTemplate('post-notification.html', {
       category,
+      __categoryBadgeTextColor__: categoryBadgeColors.text,
+      __categoryBadgeBgColor__: categoryBadgeColors.bg,
+      __categoryBadgeBorderColor__: categoryBadgeColors.border,
       title,
       authorName,
+      authorInitial: authorId.charAt(0).toUpperCase() || '?',
       createdAt,
+      contentHtml,
       link,
+      logoIconUrl: `${frontendOrigin}/mail/logo-icon.png`,
+      logoTextUrl: `${frontendOrigin}/mail/logo-text.png`,
     });
 
     await this.knoxMailService.sendMail({
