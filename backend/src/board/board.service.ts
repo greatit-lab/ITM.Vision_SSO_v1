@@ -266,7 +266,7 @@ export class BoardService {
       ? '#dc2626'
       : isManager
         ? '#7c3aed'
-        : '#0f9d58'
+        : '#0f9d58';
 
     const html = this.renderTemplate('reply-notification.html', {
       category,
@@ -280,8 +280,6 @@ export class BoardService {
       authorName,
       authorInitial,
       __authorAvatarColor__: authorAvatarColor,
-      replyContent: this.toText(data.content || commentContent),
-      replyAuthorName: replyAuthorId,
       createdAt: this.formatDateTime(commentCreatedAt),
       link: this.buildBoardLink(postId),
       logoIconUrl: `${frontendOrigin}/mail/logo-icon.png`,
@@ -313,10 +311,13 @@ export class BoardService {
       let html = fs.readFileSync(templatePath, 'utf-8');
 
       for (const [key, value] of Object.entries(variables)) {
-        html = html.replace(
-          new RegExp(`{${key}}`, 'g'),
-          this.escapeHtml(value),
-        );
+        const isBraceless = key.startsWith('__') && key.endsWith('__');
+        const pattern = isBraceless ? key : `{${key}}`;
+        // "Html" 접미사 키는 이미 렌더링된 HTML로 간주하여 이스케이프하지 않음
+        const replacement = key.endsWith('Html')
+          ? value
+          : this.escapeHtml(value);
+        html = html.replace(new RegExp(pattern, 'g'), () => replacement);
       }
 
       return html;
@@ -347,7 +348,8 @@ export class BoardService {
 
   private buildBoardLink(postId: number): string {
     const frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:8080';
+      this.configService.get<string>('FRONTEND_URL') ||
+      'https://localhost:8080';
 
     try {
       const url = new URL(frontendUrl);
@@ -357,6 +359,37 @@ export class BoardService {
     }
   }
 
+  private getFrontendOrigin(): string {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      'https://localhost:8080';
+
+    try {
+      return new URL(frontendUrl).origin;
+    } catch {
+      return frontendUrl;
+    }
+  }
+
+  // QnaDetailView.vue의 getCategoryColor()와 동일한 색상 매핑
+  // (Tailwind text-*-600 / bg-*-50 / border-*-100 실제 HEX 값)
+  private getCategoryBadgeColors(category: string): {
+    text: string;
+    bg: string;
+    border: string;
+  } {
+    switch (category) {
+      case 'NOTICE':
+        return { text: '#e11d48', bg: '#fff1f2', border: '#ffe4e6' };
+      case 'BUG':
+        return { text: '#d97706', bg: '#fffbeb', border: '#fef3c7' };
+      case 'IDEA':
+        return { text: '#0d9488', bg: '#f0fdfa', border: '#ccfbf1' };
+      default:
+        return { text: '#4f46e5', bg: '#eef2ff', border: '#e0e7ff' };
+    }
+  }
+  
   private formatDateTime(value?: unknown): string {
     let date: Date;
 
@@ -375,6 +408,28 @@ export class BoardService {
     return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
   }
 
+  // 게시글 content(HTML)를 메일 본문에 그대로 삽입하기 전, 스크립트/이벤트 핸들러만 제거
+  private sanitizeContentHtml(contentHtml: string): string {
+    const sanitized = contentHtml
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+="[^"]*"/gi, '')
+      .replace(/\son\w+='[^']*'/gi, '')
+      .trim();
+
+    return sanitized || '<p style="color:#999">(내용 없음)</p>';
+  }
+
+  // 답글 content(순수 텍스트, 개행문자 \n 포함)를 메일 본문에 삽입하기 전 HTML로 안전 변환
+  private plainTextToHtml(plainText: string): string {
+    const trimmed = plainText.trim();
+
+    if (!trimmed) {
+      return '<p style="color:#999">(내용 없음)</p>';
+    }
+
+    return this.escapeHtml(trimmed).replace(/\n/g, '<br>');
+  }
+  
   private toText(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
