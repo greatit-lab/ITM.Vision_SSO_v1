@@ -315,14 +315,16 @@ const submitPost = async () => {
 
   isSubmitting.value = true;
   try {
-    const authorId = authStore.user?.userId || 'anonymous';
+    const authorId = authStore.user?.userId || "anonymous";
+    const authorName = authStore.user?.name || "";
     
     if (isEditMode.value) {
       await boardApi.updatePost(targetId.value, { ...form });
       alert("게시글이 수정되었습니다.");
       router.push({ name: 'qna-detail', params: { id: targetId.value } });
     } else {
-      await boardApi.createPost({ ...form, authorId });
+      // authorName은 신규 게시글 알림 메일 표시용으로만 사용되며 DB에는 저장되지 않음
+      await boardApi.createPost({ ...form, authorId, authorName });
       alert("게시글이 등록되었습니다.");
       router.push({ name: 'qna-list' });
     }
