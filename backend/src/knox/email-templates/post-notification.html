@@ -19,7 +19,8 @@
           <table
             role="presentation"
             style="
-              max-width: 600px;
+              max-width: 1100px;
+              width: 100%;
               margin: 0 auto;
               background-color: #ffffff;
               border-radius: 8px;
@@ -31,147 +32,249 @@
             <tr>
               <td
                 style="
-                  background: linear-gradient(135deg, #1a73e8, #1557b0);
-                  padding: 30px;
+                  background-color: #ffffff;
+                  padding: 10px 36px;
                   text-align: center;
+                  border-bottom: 1px solid #e9ecef;
                 "
               >
-                <h1
-                  style="
-                    margin: 0;
-                    color: #ffffff;
-                    font-size: 24px;
-                    font-weight: 600;
-                  "
-                >
-                  I:Vision
-                </h1>
-                <p
-                  style="
-                    margin: 8px 0 0;
-                    color: rgba(255, 255, 255, 0.8);
-                    font-size: 14px;
-                  "
-                >
-                  시스템 알림
-                </p>
+                <table role="presentation" style="margin: 0 auto">
+                  <tr>
+                    <td style="vertical-align: middle; padding-right: 12px">
+                      <img
+                        src="{logoIconUrl}"
+                        alt="I:Vision"
+                        width="56"
+                        height="56"
+                        style="display: block; width: 56px; height: 56px"
+                      />
+                    </td>
+                    <td style="vertical-align: middle">
+                      <img
+                        src="{logoTextUrl}"
+                        alt="I:Vision"
+                        height="26"
+                        style="display: block; height: 26px"
+                      />
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <!-- Body -->
             <tr>
-              <td style="padding: 30px">
-                <p style="margin: 0 0 20px; font-size: 16px; color: #333333">
+              <td style="padding: 32px 36px">
+                <p style="margin: 0 0 16px; font-size: 15px; color: #666666">
                   새로운 게시글이 등록되었습니다.
                 </p>
+                
+                <!-- Q&A Board 상세화면 상단 정보 바 스타일 -->
                 <table
+                  role="presentation"
                   style="
                     width: 100%;
                     border-collapse: collapse;
-                    margin-bottom: 24px;
-                    background-color: #f8f9fa;
-                    border-radius: 6px;
-                    overflow: hidden;
+                    margin-bottom: 20px;
+                    background-color: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px 8px 0 0;
+                    border-bottom: none;
                   "
                 >
                   <tr>
-                    <td
-                      style="
-                        padding: 12px 16px;
-                        font-size: 14px;
-                        color: #666;
-                        width: 100px;
-                        font-weight: 600;
-                        border-bottom: 1px solid #e9ecef;
-                      "
-                    >
-                      카테고리
-                    </td>
-                    <td
-                      style="
-                        padding: 12px 16px;
-                        font-size: 14px;
-                        color: #333;
-                        border-bottom: 1px solid #e9ecef;
-                      "
-                    >
-                      {category}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style="
-                        padding: 12px 16px;
-                        font-size: 14px;
-                        color: #666;
-                        font-weight: 600;
-                        border-bottom: 1px solid #e9ecef;
-                      "
-                    >
-                      제목
-                    </td>
-                    <td
-                      style="
-                        padding: 12px 16px;
-                        font-size: 14px;
-                        color: #333;
-                        border-bottom: 1px solid #e9ecef;
-                      "
-                    >
-                      {title}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style="
-                        padding: 12px 16px;
-                        font-size: 14px;
-                        color: #666;
-                        font-weight: 600;
-                      "
-                    >
-                      작성자
-                    </td>
-                    <td
-                      style="padding: 12px 16px; font-size: 14px; color: #333"
-                    >
-                      {authorName}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style="
-                        padding: 12px 16px;
-                        font-size: 14px;
-                        color: #666;
-                        font-weight: 600;
-                      "
-                    >
-                      작성일
-                    </td>
-                    <td
-                      style="padding: 12px 16px; font-size: 14px; color: #333"
-                    >
-                      {createdAt}
+                    <td style="padding: 16px 20px">
+                      <table role="presentation" style="width: 100%">
+                        <tr>
+                          <!-- 좌측: 카테고리 + 제목 -->
+                          <td style="vertical-align: middle; width: 100%">
+                            <table role="presentation">
+                              <tr>
+                                <td
+                                  style="
+                                    vertical-align: middle;
+                                    padding-right: 10px;
+                                  "
+                                >
+                                  <span
+                                    style="
+                                      display: inline-block;
+                                      padding: 3px 8px;
+                                      border-radius: 4px;
+                                      font-size: 11px;
+                                      font-weight: 700;
+                                      letter-spacing: 0.05em;
+                                      text-transform: uppercase;
+                                      color: __categoryBadgeTextColor__;
+                                      background-color: __categoryBadgeBgColor__;
+                                      border: 1px solid
+                                        __categoryBadgeBorderColor__;
+                                      white-space: nowrap;
+                                    "
+                                    >
+                                    {category}
+                                  </span>
+                                </td>
+                                <td style="vertical-align: middle">
+                                  <span
+                                    style="
+                                      font-size: 16px;
+                                      font-weight: 700;
+                                      color: #1e293b;
+                                    "
+                                  >
+                                    {title}
+                                  </span>
+                                </td>
+                              </tr>
+                            </table>
+                            </td>
+                            <!-- 우측: 작성자/작성일시(2줄) + 게시글 보기 -->
+                            <td
+                            style="
+                              vertical-align: middle;
+                              white-space: nowrap;
+                              padding-left: 20px;
+                              text-align: right;
+                            "
+                          >
+                            <table
+                              role="presentation"
+                              style="margin-left: auto"
+                            >
+                              <tr>
+                                <td style="vertical-align: middle">
+                                  <table
+                                    role="presentation"
+                                    style="width: auto"
+                                  >
+                                    <tr>
+                                      <td
+                                        style="
+                                          vertical-align: middle;
+                                          width: 22px;
+                                        "
+                                      >
+                                        <table
+                                          role="presentation"
+                                          width="22"
+                                          cellpadding="0"
+                                          cellspacing="0"
+                                          border="0"
+                                          style="width: 22px"
+                                        >
+                                          <tr>
+                                            <td
+                                              width="22"
+                                              height="22"
+                                              style="
+                                                width: 22px;
+                                                height: 22px;
+                                                min-width: 22px;
+                                                max-width: 22px;
+                                                line-height: 22px;
+                                                border-radius: 50%;
+                                                background-color: #6366f1;
+                                                text-align: center;
+                                                vertical-align: middle;
+                                                font-size: 10px;
+                                                font-weight: 700;
+                                                color: #ffffff;
+                                                padding: 0;
+                                                mso-line-height-rule: exactly;
+                                              "
+                                            >
+                                              {authorInitial}
+                                            </td>
+                                          </tr>
+                                        </table>
+                                      </td>
+                                      <td
+                                        style="
+                                          vertical-align: middle;
+                                          padding-left: 6px;
+                                          font-size: 12px;
+                                          font-weight: 600;
+                                          color: #475569;
+                                          text-align: left;
+                                          white-space: nowrap;
+                                        "
+                                      >
+                                        {authorName}
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td
+                                        colspan="2"
+                                        style="
+                                          vertical-align: middle;
+                                          padding-top: 4px;
+                                          font-size: 12px;
+                                          color: #64748b;
+                                          text-align: left;
+                                        "
+                                      >
+                                        {createdAt}
+                                      </td>
+                                    </tr>
+                                  </table>
+                                </td>
+                                <td
+                                  style="
+                                    vertical-align: middle;
+                                    padding-left: 16px;
+                                  "
+                                >
+                                  <a
+                                    href="{link}"
+                                    style="
+                                      display: inline-block;
+                                      padding: 6px 14px;
+                                      background-color: #1a73e8;
+                                      color: #ffffff;
+                                      text-decoration: none;
+                                      border-radius: 6px;
+                                      font-size: 12px;
+                                      font-weight: 600;
+                                      white-space: nowrap;
+                                    "
+                                    >게시글 보기</a
+                                  >
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                 </table>
-                <table style="width: 100%; text-align: center">
+
+                <!-- 게시글 본문 (Q&A Board 상세화면 본문 영역과 동일한 톤) -->
+                <table
+                  role="presentation"
+                  style="
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 8px;
+                    background-color: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 0 0 8px 8px;
+                  "
+                >
                   <tr>
-                    <td>
-                      <a
-                        href="{link}"
+                    <td style="padding: 24px 22px">
+                      <div
                         style="
-                          display: inline-block;
-                          padding: 12px 32px;
-                          background-color: #1a73e8;
-                          color: #ffffff;
-                          text-decoration: none;
-                          border-radius: 6px;
+                          max-height: 420px;
+                          overflow-y: auto;
                           font-size: 14px;
-                          font-weight: 500;
+                          line-height: 1.7;
+                          color: #334155;
+                          word-break: break-word;
                         "
-                        >게시글 보기</a
                       >
+                        {contentHtml}
+                      </div>
                     </td>
                   </tr>
                 </table>
@@ -182,7 +285,7 @@
               <td
                 style="
                   background-color: #f8f9fa;
-                  padding: 20px 30px;
+                  padding: 20px 36px;
                   text-align: center;
                   border-top: 1px solid #e9ecef;
                 "
