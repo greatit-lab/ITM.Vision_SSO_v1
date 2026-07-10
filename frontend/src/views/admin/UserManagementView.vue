@@ -355,6 +355,15 @@ const activeTab = ref(
   route.query.tab === "Requests" ? "Requests" : "Active Guests",
 );
 
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab === "Requests") {
+      activeTab.value = "Requests";
+    }
+  }
+);
+  
 // State
 const users = ref<any[]>([]);
 const guests = ref<any[]>([]);
