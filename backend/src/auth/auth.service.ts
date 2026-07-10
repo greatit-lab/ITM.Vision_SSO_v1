@@ -6,7 +6,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
 import { DataApiService } from '../common/data-api.service';
+import { KnoxMailService } from '../knox/knox-mail.service';
+import { MailRecipientService } from '../mail-recipient/mail-recipient.service';
 import type { User, LoginResult } from './auth.interface';
 import { GuestRequestDto } from './auth.controller';
 
@@ -14,10 +19,19 @@ import { GuestRequestDto } from './auth.controller';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly DOMAIN = 'auth';
+  private readonly templatesDir = path.join(
+    __dirname,
+    '..',
+    'knox',
+    'email-templates',
+  );
 
   constructor(
     private jwtService: JwtService,
     private readonly api: DataApiService,
+    private readonly knoxMailService: KnoxMailService,
+    private readonly mailRecipientService: MailRecipientService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ==========================
@@ -41,16 +55,16 @@ export class AuthService {
           'get',
           'whitelist/check',
           undefined,
-          { 
-            username: rawUserId, 
-            compId: user.companyCode, 
-            deptId: user.department 
+          {
+            username: rawUserId,
+            compId: user.companyCode,
+            deptId: user.department,
           },
           { returnNullOn404: true },
         );
-        
+
         if (authCheck?.isActive === 'Y') {
-           isWhitelisted = true;
+          isWhitelisted = true;
         }
       }
     } catch (e) {
@@ -91,7 +105,10 @@ export class AuthService {
       if (adminUser) {
         role = adminUser.role.toUpperCase();
       } else {
-        const guestUser = await this.api.request<{ grantedRole: string; validUntil?: string }>(
+        const guestUser = await this.api.request<{
+          grantedRole: string;
+          validUntil?: string;
+        }>(
           this.DOMAIN,
           'get',
           'guest/check',
@@ -101,10 +118,12 @@ export class AuthService {
         );
 
         if (guestUser) {
-          this.logger.log(`[Debug] Guest User Found: ${JSON.stringify(guestUser)}`);
+          this.logger.log(
+            `[Debug] Guest User Found: ${JSON.stringify(guestUser)}`,
+          );
           role = guestUser.grantedRole.toUpperCase();
           hasGuestAccess = true;
-          guestValidUntil = guestUser.validUntil; 
+          guestValidUntil = guestUser.validUntil;
         }
       }
     } catch (e) {
@@ -172,9 +191,9 @@ export class AuthService {
       role,
       site: contextSite || undefined,
       sdwt: contextSdwt || undefined,
-      validUntil: guestValidUntil, 
+      validUntil: guestValidUntil,
     };
-    
+
     this.logger.log(`[Debug] Final User Object: ${JSON.stringify(finalUser)}`);
 
     const payload = {
@@ -226,11 +245,112 @@ export class AuthService {
 
   async createGuestRequest(data: GuestRequestDto) {
     this.logger.log(`[GUEST REQUEST] New request from ${data.loginId}`);
-    return await this.api.request(
+    const request = await this.api.request(
       this.DOMAIN,
       'post',
       'guest-request',
       data,
     );
+
+    if (request) {
+      this.sendGuestRequestNotificationMail(data).catch((error: unknown) => {
+        this.logger.error(
+          `[Guest Request Mail] Failed to send notification mail: ${this.getErrorMessage(
+            error,
+          )}`,
+        );
+      });
+    }
+
+    return request;
+  }
+
+  // ==========================================
+  // [메일 발송] 게스트 권한 신청 알림
+  // - Admin / Manager 권한자 대상
+  // ==========================================
+  private async sendGuestRequestNotificationMail(
+    data: GuestRequestDto,
+  ): Promise<void> {
+    const recipients =
+      await this.mailRecipientService.getBoardAdminManagerRecipientEmails();
+
+    if (!recipients || recipients.length === 0) {
+      this.logger.warn(
+        `[Guest Request Mail] Skip notification. No Admin/Manager recipients. loginId=${data.loginId}`,
+      );
+      return;
+    }
+
+    const html = this.renderTemplate('guest-request-notification.html', {
+      loginId: data.loginId,
+      deptName: data.deptName || '미확인',
+      reason: data.reason || '작성되지 않음',
+      link: `${this.buildFrontendUrl()}/admin/users?tab=Requests`,
+    });
+
+    await this.knoxMailService.sendMail({
+      recipients,
+      subject: `[I:Vision] 게스트 접근 권한 신청이 접수되었습니다 (${data.loginId})`,
+      content: html,
+    });
+
+    this.logger.log(
+      `[Guest Request Mail] Notification sent. loginId=${data.loginId}, recipients=${recipients.length}`,
+    );
+  }
+
+  // ==========================================
+  // [공통] 프론트엔드 링크 생성
+  // ==========================================
+  private buildFrontendUrl(): string {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      'https://localhost:8080';
+
+    try {
+      return new URL(frontendUrl).origin;
+    } catch {
+      return frontendUrl;
+    }
+  }
+
+  // ==========================================
+  // [공통] 이메일 템플릿 렌더링
+  // ==========================================
+  private renderTemplate(
+    templateName: string,
+    variables: Record<string, string>,
+  ): string {
+    try {
+      const templatePath = path.join(this.templatesDir, templateName);
+      let html = fs.readFileSync(templatePath, 'utf-8');
+
+      for (const [key, value] of Object.entries(variables)) {
+        html = html.replace(new RegExp(`{${key}}`, 'g'), value);
+      }
+
+      return html;
+    } catch (error: unknown) {
+      this.logger.error(
+        `[Guest Request Mail] Failed to render template ${templateName}: ${this.getErrorMessage(
+          error,
+        )}`,
+      );
+
+      return '<p>새로운 알림이 있습니다. I:Vision에서 확인해 주세요.</p>';
+    }
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    return 'Unknown error';
   }
 }
