@@ -7,6 +7,9 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { SamlStrategy } from './saml.strategy';
 import { JwtStrategy } from './jwt.strategy';
+// [추가] 게스트 권한 신청 알림 메일 발송용
+import { KnoxModule } from '../knox/knox.module';
+import { MailRecipientModule } from '../mail-recipient/mail-recipient.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { JwtStrategy } from './jwt.strategy';
       secret: process.env.JWT_SECRET || 'itm-vision-secret-key',
       signOptions: { expiresIn: '8h' },
     }),
+    // [추가] KnoxMailService, MailRecipientService 제공
+    KnoxModule,
+    MailRecipientModule,
   ],
   controllers: [AuthController],
   providers: [
@@ -27,5 +33,6 @@ import { JwtStrategy } from './jwt.strategy';
     JwtStrategy,
     // PrismaService 제거됨
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}
