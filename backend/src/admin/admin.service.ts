@@ -1,5 +1,6 @@
 // backend/src/admin/admin.service.ts
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataApiService } from '../common/data-api.service';
 import { KnoxMailService } from '../knox/knox-mail.service';
 import { MailRecipientService } from '../mail-recipient/mail-recipient.service';
@@ -56,6 +57,7 @@ export class AdminService {
     private readonly api: DataApiService,
     private readonly knoxMailService: KnoxMailService,
     private readonly mailRecipientService: MailRecipientService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getAllUsers(): Promise<AdminUserResult[] | null> {
@@ -415,7 +417,7 @@ export class AdminService {
         ? new Date(guest.validUntil as string).toLocaleString('ko-KR')
         : '설정 없음',
       approverName: approverId,
-      link: 'https://localhost:8080',
+      link: this.buildFrontendUrl(),
     });
 
     await this.knoxMailService.sendMail({
@@ -450,6 +452,21 @@ export class AdminService {
       subject: `[I:Vision] 게스트 접근이 거절되었습니다 (${request.loginId})`,
       content: html,
     });
+  }
+
+  // ==========================================
+  // [공통] 이메일 템플릿 렌더링
+  // ==========================================
+  private buildFrontendUrl(): string{
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      'https://localhost:8080';
+
+    try {
+      return new URL(frontendUrl).origin;
+    } catch {
+      return frontendUrl;
+    }
   }
 
   // ==========================================
