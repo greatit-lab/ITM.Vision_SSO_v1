@@ -90,7 +90,7 @@
                   </div>
                 </div>
 
-                <div v-if="pendingRequestCount > 0" class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b border-slate-50 dark:border-zinc-800/50 transition-colors">
+                <div v-if="pendingRequestCount > 0" @click="goToGuestRequests" class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b cursor-pointer border-slate-50 dark:border-zinc-800/50 transition-colors">
                   <div class="flex items-start gap-3">
                     <div class="mt-0.5 text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 p-1.5 rounded-full">
                       <i class="pi pi-user-plus text-xs"></i>
@@ -549,7 +549,8 @@ const fetchNotifications = async () => {
     try {
       const res = await httpData.get('/alert', { params: { userId: authStore.user?.userId } }); 
       const alertsData = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-      qnaAlerts.value = alertsData;
+      // 이미 읽음 처리된 알림은 목록에 다시 표시하지 않음
+      qnaAlerts.value = alertsData.filter((a: any) => !a.isRead);
     } catch (e) {
       console.error("Failed to fetch alerts:", e);
     }
@@ -588,12 +589,19 @@ const hasNotification = computed(() => {
   return hasPending || hasGuest || hasUnreadAlerts;
 });
 
+const goToGuestRequests = () => {
+  showNotifications.value = false;
+  router.push({ name: "admin-users", query: { tab: "Requests" } });
+};
+
 const handleAlertClick = async (alert: any) => {
   try {
     if (!alert.isRead) {
       await httpData.post(`/alert/${alert.id}/read`);
       alert.isRead = true; 
     }
+    // 확인한 알림은 목록에서 즉시 제거
+    qnaAlerts.value = qnaAlerts.value.filter((a) => a.id !== alert.id);
     if (alert.link) {
       showNotifications.value = false;
       router.push(alert.link);
