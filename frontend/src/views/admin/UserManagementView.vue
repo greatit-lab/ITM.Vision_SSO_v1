@@ -332,7 +332,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
@@ -349,7 +350,10 @@ import { useAuthStore } from "@/stores/auth";
 import * as AdminApi from "@/api/admin";
 
 const authStore = useAuthStore();
-const activeTab = ref("Active Guests");
+const route = useRoute();
+const activeTab = ref(
+  route.query.tab === "Requests" ? "Requests" : "Active Guests",
+);
 
 // State
 const users = ref<any[]>([]);
