@@ -170,7 +170,7 @@
                         rows="1"
                         :placeholder="isAdminRole(authStore.user?.role) ? '답변을 입력하세요...' : '댓글을 입력하세요...'" 
                         class="w-full px-4 py-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 resize-none text-sm transition-all shadow-sm"
-                        @keydown.enter.prevent="submitComment"
+                        @keydown.enter.shift.exact.prevent="submitComment"
                         style="min-height: 42px;"
                         ></textarea>
                     </div>
@@ -320,6 +320,8 @@ const submitComment = async () => {
     await boardApi.createComment({
       postId: post.value.postId,
       authorId: authStore.user.userId,
+      // authorRole은 답변 알림 메일 표시용으로만 사용되며 DB에는 저장되지 않음
+      authorRole: authStore.user.role,
       content: newComment.value,
       status: statusParam 
     });
