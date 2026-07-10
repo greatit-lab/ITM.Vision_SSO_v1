@@ -53,6 +53,7 @@ export const boardApi = {
     title: string;
     content: string;
     authorId: string;
+    authorName?: string;
     category?: string;
     isSecret?: string;
     isPopup?: string;
@@ -88,6 +89,7 @@ export const boardApi = {
   createComment: (data: {
     postId: number;
     authorId: string;
+    authorRole?: string;
     content: string;
     parentId?: number;
     status?: string; // [추가] 게시글 상태 동시 변경용
