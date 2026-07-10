@@ -455,9 +455,9 @@ export class AdminService {
   }
 
   // ==========================================
-  // [공통] 이메일 템플릿 렌더링
+  // [공통] 프론트엔드 링크 생성
   // ==========================================
-  private buildFrontendUrl(): string{
+  private buildFrontendUrl(): string {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') ||
       'https://localhost:8080';
