@@ -35,6 +35,12 @@ export class KnoxMailService {
     this.accountId = this.configService.get<string>('KNOX_ACCOUNT_ID') || '';
     this.accessToken =
       this.configService.get<string>('KNOX_ACCESS_TOKEN') || '';
+
+    // [디버깅 코드] 실제 로드된 토큰의 앞자리 확인
+    this.logger.warn(
+      `[DEBUG-TOKEN] Loaded Token Prefix: ${this.accessToken.substring(0, 5)}...`,
+    );
+
     this.senderEmail =
       this.configService.get<string>('KNOX_SENDER_EMAIL') || '';
 
