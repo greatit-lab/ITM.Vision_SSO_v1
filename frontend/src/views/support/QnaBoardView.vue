@@ -86,7 +86,6 @@
         <table class="w-full text-xs text-left">
           <thead class="bg-slate-50 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-zinc-700 sticky top-0 z-10 shadow-sm">
             <tr>
-              <th class="px-3 py-2.5 text-center w-14">No</th>
               <th class="px-3 py-2.5 text-center w-20">분류</th>
               <th class="px-3 py-2.5">제목</th>
               <th class="px-3 py-2.5 text-center w-28">작성자</th>
@@ -97,7 +96,7 @@
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
             <tr v-if="posts.length === 0">
-              <td colspan="7" class="px-4 py-20 text-center text-slate-500">
+              <td colspan="6" class="px-4 py-20 text-center text-slate-500">
                 등록된 게시글이 없습니다.
               </td>
             </tr>
@@ -107,7 +106,6 @@
               @click="goToDetail(post)"
               class="hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors group"
             >
-              <td class="px-3 py-2.5 text-center text-slate-400">{{ post.postId }}</td>
               <td class="px-3 py-2.5 text-center">
                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border" :class="getCategoryColor(post.category)">
                   {{ post.category }}
