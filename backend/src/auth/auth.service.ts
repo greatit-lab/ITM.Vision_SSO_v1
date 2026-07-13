@@ -324,7 +324,7 @@ export class AuthService {
 
     const recipientCount = await this.sendGuestRequestNotificationMail(data);
 
-    retrun { sent: recipientCount > 0, recipientCount };
+    return { sent: recipientCount > 0, recipientCount };
   }
 
   // ==========================================
@@ -354,7 +354,7 @@ export class AuthService {
       let html = fs.readFileSync(templatePath, 'utf-8');
 
       for (const [key, value] of Object.entries(variables)) {
-        // "Html" 접미사 키는 이미 랜더링된 HTML로 간주하여 이스케이프하지 않음
+        // "Html" 접미사 키는 이미 렌더링된 HTML로 간주하여 이스케이프하지 않음
         const replacement = key.endsWith('Html')
           ? value
           : this.escapeHtml(value);
