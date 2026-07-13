@@ -51,6 +51,14 @@ export const getGuestRequests = () => http.get("/admin/requests");
 export const approveGuestRequest = (data: { reqId: number; validUntil: string | Date; approverId: string; grantedRole?: string; }) => http.post("/admin/requests/approve", data);
 export const rejectGuestRequest = (data: { reqId: number; approverId: string; }) => http.post("/admin/requests/reject", data);
 
+// 게스트 신청 안내 메일 재발송
+export const resendGuestRequestMail = (data: {
+  loginId: string;
+  deptName?: string;
+  deptCode?: string;
+  reason?: string;
+}) => http.post("/auth/guest-request/resend-mail", data);
+
 export const getSeverities = () => http.get("/admin/severity");
 export const addSeverity = (data: { errorId: string; severity: string; description?: string; }) => http.post("/admin/severity", data);
 export const updateSeverity = ( errorId: string, data: { severity: string; description?: string }, ) => http.put(`/admin/severity/${errorId}`, data);
