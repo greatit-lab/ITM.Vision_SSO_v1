@@ -27,10 +27,12 @@ interface ErrorWithStatus {
 }
 
 export class GuestRequestDto {
-  loginId: string;
+  loginId!: string;
   deptName?: string;
   deptCode?: string;
   reason?: string;
+  // AD 인증 시 확인된 신청자 이름 (메일 안내용, DB에는 저장하지 않음)
+  userName?: string;
 }
 
 @Controller('auth')
@@ -93,6 +95,7 @@ export class AuthController {
           loginId: req.user.userId || '',
           deptCode: req.user.department || '',
           deptName: req.user.departmentName || '',
+          userName: req.user.name || '',
         });
 
         return res.redirect(`${frontendUrl}?${params.toString()}`);
@@ -119,6 +122,12 @@ export class AuthController {
   async requestGuestAccess(@Body() body: GuestRequestDto) {
     console.log('[SSO Controller] Guest Request Body:', body);
     return this.authService.createGuestRequest(body);
+  }
+
+  // 게스트 신청 안내 메일 재발송 - Admin 페이지 "안내 메일 재발송" 버튼에서 사용
+  @Post('guest-request/resend-mail')
+  async resendGuestRequestMail(@Body() body: GuestRequestDto) {
+    return this.authService.resendGuestRequestNotificationMail(body);
   }
 
   @Get('context')
