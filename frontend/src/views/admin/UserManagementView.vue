@@ -10,7 +10,27 @@
           시스템 사용자 현황 및 예외/게스트 접근 권한 관리
         </p>
       </div>
-      <Button icon="pi pi-refresh" label="새로고침" size="small" outlined class="!text-xs" @click="fetchAllData" />
+      <div class="flex items-center gap-2">
+        <Button
+          v-if="activeTab === 'Requests'"
+          icon="pi pi-send"
+          label="안내 메일 재발송"
+          size="small"
+          outlined
+          severity="help"
+          class="!text-xs"
+          :disabled="selectedRequests.length === 0"
+          @click="resendMail"
+        />
+        <Button
+          icon="pi pi-refresh"
+          label="새로고침"
+          size="small"
+          outlined
+          class="!text-xs"
+          @click="fetchAllData"
+        />
+        </div>
     </div>
 
     <div class="flex flex-1 min-h-0 gap-3 overflow-hidden">
@@ -192,13 +212,20 @@
         </div>
 
         <div v-if="activeTab === 'Requests'" class="relative flex-1 w-full min-h-0 overflow-hidden">
-          <DataTable :value="requests" scrollable scrollHeight="flex" class="absolute inset-0 w-full h-full text-xs border-none p-datatable-sm" stripedRows>
+          <DataTable
+            :value="requests"
+            v-model:selection="selectedRequests"
+            dataKey="reqId"
+            scrollable
+            scrollHeight="flex"
+            class="absolute inset-0 w-full h-full text-xs border-none p-datatable-sm" stripedRows>
             <template #empty>
               <div class="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
                 <i class="text-2xl pi pi-check-circle opacity-20"></i>
                 <span>대기 중인 요청이 없습니다.</span>
               </div>
             </template>
+            <Column selectionMode="multiple" style="width: 3%"></Column>
             <Column field="loginId" header="신청 ID" style="width: 10%; font-weight: bold"></Column>
             <Column field="deptCode" header="부서코드" style="width: 15%"></Column>
             <Column field="deptName" header="부서명" style="width: 20%"></Column>
@@ -369,6 +396,9 @@ const users = ref<any[]>([]);
 const guests = ref<any[]>([]);
 const requests = ref<any[]>([]);
 const exceptionUsers = ref<any[]>([]);
+
+// 게스트 신청 안내 메일 재발송용 선택 목록
+const selectedRequests = ref<any[]>([]);
 
 // 필터 상태 변수
 const filterUserId = ref("");
@@ -554,6 +584,43 @@ const rejectRequest = async (reqId: number) => {
   } catch (e) {
     alert("반려 처리 중 오류 발생");
   }
+};
+
+// 체크한 신청자에 대해 게스트 신청 안내 메일을 재발송
+const resendMail = async () => {
+  if (selectedRequests.value.length === 0) return;
+
+  const targets = selectedRequests.value;
+  if (
+    !confirm(
+      `선택한 ${targets.length}건의 신청에 대해 안내 메일을 재발송하시겠습니까?\n(Admin/Manager 권한자에게 실제 발송됩니다)`,
+    )
+  ) {
+    return;
+  }
+  
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const req of targets) {
+    try {
+      await AdminApi.resendGuestRequestMail({
+        loginId: req.loginId,
+        deptName: req.deptName,
+        deptCode: req.deptCode,
+        reason: req.reason,
+      });
+      successCount++;
+    } catch (e) {
+      failCount++;
+      console.error(`[안내 메일 재발송] 발송 실패: ${req.loginId}`, e);
+    }
+  }
+
+  alert(
+    `안내 메일 재발송 완료\n성공: ${successCount}건${failCount > 0 ? `, 실패: ${failCount}건` : ""}`,
+  );
+  selectedRequests.value = [];
 };
 
 const manualDialogVisible = ref(false);
