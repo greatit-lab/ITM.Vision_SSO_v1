@@ -196,7 +196,7 @@ export class AdminService {
     );
 
     if (guest) {
-      this.sendGuestApprovalMail(guest, data.approverId).catch((err) => {
+      this.sendGuestApprovalMail(guest).catch((err) => {
         console.error(
           '[AdminService] Failed to send guest approval email:',
           err,
@@ -398,11 +398,10 @@ export class AdminService {
 
   // ==========================================
   // [메일 발송] 게스트 승인 알림
+  // - 신청은 GUEST였더라도 관리자가 VIEWER 등 다른 권한으로
+  //   승인할 수 있으므로, 실제 부여된 권한을 명확히 안내
   // ==========================================
-  private async sendGuestApprovalMail(
-    guest: GuestAccessResult,
-    approverId: string,
-  ): Promise<void> {
+  private async sendGuestApprovalMail(guest: GuestAccessResult): Promise<void> {
     const recipients: string[] = [guest.loginId];
     const systemRecipients =
       await this.mailRecipientService.getActiveRecipientEmails('SYSTEM');
@@ -410,14 +409,23 @@ export class AdminService {
       recipients.push(...systemRecipients);
     }
 
+    const grantedRole = (guest.grantedRole || 'GUEST').toUpperCase();
+    const roleBadgeColors = this.getRoleBadgeColors(grantedRole);
+    const frontendOrigin = this.buildFrontendUrl();
+
     const html = this.renderTemplate('guest-approval.html', {
       loginId: guest.loginId,
-      grantedRole: guest.grantedRole || 'GUEST',
+      roleBadgeText: grantedRole,
+      __roleBadgeTextColor__: roleBadgeColors.text,
+      __roleBadgeBgColor__: roleBadgeColors.bg,
+      __roleBadgeBorderColor__: roleBadgeColors.border,
+      roleDescription: this.getRoleDescription(grantedRole),
       validUntil: guest.validUntil
         ? new Date(guest.validUntil as string).toLocaleString('ko-KR')
         : '설정 없음',
-      approverName: approverId,
-      link: this.buildFrontendUrl(),
+      link: frontendOrigin,
+      logoIconUrl: `${frontendOrigin}/mail/logo-icon.png`,
+      logoTextUrl: `${frontendOrigin}/mail/logo-text.png`,
     });
 
     await this.knoxMailService.sendMail({
@@ -425,6 +433,35 @@ export class AdminService {
       subject: `[I:Vision] 게스트 접근이 승인되었습니다 (${guest.loginId})`,
       content: html,
     });
+  }
+
+  // 승인된 권한(GUEST/VIEWER 등)에 따른 뱃지 색상
+  private getRoleBadgeColors(role: string): {
+    text: string;
+    bg: string;
+    border: string;
+  } {
+    switch (role) {
+      case 'VIEWER':
+        return { text: '#059669', bg: '#f0fdfa', border: '#ccfbf1' };
+      case 'GUEST':
+        return { text: '#d97706', bg: '#fffbeb', border: '#fef3c7' };
+      default:
+        return { text: '#4f46e5', bg: '#eef2ff', border: '#e0e7ff' };
+    }
+  }
+
+  // 신청한 권한(GUEST)과 실제 승인된 권한이 다른 수 있으므로,
+  // 부여된 권한별 실제 제약 사항을 명확히 안내
+  private getRoleDescription(role: string): string {
+    switch (role) {
+      case 'VIEWER':
+        return '데이터 다운로드가 제한되고, 일부 메뉴 및 기능에는 접근할 수 없는 제한 권한(VIEWER)이 부여되었습니다.';
+      case 'GUEST':
+        return '신청하신 대로 대시보드 열람만 가능한 게스트(GUEST) 권한이 부여되었습니다.';
+      default:
+        return `${role} 권한이 부여되었습니다.`;
+    }
   }
 
   // ==========================================
@@ -481,7 +518,10 @@ export class AdminService {
       let html = fs.readFileSync(templatePath, 'utf-8');
 
       for (const [key, value] of Object.entries(variables)) {
-        html = html.replace(new RegExp(`{${key}}`, 'g'), value);
+        // "__key__" 형태는 인라인 CSS 값 등 중괄호를 쓸 수 없는 위치에 사용
+        const isBraceless = key.startsWith('__') && key.endsWith('__'_;
+        const pattern = isBraceless ? key : `{${key}}`;
+        html = html.replace(new RegExp(pattern, 'g'), () => value);
       }
 
       return html;
