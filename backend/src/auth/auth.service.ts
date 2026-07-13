@@ -245,6 +245,8 @@ export class AuthService {
 
   async createGuestRequest(data: GuestRequestDto) {
     this.logger.log(`[GUEST REQUEST] New request from ${data.loginId}`);
+    // itm-data-api는 loginId/deptCode/deptName/reason만 선택적으로 저장하므로
+    // userName을 함께 보내도 DB에는 저장되지 않음 (메일 안내용으로만 사용)
     const request = await this.api.request(
       this.DOMAIN,
       'post',
@@ -271,7 +273,7 @@ export class AuthService {
   // ==========================================
   private async sendGuestRequestNotificationMail(
     data: GuestRequestDto,
-  ): Promise<void> {
+  ): Promise<number> {
     const recipients =
       await this.mailRecipientService.getBoardAdminManagerRecipientEmails();
 
@@ -279,14 +281,21 @@ export class AuthService {
       this.logger.warn(
         `[Guest Request Mail] Skip notification. No Admin/Manager recipients. loginId=${data.loginId}`,
       );
-      return;
+      return 0;
     }
 
+    const frontendOrigin = this.buildFrontendUrl();
+    const loginIdDisplay = data.userName
+      ? `${data.loginId} (${data.userName})`
+      : data.loginId;
+
     const html = this.renderTemplate('guest-request-notification.html', {
-      loginId: data.loginId,
+      loginId: loginIdDisplay,
       deptName: data.deptName || '미확인',
-      reason: data.reason || '작성되지 않음',
-      link: `${this.buildFrontendUrl()}/admin/users?tab=Requests`,
+      reasonHtml: this.plainTextToHtml(data.reason || '작성되지 않음'),
+      link: `${frontendOrigin}/admin/users?tab=Requests`,
+      logoIconUrl: `${frontendOrigin}/mail/logo-icon.png`,
+      logoTextUrl: `${frontendOrigin}/mail/logo-text.png`,
     });
 
     await this.knoxMailService.sendMail({
@@ -298,6 +307,24 @@ export class AuthService {
     this.logger.log(
       `[Guest Request Mail] Notification sent. loginId=${data.loginId}, recipients=${recipients.length}`,
     );
+
+    return recipients.length;
+  }
+
+  // ==========================================
+  // [Admin 수동 발송] 게스트 권한 신청 안내 메일 재발송
+  // - Admin 페이지의 "안내 메일 재발송" 버튼에서 호출
+  // ==========================================
+  async resendGuestRequestNotificationMail(
+    data: GuestRequestDto,
+  ): Promise<{ sent: boolean; recipientCount: number }> {
+    this.logger.log(
+      `[Guest Request Mail][RESEND] Manual resend requested. loginId=${data.loginId}`,
+    );
+
+    const recipientCount = await this.sendGuestRequestNotificationMail(data);
+
+    retrun { sent: recipientCount > 0, recipientCount };
   }
 
   // ==========================================
@@ -327,7 +354,11 @@ export class AuthService {
       let html = fs.readFileSync(templatePath, 'utf-8');
 
       for (const [key, value] of Object.entries(variables)) {
-        html = html.replace(new RegExp(`{${key}}`, 'g'), value);
+        // "Html" 접미사 키는 이미 랜더링된 HTML로 간주하여 이스케이프하지 않음
+        const replacement = key.endsWith('Html')
+          ? value
+          : this.escapeHtml(value);
+        html = html.replace(new RegExp(`{${key}}`, 'g'), () => replacement);
       }
 
       return html;
@@ -340,6 +371,26 @@ export class AuthService {
 
       return '<p>새로운 알림이 있습니다. I:Vision에서 확인해 주세요.</p>';
     }
+  }
+
+  // 신청 사유(순수 텍스트, 개행문자 \n 포함)를 메일 본문에 삽입하기 전 HTML로 안전 변환
+  private plainTextToHtml(plainText: string): string {
+    const trimmed = plainText.trim();
+
+    if (!trimmed) {
+      return '<p style="color:#999">(내용 없음)</p>';
+    }
+
+    return this.escapeHtml(trimmed).replace(/\n/g, '<br>');
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private getErrorMessage(error: unknown): string {
