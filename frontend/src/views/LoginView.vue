@@ -138,19 +138,19 @@
         <div
           class="p-6 text-center border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800"
         >
-           <img
-             :src="logoUrl"
-             alt="Logo"
-             class="w-auto h-10 mx-auto mb-3 opacity-90"
-            />
-           <h3 class="text-lg font-bold text-slate-800 dark:text-white">
-             Guest Access Request
-           </h3>
-           <p
-             class="text-[10px] text-slate-500 uppercase tracking-wider font-bold"
-           >
-             Data Intelligence Platform
-           </p>
+          <img
+            :src="logoUrl"
+            alt="Logo"
+            class="w-auto h-10 mx-auto mb-3 opacity-90"
+          />
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white">
+            Guest Access Request
+          </h3>
+          <p
+            class="text-[10px] text-slate-500 uppercase tracking-wider font-bold"
+          >
+            Data Intelligence Platform
+          </p>
         </div>
 
         <div class="flex flex-col gap-5 p-6">
@@ -167,7 +167,7 @@
               reason and try again.
             </div>
           </div>
-          
+
           <p
             v-else
             class="text-sm leading-relaxed text-center text-slate-600 dark:text-slate-400"
