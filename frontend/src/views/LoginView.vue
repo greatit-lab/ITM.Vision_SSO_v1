@@ -18,20 +18,22 @@
     >
       <div class="flex flex-col items-center mb-10 text-center">
         <div class="mb-6 transition-transform duration-300 hover:scale-105">
-          <img 
-            :src="logoUrl" 
-            alt="ITM Vision Logo" 
-            class="h-16 w-auto drop-shadow-lg object-contain filter"
+          <img
+            :src="logoUrl"
+            alt="ITM Vision Logo"
+            class="object-contain w-auto h-16 drop-shadow-lg filter"
           />
         </div>
-        
+
         <h1
           class="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-indigo-900 to-slate-800 dark:from-white dark:via-indigo-200 dark:to-slate-200"
         >
           I:Vision AD
         </h1>
-        
-        <p class="mt-2 text-xs font-bold tracking-widest uppercase text-slate-500 dark:text-slate-400">
+
+        <p
+          class="mt-2 text-xs font-bold tracking-widest uppercase text-slate-500 dark:text-slate-400"
+        >
           Enterprise Data Intelligence Platform
         </p>
       </div>
@@ -66,9 +68,12 @@
             {{ getTitleByError(errorType) }}
           </h3>
 
-          <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+          <p
+            class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400"
+          >
             <span v-if="guestForm.loginId" class="block mb-1">
-              Account: <span class="font-bold font-mono">{{ guestForm.loginId }}</span>
+              Account:
+              <span class="font-mono font-bold">{{ guestForm.loginId }}</span>
             </span>
             {{ getMessageByError(errorType) }}
           </p>
@@ -85,9 +90,9 @@
 
         <div
           v-else-if="errorType === 'PendingApproval'"
-          class="p-3 text-xs font-bold text-center text-amber-700 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-100 dark:border-amber-800"
+          class="p-3 text-xs font-bold text-center border rounded-lg text-amber-700 bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800"
         >
-          <i class="pi pi-clock mr-1"></i> Awaiting administrator approval.
+          <i class="mr-1 pi pi-clock"></i> Awaiting administrator approval.
         </div>
 
         <Button
@@ -100,7 +105,7 @@
           @click="showGuestDialog = true"
         />
 
-        <div class="text-center mt-2">
+        <div class="mt-2 text-center">
           <a
             href="#"
             @click.prevent="resetState"
@@ -110,7 +115,7 @@
         </div>
       </div>
 
-      <div class="mt-10 text-center space-y-1">
+      <div class="mt-10 space-y-1 text-center">
         <p class="text-xs font-bold text-slate-500 dark:text-slate-400">
           Memory CMP Technology Team
         </p>
@@ -130,34 +135,56 @@
       contentClass="!p-0 !rounded-2xl overflow-hidden"
     >
       <div class="flex flex-col bg-white dark:bg-[#18181b]">
-        <div class="bg-slate-50 dark:bg-zinc-900/50 p-6 text-center border-b border-slate-100 dark:border-zinc-800">
-           <img :src="logoUrl" alt="Logo" class="h-10 w-auto mx-auto mb-3 opacity-90" />
-           <h3 class="text-lg font-bold text-slate-800 dark:text-white">Guest Access Request</h3>
-           <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Data Intelligence Platform</p>
+        <div
+          class="p-6 text-center border-b bg-slate-50 dark:bg-zinc-900/50 border-slate-100 dark:border-zinc-800"
+        >
+           <img
+             :src="logoUrl"
+             alt="Logo"
+             class="w-auto h-10 mx-auto mb-3 opacity-90"
+            />
+           <h3 class="text-lg font-bold text-slate-800 dark:text-white">
+             Guest Access Request
+           </h3>
+           <p
+             class="text-[10px] text-slate-500 uppercase tracking-wider font-bold"
+           >
+             Data Intelligence Platform
+           </p>
         </div>
 
-        <div class="p-6 flex flex-col gap-5">
+        <div class="flex flex-col gap-5 p-6">
           <div
             v-if="errorType === 'Rejected'"
-            class="p-3 text-xs leading-relaxed bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-900/30 flex items-start gap-2"
+            class="flex items-start gap-2 p-3 text-xs leading-relaxed text-red-600 border border-red-100 rounded-lg bg-red-50 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30"
           >
             <i class="pi pi-info-circle mt-0.5"></i>
             <div>
-              <span class="font-bold block mb-0.5">Previous Request Rejected</span>
-              Your previous access request was declined. Please update your reason and try again.
+              <span class="font-bold block mb-0.5"
+                >Previous Request Rejected</span
+              >
+              Your previous access request was declined. Please update your
+              reason and try again.
             </div>
           </div>
           
-          <p v-else class="text-sm text-slate-600 dark:text-slate-400 text-center leading-relaxed">
-            Your account is not authorized.<br/>
+          <p
+            v-else
+            class="text-sm leading-relaxed text-center text-slate-600 dark:text-slate-400"
+          >
+            Your account is not authorized.<br />
             Request access with your verified department info.
           </p>
 
           <div class="space-y-4">
             <div class="space-y-1.5">
-              <label class="text-xs font-bold text-slate-500 ml-1">Login ID</label>
+              <label class="ml-1 text-xs font-bold text-slate-500"
+                >Login ID</label
+              >
               <div class="relative">
-                <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <i
+                  class="absolute -translate-y-1/2 pi pi-user left-3 top-1/2 text-slate-400"
+                ></i>
                 <InputText
                   v-model="guestForm.loginId"
                   disabled
@@ -168,7 +195,9 @@
 
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">
-                <label class="text-xs font-bold text-slate-500 ml-1">Dept Code</label>
+                <label class="ml-1 text-xs font-bold text-slate-500"
+                  >Dept Code</label
+                >
                 <InputText
                   v-model="guestForm.deptCode"
                   disabled
@@ -176,7 +205,9 @@
                 />
               </div>
               <div class="space-y-1.5">
-                <label class="text-xs font-bold text-slate-500 ml-1">Dept Name</label>
+                <label class="ml-1 text-xs font-bold text-slate-500"
+                  >Dept Name</label
+                >
                 <InputText
                   v-model="guestForm.deptName"
                   disabled
@@ -186,7 +217,7 @@
             </div>
 
             <div class="space-y-1.5">
-              <label class="text-xs font-bold text-slate-500 ml-1">
+              <label class="ml-1 text-xs font-bold text-slate-500">
                 Reason for Access <span class="text-rose-500">*</span>
               </label>
               <InputText
@@ -198,7 +229,9 @@
           </div>
         </div>
 
-        <div class="p-4 bg-slate-50 dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2">
+        <div
+          class="flex justify-end gap-2 p-4 border-t bg-slate-50 dark:bg-zinc-900 border-slate-100 dark:border-zinc-800"
+        >
           <Button
             label="Cancel"
             text
@@ -244,6 +277,7 @@ const guestForm = reactive({
   deptName: "",
   deptCode: "",
   reason: "",
+  userName: "",
 });
 
 // URL Query 감지
@@ -258,6 +292,7 @@ watch(
         guestForm.loginId = (newQuery.loginId as string) || "";
         guestForm.deptCode = (newQuery.deptCode as string) || "";
         guestForm.deptName = (newQuery.deptName as string) || "";
+        guestForm.userName = (newQuery.userName as string) || "";
       } else if (newQuery.token) {
         const token = newQuery.token as string;
         const userStr = newQuery.user as string;
@@ -271,7 +306,7 @@ watch(
       console.error("Query param processing error:", e);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // UI Helpers (스타일링 로직)
@@ -305,18 +340,19 @@ const getTitleByError = (type: string | null) => {
 const getMessageByError = (type: string | null) => {
   if (type === "PendingApproval")
     return "Your access request is currently under review by an administrator.";
-  if (type === "Rejected") return "We regret to inform you that your access request has been declined.";
-  if (type === "ServerErrors") return "A server error occurred during authentication. Please try again later.";
-  if (type === "NoUser") return "No user information received from SSO provider.";
+  if (type === "Rejected")
+    return "We regret to inform you that your access request has been declined.";
+  if (type === "ServerErrors")
+    return "A server error occurred during authentication. Please try again later.";
+  if (type === "NoUser")
+    return "No user information received from SSO provider.";
   return "You do not have permission to access this system.";
 };
 
 const startSsoLogin = () => {
   isLoading.value = true;
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  const targetUrl = apiBaseUrl
-    ? `${apiBaseUrl}/auth/login`
-    : '/api/auth/login';
+  const targetUrl = apiBaseUrl ? `${apiBaseUrl}/auth/login` : "/api/auth/login";
   window.location.href = targetUrl;
 };
 
@@ -355,8 +391,14 @@ const resetState = () => {
 
 <style scoped>
 @keyframes fadein {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-fadein {
   animation: fadein 0.5s ease-out forwards;
