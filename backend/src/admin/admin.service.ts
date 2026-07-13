@@ -451,7 +451,7 @@ export class AdminService {
     }
   }
 
-  // 신청한 권한(GUEST)과 실제 승인된 권한이 다른 수 있으므로,
+  // 신청한 권한(GUEST)과 실제 승인된 권한이 다를 수 있으므로,
   // 부여된 권한별 실제 제약 사항을 명확히 안내
   private getRoleDescription(role: string): string {
     switch (role) {
@@ -519,7 +519,7 @@ export class AdminService {
 
       for (const [key, value] of Object.entries(variables)) {
         // "__key__" 형태는 인라인 CSS 값 등 중괄호를 쓸 수 없는 위치에 사용
-        const isBraceless = key.startsWith('__') && key.endsWith('__'_;
+        const isBraceless = key.startsWith('__') && key.endsWith('__');
         const pattern = isBraceless ? key : `{${key}}`;
         html = html.replace(new RegExp(pattern, 'g'), () => value);
       }
